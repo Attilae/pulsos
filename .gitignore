@@ -3,3 +3,4 @@ node_modules/
 server/cache/
 dist/
 .DS_Store
+data/budapest_gtfs/
