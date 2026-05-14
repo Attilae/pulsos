@@ -13,9 +13,12 @@ import {
 // so existing DAW mute/volume controls remain in effect.
 export class VehicleVoice {
   constructor(outputNode) {
-    this._active   = false
-    this._note     = null
-    this._prevSpeed = 0
+    this._active      = false
+    this._note        = null
+    this._prevSpeed   = 0
+    this._outputNode  = outputNode
+    this._harmonySynth   = null
+    this._harmonyInterval = 0
 
     // Main voice: FMSynth with occupancy-driven modulation index
     this._synth = new Tone.FMSynth({
@@ -39,6 +42,38 @@ export class VehicleVoice {
     this._synth.chain(this._vibrato, this._filter, this._panner, outputNode)
   }
 
+  // Switch between percussive (short one-shot) and harmonic (sustained) modes.
+  setMode(mode, harmonyInterval = 0) {
+    if (mode === 'percussive') {
+      this._synth.set({ envelope: { attack: 0.003, decay: 0.18, sustain: 0, release: 0.35 } })
+      this._disposeHarmonySynth()
+    } else {
+      this._synth.set({ envelope: { attack: 0.4, decay: 0.1, sustain: 1.0, release: 1.4 } })
+      this._setHarmonyInterval(harmonyInterval)
+    }
+  }
+
+  _setHarmonyInterval(semitones) {
+    this._harmonyInterval = semitones
+    if (semitones === 0) { this._disposeHarmonySynth(); return }
+    if (!this._harmonySynth) {
+      this._harmonySynth = new Tone.Synth({
+        oscillator: { type: 'sine' },
+        volume: -12,
+        envelope: { attack: 0.4, decay: 0.1, sustain: 0.8, release: 1.4 },
+      })
+      this._harmonySynth.chain(this._filter, this._panner, this._outputNode)
+    }
+  }
+
+  _disposeHarmonySynth() {
+    if (this._harmonySynth) {
+      this._harmonySynth.dispose()
+      this._harmonySynth = null
+    }
+    this._harmonyInterval = 0
+  }
+
   // Update voice with the latest vehicle state.
   // data: { note, lat, lng, bearing, speed, currentStatus,
   //         occupancyPct, delay, uncertainty, edgeness? }
@@ -48,16 +83,29 @@ export class VehicleVoice {
     // ── Status envelope: drive ADSR from vehicle state machine ───────────────
     if (currentStatus === 0 && !this._active) {
       // INCOMING_AT → attack
-      this._synth.triggerAttack(note ?? this._note ?? 'D4', Tone.now())
+      const n = note ?? this._note ?? 'D4'
+      this._synth.triggerAttack(n, Tone.now())
+      if (this._harmonySynth && this._harmonyInterval) {
+        this._harmonySynth.triggerAttack(
+          Tone.Frequency(n).transpose(this._harmonyInterval).toFrequency(), Tone.now()
+        )
+      }
       this._note   = note ?? this._note
       this._active = true
     } else if (currentStatus === 2 && this._active) {
       // IN_TRANSIT_TO → release
       this._synth.triggerRelease(Tone.now())
+      this._harmonySynth?.triggerRelease(Tone.now())
       this._active = false
     } else if (currentStatus === 1 && !this._active) {
       // STOPPED_AT with no prior attack (e.g., first sight of vehicle at stop)
-      this._synth.triggerAttack(note ?? 'D4', Tone.now())
+      const n = note ?? 'D4'
+      this._synth.triggerAttack(n, Tone.now())
+      if (this._harmonySynth && this._harmonyInterval) {
+        this._harmonySynth.triggerAttack(
+          Tone.Frequency(n).transpose(this._harmonyInterval).toFrequency(), Tone.now()
+        )
+      }
       this._note   = note ?? this._note
       this._active = true
     }
@@ -112,6 +160,7 @@ export class VehicleVoice {
   dispose() {
     if (this._active) {
       this._synth.triggerRelease(Tone.now())
+      this._harmonySynth?.triggerRelease(Tone.now())
     }
     // Small delay before disposal so release tails finish
     setTimeout(() => {
@@ -119,6 +168,7 @@ export class VehicleVoice {
       this._vibrato.dispose()
       this._filter.dispose()
       this._panner.dispose()
+      this._disposeHarmonySynth()
     }, 2000)
   }
 }

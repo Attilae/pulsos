@@ -5,7 +5,7 @@ import { WebSocketServer } from 'ws'
 import { loadGtfs } from './gtfsLoader.js'
 import { BkkFeed } from './bkkFeed.js'
 
-const PORT    = process.env.PORT    || 3001
+const PORT    = process.env.PORT    || 3005
 const API_KEY = process.env.BKK_API_KEY
 
 if (!API_KEY) {
@@ -23,6 +23,11 @@ app.use((_req, res, next) => {
 })
 app.get('/health', (_req, res) => res.json({ ok: true }))
 
+let feed = null
+app.get('/api/snapshot', (_req, res) => {
+  res.json({ vehicles: feed ? feed.getSnapshot() : [] })
+})
+
 function broadcast(msg) {
   const text = JSON.stringify(msg)
   for (const client of wss.clients) {
@@ -34,7 +39,7 @@ async function main() {
   console.log('[server] Loading GTFS static data…')
   const gtfs = await loadGtfs()
 
-  const feed = new BkkFeed(API_KEY, gtfs)
+  feed = new BkkFeed(API_KEY, gtfs)
   feed.on('arrival',        (ev)     => broadcast({ type: 'arrival', ...ev }))
   feed.on('vehicle_update', (ev)     => broadcast({ type: 'vehicle_update', ...ev }))
   feed.on('trip_update',    (ev)     => broadcast({ type: 'trip_update', ...ev }))

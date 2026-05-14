@@ -65,6 +65,17 @@ body { background: var(--bg); color: var(--text); font-family: 'Courier New', mo
 .ws-status--disconnected { color: #ff9800; }
 .ws-status--error        { color: #f44336; }
 
+.bpm-control {
+  display: flex; align-items: center; gap: 6px; font-size: 0.72rem; color: var(--muted);
+}
+.bpm-control input {
+  width: 52px; padding: 4px 6px;
+  background: var(--surface2); border: 1px solid var(--border);
+  color: var(--text); font-family: inherit; font-size: 0.72rem;
+  border-radius: 3px; text-align: center; outline: none;
+}
+.bpm-control input:disabled { opacity: 0.5; }
+
 .transport-btn {
   padding: 7px 20px;
   border: 1px solid var(--border);
@@ -85,6 +96,7 @@ body { background: var(--bg); color: var(--text); font-family: 'Courier New', mo
 .tracks,
 .daw-tracks {
   grid-area: tracks;
+  position: relative;  /* anchor for absolute playhead */
   display: flex;
   flex-direction: column;
   overflow-y: auto;

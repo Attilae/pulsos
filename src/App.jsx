@@ -1,129 +1,182 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { TransitEngine, LINE_TYPES } from './engine.js'
-import { LINES, latToNote } from './mockData.js'
-import { LiveClient } from './liveClient.js'
-import MapView from './MapView.jsx'
+import { TransitEngine, LINE_TYPES, SYNTH_DEFAULTS, EFFECT_DEFAULTS } from './engine.js'
+import { randomFromScale } from './mappings.js'
 import DawView from './DawView.jsx'
+import MapView from './MapView.jsx'
 import './app.css'
 
 const MAX_EVENTS = 80
-const MAX_LANE_CHIPS = 12
-
-// Label / color for each type track
-const TYPE_META = {
-  metro: { label: 'Metro',  color: '#E2001A' },
-  tram:  { label: 'Tram',   color: '#FFD700' },
-  bus:   { label: 'Bus',    color: '#0066CC' },
-  hev:   { label: 'HÉV',   color: '#009640' },
-}
-
-// For mock mode: which LINES belong to which type
-const LINE_BY_TYPE = {}
-for (const line of LINES) {
-  if (!LINE_BY_TYPE[line.type]) LINE_BY_TYPE[line.type] = []
-  LINE_BY_TYPE[line.type].push(line)
-}
 
 export default function App() {
-  const engineRef    = useRef(null)
-  const clientRef    = useRef(null)
-  const chipIdRef    = useRef(0)
+  const engineRef = useRef(null)
+  const chipIdRef = useRef(0)
 
-  const [view,       setView]       = useState('daw')    // 'map' | 'daw'
-  const [mode,       setMode]       = useState('mock')   // 'mock' | 'live'
-  const [started,    setStarted]    = useState(false)
-  const [wsStatus,   setWsStatus]   = useState('idle')   // 'idle'|'connected'|'disconnected'|'error'
-  const [events,     setEvents]     = useState([])        // event log
-  const [laneChips,  setLaneChips]  = useState(() =>      // per-type arrival chips for live lane
-    Object.fromEntries(LINE_TYPES.map(t => [t, []]))
-  )
-  const [volumes,    setVolumes]    = useState(() =>
+  const [view,    setView]    = useState('daw')   // 'map' | 'daw'
+  const [mode,    setMode]    = useState('mock')  // 'mock' | 'live'
+  const [started, setStarted] = useState(false)
+  const [events,  setEvents]  = useState([])
+
+  const [volumes, setVolumes] = useState(() =>
     Object.fromEntries(LINE_TYPES.map(t => [t, 0]))
   )
-  const [muted,      setMuted]      = useState(() =>
+  const [muted, setMuted] = useState(() =>
     Object.fromEntries(LINE_TYPES.map(t => [t, false]))
   )
-  // For mock mode: track active stop per named line
-  const [mockActive, setMockActive] = useState({})
 
-  // --- engine init (once) ---
+  // Per-route sound mode selectors (keyed by route.id from lines.json)
+  const [trackSoundModes, setTrackSoundModes] = useState({})   // routeId → 'percussive'|'harmonic'
+  const [trackScales,     setTrackScales]     = useState({})   // routeId → { root: 'C', scaleType: 'major' }
+  const [trackSynthTypes, setTrackSynthTypes] = useState({})   // routeId → synth type string
+  const [trackADSRs,      setTrackADSRs]      = useState({})   // routeId → envelope/param object
+  const [trackEffects,    setTrackEffects]    = useState({})   // routeId → { type, params }
+
+  // Routes lifted from lines.json
+  const [routes, setRoutes] = useState(null)
+
+  // Solo state
+  const [soloRoutes, setSoloRoutes] = useState(() => new Set())
+
+  // BPM
+  const [bpm, setBpm] = useState(120)
+
+  // Live snapshot
+  const [liveSnapshot,    setLiveSnapshot]    = useState(null)
+  const [snapshotLoading, setSnapshotLoading] = useState(false)
+
+  // ── Load routes once ────────────────────────────────────────────────────────
+  useEffect(() => {
+    fetch('/data/lines.json')
+      .then(r => r.json())
+      .then(d => setRoutes(d.routes))
+  }, [])
+
+  // ── Engine init (once) ──────────────────────────────────────────────────────
   useEffect(() => {
     const engine = new TransitEngine((ev) => {
       setEvents(prev => [ev, ...prev].slice(0, MAX_EVENTS))
     })
-    engine.onMockActive = (lineId, stopId, lat, lng) => {
-      setMockActive(prev => ({ ...prev, [lineId]: { stopId, lat, lng } }))
-    }
     engine.init()
     engineRef.current = engine
     return () => engine.dispose()
   }, [])
 
-  // --- live vehicle_update handler (primary for new engine) ---
-  const onVehicleUpdate = useCallback((ev) => {
-    engineRef.current?.handleVehicleUpdate(ev)
-  }, [])
-
-  // --- backward-compat arrival handler (used for lane chips + event log) ---
-  const onArrival = useCallback((ev) => {
-    const id = ++chipIdRef.current
-    setLaneChips(prev => {
-      const chips = [{ ...ev, id }, ...prev[ev.lineType ?? 'bus']].slice(0, MAX_LANE_CHIPS)
-      return { ...prev, [ev.lineType ?? 'bus']: chips }
-    })
-    setEvents(prev => [ev, ...prev].slice(0, MAX_EVENTS))
-  }, [])
-
-  // --- alert update handler ---
-  const onAlertUpdate = useCallback((alerts) => {
-    engineRef.current?.handleAlertUpdate(alerts)
-  }, [])
-
-  // --- mode switching ---
-  useEffect(() => {
-    const engine = engineRef.current
-    if (!engine) return
-
-    if (mode === 'live') {
-      engine.stopMock()
-      const client = new LiveClient({
-        onArrival,
-        onVehicleUpdate,
-        onAlertUpdate,
-        onStatus: setWsStatus,
-      })
-      clientRef.current = client
-      if (started) client.connect()
-    } else {
-      clientRef.current?.disconnect()
-      clientRef.current = null
-      setWsStatus('idle')
-      setLaneChips(Object.fromEntries(LINE_TYPES.map(t => [t, []])))
-      if (started) engine.startMock()
+  // ── Fetch live snapshot ─────────────────────────────────────────────────────
+  const fetchSnapshot = useCallback(async () => {
+    setSnapshotLoading(true)
+    try {
+      const res  = await fetch('http://localhost:3005/api/snapshot')
+      const data = await res.json()
+      setLiveSnapshot(data)
+    } catch (e) {
+      console.error('snapshot failed', e)
+    } finally {
+      setSnapshotLoading(false)
     }
+  }, [])
+
+  // Auto-fetch when switching to live mode
+  useEffect(() => {
+    if (mode === 'live') fetchSnapshot()
   }, [mode]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // --- play / stop ---
+  // ── Play / Stop ─────────────────────────────────────────────────────────────
   const handlePlayPause = async () => {
     const engine = engineRef.current
     if (!engine) return
 
     if (started) {
       engine.stopMock()
-      clientRef.current?.disconnect()
       setStarted(false)
-      setMockActive({})
     } else {
       await engine.start()
+
+      const smMap = {}
+      for (const [rid, m] of Object.entries(trackSoundModes)) {
+        smMap[rid] = { mode: m, scale: trackScales[rid] ?? { root: 'C', scaleType: 'major' } }
+      }
+
       if (mode === 'mock') {
-        engine.startMock()
+        engine.startMock(routes ?? [], smMap, bpm, trackSynthTypes, trackADSRs, trackEffects)
       } else {
-        clientRef.current?.connect()
+        engine.startLive(routes ?? [], smMap, bpm, trackSynthTypes, trackADSRs, trackEffects)
       }
       setStarted(true)
     }
   }
 
+  // ── Solo ─────────────────────────────────────────────────────────────────────
+  const handleSolo = useCallback((routeId) => {
+    setSoloRoutes(prev => {
+      const next = new Set(prev)
+      if (next.has(routeId)) {
+        next.delete(routeId)
+        engineRef.current?.setSolo(routeId, false)
+      } else {
+        next.add(routeId)
+        engineRef.current?.setSolo(routeId, true)
+      }
+      return next
+    })
+  }, [])
+
+  // ── Live crossing callback ───────────────────────────────────────────────────
+  const handleVehicleCrossed = useCallback((routeId, routeType) => {
+    const { root = 'C', scaleType = 'major' } = trackScales[routeId] ?? {}
+    const note = randomFromScale(root, scaleType)
+    engineRef.current?.triggerLiveNote(routeId, routeType, note)
+  }, [trackScales])
+
+  // ── Effect slot ──────────────────────────────────────────────────────────────
+  const handleEffect = useCallback((routeId, routeType, effectType) => {
+    const params = { ...EFFECT_DEFAULTS[effectType] }
+    setTrackEffects(e => ({ ...e, [routeId]: { type: effectType, params } }))
+    engineRef.current?.setEffect(routeId, routeType, effectType, params)
+  }, [])
+
+  const handleEffectParams = useCallback((routeId, params) => {
+    setTrackEffects(e => {
+      const next = { ...e, [routeId]: { ...e[routeId], params: { ...e[routeId]?.params, ...params } } }
+      engineRef.current?.setEffectParams(routeId, next[routeId].params)
+      return next
+    })
+  }, [])
+
+  // ── Synth type ───────────────────────────────────────────────────────────────
+  const handleSynthType = useCallback((routeId, routeType, synthType) => {
+    setTrackSynthTypes(s => ({ ...s, [routeId]: synthType }))
+    const defaults = { ...SYNTH_DEFAULTS[synthType] }
+    setTrackADSRs(a => ({ ...a, [routeId]: defaults }))
+    engineRef.current?.setSynthType(routeId, routeType, synthType, defaults)
+  }, [])
+
+  const handleADSR = useCallback((routeId, params) => {
+    setTrackADSRs(a => {
+      const next = { ...a, [routeId]: { ...a[routeId], ...params } }
+      engineRef.current?.updateEnvelope(routeId, next[routeId])
+      return next
+    })
+  }, [])
+
+  // ── Sound mode / scale ──────────────────────────────────────────────────────
+  const handleSoundMode = (routeId, routeShortName, m) => {
+    setTrackSoundModes(s => ({ ...s, [routeId]: m }))
+    setTrackScales(s => {
+      const scale = s[routeId] ?? { root: 'C', scaleType: 'major' }
+      engineRef.current?.setSoundMode(routeShortName, m, scale)
+      return s
+    })
+  }
+
+  const handleScale = (routeId, routeShortName, scale) => {
+    setTrackScales(s => ({ ...s, [routeId]: scale }))
+    engineRef.current?.setScale(routeId, scale)
+    setTrackSoundModes(s => {
+      engineRef.current?.setSoundMode(routeShortName, s[routeId] ?? 'harmonic', scale)
+      return s
+    })
+  }
+
+  // ── Volume / mute ────────────────────────────────────────────────────────────
   const handleVolume = (type, val) => {
     const db = Number(val)
     setVolumes(v => ({ ...v, [type]: db }))
@@ -137,13 +190,6 @@ export default function App() {
       return { ...m, [type]: next }
     })
   }
-
-  const wsStatusLabel = {
-    idle:         '',
-    connected:    '● Live',
-    disconnected: '○ Reconnecting…',
-    error:        '○ Error',
-  }[wsStatus]
 
   return (
     <div className={`daw ${view === 'map' ? 'daw--map' : ''}`}>
@@ -165,17 +211,23 @@ export default function App() {
         <div className="mode-toggle">
           <button
             className={`mode-btn ${mode === 'mock' ? 'active' : ''}`}
-            onClick={() => setMode('mock')}
+            onClick={() => { if (started) { engineRef.current?.stopMock(); setStarted(false) }; setMode('mock') }}
           >Mock</button>
           <button
             className={`mode-btn ${mode === 'live' ? 'active' : ''}`}
-            onClick={() => setMode('live')}
+            onClick={() => { if (started) { engineRef.current?.stopMock(); setStarted(false) }; setMode('live') }}
           >BKK Live</button>
         </div>
 
-        {mode === 'live' && (
-          <span className={`ws-status ws-status--${wsStatus}`}>{wsStatusLabel}</span>
-        )}
+        <div className="bpm-control">
+          <label>BPM</label>
+          <input
+            type="number" min="40" max="240"
+            value={bpm}
+            onChange={e => setBpm(Number(e.target.value))}
+            disabled={started}
+          />
+        </div>
 
         <button
           className={`transport-btn ${started ? 'stop' : 'play'}`}
@@ -186,80 +238,36 @@ export default function App() {
       </header>
 
       {view === 'map'
-        ? <MapView mockActive={started ? mockActive : {}} />
+        ? <MapView mockActive={{}} />
         : <DawView
             mode={mode}
             started={started}
             events={events}
-            laneChips={laneChips}
+            routes={routes}
             volumes={volumes}
             muted={muted}
-            mockActive={mockActive}
+            soloRoutes={soloRoutes}
+            bpm={bpm}
+            liveSnapshot={liveSnapshot}
+            snapshotLoading={snapshotLoading}
+            trackSoundModes={trackSoundModes}
+            trackScales={trackScales}
+            trackSynthTypes={trackSynthTypes}
+            trackADSRs={trackADSRs}
+            trackEffects={trackEffects}
             onVolume={handleVolume}
             onMute={handleMute}
+            onSolo={handleSolo}
+            onSoundMode={handleSoundMode}
+            onScale={handleScale}
+            onSynthType={handleSynthType}
+            onADSR={handleADSR}
+            onEffect={handleEffect}
+            onEffectParams={handleEffectParams}
+            onRefetch={fetchSnapshot}
+            onVehicleCrossed={handleVehicleCrossed}
           />
       }
-    </div>
-  )
-}
-
-// ── Mock lane: shows stop blocks for each named line of this type ─────────────
-function MockLane({ type, lines, activeStops, running, lineColor }) {
-  if (!lines.length) {
-    return <div className="track-lane track-lane--empty"><span>No mock lines for {type}</span></div>
-  }
-  return (
-    <div className="track-lane mock-lane">
-      {lines.map(line => {
-        const noteStops = line.stops.map(s => ({ ...s, note: latToNote(s.lat) }))
-        const activeId  = activeStops[line.id]
-        return (
-          <div key={line.id} className="mock-subrow">
-            <span className="mock-subrow-label" style={{ color: line.color }}>{line.name.replace('Metro ', '').replace('Tram ', '').replace('HÉV ', '')}</span>
-            {noteStops.map((stop, i) => {
-              const isActive = running && activeId === stop.id
-              return (
-                <div
-                  key={stop.id}
-                  className={`stop-block ${isActive ? 'active' : ''}`}
-                  style={{
-                    '--line-color': line.color,
-                    '--pos': `${(i / (noteStops.length - 1)) * 100}%`,
-                  }}
-                  title={`${stop.name} → ${stop.note}`}
-                >
-                  <span className="stop-note">{stop.note}</span>
-                </div>
-              )
-            })}
-          </div>
-        )
-      })}
-    </div>
-  )
-}
-
-// ── Live lane: arrival chips scroll in from right, fade out ───────────────────
-function LiveLane({ chips, color }) {
-  return (
-    <div className="track-lane live-lane">
-      {chips.length === 0 && (
-        <span className="live-lane-idle">Waiting for arrivals…</span>
-      )}
-      {chips.map((chip, i) => (
-        <div
-          key={chip.id}
-          className="arrival-chip"
-          style={{
-            '--color': color,
-            '--age': i,
-            opacity: Math.max(0.15, 1 - i * 0.08),
-          }}
-        >
-          <span className="chip-route">{chip.routeShortName}</span>
-          <span className="chip-note">{chip.note}</span>
-        </div>
-      ))}
     </div>
   )
 }

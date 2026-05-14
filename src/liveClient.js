@@ -1,4 +1,4 @@
-const WS_URL = 'ws://localhost:3001'
+const WS_URL = 'ws://localhost:3005'
 const RECONNECT_MS = 3000
 
 export class LiveClient {

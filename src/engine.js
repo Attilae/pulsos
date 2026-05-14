@@ -2,14 +2,10 @@ import * as Tone from 'tone'
 import { AlertLayer }   from './alertLayer.js'
 import { NetworkState } from './networkState.js'
 import { VehicleVoice } from './vehicleVoice.js'
-import { latToNote }    from './mappings.js'
-import { LINES }        from './mockData.js'
+import { latToNote, randomFromScale } from './mappings.js'
 
 export const LINE_TYPES = ['metro', 'tram', 'bus', 'hev']
 
-const MAX_VOICES = 150  // voice pool ceiling to keep AudioNode count manageable
-
-// Maps GTFS route_type to line type label (kept for UI colour lookup)
 export const LINE_TYPE_COLORS = {
   metro: '#E2001A',
   tram:  '#FFD700',
@@ -17,36 +13,61 @@ export const LINE_TYPE_COLORS = {
   hev:   '#009640',
 }
 
+export const SYNTH_TYPES = [
+  'Synth', 'FMSynth', 'AMSynth', 'MonoSynth',
+  'MembraneSynth', 'MetalSynth', 'NoiseSynth', 'PluckSynth', 'DuoSynth',
+]
+
+export const SYNTH_DEFAULTS = {
+  Synth:         { attack: 0.005, decay: 0.1,  sustain: 0.3, release: 1.0 },
+  FMSynth:       { attack: 0.4,   decay: 0.1,  sustain: 1.0, release: 1.4 },
+  AMSynth:       { attack: 0.1,   decay: 0.2,  sustain: 0.5, release: 0.8 },
+  MonoSynth:     { attack: 0.005, decay: 0.3,  sustain: 0.5, release: 0.8 },
+  MembraneSynth: { attack: 0.001, decay: 0.4,  sustain: 0.0, release: 0.1 },
+  MetalSynth:    { attack: 0.001, decay: 0.4,  sustain: 0.0, release: 0.3 },
+  NoiseSynth:    { attack: 0.005, decay: 0.1,  sustain: 0.0, release: 0.1 },
+  PluckSynth:    { attackNoise: 1, dampening: 4000, resonance: 0.7 },
+  DuoSynth:      { attack: 0.1,   decay: 0.2,  sustain: 0.5, release: 0.8 },
+}
+
+export const EFFECT_TYPES = ['None', 'Chorus', 'PingPongDelay', 'BitCrusher', 'Phaser']
+
+export const EFFECT_DEFAULTS = {
+  None:          {},
+  Chorus:        { frequency: 1.5, delayTime: 3.5, depth: 0.7, wet: 0.5 },
+  PingPongDelay: { delayTime: 0.25, feedback: 0.3, wet: 0.4 },
+  BitCrusher:    { bits: 6, wet: 1.0 },
+  Phaser:        { frequency: 0.5, octaves: 3, baseFrequency: 1000, wet: 0.5 },
+}
+
+// Synths that ignore pitch / have no standard ADSR
+const NO_HARMONY = new Set(['MembraneSynth', 'MetalSynth', 'NoiseSynth', 'PluckSynth'])
+
 export class TransitEngine {
   constructor(onEvent) {
-    this.onEvent   = onEvent   // (ev) → UI callback
+    this.onEvent   = onEvent
     this._started  = false
 
-    // ── DAW channel volumes (one per line type) ───────────────────────────────
-    // Vehicles connect here; volumes feed into alertLayer.input (reverb)
-    this._volumes = {}   // lineType → Tone.Volume
-    this._muted   = {}   // lineType → bool
+    this._volumes = {}
+    this._muted   = {}
 
-    // ── Layers (created in init after Tone context is available) ─────────────
     this._alertLayer  = null
     this._netState    = null
 
-    // ── Voice pool ────────────────────────────────────────────────────────────
-    // Map<vehicleId, { voice: VehicleVoice, lastUpdated: number }>
     this._voices = new Map()
+    this._fleet  = new Map()
 
-    // Fleet state for NetworkState.update()  (lat/lng/note per vehicle)
-    this._fleet  = new Map()  // vehicleId → { lat, lng, note, lineType, currentStatus }
+    this._soundModes = new Map()
 
-    // Mock mode
-    this._loops = {}
+    this._mockSynths = new Map()
+    this._soloRoutes = new Set()
+
+    this._netUpdateTimer = null
   }
 
   init() {
-    // AlertLayer owns the master bus: reverb → compressor → limiter → destination
     this._alertLayer = new AlertLayer()
 
-    // One Volume node per line type, connected into the alert layer's reverb
     for (const type of LINE_TYPES) {
       const vol = new Tone.Volume(0)
       vol.connect(this._alertLayer.input)
@@ -54,20 +75,88 @@ export class TransitEngine {
       this._muted[type]   = false
     }
 
-    // NetworkState ambient layer also goes through alert layer's reverb
     this._netState = new NetworkState(this._alertLayer.input)
   }
 
-  // ── Compute note for a latitude using the current mode & root ───────────────
   computeNote(lat) {
     const scale = this._alertLayer?.currentModeScale
     const root  = this._netState?.rootMidi ?? 62
     return latToNote(lat, root, scale)
   }
 
-  // ── Live data handlers ───────────────────────────────────────────────────────
+  // ── Synth factory ─────────────────────────────────────────────────────────────
 
-  // Called for every vehicle position/trip update from the server
+  _makeSynth(synthType, opts = {}) {
+    const { envelope, volume = -18 } = opts
+
+    if (synthType === 'PluckSynth') {
+      const ps = new Tone.PluckSynth({ volume })
+      if (envelope?.dampening  != null) ps.dampening  = envelope.dampening
+      if (envelope?.resonance  != null) ps.resonance  = envelope.resonance
+      if (envelope?.attackNoise != null) ps.attackNoise = envelope.attackNoise
+      return ps
+    }
+
+    if (synthType === 'DuoSynth') {
+      return new Tone.DuoSynth({
+        volume,
+        ...(envelope ? { voice0: { envelope }, voice1: { envelope } } : {}),
+      })
+    }
+
+    const synthOpts = { volume, ...(envelope ? { envelope } : {}) }
+    switch (synthType) {
+      case 'FMSynth':       return new Tone.FMSynth(synthOpts)
+      case 'AMSynth':       return new Tone.AMSynth(synthOpts)
+      case 'MonoSynth':     return new Tone.MonoSynth(synthOpts)
+      case 'MembraneSynth': return new Tone.MembraneSynth(synthOpts)
+      case 'MetalSynth':    return new Tone.MetalSynth(synthOpts)
+      case 'NoiseSynth':    return new Tone.NoiseSynth(synthOpts)
+      default:              return new Tone.Synth(synthOpts)
+    }
+  }
+
+  // ── Effect factory ────────────────────────────────────────────────────────────
+
+  _makeEffect(effectType, params = {}) {
+    switch (effectType) {
+      case 'Chorus':        return new Tone.Chorus(params).start()
+      case 'PingPongDelay': return new Tone.PingPongDelay(params)
+      case 'BitCrusher':    return new Tone.BitCrusher(params)
+      case 'Phaser':        return new Tone.Phaser(params)
+      default:              return null
+    }
+  }
+
+  // Wire source → (optional effect) → dest
+  _connectSynth(source, effect, dest) {
+    if (effect) {
+      source.connect(effect)
+      effect.connect(dest)
+    } else {
+      source.connect(dest)
+    }
+  }
+
+  // Handles pitch-less and one-shot synths uniformly
+  _triggerSynth(entry, note, dur, time) {
+    const { synth, synthType, harmonySynth, harmonyInterval } = entry
+    if (synthType === 'NoiseSynth') {
+      synth.triggerAttackRelease(dur, time)
+    } else if (synthType === 'PluckSynth') {
+      synth.triggerAttack(note, time)
+    } else {
+      synth.triggerAttackRelease(note, dur, time)
+      if (harmonySynth && harmonyInterval) {
+        harmonySynth.triggerAttackRelease(
+          Tone.Frequency(note).transpose(harmonyInterval).toFrequency(), dur, time
+        )
+      }
+    }
+  }
+
+  // ── Legacy live data handlers (WebSocket mode) ───────────────────────────────
+
   handleVehicleUpdate(data) {
     const {
       vehicleId, lineType, lat, lng, bearing, speed,
@@ -80,19 +169,18 @@ export class TransitEngine {
 
     const note = this.computeNote(lat ?? 47.49)
 
-    // Update fleet record for NetworkState aggregation
-    this._fleet.set(vehicleId, { lat: lat ?? 47.49, lng: lng ?? 19.05, note, lineType, currentStatus })
+    this._fleet.set(vehicleId, { lat: lat ?? 47.49, lng: lng ?? 19.05, note, lineType, currentStatus, routeShortName })
 
-    // Maintain voice pool
     let entry = this._voices.get(vehicleId)
 
-    // Only allocate a voice if the vehicle is at or approaching a stop
     const needsVoice = currentStatus === 0 || currentStatus === 1
     if (!entry && needsVoice) {
-      if (this._voices.size >= MAX_VOICES) this._evictOldestVoice()
+      if (this._voices.size >= 150) this._evictOldestVoice()
       const outputNode = this._volumes[lineType]
       if (outputNode) {
         const voice = new VehicleVoice(outputNode)
+        const sm = routeShortName ? this._soundModes.get(routeShortName) : null
+        if (sm) voice.setMode(sm.mode, 0)
         entry = { voice, lastUpdated: Date.now() }
         this._voices.set(vehicleId, entry)
       }
@@ -111,7 +199,6 @@ export class TransitEngine {
       }
     }
 
-    // Arrival event (STOPPED_AT) → notify UI + network state
     if (currentStatus === 1) {
       this._netState?.recordArrival()
       this.onEvent({
@@ -121,20 +208,14 @@ export class TransitEngine {
       })
     }
 
-    // Periodically refresh NetworkState (no more than once per 5 s)
     this._scheduleNetworkUpdate()
   }
 
   handleTripUpdate(data) {
-    // Trip updates arrive separately and may update delay/relationship
     const { vehicleId, delay, uncertainty, scheduleRelationship } = data
     const entry = this._voices.get(vehicleId)
     if (!entry) return
-    entry.voice.update({
-      delay, uncertainty,
-      // Keep existing note/status — only refresh the schedule-sensitive fields
-      currentStatus: -1,  // sentinel: don't re-trigger envelope
-    })
+    entry.voice.update({ delay, uncertainty, currentStatus: -1 })
     if (scheduleRelationship != null && scheduleRelationship !== 0) {
       entry.voice.handleScheduleRelationship(scheduleRelationship)
     }
@@ -144,97 +225,180 @@ export class TransitEngine {
     this._alertLayer?.handleAlerts(alerts)
   }
 
-  // ── Mock mode ────────────────────────────────────────────────────────────────
-
-  startMock() {
-    for (const line of LINES) {
-      const intervalSec = 60 / line.bpm
-      let index     = 0
-      let direction = 1
-      let subPhase  = 'stopped'  // 'stopped' | 'transit'
-
-      const vehicleId = `mock_${line.id}`
-
-      const loop = new Tone.Loop((time) => {
-        const stop     = line.stops[index]
-        const nextStop = line.stops[index + direction] ?? line.stops[index - direction]
-        const note     = this.computeNote(stop.lat)
-
-        // Bearing: rough cardinal direction toward next stop
-        const bearing = nextStop
-          ? (nextStop.lat > stop.lat ? 0 : 180)   // north/south approximation
-          : 0
-
-        // Emit INCOMING_AT at start of interval
-        this.handleVehicleUpdate({
-          vehicleId,
-          lineType: line.type,
-          lat: stop.lat, lng: stop.lng ?? 19.05,
-          bearing, speed: 4,
-          currentStatus: 0,   // INCOMING_AT
-          occupancyPct: 55,
-          delay: 0, uncertainty: 5, scheduleRelationship: 0,
-          stopId: stop.id, stopName: stop.name,
-          routeShortName: line.name, color: line.color,
-        })
-
-        // Switch to STOPPED_AT after 0.5 s
-        Tone.Transport.scheduleOnce(() => {
-          this.handleVehicleUpdate({
-            vehicleId,
-            lineType: line.type,
-            lat: stop.lat, lng: stop.lng ?? 19.05,
-            bearing: 0, speed: 0,
-            currentStatus: 1,   // STOPPED_AT
-            occupancyPct: 60,
-            delay: 0, uncertainty: 5, scheduleRelationship: 0,
-            stopId: stop.id, stopName: stop.name,
-            routeShortName: line.name, color: line.color,
-          })
-          // UI mock-active tracking
-          if (this.onMockActive) this.onMockActive(line.id, stop.id, stop.lat, stop.lng ?? 19.05)
-        }, time + 0.5)
-
-        // IN_TRANSIT_TO after 2.5 s
-        Tone.Transport.scheduleOnce(() => {
-          this.handleVehicleUpdate({
-            vehicleId,
-            lineType: line.type,
-            lat: stop.lat, lng: stop.lng ?? 19.05,
-            bearing, speed: 10,
-            currentStatus: 2,   // IN_TRANSIT_TO
-            occupancyPct: 55,
-            delay: 0, uncertainty: 10, scheduleRelationship: 0,
-            stopId: stop.id, stopName: stop.name,
-            routeShortName: line.name, color: line.color,
-          })
-        }, time + 2.5)
-
-        // Advance stop index (ping-pong)
-        index += direction
-        if (index >= line.stops.length) { index = line.stops.length - 2; direction = -1 }
-        if (index < 0)                  { index = 1;                      direction = 1 }
-      }, intervalSec)
-
-      loop.start(0)
-      this._loops[line.id] = loop
-    }
-    Tone.getTransport().start()
-  }
-
-  stopMock() {
-    Object.values(this._loops).forEach(l => l.dispose())
-    this._loops = {}
-    // Release all mock voices
-    for (const [id, entry] of this._voices) {
-      if (id.startsWith('mock_')) {
-        entry.voice.dispose()
-        this._voices.delete(id)
+  setSoundMode(routeShortName, mode, scale = { root: 'C', scaleType: 'major' }) {
+    this._soundModes.set(routeShortName, { mode, scale })
+    for (const [vehicleId, entry] of this._voices) {
+      if (this._fleet.get(vehicleId)?.routeShortName === routeShortName) {
+        entry.voice.setMode(mode, 0)
       }
     }
-    this._fleet.clear()
-    Tone.getTransport().stop()
-    Tone.getTransport().position = 0
+  }
+
+  setScale(routeId, scale) {
+    const entry = this._mockSynths.get(routeId)
+    if (entry) this._mockSynths.set(routeId, { ...entry, scale })
+  }
+
+  // ── Transport-driven playback ─────────────────────────────────────────────────
+
+  _createRouteSynths(routes, soundModes = {}, synthTypes = {}, adsr = {}, effects = {}) {
+    for (const route of routes) {
+      if (!route.stops?.length) continue
+
+      const sm        = soundModes[route.id] ?? { mode: 'harmonic', scale: { root: 'C', scaleType: 'major' } }
+      const synthType = synthTypes[route.id] ?? 'Synth'
+      const isSpecialized = NO_HARMONY.has(synthType)
+      const perc      = !isSpecialized && sm.mode === 'percussive'
+
+      const defaultEnvelope = isSpecialized
+        ? SYNTH_DEFAULTS[synthType]
+        : perc
+          ? { attack: 0.003, decay: 0.18, sustain: 0, release: 0.35 }
+          : SYNTH_DEFAULTS[synthType] ?? { attack: 0.1, decay: 0.1, sustain: 0.6, release: 0.8 }
+
+      const envelope  = adsr[route.id] ?? defaultEnvelope
+      const effectCfg = effects[route.id]
+      const effect    = this._makeEffect(effectCfg?.type, effectCfg?.params ?? {})
+
+      const synth = this._makeSynth(synthType, { envelope, volume: -18 })
+      const out   = this._volumes[route.type] ?? this._alertLayer.input
+      this._connectSynth(synth, effect, out)
+
+      this._mockSynths.set(route.id, {
+        synth, harmonySynth: null, harmonyInterval: 0,
+        routeType: route.type, synthType, effect,
+        scale: sm.scale ?? { root: 'C', scaleType: 'major' },
+      })
+    }
+  }
+
+  startMock(routes, soundModes = {}, bpm = 120, synthTypes = {}, adsr = {}, effects = {}) {
+    const LOOP_BEATS = 32
+    Tone.Transport.bpm.value = bpm
+    const loopSec = (LOOP_BEATS / bpm) * 60
+
+    this._createRouteSynths(routes, soundModes, synthTypes, adsr, effects)
+
+    Tone.Transport.loop    = true
+    Tone.Transport.loopEnd = loopSec
+
+    for (const route of routes) {
+      if (!route.stops?.length || !route.totalDist) continue
+      const noteDur = soundModes[route.id]?.mode !== 'percussive' ? '4n' : '8n'
+
+      route.stops.forEach(stop => {
+        const pct        = stop.dist / route.totalDist
+        const scheduleAt = pct * loopSec
+
+        Tone.Transport.schedule((time) => {
+          if (this._soloRoutes.size > 0 && !this._soloRoutes.has(route.id)) return
+          if (this._muted[route.type]) return
+
+          const e = this._mockSynths.get(route.id)
+          if (!e) return
+          const { root = 'C', scaleType = 'major' } = e.scale ?? {}
+          const note = randomFromScale(root, scaleType)
+          this._triggerSynth(e, note, noteDur, time)
+          this.onEvent({ routeShortName: route.name, stopName: stop.name, note, lineType: route.type })
+        }, scheduleAt)
+      })
+    }
+
+    Tone.Transport.start()
+  }
+
+  startLive(routes, soundModes = {}, bpm = 120, synthTypes = {}, adsr = {}, effects = {}) {
+    const LOOP_BEATS = 32
+    Tone.Transport.bpm.value = bpm
+    const loopSec = (LOOP_BEATS / bpm) * 60
+
+    this._createRouteSynths(routes, soundModes, synthTypes, adsr, effects)
+
+    Tone.Transport.loop    = true
+    Tone.Transport.loopEnd = loopSec
+    Tone.Transport.start()
+  }
+
+  triggerLiveNote(routeId, routeType, note) {
+    if (this._soloRoutes.size > 0 && !this._soloRoutes.has(routeId)) return
+    if (this._muted[routeType]) return
+
+    const e = this._mockSynths.get(routeId)
+    if (!e) return
+    const dur = e.harmonySynth ? '4n' : '8n'
+    // Guarantee strictly increasing start times for the same synth instance
+    const time = Math.max(Tone.now(), (e._lastTriggerTime ?? 0) + 0.001)
+    e._lastTriggerTime = time
+    this._triggerSynth(e, note, dur, time)
+    this.onEvent({ routeShortName: routeId, note, lineType: routeType })
+  }
+
+  setSolo(routeId, isSoloed) {
+    if (isSoloed) this._soloRoutes.add(routeId)
+    else          this._soloRoutes.delete(routeId)
+  }
+
+  // Hot-swap synth type while preserving the existing effect
+  setSynthType(routeId, routeType, synthType, envelope) {
+    const entry = this._mockSynths.get(routeId)
+    if (!entry) return
+
+    entry.synth.dispose()
+    entry.harmonySynth?.dispose()
+
+    const out   = this._volumes[routeType] ?? this._alertLayer.input
+    const synth = this._makeSynth(synthType, { envelope: envelope ?? SYNTH_DEFAULTS[synthType], volume: -18 })
+    this._connectSynth(synth, entry.effect, out)
+
+    this._mockSynths.set(routeId, {
+      ...entry,
+      synth,
+      harmonySynth: null,
+      harmonyInterval: 0,
+      synthType,
+    })
+  }
+
+  // Hot-swap effect while preserving the synth
+  setEffect(routeId, routeType, effectType, params) {
+    const entry = this._mockSynths.get(routeId)
+    if (!entry) return
+
+    const out = this._volumes[routeType] ?? this._alertLayer.input
+
+    try { entry.synth.disconnect() }       catch {}
+    try { entry.harmonySynth?.disconnect() } catch {}
+    if (entry.effect) {
+      try { entry.effect.disconnect() } catch {}
+      entry.effect.dispose()
+    }
+
+    const effect = this._makeEffect(effectType, params ?? {})
+    this._connectSynth(entry.synth, effect, out)
+    if (entry.harmonySynth) this._connectSynth(entry.harmonySynth, effect, out)
+
+    this._mockSynths.set(routeId, { ...entry, effect })
+  }
+
+  setEffectParams(routeId, params) {
+    const e = this._mockSynths.get(routeId)
+    if (e?.effect) e.effect.set(params)
+  }
+
+  updateEnvelope(routeId, params) {
+    const e = this._mockSynths.get(routeId)
+    if (!e) return
+
+    if (e.synthType === 'PluckSynth') {
+      const { attackNoise, dampening, resonance } = params
+      if (attackNoise  != null) e.synth.set({ attackNoise })
+      if (dampening    != null) e.synth.set({ dampening })
+      if (resonance    != null) e.synth.set({ resonance })
+    } else if (e.synthType === 'DuoSynth') {
+      e.synth.set({ voice0: { envelope: params }, voice1: { envelope: params } })
+    } else {
+      e.synth.set({ envelope: params })
+    }
   }
 
   // ── DAW controls ─────────────────────────────────────────────────────────────
@@ -253,6 +417,32 @@ export class TransitEngine {
     this._started = true
   }
 
+  stopMock() {
+    if (this._netUpdateTimer) {
+      clearTimeout(this._netUpdateTimer)
+      this._netUpdateTimer = null
+    }
+
+    Tone.Transport.cancel()
+    Tone.Transport.stop()
+    Tone.Transport.position = 0
+
+    for (const { synth, harmonySynth, effect } of this._mockSynths.values()) {
+      synth.dispose()
+      harmonySynth?.dispose()
+      effect?.dispose()
+    }
+    this._mockSynths.clear()
+
+    for (const [id, entry] of [...this._voices]) {
+      entry.voice.dispose()
+      this._voices.delete(id)
+    }
+    this._fleet.clear()
+
+    this._netState?.stop()
+  }
+
   dispose() {
     this.stopMock()
     for (const { voice } of this._voices.values()) voice.dispose()
@@ -266,7 +456,7 @@ export class TransitEngine {
   // ── Internal helpers ─────────────────────────────────────────────────────────
 
   _evictOldestVoice() {
-    let oldestId  = null
+    let oldestId   = null
     let oldestTime = Infinity
     for (const [id, entry] of this._voices) {
       if (entry.lastUpdated < oldestTime) {

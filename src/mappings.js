@@ -13,6 +13,18 @@ export const MODES = {
   chromatic:        [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
 }
 
+// User-selectable per-track scales (semitones from root)
+export const SCALES = {
+  major:           [0, 2, 4, 5, 7, 9, 11],
+  minor:           [0, 2, 3, 5, 7, 8, 10],
+  pentatonic:      [0, 2, 4, 7, 9],
+  pentatonicMinor: [0, 3, 5, 7, 10],
+  dorian:          [0, 2, 3, 5, 7, 9, 10],
+  phrygian:        [0, 1, 3, 5, 7, 8, 10],
+  lydian:          [0, 2, 4, 6, 7, 9, 11],
+  mixolydian:      [0, 2, 4, 5, 7, 9, 10],
+}
+
 // Alert cause/effect → mode name
 // Cause enum: TECHNICAL_PROBLEM=2, STRIKE=3, ACCIDENT=5, WEATHER=7, CONSTRUCTION=9
 // Effect enum: NO_SERVICE=1, SIGNIFICANT_DELAYS=3, ADDITIONAL_SERVICE=5
@@ -73,6 +85,19 @@ const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 
 export function midiToNote(midi) {
   const octave = Math.floor(midi / 12) - 1
   return `${NOTE_NAMES[midi % 12]}${octave}`
+}
+
+// Randomly pick a note from a user-selected root + scale, spanning octaves 3–4
+export function randomFromScale(root = 'C', scaleType = 'major') {
+  const rootIdx = NOTE_NAMES.indexOf(root)
+  if (rootIdx === -1) return 'C4'
+  const intervals = SCALES[scaleType] ?? SCALES.major
+  const pool = []
+  for (let oct = 3; oct <= 4; oct++) {
+    const rootMidi = (oct + 1) * 12 + rootIdx
+    for (const iv of intervals) pool.push(midiToNote(rootMidi + iv))
+  }
+  return pool[Math.floor(Math.random() * pool.length)]
 }
 
 // Centroid latitude → dynamic root MIDI note (D3=50 to D4=62, one octave)

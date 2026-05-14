@@ -2,6 +2,21 @@
   display: contents; /* lets App.jsx grid control placement */
 }
 
+/* ── Global DAW playhead (rail-aligned, driven by Tone.Transport) ───────── */
+.daw-global-playhead {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  width: 2px;
+  transform: translateX(-50%);
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  box-shadow: 0 0 10px 4px color-mix(in srgb, var(--accent) 10%, transparent);
+  pointer-events: none;
+  z-index: 20;
+  display: none;
+}
+.daw-global-playhead.active { display: block; }
+
 /* ── Section labels ─────────────────────────────────────────────────────── */
 .daw-section-label {
   grid-column: 1 / -1;  /* span full tracks column */
@@ -31,7 +46,8 @@
   border-radius: 4px;
   padding: 8px 12px;
   display: grid;
-  grid-template-columns: 180px 200px 1fr;
+  grid-template-columns: 180px 230px 1fr;
+  align-items: start;
   gap: 10px;
   align-items: center;
   transition: opacity 0.2s;
@@ -66,8 +82,186 @@
   text-overflow: ellipsis;
 }
 
-/* ── Controls (reused from app.css patterns) ────────────────────────────── */
-.line-controls { display: flex; align-items: center; gap: 8px; }
+/* ── Controls ───────────────────────────────────────────────────────────── */
+.line-controls {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 5px;
+}
+.line-controls-row { display: flex; align-items: center; gap: 8px; }
+
+/* ── Synth type selector ────────────────────────────────────────────────── */
+.synth-controls-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.synth-select {
+  flex: 1;
+  font-size: 0.6rem;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 3px;
+  padding: 2px 4px;
+  font-family: inherit;
+  cursor: pointer;
+  outline: none;
+  min-width: 0;
+}
+
+.env-toggle-btn {
+  font-size: 0.6rem;
+  padding: 2px 7px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: transparent;
+  color: var(--muted);
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.env-toggle-btn:hover { color: var(--text); }
+.env-toggle-btn.active {
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 60%, transparent);
+}
+
+/* ── ADSR panel ─────────────────────────────────────────────────────────── */
+.adsr-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 4px 0 2px;
+}
+
+.adsr-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.adsr-label {
+  font-size: 0.58rem;
+  color: var(--muted);
+  width: 28px;
+  text-align: right;
+  flex-shrink: 0;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.adsr-slider {
+  flex: 1;
+  height: 2px;
+  accent-color: var(--accent);
+  cursor: pointer;
+  min-width: 0;
+}
+
+.adsr-val {
+  font-size: 0.58rem;
+  color: var(--muted);
+  width: 32px;
+  text-align: right;
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── FX slot ────────────────────────────────────────────────────────────── */
+.fx-controls-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.fx-select {
+  flex: 1;
+  font-size: 0.6rem;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 3px;
+  padding: 2px 4px;
+  font-family: inherit;
+  cursor: pointer;
+  outline: none;
+  min-width: 0;
+}
+
+.fx-toggle-btn {
+  font-size: 0.6rem;
+  padding: 2px 7px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: transparent;
+  color: var(--muted);
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.fx-toggle-btn:hover { color: var(--text); }
+.fx-toggle-btn.active {
+  background: color-mix(in srgb, #a855f7 18%, transparent);
+  color: #c084fc;
+  border-color: color-mix(in srgb, #a855f7 60%, transparent);
+}
+
+/* ── Sound mode selector ────────────────────────────────────────────────── */
+.sound-mode-row { display: flex; align-items: center; gap: 4px; }
+
+.sound-mode-btn {
+  font-size: 0.6rem;
+  padding: 2px 7px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: transparent;
+  color: var(--muted);
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+.sound-mode-btn:hover { color: var(--text); }
+.sound-mode-btn.active {
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 60%, transparent);
+}
+
+.scale-root-select {
+  font-size: 0.6rem;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 3px;
+  padding: 2px 2px;
+  font-family: inherit;
+  cursor: pointer;
+  outline: none;
+  width: 42px;
+  flex-shrink: 0;
+}
+
+.scale-type-select {
+  font-size: 0.6rem;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 3px;
+  padding: 2px 4px;
+  font-family: inherit;
+  cursor: pointer;
+  outline: none;
+  flex: 1;
+  min-width: 0;
+}
 
 /* ── Stop rail ──────────────────────────────────────────────────────────── */
 .stop-rail {
@@ -136,52 +330,49 @@
 }
 .stop-dot:hover .stop-label { opacity: 1; }
 
-/* ── Playhead ───────────────────────────────────────────────────────────── */
-.playhead {
+/* ── Solo button ────────────────────────────────────────────────────────── */
+.solo-btn {
+  width: 26px; height: 26px;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  color: var(--muted);
+  font-family: inherit; font-size: 0.68rem;
+  cursor: pointer; border-radius: 3px; flex-shrink: 0;
+}
+.solo-btn.active { background: #3a3000; border-color: #c8a000; color: #ffdd00; }
+
+/* ── Dimmed stop dots in live mode (reference-only) ─────────────────────── */
+.stop-dot--ref {
+  opacity: 0.3;
+  background: transparent;
+  border-color: color-mix(in srgb, var(--line-color) 40%, transparent);
+}
+.stop-dot--ref:hover { opacity: 0.7; }
+
+/* ── Vehicle markers (live mode) ────────────────────────────────────────── */
+.vehicle-marker {
   position: absolute;
   left: var(--pos);
-  top: -2px;
-  bottom: -2px;
-  width: 2px;
+  top: 50%;
+  transform: translate(-50%, -50%) rotate(45deg);
+  width: 10px; height: 10px;
   background: var(--line-color);
-  transform: translateX(-50%);
-  box-shadow:
-    0 0 6px 2px color-mix(in srgb, var(--line-color) 70%, transparent),
-    0 0 16px 4px color-mix(in srgb, var(--line-color) 30%, transparent);
-  border-radius: 1px;
-  pointer-events: none;
+  border: 1.5px solid #fff;
+  border-radius: 2px;
   z-index: 4;
-  transition: left 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  pointer-events: none;
 }
 
-/* ── Live chips (same as existing arrival-chip) ─────────────────────────── */
-.live-lane {
-  position: relative;
-  display: flex;
-  flex-direction: row-reverse;
-  align-items: center;
-  gap: 4px;
-  height: 28px;
-  overflow: hidden;
+/* ── Snapshot bar (live mode) ───────────────────────────────────────────── */
+.snapshot-bar {
+  display: flex; align-items: center; gap: 10px;
+  padding: 6px 4px; font-size: 0.7rem; color: var(--muted);
+  border-bottom: 1px solid var(--border); margin-bottom: 4px;
 }
-.live-lane-idle {
-  color: var(--muted);
-  font-size: 0.7rem;
-  font-style: italic;
-  position: absolute;
-  left: 0;
+.snapshot-label { flex: 1; }
+.refetch-btn {
+  padding: 3px 10px; font-size: 0.7rem; font-family: inherit;
+  border: 1px solid var(--accent); background: var(--surface2);
+  color: var(--accent); border-radius: 3px; cursor: pointer;
 }
-.arrival-chip {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  width: 34px;
-  height: 26px;
-  border: 1px solid var(--color, #666);
-  background: color-mix(in srgb, var(--color, #666) 15%, transparent);
-  border-radius: 3px;
-  flex-shrink: 0;
-}
-.chip-route { font-size: 0.58rem; color: var(--color, #ccc); font-weight: bold; }
-.chip-note  { font-size: 0.55rem; color: var(--muted); }
+.refetch-btn:disabled { opacity: 0.5; cursor: not-allowed; }

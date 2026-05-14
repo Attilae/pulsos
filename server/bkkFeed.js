@@ -20,12 +20,13 @@ const SR = { SCHEDULED: 0, ADDED: 1, UNSCHEDULED: 2, CANCELED: 3, REPLACEMENT: 5
 export class BkkFeed extends EventEmitter {
   constructor(apiKey, gtfsLookup) {
     super()
-    this.apiKey   = apiKey
-    this.lookup   = gtfsLookup
-    this.prevState = new Map()  // vehicleId → full vehicle state snapshot
-    this.tripData  = new Map()  // vehicleId → { delay, uncertainty, scheduleRelationship }
-    this._vpTimer  = null
-    this._alTimer  = null
+    this.apiKey     = apiKey
+    this.lookup     = gtfsLookup
+    this.prevState  = new Map()  // vehicleId → full vehicle state snapshot
+    this.tripData   = new Map()  // vehicleId → { delay, uncertainty, scheduleRelationship }
+    this.metroTrips = new Map()  // tripId → { vehicleId, routeId, stopTimeUpdates }
+    this._vpTimer   = null
+    this._alTimer   = null
   }
 
   start() {
@@ -57,11 +58,14 @@ export class BkkFeed extends EventEmitter {
     try {
       const feed = await this._fetch(TU_URL)
       this.tripData.clear()
+      this.metroTrips.clear()
+
       for (const entity of feed.entity) {
         const tu = entity.tripUpdate
         if (!tu) continue
 
-        const vehicleId = tu.vehicle?.id ?? entity.id
+        const tripId    = tu.trip?.tripId ?? null
+        const vehicleId = tu.vehicle?.id ?? (tripId ? `trip:${tripId}` : entity.id)
         if (!vehicleId) continue
 
         // Overall trip delay (fallback: first stop arrival delay)
@@ -73,15 +77,135 @@ export class BkkFeed extends EventEmitter {
           uncertainty = stu.arrival?.uncertainty ?? stu.departure?.uncertainty ?? null
         }
 
+        const scheduleRelationship = tu.trip?.scheduleRelationship ?? SR.SCHEDULED
+
         this.tripData.set(vehicleId, {
           delay:                delay ?? 0,
           uncertainty:          uncertainty ?? 0,
-          scheduleRelationship: tu.trip?.scheduleRelationship ?? SR.SCHEDULED,
+          scheduleRelationship,
+        })
+
+        // Collect metro trips for position inference
+        const routeId = tu.trip?.routeId
+          ?? (tripId ? this.lookup.tripRoutes?.[tripId] : null)
+        if (!routeId) continue
+
+        const route = this.lookup.routes[routeId]
+        if (!route || route.lineType !== 'metro') continue
+        if (!tu.stopTimeUpdate?.length) continue
+        if (scheduleRelationship === SR.CANCELED) continue
+
+        this.metroTrips.set(tripId ?? vehicleId, {
+          vehicleId,
+          routeId,
+          stopTimeUpdates: tu.stopTimeUpdate,
         })
       }
     } catch (err) {
       // Trip updates are non-critical — continue without them
       console.warn('[bkk] trip update fetch failed:', err.message)
+    }
+  }
+
+  // ── Infer metro vehicle positions from TripUpdates ────────────────────────────
+  _emitMetroUpdates() {
+    const nowSec = Date.now() / 1000
+
+    for (const [, trip] of this.metroTrips) {
+      const { vehicleId, routeId, stopTimeUpdates } = trip
+      const route = this.lookup.routes[routeId]
+      if (!route) continue
+
+      // Walk through stop time updates to find where the vehicle is now.
+      // Each entry has arrival.time and/or departure.time (unix seconds, Long).
+      let status  = 2   // IN_TRANSIT_TO (default: before first stop)
+      let stopId  = stopTimeUpdates[0]?.stopId ?? null
+
+      for (let i = 0; i < stopTimeUpdates.length; i++) {
+        const stu     = stopTimeUpdates[i]
+        const arrSec  = stu.arrival?.time   ? Number(stu.arrival.time)   : null
+        const depSec  = stu.departure?.time ? Number(stu.departure.time) : null
+
+        const arrived   = arrSec !== null && arrSec <= nowSec
+        const departed  = depSec !== null && depSec <= nowSec
+
+        if (arrived && !departed) {
+          // Currently stopped at this stop
+          stopId = stu.stopId
+          status = 1  // STOPPED_AT
+          break
+        }
+
+        if (departed) {
+          // Past this stop — look at next
+          const next = stopTimeUpdates[i + 1]
+          if (!next) {
+            // Past last stop — trip finished, skip
+            stopId = null
+            break
+          }
+          stopId = next.stopId
+          status = 2  // IN_TRANSIT_TO next
+          // keep looping in case we've passed several stops
+        }
+      }
+
+      if (!stopId) continue
+
+      const stop = this.lookup.stops[stopId]
+      if (!stop?.lat) continue
+
+      const prev       = this.prevState.get(vehicleId) ?? {}
+      const newArrival = status === 1 && (prev.stopId !== stopId || prev.status !== 1)
+      const hasChanged = prev.status !== status || prev.stopId !== stopId
+
+      if (!hasChanged) continue
+
+      const td = this.tripData.get(vehicleId) ?? { delay: 0, uncertainty: 0, scheduleRelationship: 0 }
+
+      this.prevState.set(vehicleId, {
+        vehicleId, routeId,
+        routeShortName: route.shortName, lineType: route.lineType, color: route.color,
+        stopId, stopName: stop.name,
+        status, lat: stop.lat, lng: stop.lng,
+        bearing: 0, speed: 0, occupancyPct: 50, delay: td.delay,
+      })
+
+      this.emit('vehicle_update', {
+        vehicleId,
+        routeId,
+        routeShortName:       route.shortName,
+        lineType:             route.lineType,
+        color:                route.color,
+        stopId,
+        stopName:             stop.name,
+        lat:                  stop.lat,
+        lng:                  stop.lng,
+        bearing:              0,
+        speed:                0,
+        currentStatus:        status,
+        occupancyPct:         50,
+        carriageDetails:      null,
+        delay:                td.delay,
+        uncertainty:          td.uncertainty,
+        scheduleRelationship: td.scheduleRelationship,
+        note:                 latToNote(stop.lat),
+      })
+
+      if (newArrival) {
+        this.emit('arrival', {
+          vehicleId,
+          routeId,
+          routeShortName: route.shortName,
+          lineType:       route.lineType,
+          color:          route.color,
+          stopId,
+          stopName:       stop.name,
+          lat:            stop.lat,
+          lng:            stop.lng,
+          note:           latToNote(stop.lat),
+        })
+      }
     }
   }
 
@@ -122,6 +246,15 @@ export class BkkFeed extends EventEmitter {
             }))
           : null
 
+        const route = this.lookup.routes[routeId]
+        if (!route) continue
+
+        const stop  = this.lookup.stops[stopId]
+        const vehicleLat = lat ?? stop?.lat
+        const vehicleLng = lng ?? stop?.lng
+
+        if (!vehicleLat) continue
+
         const td = this.tripData.get(vehicleId) ?? { delay: 0, uncertainty: 0, scheduleRelationship: 0 }
 
         const prev     = this.prevState.get(vehicleId) ?? {}
@@ -136,20 +269,14 @@ export class BkkFeed extends EventEmitter {
 
         const hasChanged = statusChanged || stopChanged || speedChanged || bearingChanged || delayChanged
 
-        // Persist full state
+        // Persist full state (with route info for snapshot endpoint)
         this.prevState.set(vehicleId, {
-          stopId, status, lat, lng, bearing, speed,
-          occupancyPct, delay: td.delay,
+          vehicleId, routeId,
+          routeShortName: route.shortName, lineType: route.lineType, color: route.color,
+          stopId, stopName: stop?.name ?? null,
+          status, lat: vehicleLat, lng: vehicleLng ?? 19.05,
+          bearing, speed, occupancyPct: occupancyPct ?? 50, delay: td.delay,
         })
-
-        const route = this.lookup.routes[routeId]
-        const stop  = this.lookup.stops[stopId]
-        if (!route) continue
-
-        const vehicleLat = lat ?? stop?.lat
-        const vehicleLng = lng ?? stop?.lng
-
-        if (!vehicleLat) continue
 
         // Broadcast full vehicle_update when something meaningful changed
         if (hasChanged) {
@@ -194,12 +321,18 @@ export class BkkFeed extends EventEmitter {
         }
       }
 
+      this._emitMetroUpdates()
+
       if (arrivals > 0 || updates > 0) {
-        process.stdout.write(`[bkk] ${arrivals} arrivals, ${updates} updates (${vpFeed.entity.length} vehicles)\n`)
+        process.stdout.write(`[bkk] ${arrivals} arrivals, ${updates} updates (${vpFeed.entity.length} vehicles in VP feed, ${this.metroTrips.size} metro trips)\n`)
       }
     } catch (err) {
       console.error('[bkk] poll error:', err.message)
     }
+  }
+
+  getSnapshot() {
+    return [...this.prevState.values()].filter(v => v.lat)
   }
 
   // ── Alerts poll (every 60 s) ─────────────────────────────────────────────────

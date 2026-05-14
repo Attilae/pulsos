@@ -145,12 +145,21 @@ export class NetworkState {
 
   get effectiveTempoBpm() { return this._effectiveTempoBpm }
 
-  dispose() {
-    if (this._droneActive) this._drone.triggerRelease(Tone.now())
-    this._drone.dispose()
+  // Release all active audio without disposing nodes (so they can be reused on next play).
+  stop() {
+    if (this._droneActive) {
+      this._drone.triggerRelease(Tone.now())
+      this._droneActive = false
+    }
     this._hubSynths.forEach((ps, i) => {
       for (const n of this._hubActiveNotes[i]) ps.triggerRelease(n, Tone.now())
-      ps.dispose()
+      this._hubActiveNotes[i].clear()
     })
+  }
+
+  dispose() {
+    this.stop()
+    this._drone.dispose()
+    this._hubSynths.forEach(ps => ps.dispose())
   }
 }
