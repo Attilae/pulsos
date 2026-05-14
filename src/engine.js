@@ -192,7 +192,7 @@ export class TransitEngine {
             routeShortName: line.name, color: line.color,
           })
           // UI mock-active tracking
-          if (this.onMockActive) this.onMockActive(line.id, stop.id)
+          if (this.onMockActive) this.onMockActive(line.id, stop.id, stop.lat, stop.lng ?? 19.05)
         }, time + 0.5)
 
         // IN_TRANSIT_TO after 2.5 s

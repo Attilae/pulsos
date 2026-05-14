@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { TransitEngine, LINE_TYPES } from './engine.js'
 import { LINES, latToNote } from './mockData.js'
 import { LiveClient } from './liveClient.js'
+import MapView from './MapView.jsx'
+import DawView from './DawView.jsx'
 import './app.css'
 
 const MAX_EVENTS = 80
@@ -27,6 +29,7 @@ export default function App() {
   const clientRef    = useRef(null)
   const chipIdRef    = useRef(0)
 
+  const [view,       setView]       = useState('daw')    // 'map' | 'daw'
   const [mode,       setMode]       = useState('mock')   // 'mock' | 'live'
   const [started,    setStarted]    = useState(false)
   const [wsStatus,   setWsStatus]   = useState('idle')   // 'idle'|'connected'|'disconnected'|'error'
@@ -48,8 +51,8 @@ export default function App() {
     const engine = new TransitEngine((ev) => {
       setEvents(prev => [ev, ...prev].slice(0, MAX_EVENTS))
     })
-    engine.onMockActive = (lineId, stopId) => {
-      setMockActive(prev => ({ ...prev, [lineId]: stopId }))
+    engine.onMockActive = (lineId, stopId, lat, lng) => {
+      setMockActive(prev => ({ ...prev, [lineId]: { stopId, lat, lng } }))
     }
     engine.init()
     engineRef.current = engine
@@ -143,10 +146,21 @@ export default function App() {
   }[wsStatus]
 
   return (
-    <div className="daw">
+    <div className={`daw ${view === 'map' ? 'daw--map' : ''}`}>
       <header className="daw-header">
         <h1>Transit DAW</h1>
         <p className="daw-sub">Budapest public transport → generative music</p>
+
+        <div className="view-toggle">
+          <button
+            className={`mode-btn ${view === 'map' ? 'active' : ''}`}
+            onClick={() => setView('map')}
+          >Map</button>
+          <button
+            className={`mode-btn ${view === 'daw' ? 'active' : ''}`}
+            onClick={() => setView('daw')}
+          >DAW</button>
+        </div>
 
         <div className="mode-toggle">
           <button
@@ -171,56 +185,20 @@ export default function App() {
         </button>
       </header>
 
-      <main className="tracks">
-        {LINE_TYPES.map(type => {
-          const meta   = TYPE_META[type]
-          const isMock = mode === 'mock'
-
-          return (
-            <div key={type} className={`track ${muted[type] ? 'track--muted' : ''}`}>
-              {/* Label */}
-              <div className="track-label" style={{ borderColor: meta.color }}>
-                <span className="track-name">{meta.label}</span>
-                <span className="track-type">{type}</span>
-              </div>
-
-              {/* Controls */}
-              <div className="track-controls">
-                <button
-                  className={`mute-btn ${muted[type] ? 'active' : ''}`}
-                  onClick={() => handleMute(type)}
-                >M</button>
-                <input
-                  type="range" min="-40" max="6" step="1"
-                  value={volumes[type]}
-                  onChange={e => handleVolume(type, e.target.value)}
-                  className="volume-slider"
-                />
-                <span className="volume-val">{volumes[type]}dB</span>
-              </div>
-
-              {/* Lane */}
-              {isMock
-                ? <MockLane type={type} lines={LINE_BY_TYPE[type] ?? []} activeStops={mockActive} running={started} lineColor={meta.color} />
-                : <LiveLane chips={laneChips[type]} color={meta.color} />
-              }
-            </div>
-          )
-        })}
-      </main>
-
-      <aside className="event-log">
-        <h2>Event Log</h2>
-        <ul>
-          {events.slice(0, 24).map((ev, i) => (
-            <li key={i}>
-              <span className="ev-line">{ev.routeShortName ?? ev.lineId}</span>
-              <span className="ev-stop">{ev.stopName}</span>
-              <span className="ev-note">{ev.note}</span>
-            </li>
-          ))}
-        </ul>
-      </aside>
+      {view === 'map'
+        ? <MapView mockActive={started ? mockActive : {}} />
+        : <DawView
+            mode={mode}
+            started={started}
+            events={events}
+            laneChips={laneChips}
+            volumes={volumes}
+            muted={muted}
+            mockActive={mockActive}
+            onVolume={handleVolume}
+            onMute={handleMute}
+          />
+      }
     </div>
   )
 }

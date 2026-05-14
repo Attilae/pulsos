@@ -1,0 +1,72 @@
+.map-wrapper {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+
+.map-container {
+  width: 100%;
+  height: 100%;
+}
+
+.map-loading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #666;
+  font-size: 0.8rem;
+  font-family: 'Courier New', monospace;
+  z-index: 1000;
+  background: #0d0d0d;
+}
+
+/* Style the Leaflet layer control to match the dark theme */
+.leaflet-control-layers {
+  background: #1a1a1a !important;
+  border: 1px solid #333 !important;
+  border-radius: 4px !important;
+  color: #e8e8e8 !important;
+}
+
+.leaflet-control-layers label {
+  color: #e8e8e8 !important;
+  font-size: 0.78rem;
+}
+
+.leaflet-control-layers-toggle {
+  background-color: #1a1a1a !important;
+}
+
+.leaflet-control-zoom a {
+  background: #1a1a1a !important;
+  color: #e8e8e8 !important;
+  border-color: #333 !important;
+}
+
+.leaflet-control-zoom a:hover {
+  background: #242424 !important;
+}
+
+/* ── Active stop markers ─────────────────────────────────────────────────── */
+.active-stop-pulse {
+  animation: stop-ring-pulse 1.4s ease-out infinite;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+@keyframes stop-ring-pulse {
+  0%   { transform: scale(1);   opacity: 0.8; }
+  100% { transform: scale(2.8); opacity: 0;   }
+}
+
+.active-stop-dot {
+  animation: stop-dot-glow 1.4s ease-in-out infinite;
+}
+
+@keyframes stop-dot-glow {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.6; }
+}

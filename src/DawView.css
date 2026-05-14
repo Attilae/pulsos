@@ -1,0 +1,187 @@
+.daw-body {
+  display: contents; /* lets App.jsx grid control placement */
+}
+
+/* ── Section labels ─────────────────────────────────────────────────────── */
+.daw-section-label {
+  grid-column: 1 / -1;  /* span full tracks column */
+  padding: 6px 4px 2px;
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--muted);
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 2px;
+}
+
+.daw-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 80px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-style: italic;
+}
+
+/* ── Line track row ─────────────────────────────────────────────────────── */
+.line-track {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 8px 12px;
+  display: grid;
+  grid-template-columns: 180px 200px 1fr;
+  gap: 10px;
+  align-items: center;
+  transition: opacity 0.2s;
+  min-height: 44px;
+}
+.line-track--muted { opacity: 0.3; }
+
+/* ── Line label ─────────────────────────────────────────────────────────── */
+.line-label {
+  border-left: 3px solid;
+  padding-left: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.line-badge {
+  display: inline-block;
+  padding: 1px 7px;
+  border-radius: 3px;
+  font-size: 0.78rem;
+  font-weight: bold;
+  letter-spacing: 0.04em;
+  align-self: flex-start;
+  white-space: nowrap;
+}
+.line-desc {
+  font-size: 0.62rem;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Controls (reused from app.css patterns) ────────────────────────────── */
+.line-controls { display: flex; align-items: center; gap: 8px; }
+
+/* ── Stop rail ──────────────────────────────────────────────────────────── */
+.stop-rail {
+  position: relative;
+  height: 28px;
+  flex: 1;
+}
+.stop-rail--empty {
+  background: var(--surface2);
+  border-radius: 2px;
+}
+
+.stop-rail-line {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: color-mix(in srgb, var(--line-color) 35%, transparent);
+  transform: translateY(-50%);
+  border-radius: 1px;
+}
+
+.stop-dot {
+  position: absolute;
+  left: var(--pos);
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--line-color) 60%, #1a1a1a);
+  border: 1.5px solid var(--line-color);
+  cursor: default;
+  transition: background 0.15s, transform 0.1s, box-shadow 0.15s;
+  z-index: 1;
+}
+.stop-dot:hover {
+  transform: translate(-50%, -50%) scale(1.5);
+  z-index: 5;
+}
+.stop-dot.active {
+  background: var(--line-color);
+  box-shadow: 0 0 8px 3px color-mix(in srgb, var(--line-color) 60%, transparent);
+  transform: translate(-50%, -50%) scale(1.4);
+  z-index: 3;
+}
+
+/* Stop name label — only show on hover */
+.stop-label {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: #111;
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-size: 0.6rem;
+  white-space: nowrap;
+  padding: 2px 6px;
+  border-radius: 3px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.12s;
+  z-index: 10;
+}
+.stop-dot:hover .stop-label { opacity: 1; }
+
+/* ── Playhead ───────────────────────────────────────────────────────────── */
+.playhead {
+  position: absolute;
+  left: var(--pos);
+  top: -2px;
+  bottom: -2px;
+  width: 2px;
+  background: var(--line-color);
+  transform: translateX(-50%);
+  box-shadow:
+    0 0 6px 2px color-mix(in srgb, var(--line-color) 70%, transparent),
+    0 0 16px 4px color-mix(in srgb, var(--line-color) 30%, transparent);
+  border-radius: 1px;
+  pointer-events: none;
+  z-index: 4;
+  transition: left 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ── Live chips (same as existing arrival-chip) ─────────────────────────── */
+.live-lane {
+  position: relative;
+  display: flex;
+  flex-direction: row-reverse;
+  align-items: center;
+  gap: 4px;
+  height: 28px;
+  overflow: hidden;
+}
+.live-lane-idle {
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-style: italic;
+  position: absolute;
+  left: 0;
+}
+.arrival-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 26px;
+  border: 1px solid var(--color, #666);
+  background: color-mix(in srgb, var(--color, #666) 15%, transparent);
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+.chip-route { font-size: 0.58rem; color: var(--color, #ccc); font-weight: bold; }
+.chip-note  { font-size: 0.55rem; color: var(--muted); }

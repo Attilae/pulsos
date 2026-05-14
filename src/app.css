@@ -21,6 +21,13 @@ body { background: var(--bg); color: var(--text); font-family: 'Courier New', mo
   grid-template-areas: "header header" "tracks log";
   min-height: 100vh;
 }
+.daw--map {
+  grid-template-columns: 1fr;
+  grid-template-areas: "header" "map";
+}
+.daw--map .map-wrapper {
+  grid-area: map;
+}
 
 /* ── Header ─────────────────────────────────────────────────────────────── */
 .daw-header {
@@ -36,6 +43,7 @@ body { background: var(--bg); color: var(--text); font-family: 'Courier New', mo
 .daw-header h1 { font-size: 1.2rem; letter-spacing: 0.1em; color: var(--accent); white-space: nowrap; }
 .daw-sub { color: var(--muted); font-size: 0.75rem; flex: 1; min-width: 0; }
 
+.view-toggle { display: flex; border: 1px solid var(--border); border-radius: 3px; overflow: hidden; }
 .mode-toggle { display: flex; border: 1px solid var(--border); border-radius: 3px; overflow: hidden; }
 .mode-btn {
   padding: 5px 14px;
@@ -74,7 +82,8 @@ body { background: var(--bg); color: var(--text); font-family: 'Courier New', mo
 .transport-btn:hover { background: #2a2a2a; }
 
 /* ── Tracks ─────────────────────────────────────────────────────────────── */
-.tracks {
+.tracks,
+.daw-tracks {
   grid-area: tracks;
   display: flex;
   flex-direction: column;
