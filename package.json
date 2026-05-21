@@ -10,6 +10,7 @@
     "preprocess": "node scripts/preprocess_lines.js"
   },
   "dependencies": {
+    "@tonejs/midi": "^2.0.28",
     "@vitejs/plugin-react": "^6.0.1",
     "adm-zip": "^0.5.17",
     "dotenv": "^17.4.2",
@@ -20,6 +21,7 @@
     "react-dom": "^19.2.6",
     "react-leaflet": "^5.0.0",
     "tone": "^15.1.22",
+    "tunajs": "^1.1.3",
     "vite": "^8.0.12",
     "ws": "^8.20.1"
   }

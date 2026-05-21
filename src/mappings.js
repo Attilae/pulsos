@@ -87,16 +87,30 @@ export function midiToNote(midi) {
   return `${NOTE_NAMES[midi % 12]}${octave}`
 }
 
-// Randomly pick a note from a user-selected root + scale, spanning octaves 3–4
+// Tone.js note string → MIDI note number (e.g., "D4" → 62)
+export function noteToMidi(note) {
+  const m = note.match(/^([A-G]#?)(\d+)$/)
+  if (!m) return 60
+  const idx = NOTE_NAMES.indexOf(m[1])
+  return (Number(m[2]) + 1) * 12 + idx
+}
+
+// Shift a Tone.js note string by n octaves: "D4" + 1 → "D5"
+export function shiftOctaveNote(note, shift) {
+  if (!shift) return note
+  const m = note.match(/^([A-G]#?)(\d+)$/)
+  if (!m) return note
+  return `${m[1]}${Number(m[2]) + shift}`
+}
+
+// Randomly pick a note from a user-selected root + scale, within one octave
+// starting at the root in octave 4. The octave switcher shifts the whole map.
 export function randomFromScale(root = 'C', scaleType = 'major') {
   const rootIdx = NOTE_NAMES.indexOf(root)
   if (rootIdx === -1) return 'C4'
   const intervals = SCALES[scaleType] ?? SCALES.major
-  const pool = []
-  for (let oct = 3; oct <= 4; oct++) {
-    const rootMidi = (oct + 1) * 12 + rootIdx
-    for (const iv of intervals) pool.push(midiToNote(rootMidi + iv))
-  }
+  const rootMidi = (4 + 1) * 12 + rootIdx
+  const pool = intervals.map(iv => midiToNote(rootMidi + iv))
   return pool[Math.floor(Math.random() * pool.length)]
 }
 
@@ -179,6 +193,72 @@ export function haversineMetres(lat1, lng1, lat2, lng2) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
 }
 
+// ── Range converter ───────────────────────────────────────────────────────────
+// Maps a normalized 0..1 value into [min, max]. Universal converter used by the
+// automation apply step (engine.js:_applyAutomation) to translate a source's
+// normalized output into the destination's native range.
+export function denormalizeToRange(v, min, max) {
+  return min + v * (max - min)
+}
+
+// ── Linear referencing along a polyline ───────────────────────────────────────
+// Project a vehicle's lat/lng onto a route shape and return its progress (0–1).
+// Algorithm: for each segment, find the perpendicular foot via equirectangular
+// projection (accurate enough at city scale, cheaper than per-segment haversine).
+// Pick the segment with smallest perpendicular distance.
+
+export function cumulativePolylineDistance(coords) {
+  const cumulative = new Float64Array(coords.length)
+  let total = 0
+  for (let i = 1; i < coords.length; i++) {
+    total += haversineMetres(coords[i - 1][0], coords[i - 1][1], coords[i][0], coords[i][1])
+    cumulative[i] = total
+  }
+  return { cumulative, total }
+}
+
+// Returns { progress: 0..1, perpDist: metres }. Returns null if coords is empty.
+export function projectPointOntoPolyline(lat, lng, coords, cumulative, total) {
+  if (!coords?.length || !total) return null
+  const cosLat = Math.cos(lat * Math.PI / 180)
+  const mPerDegLat = 111320
+  const mPerDegLng = 111320 * cosLat
+
+  let bestPerp = Infinity
+  let bestAlong = 0
+
+  for (let i = 0; i < coords.length - 1; i++) {
+    const [aLat, aLng] = coords[i]
+    const [bLat, bLng] = coords[i + 1]
+
+    // Convert to local metres relative to point a
+    const ax = 0, ay = 0
+    const bx = (bLng - aLng) * mPerDegLng
+    const by = (bLat - aLat) * mPerDegLat
+    const px = (lng - aLng) * mPerDegLng
+    const py = (lat - aLat) * mPerDegLat
+
+    const segLenSq = bx * bx + by * by
+    let t = segLenSq > 0 ? ((px - ax) * bx + (py - ay) * by) / segLenSq : 0
+    if (t < 0) t = 0
+    else if (t > 1) t = 1
+
+    const fx = ax + t * bx
+    const fy = ay + t * by
+    const dx = px - fx
+    const dy = py - fy
+    const perp = Math.sqrt(dx * dx + dy * dy)
+
+    if (perp < bestPerp) {
+      bestPerp = perp
+      const segLen = cumulative[i + 1] - cumulative[i]
+      bestAlong = cumulative[i] + t * segLen
+    }
+  }
+
+  return { progress: bestAlong / total, perpDist: bestPerp }
+}
+
 // ── Fleet aggregation helpers ─────────────────────────────────────────────────
 
 // Compute the centroid lat/lng of an array of {lat, lng} objects
@@ -210,4 +290,155 @@ export function droneModIndex(activeVehicles, peakVehicles, dispersionKm2) {
 export function droneVolDb(activeVehicles, peakVehicles) {
   const density = Math.min(1, activeVehicles / peakVehicles)
   return -28 + density * 16  // -28dB (night) to -12dB (peak)
+}
+
+// ── GTFS field normalizations (all return 0.0–1.0) ────────────────────────────
+
+// arrival/departure delay: −300s (early) to +600s (very late)
+export function normalizeDelay(seconds) {
+  return Math.max(0, Math.min(1, ((seconds ?? 0) + 300) / 900))
+}
+
+// uncertainty: 0–300 seconds
+export function normalizeUncertainty(seconds) {
+  return Math.max(0, Math.min(1, (seconds ?? 0) / 300))
+}
+
+// occupancy percentage: 0–100%
+export function normalizeOccupancy(pct) {
+  return Math.max(0, Math.min(1, (pct ?? 0) / 100))
+}
+
+// speed: 0–80 km/h (metro top speed)
+export function normalizeSpeed(kmh) {
+  return Math.max(0, Math.min(1, (kmh ?? 0) / 80))
+}
+
+// congestion level enum: 0–5
+export function normalizeCongestion(level) {
+  return Math.max(0, Math.min(1, (level ?? 0) / 5))
+}
+
+// dwell deviation = departure.delay − arrival.delay, range −60 to +120s
+export function normalizeDwellDeviation(seconds) {
+  return Math.max(0, Math.min(1, ((seconds ?? 0) + 60) / 180))
+}
+
+// delay delta = stop N delay − stop N-1 delay, range −30 to +30s
+export function normalizeDelayDelta(seconds) {
+  return Math.max(0, Math.min(1, ((seconds ?? 0) + 30) / 60))
+}
+
+// stop latitude within Budapest bounds (south=0, north=1)
+export function normalizeStopLat(lat) {
+  return Math.max(0, Math.min(1, ((lat ?? BUD_LAT_MIN) - BUD_LAT_MIN) / (BUD_LAT_MAX - BUD_LAT_MIN)))
+}
+
+// stop sequence index within a route (first=0, last=1)
+export function normalizeStopSequence(idx, totalStops) {
+  if (!totalStops || totalStops <= 1) return 0
+  return Math.max(0, Math.min(1, idx / (totalStops - 1)))
+}
+
+// bearing (degrees, 0–359) → east/west travel component, remapped to [0, 1]
+// 0.5 = travelling north/south, 1.0 = due east, 0.0 = due west
+export function normalizeBearingSin(bearing) {
+  return (Math.sin((bearing ?? 0) * Math.PI / 180) + 1) / 2
+}
+
+// bearing (degrees) → north/south travel component, remapped to [0, 1]
+// 1.0 = due north, 0.0 = due south, 0.5 = travelling east/west
+export function normalizeBearingCos(bearing) {
+  return (Math.cos((bearing ?? 0) * Math.PI / 180) + 1) / 2
+}
+
+// longitude within Budapest bounds (west/Buda=0, east/Pest=1)
+export function normalizeLongitude(lng) {
+  return Math.max(0, Math.min(1, ((lng ?? BUD_LNG_MIN) - BUD_LNG_MIN) / (BUD_LNG_MAX - BUD_LNG_MIN)))
+}
+
+// ── Generative pitch maps ─────────────────────────────────────────────────────
+// Build a note-per-stop array for a route before scheduling.
+// strategy:
+//   'geographic'  — stop latitude → scale degree (city geography = melody contour)
+//   'randomWalk'  — Markov-style ±1 step walk through scale degrees (melodic drift)
+//   'index'       — stop order maps linearly low→high across two octaves
+//   'random'      — unweighted random (legacy fallback)
+export const PITCH_MAP_STRATEGIES = ['geographic', 'randomWalk', 'index', 'random']
+
+export function generatePitchMap(stops, rootMidi = 62, modeScale = MODES.dorian, strategy = 'geographic') {
+  if (!stops?.length) return []
+  const octaveRange = 2
+  const totalSteps  = modeScale.length * octaveRange
+
+  function stepToNote(step) {
+    const s   = Math.max(0, Math.min(totalSteps - 1, step))
+    const oct = Math.floor(s / modeScale.length) * 12
+    return midiToNote(rootMidi + modeScale[s % modeScale.length] + oct)
+  }
+
+  if (strategy === 'geographic') {
+    return stops.map(s => midiToNote(latToMidi(s.lat ?? 47.49, rootMidi, modeScale)))
+  }
+
+  if (strategy === 'randomWalk') {
+    let cursor = Math.floor(totalSteps / 2)
+    return stops.map(() => {
+      const r    = Math.random()
+      const step = r < 0.40 ? 1 : r < 0.80 ? -1 : 0   // 40% up / 40% down / 20% hold
+      cursor += step
+      return stepToNote(cursor)
+    })
+  }
+
+  if (strategy === 'index') {
+    return stops.map((_, i) => {
+      const t    = stops.length > 1 ? i / (stops.length - 1) : 0
+      const step = Math.round(t * (totalSteps - 1))
+      return stepToNote(step)
+    })
+  }
+
+  // 'random' fallback
+  return stops.map(() => stepToNote(Math.floor(Math.random() * totalSteps)))
+}
+
+// ── Grid quantization ─────────────────────────────────────────────────────────
+// Standard 4-bar × 16-step-per-bar grid (64 cells total).
+// These constants are the single source of truth for both the audio engine
+// (scheduling) and the UI (stop-rail rendering).
+
+export const GRID_BARS          = 4
+export const GRID_STEPS_PER_BAR = 16
+export const GRID_TOTAL_CELLS   = GRID_BARS * GRID_STEPS_PER_BAR  // 64
+
+// Map each stop's distance position to a 16th-note cell.
+// Collision rule: bump forward to the next free cell so no two stops share a cell.
+// Stops that fall beyond the last cell (index 63) are dropped.
+// Returns an array of stop objects extended with:
+//   cellIdx    – 0-based cell index (0–63)
+//   originalIdx – original index in the input array (for pitchMap lookup)
+//   bar         – 0-based bar number (0–3)
+//   beat        – 0-based beat within bar (0–3)
+//   sixteenth   – 0-based 16th within beat (0–3)
+export function snapStopsToGrid(stops, totalDist, totalCells = GRID_TOTAL_CELLS) {
+  if (!stops?.length || !totalDist) return []
+  let lastUsed = -1
+  const out = []
+  for (let i = 0; i < stops.length; i++) {
+    const s     = stops[i]
+    const ideal = Math.round((s.dist / totalDist) * (totalCells - 1))
+    const cell  = Math.max(ideal, lastUsed + 1)
+    if (cell >= totalCells) break
+    lastUsed = cell
+    out.push({
+      ...s,
+      cellIdx:     cell,
+      originalIdx: i,
+      bar:         Math.floor(cell / GRID_STEPS_PER_BAR),
+      beat:        Math.floor((cell % GRID_STEPS_PER_BAR) / 4),
+      sixteenth:   cell % 4,
+    })
+  }
+  return out
 }

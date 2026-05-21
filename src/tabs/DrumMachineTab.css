@@ -1,0 +1,190 @@
+.drum-tab {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  height: 100%;
+  min-height: 0;
+  flex: 1;
+  background: var(--bg);
+}
+
+/* ── Header ───────────────────────────────────────────────────────────── */
+.drum-header {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 12px 20px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.drum-title {
+  font-size: 1.05rem;
+  letter-spacing: 0.12em;
+  color: var(--accent);
+  white-space: nowrap;
+  margin-right: auto;
+}
+.drum-bpm {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 0.72rem; color: var(--muted);
+}
+.drum-bpm input {
+  width: 56px; padding: 5px 6px;
+  background: var(--surface2); border: 1px solid var(--border);
+  color: var(--text); font-family: inherit; font-size: 0.78rem;
+  border-radius: 3px; text-align: center; outline: none;
+}
+.drum-bpm input:disabled { opacity: 0.5; }
+
+.drum-btn {
+  padding: 7px 16px;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 0.82rem;
+  cursor: pointer;
+  border-radius: 3px;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+.drum-btn:hover { background: #2a2a2a; }
+.drum-btn--ghost {
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.74rem;
+  padding: 6px 12px;
+}
+.drum-btn--ghost:hover { color: var(--text); }
+.drum-btn--transport.play { border-color: var(--accent); color: var(--accent); }
+.drum-btn--transport.stop { border-color: #f04040; color: #f04040; }
+
+/* ── Grid ─────────────────────────────────────────────────────────────── */
+.drum-grid {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.drum-row {
+  display: grid;
+  grid-template-columns: 220px 110px 130px 1fr;
+  gap: 12px;
+  align-items: center;
+  padding: 8px 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  transition: opacity 0.15s;
+}
+.drum-row.is-muted { opacity: 0.4; }
+
+.drum-row-label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.drum-pad-name {
+  font-weight: bold;
+  font-size: 0.92rem;
+  color: var(--text);
+  letter-spacing: 0.06em;
+}
+.drum-route-pick {
+  background: var(--surface2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 4px 6px;
+  font-family: inherit;
+  font-size: 0.74rem;
+  outline: none;
+  cursor: pointer;
+}
+.drum-route-pick:hover { border-color: #555; }
+
+.drum-row-controls { display: flex; gap: 4px; }
+.drum-mini-btn {
+  width: 32px; height: 28px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  cursor: pointer;
+  border-radius: 3px;
+  font-family: inherit;
+  font-size: 0.82rem;
+  transition: background 0.1s, color 0.1s, border-color 0.1s;
+}
+.drum-mini-btn:hover { background: #2a2a2a; color: var(--text); }
+.drum-mini-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+.drum-mini-btn.on {
+  background: rgba(240, 64, 64, 0.15);
+  color: #f04040;
+  border-color: #f04040;
+}
+
+/* ── Offset slider ────────────────────────────────────────────────────── */
+.drum-offset {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.drum-offset input[type="range"] {
+  flex: 1;
+  min-width: 0;
+  height: 4px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+.drum-offset-value {
+  font-size: 0.7rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  width: 18px;
+  text-align: right;
+}
+
+/* ── Steps ────────────────────────────────────────────────────────────── */
+.drum-steps {
+  display: grid;
+  grid-template-columns: repeat(16, 1fr);
+  gap: 4px;
+}
+.drum-step {
+  height: 36px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.08s, border-color 0.08s, transform 0.04s;
+}
+.drum-step:hover { background: #2e2e2e; }
+.drum-step.beat { border-color: #444; }
+.drum-step.on {
+  background: var(--accent);
+  border-color: var(--accent);
+  box-shadow: 0 0 6px rgba(200, 240, 64, 0.4);
+}
+.drum-step.playing:not(.on) {
+  background: #3a3a3a;
+  border-color: #777;
+}
+.drum-step.playing.on {
+  background: #ffffff;
+  border-color: #ffffff;
+  box-shadow: 0 0 14px rgba(200, 240, 64, 0.9);
+}
+
+/* ── Footer ───────────────────────────────────────────────────────────── */
+.drum-footer {
+  padding: 8px 20px;
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+}
+.drum-hint {
+  font-size: 0.72rem;
+  color: var(--muted);
+  text-align: center;
+}

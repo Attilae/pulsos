@@ -1,6 +1,9 @@
 import * as Tone from 'tone'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { SYNTH_DEFAULTS, EFFECT_TYPES, EFFECT_DEFAULTS } from './engine.js'
+import { SYNTH_DEFAULTS, SYNTH_PARAM_TARGETS, findTargetSpec } from './engine.js'
+import { AUTOMATION_SOURCES } from './automationTrack.js'
+import { FX_BUSES, AUTOMATION_TARGETS, FX_PARAM_SPECS } from './fxTrack.js'
+import { latToNote, noteToMidi, SCALES, normalizeStopLat, normalizeStopSequence, normalizeLongitude, snapStopsToGrid, GRID_TOTAL_CELLS, GRID_BARS } from './mappings.js'
 import './DawView.css'
 
 const SYNTH_TYPES = [
@@ -20,6 +23,16 @@ const SCALE_TYPES = [
   ['mixolydian',      'Mixolyd.'],
 ]
 
+const DRONE_NOTES = NOTE_ROOTS.flatMap(n => [1, 2, 3, 4, 5].map(oct => `${n}${oct}`))
+
+const OSC_TYPES = ['sine', 'triangle', 'square', 'sawtooth', 'fatsine', 'fattriangle', 'fatsquare', 'fatsawtooth', 'pulse', 'pwm']
+const FILTER_TYPES = ['lowpass', 'highpass', 'bandpass', 'notch']
+const FILTER_ROLLOFFS = [-12, -24, -48, -96]
+const NOISE_TYPES = ['white', 'pink', 'brown']
+
+const DEFAULT_FILTER = { type: 'lowpass', frequency: 20000, Q: 1 }
+const DEFAULT_EQ     = { low: 0, mid: 0, high: 0, lowFrequency: 400, highFrequency: 2500 }
+
 // Find the stop nearest to a vehicle lat/lng, return its rail position (0–100)
 function resolvePlayhead(route, lat, lng) {
   if (!route.stops.length || route.totalDist <= 0 || lat == null) return null
@@ -33,24 +46,32 @@ function resolvePlayhead(route, lat, lng) {
 }
 
 export default function DawView({
+  className = '',
   mode, started, events, routes,
-  volumes, muted, soloRoutes,
+  volumes, muted, pans, soloRoutes,
   liveSnapshot, snapshotLoading,
-  trackSoundModes, trackScales, trackSynthTypes, trackADSRs, trackEffects,
-  onVolume, onMute, onSolo,
-  onSoundMode, onScale, onSynthType, onADSR, onEffect, onEffectParams,
+  trackSoundModes, trackScales, trackSynthTypes, trackADSRs, trackFilters, trackEqs,
+  sendMatrix, automationCfg, automationSourceIds,
+  fxBusWet, activeFxTracks, masterVolume, trackOctaves, trackGlides,
+  trackDroneModes, trackDroneRoots, onDroneMode, onDroneRoot,
+  onVolume, onMute, onPan, onSolo,
+  onSoundMode, onScale, onSynthType, onADSR, onFilter, onEq,
+  onSendLevel, onFxBusWet, fxBusMuted, fxBusSoloed, onFxBusMute, onFxBusSolo,
+  fxBusParams, onFxBusParam, onFxBusCustomIR,
+  onAddFxTrack, onRemoveFxTrack, onMasterVolume,
+  onOctaveShift, onGlide,
+  onAddAutomationLane, onRemoveAutomationLane, onUpdateAutomationLane,
   onRefetch, onVehicleCrossed,
+  trackPitchMaps, onRandomizePitches,
 }) {
-  // Global playhead element
-  const playheadRef          = useRef(null)
-  const tracksRef            = useRef(null)
-  const animRef              = useRef(null)
-  const railOffsetRef        = useRef(412)
-  const lastProgressRef      = useRef(0)
+  const playheadRef           = useRef(null)
+  const tracksRef             = useRef(null)
+  const animRef               = useRef(null)
+  const railOffsetRef         = useRef(412)
+  const lastProgressRef       = useRef(0)
   const lastProgressUpdateRef = useRef(0)
   const [playheadProgress, setPlayheadProgress] = useState(0)
 
-  // Vehicles grouped by routeShortName for crossing detection
   const vehiclesByRoute = useMemo(() => {
     if (!liveSnapshot?.vehicles) return {}
     const map = {}
@@ -61,7 +82,6 @@ export default function DawView({
     return map
   }, [liveSnapshot])
 
-  // Measure where the stop-rail column starts inside .daw-tracks
   useEffect(() => {
     if (!routes) return
     const measure = () => {
@@ -76,7 +96,6 @@ export default function DawView({
     return () => window.removeEventListener('resize', measure)
   }, [routes])
 
-  // rAF loop: moves playhead, detects crossings
   useEffect(() => {
     const ph = playheadRef.current
     if (!ph) return
@@ -92,20 +111,17 @@ export default function DawView({
     const tick = () => {
       const progress = Tone.getTransport().progress
 
-      // 60fps: move the playhead div in pixels (rail-aligned)
       const tracksEl = tracksRef.current
       const railLeft = railOffsetRef.current
       const railWidth = tracksEl ? tracksEl.offsetWidth - railLeft - 12 : 0
       ph.style.left = `${railLeft + progress * railWidth}px`
 
-      // ~15fps: update React state for stop highlighting
       const now = performance.now()
       if (now - lastProgressUpdateRef.current > 66) {
         setPlayheadProgress(progress)
         lastProgressUpdateRef.current = now
       }
 
-      // Live crossing detection every frame
       if (mode === 'live' && routes && liveSnapshot) {
         const prev = lastProgressRef.current
         for (const route of routes) {
@@ -116,8 +132,8 @@ export default function DawView({
             const vPct   = ph2.pct / 100
             const crossed = progress >= prev
               ? (prev < vPct && vPct <= progress)
-              : (prev < vPct || vPct <= progress)   // loop wrap-around
-            if (crossed) onVehicleCrossed(route.id, route.type, v.lat)
+              : (prev < vPct || vPct <= progress)
+            if (crossed) onVehicleCrossed(route.id, route.type, v.lat, ph2.stopId)
           }
         }
       }
@@ -130,13 +146,31 @@ export default function DawView({
     return () => cancelAnimationFrame(animRef.current)
   }, [started, mode, routes, liveSnapshot, vehiclesByRoute, onVehicleCrossed])
 
-  const metro = routes?.filter(r => r.type === 'metro') ?? []
-  const trams = routes?.filter(r => r.type === 'tram')  ?? []
+  const srcIds = automationSourceIds ?? new Set()
+
+  // sourceRouteId → first instrument routeId that uses it
+  const sourceToInst = useMemo(() => {
+    const map = {}
+    for (const [instId, lanes] of Object.entries(automationCfg ?? {}))
+      for (const lane of Object.values(lanes))
+        if (lane?.sourceRouteId && !map[lane.sourceRouteId])
+          map[lane.sourceRouteId] = instId
+    return map
+  }, [automationCfg])
+
+  // Source routes rendered inside their instrument's track-group, not their own section
+  const metro = routes?.filter(r => r.type === 'metro' && !srcIds.has(r.id)) ?? []
+  const trams = routes?.filter(r => r.type === 'tram'  && !srcIds.has(r.id)) ?? []
+  // All routes by id for source picker lookups
+  const routeById = useMemo(() => {
+    const map = {}
+    for (const r of routes ?? []) map[r.id] = r
+    return map
+  }, [routes])
 
   return (
-    <div className="daw-body">
+    <div className={`daw-body${className ? ` ${className}` : ''}`}>
       <main className="daw-tracks" ref={tracksRef}>
-        {/* Global rail-aligned playhead */}
         <div
           ref={playheadRef}
           className={`daw-global-playhead ${started ? 'active' : ''}`}
@@ -145,7 +179,6 @@ export default function DawView({
 
         {!routes && <div className="daw-loading">Loading line data…</div>}
 
-        {/* Live mode: snapshot bar */}
         {mode === 'live' && routes && (
           <div className="snapshot-bar">
             <span className="snapshot-label">
@@ -167,34 +200,79 @@ export default function DawView({
         {metro.length > 0 && (
           <>
             <div className="daw-section-label">Metro</div>
-            {metro.map(route => (
-              <LineTrack
-                key={route.id}
-                route={route}
-                mode={mode}
-                started={started}
-                progress={playheadProgress}
-                volume={volumes[route.type] ?? 0}
-                muted={muted[route.type] ?? false}
-                isSoloed={soloRoutes.has(route.id)}
-                vehicles={vehiclesByRoute[route.name] ?? []}
-                soundMode={trackSoundModes?.[route.id] ?? 'harmonic'}
-                trackScale={trackScales?.[route.id] ?? { root: 'C', scaleType: 'major' }}
-                synthType={trackSynthTypes?.[route.id] ?? 'Synth'}
-                adsr={trackADSRs?.[route.id] ?? SYNTH_DEFAULTS['Synth']}
-                onVolume={v => onVolume(route.type, v)}
-                onMute={() => onMute(route.type)}
-                onSolo={() => onSolo(route.id)}
-                onSoundMode={m => onSoundMode(route.id, route.name, m)}
-                onScale={s => onScale(route.id, route.name, s)}
-                onSynthType={st => onSynthType(route.id, route.type, st)}
-                onADSR={p => onADSR(route.id, p)}
-                effectType={trackEffects?.[route.id]?.type ?? 'None'}
-                effectParams={trackEffects?.[route.id]?.params ?? {}}
-                onEffect={et => onEffect(route.id, route.type, et)}
-                onEffectParams={p => onEffectParams(route.id, p)}
-              />
-            ))}
+            {metro.map(route => {
+              const lanes = Object.entries(automationCfg?.[route.id] ?? {})
+              // Source routes attached to this instrument
+              const attachedSrcIds = [...new Set(
+                lanes.map(([, lc]) => lc?.sourceRouteId).filter(Boolean)
+              )]
+              return (
+                <div key={route.id} className={`track-group ${lanes.length > 0 ? 'track-group--has-lanes' : ''}`}>
+                  <LineTrack
+                    route={route}
+                    mode={mode}
+                    started={started}
+                    progress={playheadProgress}
+                    volume={volumes[route.id] ?? 0}
+                    muted={muted[route.id] ?? false}
+                    pan={pans[route.id] ?? 0}
+                    isSoloed={soloRoutes.has(route.id)}
+                    vehicles={vehiclesByRoute[route.name] ?? []}
+                    soundMode={trackSoundModes?.[route.id] ?? 'harmonic'}
+                    trackScale={trackScales?.[route.id] ?? { root: 'C', scaleType: 'major' }}
+                    synthType={trackSynthTypes?.[route.id] ?? 'Synth'}
+                    adsr={trackADSRs?.[route.id] ?? SYNTH_DEFAULTS['Synth']}
+                    droneMode={trackDroneModes?.[route.id] ?? false}
+                    droneRoot={trackDroneRoots?.[route.id] ?? 'C3'}
+                    laneCount={lanes.length}
+                    activeFxTracks={activeFxTracks ?? []}
+                    sendMatrix={sendMatrix}
+                    onSendLevel={(busId, lvl) => onSendLevel(route.id, busId, lvl)}
+                    onVolume={v => onVolume(route.id, v)}
+                    onMute={() => onMute(route.id)}
+                    onPan={v => onPan(route.id, v)}
+                    onSolo={() => onSolo(route.id)}
+                    octaveShift={trackOctaves?.[route.id] ?? 0}
+                    glide={trackGlides?.[route.id] ?? 0}
+                    onSoundMode={m => onSoundMode(route.id, route.name, m)}
+                    onScale={s => onScale(route.id, route.name, s)}
+                    onSynthType={st => onSynthType(route.id, route.type, st)}
+                    onADSR={p => onADSR(route.id, p)}
+                    filter={trackFilters?.[route.id] ?? DEFAULT_FILTER}
+                    eq={trackEqs?.[route.id] ?? DEFAULT_EQ}
+                    onFilter={p => onFilter(route.id, p)}
+                    onEq={p => onEq(route.id, p)}
+                    onOctaveShift={shift => onOctaveShift(route.id, shift)}
+                    onGlide={s => onGlide(route.id, s)}
+                    onDroneMode={en => onDroneMode(route.id, en)}
+                    onDroneRoot={n => onDroneRoot(route.id, n)}
+                    pitchMap={trackPitchMaps?.[route.id]}
+                    onRandomizePitches={() => onRandomizePitches(route.id)}
+                    onAddLane={() => onAddAutomationLane(route.id)}
+                  />
+                  {attachedSrcIds.map(srcId => (
+                    <AutomationSourceTrack
+                      key={srcId}
+                      srcRoute={routeById[srcId]}
+                      instRoute={route}
+                      automationCfg={automationCfg}
+                    />
+                  ))}
+                  {lanes.map(([laneId, laneCfg]) => (
+                    <AutomationLane
+                      key={laneId}
+                      instRoute={route}
+                      laneCfg={laneCfg}
+                      allRoutes={routes ?? []}
+                      activeFxTracks={activeFxTracks ?? []}
+                      synthType={trackSynthTypes?.[route.id] ?? 'Synth'}
+                      onUpdate={cfg => onUpdateAutomationLane(route.id, laneId, cfg)}
+                      onRemove={() => onRemoveAutomationLane(route.id, laneId)}
+                    />
+                  ))}
+                </div>
+              )
+            })}
           </>
         )}
 
@@ -202,36 +280,81 @@ export default function DawView({
         {trams.length > 0 && (
           <>
             <div className="daw-section-label">Tram</div>
-            {trams.map(route => (
-              <LineTrack
-                key={route.id}
-                route={route}
-                mode={mode}
-                started={started}
-                progress={playheadProgress}
-                volume={volumes[route.type] ?? 0}
-                muted={muted[route.type] ?? false}
-                isSoloed={soloRoutes.has(route.id)}
-                vehicles={vehiclesByRoute[route.name] ?? []}
-                soundMode={trackSoundModes?.[route.id] ?? 'harmonic'}
-                trackScale={trackScales?.[route.id] ?? { root: 'C', scaleType: 'major' }}
-                synthType={trackSynthTypes?.[route.id] ?? 'Synth'}
-                adsr={trackADSRs?.[route.id] ?? SYNTH_DEFAULTS['Synth']}
-                onVolume={v => onVolume(route.type, v)}
-                onMute={() => onMute(route.type)}
-                onSolo={() => onSolo(route.id)}
-                onSoundMode={m => onSoundMode(route.id, route.name, m)}
-                onScale={s => onScale(route.id, route.name, s)}
-                onSynthType={st => onSynthType(route.id, route.type, st)}
-                onADSR={p => onADSR(route.id, p)}
-                effectType={trackEffects?.[route.id]?.type ?? 'None'}
-                effectParams={trackEffects?.[route.id]?.params ?? {}}
-                onEffect={et => onEffect(route.id, route.type, et)}
-                onEffectParams={p => onEffectParams(route.id, p)}
-              />
-            ))}
+            {trams.map(route => {
+              const lanes = Object.entries(automationCfg?.[route.id] ?? {})
+              const attachedSrcIds = [...new Set(
+                lanes.map(([, lc]) => lc?.sourceRouteId).filter(Boolean)
+              )]
+              return (
+                <div key={route.id} className={`track-group ${lanes.length > 0 ? 'track-group--has-lanes' : ''}`}>
+                  <LineTrack
+                    route={route}
+                    mode={mode}
+                    started={started}
+                    progress={playheadProgress}
+                    volume={volumes[route.id] ?? 0}
+                    muted={muted[route.id] ?? false}
+                    pan={pans[route.id] ?? 0}
+                    isSoloed={soloRoutes.has(route.id)}
+                    vehicles={vehiclesByRoute[route.name] ?? []}
+                    soundMode={trackSoundModes?.[route.id] ?? 'harmonic'}
+                    trackScale={trackScales?.[route.id] ?? { root: 'C', scaleType: 'major' }}
+                    synthType={trackSynthTypes?.[route.id] ?? 'Synth'}
+                    adsr={trackADSRs?.[route.id] ?? SYNTH_DEFAULTS['Synth']}
+                    droneMode={trackDroneModes?.[route.id] ?? false}
+                    droneRoot={trackDroneRoots?.[route.id] ?? 'C3'}
+                    laneCount={lanes.length}
+                    activeFxTracks={activeFxTracks ?? []}
+                    sendMatrix={sendMatrix}
+                    onSendLevel={(busId, lvl) => onSendLevel(route.id, busId, lvl)}
+                    onVolume={v => onVolume(route.id, v)}
+                    onMute={() => onMute(route.id)}
+                    onPan={v => onPan(route.id, v)}
+                    onSolo={() => onSolo(route.id)}
+                    octaveShift={trackOctaves?.[route.id] ?? 0}
+                    glide={trackGlides?.[route.id] ?? 0}
+                    onSoundMode={m => onSoundMode(route.id, route.name, m)}
+                    onScale={s => onScale(route.id, route.name, s)}
+                    onSynthType={st => onSynthType(route.id, route.type, st)}
+                    onADSR={p => onADSR(route.id, p)}
+                    filter={trackFilters?.[route.id] ?? DEFAULT_FILTER}
+                    eq={trackEqs?.[route.id] ?? DEFAULT_EQ}
+                    onFilter={p => onFilter(route.id, p)}
+                    onEq={p => onEq(route.id, p)}
+                    onOctaveShift={shift => onOctaveShift(route.id, shift)}
+                    onGlide={s => onGlide(route.id, s)}
+                    onDroneMode={en => onDroneMode(route.id, en)}
+                    onDroneRoot={n => onDroneRoot(route.id, n)}
+                    pitchMap={trackPitchMaps?.[route.id]}
+                    onRandomizePitches={() => onRandomizePitches(route.id)}
+                    onAddLane={() => onAddAutomationLane(route.id)}
+                  />
+                  {attachedSrcIds.map(srcId => (
+                    <AutomationSourceTrack
+                      key={srcId}
+                      srcRoute={routeById[srcId]}
+                      instRoute={route}
+                      automationCfg={automationCfg}
+                    />
+                  ))}
+                  {lanes.map(([laneId, laneCfg]) => (
+                    <AutomationLane
+                      key={laneId}
+                      instRoute={route}
+                      laneCfg={laneCfg}
+                      allRoutes={routes ?? []}
+                      activeFxTracks={activeFxTracks ?? []}
+                      synthType={trackSynthTypes?.[route.id] ?? 'Synth'}
+                      onUpdate={cfg => onUpdateAutomationLane(route.id, laneId, cfg)}
+                      onRemove={() => onRemoveAutomationLane(route.id, laneId)}
+                    />
+                  ))}
+                </div>
+              )
+            })}
           </>
         )}
+
       </main>
 
       <aside className="event-log">
@@ -246,123 +369,176 @@ export default function DawView({
           ))}
         </ul>
       </aside>
+
+      <DawFooter
+        activeFxTracks={activeFxTracks ?? []}
+        masterVolume={masterVolume ?? 0}
+        fxBusWet={fxBusWet}
+        fxBusMuted={fxBusMuted}
+        fxBusSoloed={fxBusSoloed}
+        fxBusParams={fxBusParams}
+        onMasterVolume={onMasterVolume}
+        onFxBusWet={onFxBusWet}
+        onFxBusMute={onFxBusMute}
+        onFxBusSolo={onFxBusSolo}
+        onFxBusParam={onFxBusParam}
+        onFxBusCustomIR={onFxBusCustomIR}
+        onAddFxTrack={onAddFxTrack}
+        onRemoveFxTrack={onRemoveFxTrack}
+      />
     </div>
   )
 }
 
-// ── Individual line track row ─────────────────────────────────────────────────
+// ── Individual instrument track row ──────────────────────────────────────────
 function LineTrack({
-  route, mode, started, progress, volume, muted, isSoloed,
+  route, mode, started, progress, volume, muted, pan, isSoloed,
   vehicles, soundMode, trackScale, synthType, adsr,
-  effectType, effectParams,
-  onVolume, onMute, onSolo, onSoundMode, onScale, onSynthType, onADSR,
-  onEffect, onEffectParams,
+  filter, eq,
+  droneMode, droneRoot,
+  laneCount, activeFxTracks, sendMatrix, octaveShift, glide,
+  pitchMap, onRandomizePitches,
+  onVolume, onMute, onPan, onSolo, onSoundMode, onScale, onSynthType, onADSR,
+  onFilter, onEq,
+  onSendLevel, onOctaveShift, onGlide, onDroneMode, onDroneRoot, onAddLane,
 }) {
-  const [envOpen, setEnvOpen] = useState(false)
-  const [fxOpen,  setFxOpen]  = useState(false)
+  const [envOpen,    setEnvOpen]    = useState(false)
+  const [filterOpen, setFilterOpen] = useState(false)
+  const [eqOpen,     setEqOpen]     = useState(false)
 
   return (
     <div className={`line-track ${muted ? 'line-track--muted' : ''}`}>
       <div className="line-label" style={{ borderColor: route.color }}>
-        <span className="line-badge" style={{ background: route.color, color: route.textColor }}>
-          {route.name}
-        </span>
+        <div className="line-label-top">
+          <span className="line-badge" style={{ background: route.color, color: route.textColor }}>
+            {route.name}
+          </span>
+          <button
+            className={`add-lane-btn ${laneCount > 0 ? 'has-lanes' : ''}`}
+            onClick={onAddLane}
+            title="Add automation lane"
+          >
+            {laneCount > 0 ? `+${laneCount}` : '+'}
+          </button>
+        </div>
         <span className="line-desc">{route.desc}</span>
       </div>
 
       <div className="line-controls">
         <div className="line-controls-row">
-          <button
-            className={`mute-btn ${muted ? 'active' : ''}`}
-            onClick={onMute}
-            title={muted ? 'Unmute' : 'Mute'}
-          >M</button>
-          <button
-            className={`solo-btn ${isSoloed ? 'active' : ''}`}
-            onClick={onSolo}
-            title="Solo"
-          >S</button>
-          <input
-            type="range" min="-40" max="6" step="1"
-            value={volume}
-            onChange={e => onVolume(Number(e.target.value))}
-            className="volume-slider"
-          />
+          <button className={`mute-btn ${muted ? 'active' : ''}`} onClick={onMute} title={muted ? 'Unmute' : 'Mute'}>M</button>
+          <button className={`solo-btn ${isSoloed ? 'active' : ''}`} onClick={onSolo} title="Solo">S</button>
+          <input type="range" min="-40" max="6" step="1"
+            value={volume} onChange={e => onVolume(Number(e.target.value))} className="volume-slider" />
           <span className="volume-val">{volume}dB</span>
         </div>
 
-        <div className="synth-controls-row">
-          <select
-            className="synth-select"
-            value={synthType}
-            onChange={e => onSynthType(e.target.value)}
-          >
-            {SYNTH_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-          </select>
-          <button
-            className={`env-toggle-btn ${envOpen ? 'active' : ''}`}
-            onClick={() => setEnvOpen(o => !o)}
-            title="Envelope / synth parameters"
-          >ENV</button>
+        <div className="line-controls-row pan-row">
+          <span className="pan-label">PAN</span>
+          <input type="range" min="-1" max="1" step="0.01"
+            value={pan} onChange={e => onPan(parseFloat(e.target.value))}
+            onDoubleClick={() => onPan(0)} className="pan-slider" />
+          <span className="pan-val">
+            {pan === 0 ? 'C' : pan < 0 ? `L${Math.round(-pan * 100)}` : `R${Math.round(pan * 100)}`}
+          </span>
         </div>
 
-        {envOpen && <EnvPanel synthType={synthType} adsr={adsr} onADSR={onADSR} />}
-
-        <div className="fx-controls-row">
-          <select
-            className="fx-select"
-            value={effectType}
-            onChange={e => {
-              const t = e.target.value
-              onEffect(t)
-              setFxOpen(t !== 'None')
-            }}
-          >
-            {EFFECT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-          </select>
-          {effectType !== 'None' && (
-            <button
-              className={`fx-toggle-btn ${fxOpen ? 'active' : ''}`}
-              onClick={() => setFxOpen(o => !o)}
-              title="Effect parameters"
-            >FX</button>
-          )}
-        </div>
-
-        {fxOpen && effectType !== 'None' && (
-          <FxPanel effectType={effectType} effectParams={effectParams} onEffectParams={onEffectParams} />
+        {activeFxTracks?.length > 0 && (
+          <div className="line-sends">
+            {activeFxTracks.map(busId => {
+              const bus   = FX_BUSES.find(b => b.id === busId)
+              const level = sendMatrix?.[`${route.id}:${busId}`] ?? 0
+              return (
+                <div key={busId} className="line-send-row">
+                  <span className="line-send-label">→ {bus?.label ?? busId}</span>
+                  <input
+                    type="range" min="0" max="1" step="0.01"
+                    value={level}
+                    onChange={e => onSendLevel(busId, parseFloat(e.target.value))}
+                    className="line-send-slider"
+                  />
+                  <span className="line-send-val">{Math.round(level * 100)}%</span>
+                </div>
+              )
+            })}
+          </div>
         )}
 
+        <div className="synth-controls-row">
+          <select className="synth-select" value={synthType} onChange={e => onSynthType(e.target.value)}>
+            {SYNTH_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+          </select>
+          <button className={`env-toggle-btn ${envOpen ? 'active' : ''}`}
+            onClick={() => setEnvOpen(o => !o)} title="Envelope">ENV</button>
+          <button className={`env-toggle-btn ${filterOpen ? 'active' : ''}`}
+            onClick={() => setFilterOpen(o => !o)} title="Filter">FLT</button>
+          <button className={`env-toggle-btn ${eqOpen ? 'active' : ''}`}
+            onClick={() => setEqOpen(o => !o)} title="EQ">EQ</button>
+        </div>
+
+        {envOpen    && <EnvPanel    synthType={synthType} adsr={adsr} onADSR={onADSR} />}
+        {filterOpen && <FilterPanel filter={filter} onFilter={onFilter} />}
+        {eqOpen     && <EqPanel     eq={eq} onEq={onEq} />}
+
+        <div className="octave-row">
+          <span className="octave-label">OCT</span>
+          <button className="octave-btn" onClick={() => onOctaveShift(Math.max(-2, octaveShift - 1))}>−</button>
+          <span className="octave-val">{octaveShift >= 0 ? `+${octaveShift}` : octaveShift}</span>
+          <button className="octave-btn" onClick={() => onOctaveShift(Math.min(2, octaveShift + 1))}>+</button>
+        </div>
+
+        <div className="glide-row">
+          <span className="glide-label">GLIDE</span>
+          <input
+            type="range" min="0" max="1" step="0.01"
+            value={glide ?? 0}
+            onChange={e => onGlide(parseFloat(e.target.value))}
+            onDoubleClick={() => onGlide(0)}
+            className="glide-slider"
+          />
+          <span className="glide-val">{Math.round((glide ?? 0) * 1000)}ms</span>
+        </div>
+
         <div className="sound-mode-row">
-          <button
-            className={`sound-mode-btn ${soundMode === 'percussive' ? 'active' : ''}`}
-            onClick={() => onSoundMode('percussive')}
-          >Perc</button>
-          <button
-            className={`sound-mode-btn ${soundMode === 'harmonic' ? 'active' : ''}`}
-            onClick={() => onSoundMode('harmonic')}
-          >Harm</button>
-          {soundMode === 'harmonic' && (
+          <button className={`sound-mode-btn ${droneMode ? 'active' : ''}`}
+            onClick={() => onDroneMode(!droneMode)}
+            title={droneMode ? 'Switch to note mode' : 'Switch to drone mode'}>
+            {droneMode ? 'Drone' : 'Note'}
+          </button>
+          {droneMode ? (
+            <select className="scale-root-select" value={droneRoot ?? 'C3'}
+              onChange={e => onDroneRoot(e.target.value)}>
+              {DRONE_NOTES.map(n => <option key={n} value={n}>{n}</option>)}
+            </select>
+          ) : (
             <>
-              <select
-                className="scale-root-select"
-                value={trackScale.root}
-                onChange={e => onScale({ ...trackScale, root: e.target.value })}
-              >
-                {NOTE_ROOTS.map(n => <option key={n} value={n}>{n}</option>)}
-              </select>
-              <select
-                className="scale-type-select"
-                value={trackScale.scaleType}
-                onChange={e => onScale({ ...trackScale, scaleType: e.target.value })}
-              >
-                {SCALE_TYPES.map(([key, label]) => (
-                  <option key={key} value={key}>{label}</option>
-                ))}
-              </select>
+              <button className={`sound-mode-btn ${soundMode === 'percussive' ? 'active' : ''}`}
+                onClick={() => onSoundMode('percussive')}>Perc</button>
+              <button className={`sound-mode-btn ${soundMode === 'harmonic' ? 'active' : ''}`}
+                onClick={() => onSoundMode('harmonic')}>Harm</button>
+              {soundMode === 'harmonic' && (
+                <>
+                  <select className="scale-root-select" value={trackScale.root}
+                    onChange={e => onScale({ ...trackScale, root: e.target.value })}>
+                    {NOTE_ROOTS.map(n => <option key={n} value={n}>{n}</option>)}
+                  </select>
+                  <select className="scale-type-select" value={trackScale.scaleType}
+                    onChange={e => onScale({ ...trackScale, scaleType: e.target.value })}>
+                    {SCALE_TYPES.map(([key, label]) => (
+                      <option key={key} value={key}>{label}</option>
+                    ))}
+                  </select>
+                </>
+              )}
+              <button
+                className="randomize-btn"
+                onClick={onRandomizePitches}
+                title="Re-randomize note pitches"
+              >↺</button>
             </>
           )}
         </div>
+
       </div>
 
       <StopRail
@@ -370,150 +546,763 @@ function LineTrack({
         progress={progress}
         mode={mode}
         vehicles={vehicles}
+        trackScale={trackScale}
+        octaveShift={octaveShift ?? 0}
+        pitchMap={pitchMap}
       />
     </div>
   )
 }
 
-// ── ADSR / param envelope panel ───────────────────────────────────────────────
-function EnvPanel({ synthType, adsr, onADSR }) {
-  if (synthType === 'PluckSynth') {
+// ── Automation lane (sub-row below instrument track) ─────────────────────────
+function AutomationLane({ instRoute, laneCfg, allRoutes, activeFxTracks, synthType = 'Synth', onUpdate, onRemove }) {
+  const sourceRouteId = laneCfg?.sourceRouteId ?? ''
+  const source        = laneCfg?.source        ?? 'arrival.delay'
+  const paramTarget   = laneCfg?.paramTarget   ?? 'send.reverb'
+  const laneMode      = laneCfg?.mode          ?? 'live'
+
+  const sourceRoute    = allRoutes.find(r => r.id === sourceRouteId) ?? null
+  const pickableRoutes = allRoutes.filter(r => r.id !== instRoute.id)
+
+  // Build grouped target options: sends + track first, then synth params for current type.
+  const groupedTargets = useMemo(() => {
+    const active = activeFxTracks ?? []
+    const base = AUTOMATION_TARGETS.filter(t =>
+      !t.id.startsWith('send.') || active.includes(t.id.slice(5))
+    )
+    // Common envelope params apply to all except PluckSynth (no standard envelope)
+    const commonParams = synthType !== 'PluckSynth' ? SYNTH_PARAM_TARGETS.common : []
+    const typeParams   = SYNTH_PARAM_TARGETS[synthType] ?? []
+    const all = [...base, ...commonParams, ...typeParams]
+    // Group by .group field
+    const groups = {}
+    for (const t of all) {
+      const g = t.group ?? 'Other'
+      if (!groups[g]) groups[g] = []
+      groups[g].push(t)
+    }
+    return groups
+  }, [synthType, activeFxTracks])
+
+  return (
+    <div className="automation-lane">
+      <div className="auto-lane-label">
+        <span className="auto-lane-badge">AUTO</span>
+      </div>
+
+      <div className="auto-lane-controls">
+        <select className="auto-select auto-select--source-line" value={sourceRouteId}
+          onChange={e => onUpdate({ sourceRouteId: e.target.value })}>
+          <option value="">— pick line —</option>
+          {pickableRoutes.map(r => (
+            <option key={r.id} value={r.id}>{r.name} {r.desc ? `· ${r.desc}` : ''}</option>
+          ))}
+        </select>
+
+        <select className="auto-select" value={source}
+          onChange={e => onUpdate({ source: e.target.value })}>
+          {AUTOMATION_SOURCES.map(s => (
+            <option key={s.id} value={s.id}>{s.label}</option>
+          ))}
+        </select>
+
+        <select className="auto-select" value={paramTarget}
+          onChange={e => onUpdate({ paramTarget: e.target.value })}>
+          {Object.entries(groupedTargets).map(([group, targets]) => (
+            <optgroup key={group} label={group}>
+              {targets.map(t => (
+                <option key={t.id} value={t.id}>{t.label}</option>
+              ))}
+            </optgroup>
+          ))}
+        </select>
+
+        <button className={`auto-mode-btn ${laneMode === 'live' ? 'active' : ''}`}
+          onClick={() => onUpdate({ mode: 'live' })}>Live</button>
+        <button className={`auto-mode-btn ${laneMode === 'static' ? 'active' : ''}`}
+          onClick={() => onUpdate({ mode: 'static' })}>Static</button>
+
+        <button className="auto-remove-btn" onClick={onRemove} title="Remove lane">×</button>
+      </div>
+
+      <AutoCurveRail
+        route={sourceRoute ?? instRoute}
+        source={source}
+        spec={findTargetSpec(paramTarget, synthType)}
+      />
+    </div>
+  )
+}
+
+// ── Automation source track (data-only, shown inside instrument's track-group) ─
+function AutomationSourceTrack({ srcRoute, instRoute, automationCfg }) {
+  if (!srcRoute) return null
+
+  // Collect which params this source drives on the instrument
+  const driven = Object.values(automationCfg?.[instRoute.id] ?? {})
+    .filter(lc => lc?.sourceRouteId === srcRoute.id)
+    .map(lc => lc.paramTarget)
+    .filter(Boolean)
+    .join(', ')
+
+  return (
+    <div className="line-track line-track--auto-source">
+      <div className="line-label" style={{ borderColor: srcRoute.color }}>
+        <div className="line-label-top">
+          <span className="line-badge" style={{ background: srcRoute.color, color: srcRoute.textColor }}>
+            {srcRoute.name}
+          </span>
+          <span className="auto-src-label">DATA</span>
+        </div>
+        {driven && (
+          <span className="auto-src-info">→ {instRoute.name}: {driven}</span>
+        )}
+      </div>
+      <div className="line-controls" />
+      <StopRail route={srcRoute} progress={0} mode="mock" vehicles={[]} />
+    </div>
+  )
+}
+
+function staticValue(stop, idx, total, source) {
+  if (source === 'stop.lat')      return normalizeStopLat(stop.lat)
+  if (source === 'stop.sequence') return normalizeStopSequence(idx, total)
+  if (source === 'longitude')     return normalizeLongitude(stop.lon)
+  return null
+}
+
+// Mini rail for automation lane — SVG curve for static sources, "live" hint for live ones
+function AutoCurveRail({ route, source, spec }) {
+  const stops = route.stops ?? []
+  const total = stops.length
+
+  const firstVal = total > 0 ? staticValue(stops[0], 0, total, source) : null
+  const isStatic = firstVal !== null
+
+  const PAD = 0.1
+  const stopPoints = isStatic
+    ? stops.map((stop, idx) => {
+        const x = total > 1 ? (idx / (total - 1)) * 100 : 50
+        const v = staticValue(stop, idx, total, source) ?? 0.5
+        const y = (PAD + (1 - v) * (1 - PAD * 2)) * 100
+        return { x, y }
+      })
+    : []
+
+  const polylinePoints = stopPoints.map(p => `${p.x},${p.y}`).join(' ')
+
+  const unit = spec?.unit ?? ''
+  const maxLabel = spec ? `${spec.max}${unit}` : ''
+  const minLabel = spec ? `${spec.min}${unit}` : ''
+
+  return (
+    <div className="auto-curve-rail">
+      {spec && (
+        <>
+          <div className="auto-axis-label auto-axis-label--top">{maxLabel}</div>
+          <div className="auto-axis-label auto-axis-label--bot">{minLabel}</div>
+        </>
+      )}
+      {isStatic ? (
+        <svg className="auto-curve-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+          <polyline
+            points={polylinePoints}
+            fill="none"
+            stroke={route.color}
+            strokeWidth="1.5"
+            opacity="0.5"
+          />
+          {stopPoints.map((p, i) => (
+            <circle key={i} cx={p.x} cy={p.y} r="2.5"
+              fill={route.color} opacity="0.7" />
+          ))}
+        </svg>
+      ) : (
+        <>
+          <div className="auto-curve-rail-line" style={{ '--line-color': route.color }} />
+          <div className="auto-curve-live-hint">live</div>
+        </>
+      )}
+    </div>
+  )
+}
+
+// ── DAW Footer ────────────────────────────────────────────────────────────────
+function DawFooter({
+  activeFxTracks, masterVolume,
+  fxBusWet, fxBusMuted, fxBusSoloed, fxBusParams,
+  onMasterVolume, onFxBusWet, onFxBusMute, onFxBusSolo, onFxBusParam, onFxBusCustomIR,
+  onAddFxTrack, onRemoveFxTrack,
+}) {
+  return (
+    <footer className="daw-footer">
+      <div className="daw-footer-inner">
+        <MasterStrip volume={masterVolume} onVolume={onMasterVolume} />
+        {activeFxTracks.map(busId => {
+          const bus = FX_BUSES.find(b => b.id === busId)
+          if (!bus) return null
+          return (
+            <FxTrackCard
+              key={busId}
+              bus={bus}
+              wet={fxBusWet?.[busId] ?? 1.0}
+              muted={fxBusMuted?.[busId] ?? false}
+              soloed={fxBusSoloed?.[busId] ?? false}
+              params={fxBusParams?.[busId]}
+              onWet={v => onFxBusWet(busId, v)}
+              onMute={() => onFxBusMute(busId)}
+              onSolo={() => onFxBusSolo(busId)}
+              onParam={(paramId, value) => onFxBusParam(busId, paramId, value)}
+              onCustomIR={buf => onFxBusCustomIR?.(busId, buf)}
+              onRemove={() => onRemoveFxTrack(busId)}
+            />
+          )
+        })}
+        <FxAddButton activeFxTracks={activeFxTracks} onAdd={onAddFxTrack} />
+      </div>
+    </footer>
+  )
+}
+
+function MasterStrip({ volume, onVolume }) {
+  return (
+    <div className="master-strip">
+      <span className="master-strip-label">Master</span>
+      <div className="master-vol-row">
+        <span className="master-vol-label">Vol</span>
+        <input
+          type="range" min="-40" max="0" step="1"
+          value={volume}
+          onChange={e => onVolume(Number(e.target.value))}
+          className="master-vol-slider"
+        />
+        <span className="master-vol-val">{volume}dB</span>
+      </div>
+    </div>
+  )
+}
+
+function FxTrackCard({ bus, wet, muted, soloed, params, onWet, onMute, onSolo, onParam, onCustomIR, onRemove }) {
+  const specs = FX_PARAM_SPECS[bus.id] ?? []
+  return (
+    <div className={`fx-track-card ${muted ? 'fx-track-card--muted' : ''}`}>
+      <div className="fx-track-card-header">
+        <span className="fx-track-name">{bus.label}</span>
+        <button className={`mute-btn ${muted ? 'active' : ''}`} onClick={onMute} title="Mute">M</button>
+        <button className={`solo-btn ${soloed ? 'active' : ''}`} onClick={onSolo} title="Solo">S</button>
+        <input
+          type="range" min="0" max="1" step="0.01"
+          value={wet}
+          onChange={e => onWet(parseFloat(e.target.value))}
+          className="fx-track-wet-slider"
+        />
+        <span className="fx-track-wet-val">{Math.round(wet * 100)}%</span>
+        <button className="fx-track-remove-btn" onClick={onRemove} title="Remove FX track">×</button>
+      </div>
+      {specs.length > 0 && (
+        <div className="fx-track-params">
+          {specs.map(spec => (
+            <FxParamControl
+              key={spec.id}
+              spec={spec}
+              value={params?.[spec.id] ?? bus.defaults?.[spec.id]}
+              onChange={v => onParam(spec.id, v)}
+            />
+          ))}
+          {bus.id === 'reverb' && onCustomIR && (
+            <CustomIRPicker onCustomIR={onCustomIR} />
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function CustomIRPicker({ onCustomIR }) {
+  const inputRef = useRef(null)
+  const [name, setName] = useState(null)
+  const [error, setError] = useState(null)
+
+  async function handleFile(e) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setError(null)
+    try {
+      const buf = await file.arrayBuffer()
+      const audioBuffer = await Tone.getContext().rawContext.decodeAudioData(buf)
+      setName(file.name)
+      onCustomIR(audioBuffer)
+    } catch (err) {
+      console.error('Custom IR decode failed:', err)
+      setError('decode failed')
+    }
+  }
+
+  return (
+    <div className="fx-param-row">
+      <span className="fx-param-label">Load IR</span>
+      <button
+        type="button"
+        className="fx-param-select"
+        onClick={() => inputRef.current?.click()}
+      >
+        {error ?? name ?? 'Choose WAV…'}
+      </button>
+      <input
+        ref={inputRef}
+        type="file"
+        accept="audio/wav,audio/x-wav,audio/wave,.wav"
+        style={{ display: 'none' }}
+        onChange={handleFile}
+      />
+    </div>
+  )
+}
+
+function FxParamControl({ spec, value, onChange }) {
+  if (spec.kind === 'enum') {
     return (
-      <div className="adsr-panel">
-        <AdsrSlider label="Noise" min={0} max={1} step={0.01}
-          value={adsr?.attackNoise ?? 1}
-          onChange={v => onADSR({ attackNoise: v })} />
-        <AdsrSlider label="Damp" min={200} max={8000} step={10}
-          value={adsr?.dampening ?? 4000}
-          onChange={v => onADSR({ dampening: v })} />
-        <AdsrSlider label="Res" min={0} max={0.98} step={0.01}
-          value={adsr?.resonance ?? 0.7}
-          onChange={v => onADSR({ resonance: v })} />
+      <div className="fx-param-row">
+        <span className="fx-param-label">{spec.label}</span>
+        <select
+          className="fx-param-select"
+          value={value ?? spec.values[0]}
+          onChange={e => onChange(e.target.value)}
+        >
+          {spec.values.map(v => (
+            <option key={v} value={v}>{spec.valueLabels?.[v] ?? v}</option>
+          ))}
+        </select>
       </div>
     )
   }
 
-  const a = adsr?.attack  ?? SYNTH_DEFAULTS['Synth'].attack
-  const d = adsr?.decay   ?? SYNTH_DEFAULTS['Synth'].decay
-  const s = adsr?.sustain ?? SYNTH_DEFAULTS['Synth'].sustain
-  const r = adsr?.release ?? SYNTH_DEFAULTS['Synth'].release
-
+  const v = value ?? spec.min
+  const scale = spec.displayScale ?? 1
+  const displayVal = v * scale
+  const decimals = spec.step < 0.01 ? 3 : spec.step < 1 ? 2 : 0
   return (
-    <div className="adsr-panel">
-      <AdsrSlider label="A" min={0.001} max={2} step={0.001}
-        value={a} onChange={v => onADSR({ attack: v })} />
-      <AdsrSlider label="D" min={0.001} max={2} step={0.001}
-        value={d} onChange={v => onADSR({ decay: v })} />
-      <AdsrSlider label="S" min={0} max={1} step={0.01}
-        value={s} onChange={v => onADSR({ sustain: v })} />
-      <AdsrSlider label="R" min={0.01} max={4} step={0.01}
-        value={r} onChange={v => onADSR({ release: v })} />
-    </div>
-  )
-}
-
-function AdsrSlider({ label, min, max, step, value, onChange }) {
-  const decimals = step < 0.01 ? 3 : step < 1 ? 2 : 0
-  return (
-    <div className="adsr-row">
-      <span className="adsr-label">{label}</span>
+    <div className="fx-param-row">
+      <span className="fx-param-label">{spec.label}</span>
       <input
-        type="range" min={min} max={max} step={step}
-        value={value}
-        className="adsr-slider"
-        onChange={e => onChange(Number(e.target.value))}
+        type="range"
+        min={spec.min}
+        max={spec.max}
+        step={spec.step}
+        value={v}
+        onChange={e => onChange(parseFloat(e.target.value))}
+        className="fx-param-slider"
       />
-      <span className="adsr-val">{Number(value).toFixed(decimals)}</span>
+      <span className="fx-param-val">
+        {displayVal.toFixed(decimals)}{spec.unit ? ` ${spec.unit}` : ''}
+      </span>
     </div>
   )
 }
 
-// ── Effect parameter panel ────────────────────────────────────────────────────
-function FxPanel({ effectType, effectParams, onEffectParams }) {
-  const p = effectParams ?? {}
+function FxAddButton({ activeFxTracks, onAdd }) {
+  const available = FX_BUSES.filter(b => !activeFxTracks.includes(b.id))
+  if (available.length === 0) return null
 
-  if (effectType === 'Chorus') return (
-    <div className="adsr-panel">
-      <AdsrSlider label="Rate"  min={0.1}  max={20}   step={0.1}  value={p.frequency  ?? EFFECT_DEFAULTS.Chorus.frequency}  onChange={v => onEffectParams({ frequency: v })} />
-      <AdsrSlider label="Delay" min={1}    max={20}   step={0.1}  value={p.delayTime  ?? EFFECT_DEFAULTS.Chorus.delayTime}  onChange={v => onEffectParams({ delayTime: v })} />
-      <AdsrSlider label="Depth" min={0}    max={1}    step={0.01} value={p.depth      ?? EFFECT_DEFAULTS.Chorus.depth}      onChange={v => onEffectParams({ depth: v })} />
-      <AdsrSlider label="Wet"   min={0}    max={1}    step={0.01} value={p.wet        ?? EFFECT_DEFAULTS.Chorus.wet}        onChange={v => onEffectParams({ wet: v })} />
+  return (
+    <div className="fx-add-area">
+      <select
+        className="fx-add-select"
+        value=""
+        onChange={e => { if (e.target.value) onAdd(e.target.value) }}
+      >
+        <option value="">+ Add FX…</option>
+        {available.map(bus => (
+          <option key={bus.id} value={bus.id}>{bus.label}</option>
+        ))}
+      </select>
     </div>
   )
-
-  if (effectType === 'PingPongDelay') return (
-    <div className="adsr-panel">
-      <AdsrSlider label="Time" min={0.01} max={1}    step={0.01} value={p.delayTime ?? EFFECT_DEFAULTS.PingPongDelay.delayTime} onChange={v => onEffectParams({ delayTime: v })} />
-      <AdsrSlider label="FB"   min={0}    max={0.95} step={0.01} value={p.feedback  ?? EFFECT_DEFAULTS.PingPongDelay.feedback}  onChange={v => onEffectParams({ feedback: v })} />
-      <AdsrSlider label="Wet"  min={0}    max={1}    step={0.01} value={p.wet       ?? EFFECT_DEFAULTS.PingPongDelay.wet}       onChange={v => onEffectParams({ wet: v })} />
-    </div>
-  )
-
-  if (effectType === 'BitCrusher') return (
-    <div className="adsr-panel">
-      <AdsrSlider label="Bits" min={1} max={8} step={1}    value={p.bits ?? EFFECT_DEFAULTS.BitCrusher.bits} onChange={v => onEffectParams({ bits: v })} />
-      <AdsrSlider label="Wet"  min={0} max={1} step={0.01} value={p.wet  ?? EFFECT_DEFAULTS.BitCrusher.wet}  onChange={v => onEffectParams({ wet: v })} />
-    </div>
-  )
-
-  if (effectType === 'Phaser') return (
-    <div className="adsr-panel">
-      <AdsrSlider label="Rate"    min={0.05} max={4}    step={0.05} value={p.frequency      ?? EFFECT_DEFAULTS.Phaser.frequency}      onChange={v => onEffectParams({ frequency: v })} />
-      <AdsrSlider label="Oct"     min={1}    max={6}    step={1}    value={p.octaves        ?? EFFECT_DEFAULTS.Phaser.octaves}        onChange={v => onEffectParams({ octaves: v })} />
-      <AdsrSlider label="Base"    min={200}  max={4000} step={10}   value={p.baseFrequency  ?? EFFECT_DEFAULTS.Phaser.baseFrequency}  onChange={v => onEffectParams({ baseFrequency: v })} />
-      <AdsrSlider label="Wet"     min={0}    max={1}    step={0.01} value={p.wet            ?? EFFECT_DEFAULTS.Phaser.wet}            onChange={v => onEffectParams({ wet: v })} />
-    </div>
-  )
-
-  return null
 }
 
-// ── Stop rail: stops positioned by shape_dist_traveled ────────────────────────
-function StopRail({ route, progress = 0, mode = 'mock', vehicles = [] }) {
+// ── Synth Panel: redesigned per-synth parameter editor ───────────────────────
+
+const ALL_ENV_CURVES  = ['linear', 'exponential', 'bounce', 'cosine', 'ripple', 'sine', 'step']
+const DECAY_ENV_CURVES = ['linear', 'exponential']
+
+function AdsrVisualizer({ attack = 0.1, decay = 0.1, sustain = 0.5, release = 1.0 }) {
+  const W = 200, H = 44, P = 3
+  const peakY = P, floorY = H - P
+  const sustY = peakY + (1 - Math.max(0, Math.min(1, sustain))) * (floorY - peakY)
+  const inner = W - P * 2
+  const ax = P + inner * 0.27
+  const dx = ax + inner * 0.21
+  const sx = dx + inner * 0.21
+  const ex = sx + inner * 0.31
+
+  const fill = `M${P},${floorY} L${ax},${peakY} L${dx},${sustY} L${sx},${sustY} L${ex},${floorY} Z`
+  const line = `M${P},${floorY} L${ax},${peakY} L${dx},${sustY} L${sx},${sustY} L${ex},${floorY}`
+
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} className="sp-viz" preserveAspectRatio="none">
+      <path d={fill} className="sp-viz-fill" />
+      <path d={line} className="sp-viz-line" />
+    </svg>
+  )
+}
+
+function SpSection({ label }) {
+  return <div className="sp-section">{label}</div>
+}
+
+function SpSlider({ label, min, max, step, value, onChange, unit }) {
+  const decimals = step < 0.01 ? 3 : step < 1 ? 2 : 0
+  const pct = ((value - min) / (max - min)) * 100
+  return (
+    <div className="sp-row">
+      <span className="sp-label">{label}</span>
+      <div className="sp-track">
+        <div className="sp-fill" style={{ width: `${Math.max(0, Math.min(100, pct))}%` }} />
+        <input type="range" min={min} max={max} step={step} value={value}
+          className="sp-slider" onChange={e => onChange(Number(e.target.value))} />
+      </div>
+      <span className="sp-val">{Number(value).toFixed(decimals)}{unit ?? ''}</span>
+    </div>
+  )
+}
+
+function SpSelect({ label, value, options, onChange }) {
+  return (
+    <div className="sp-row sp-row--select">
+      <span className="sp-label">{label}</span>
+      <select className="sp-select" value={value} onChange={e => onChange(e.target.value)}>
+        {options.map(o => <option key={o} value={o}>{o}</option>)}
+      </select>
+    </div>
+  )
+}
+
+function SpCurve({ value, options, onChange }) {
+  return (
+    <select className="sp-curve" value={value} onChange={e => onChange(e.target.value)}
+      title="Curve shape">
+      {options.map(o => <option key={o} value={o}>{o.slice(0, 4)}</option>)}
+    </select>
+  )
+}
+
+function SpSliderWithCurve({ label, min, max, step, value, onChange, curveValue, curveOptions, onCurve }) {
+  const decimals = step < 0.01 ? 3 : step < 1 ? 2 : 0
+  const pct = ((value - min) / (max - min)) * 100
+  return (
+    <div className="sp-row sp-row--curvy">
+      <span className="sp-label">{label}</span>
+      <div className="sp-track">
+        <div className="sp-fill" style={{ width: `${Math.max(0, Math.min(100, pct))}%` }} />
+        <input type="range" min={min} max={max} step={step} value={value}
+          className="sp-slider" onChange={e => onChange(Number(e.target.value))} />
+      </div>
+      <span className="sp-val">{Number(value).toFixed(decimals)}</span>
+      <SpCurve value={curveValue} options={curveOptions} onChange={onCurve} />
+    </div>
+  )
+}
+
+function EnvPanel({ synthType, adsr, onADSR }) {
+  const def = SYNTH_DEFAULTS[synthType] ?? SYNTH_DEFAULTS['Synth']
+  const p = { ...def, ...adsr }
+
+  const envBlock = (hasViz = true) => (
+    <>
+      {hasViz && <AdsrVisualizer attack={p.attack} decay={p.decay} sustain={p.sustain} release={p.release} />}
+      <SpSliderWithCurve
+        label="A" min={0.001} max={2} step={0.001} value={p.attack ?? 0.005} onChange={v => onADSR({ attack: v })}
+        curveValue={p.attackCurve ?? 'exponential'} curveOptions={ALL_ENV_CURVES} onCurve={v => onADSR({ attackCurve: v })}
+      />
+      <SpSliderWithCurve
+        label="D" min={0.001} max={2} step={0.001} value={p.decay ?? 0.1} onChange={v => onADSR({ decay: v })}
+        curveValue={p.decayCurve ?? 'exponential'} curveOptions={DECAY_ENV_CURVES} onCurve={v => onADSR({ decayCurve: v })}
+      />
+      <SpSlider label="S" min={0} max={1} step={0.01} value={p.sustain ?? 0.5} onChange={v => onADSR({ sustain: v })} />
+      <SpSliderWithCurve
+        label="R" min={0.01} max={4} step={0.01} value={p.release ?? 1.0} onChange={v => onADSR({ release: v })}
+        curveValue={p.releaseCurve ?? 'exponential'} curveOptions={ALL_ENV_CURVES} onCurve={v => onADSR({ releaseCurve: v })}
+      />
+    </>
+  )
+
+  if (synthType === 'PluckSynth') return (
+    <div className="sp-panel">
+      <SpSlider label="Noise" min={0} max={1}    step={0.01} value={p.attackNoise ?? 1}    onChange={v => onADSR({ attackNoise: v })} />
+      <SpSlider label="Damp"  min={200} max={8000} step={10} value={p.dampening ?? 4000}   onChange={v => onADSR({ dampening: v })} unit="Hz" />
+      <SpSlider label="Res"   min={0} max={0.98} step={0.01} value={p.resonance ?? 0.7}    onChange={v => onADSR({ resonance: v })} />
+    </div>
+  )
+
+  if (synthType === 'NoiseSynth') return (
+    <div className="sp-panel">
+      <SpSection label="NOISE" />
+      <SpSelect label="Type" value={p.noiseType ?? 'white'} options={NOISE_TYPES} onChange={v => onADSR({ noiseType: v })} />
+      <SpSection label="ENV" />
+      {envBlock()}
+    </div>
+  )
+
+  if (synthType === 'MembraneSynth') return (
+    <div className="sp-panel">
+      <SpSection label="DRUM" />
+      <SpSlider label="Decay"  min={0.001} max={0.5} step={0.001} value={p.pitchDecay ?? 0.05}  onChange={v => onADSR({ pitchDecay: v })} />
+      <SpSlider label="Octav"  min={1}     max={20}  step={0.5}   value={p.membOctaves ?? 10}   onChange={v => onADSR({ membOctaves: v })} />
+      <SpSection label="ENV" />
+      {envBlock()}
+    </div>
+  )
+
+  if (synthType === 'MetalSynth') return (
+    <div className="sp-panel">
+      <SpSection label="METAL" />
+      <SpSlider label="Harm"   min={0.1}  max={20}    step={0.1}  value={p.metalHarmonicity ?? 5.1} onChange={v => onADSR({ metalHarmonicity: v })} />
+      <SpSlider label="ModIdx" min={1}    max={100}   step={1}    value={p.metalModIndex ?? 32}     onChange={v => onADSR({ metalModIndex: v })} />
+      <SpSlider label="Octav"  min={0.1}  max={5}     step={0.1}  value={p.metalOctaves ?? 1.5}     onChange={v => onADSR({ metalOctaves: v })} />
+      <SpSlider label="Res"    min={100}  max={10000} step={10}   value={p.resonance ?? 4000}        onChange={v => onADSR({ resonance: v })} unit="Hz" />
+      <SpSection label="ENV" />
+      {envBlock()}
+    </div>
+  )
+
+  if (synthType === 'MonoSynth') return (
+    <div className="sp-panel">
+      <SpSection label="OSC" />
+      <SpSelect label="Type"  value={p.oscillatorType ?? 'sawtooth'} options={OSC_TYPES}   onChange={v => onADSR({ oscillatorType: v })} />
+      <SpSlider label="Phase" min={0} max={360} step={1}              value={p.phase ?? 0}  onChange={v => onADSR({ phase: v })} unit="°" />
+      <SpSlider label="Dtn"   min={-200} max={200} step={1}           value={p.detune ?? 0} onChange={v => onADSR({ detune: v })} unit="¢" />
+      <SpSection label="ENV" />
+      {envBlock()}
+      <SpSection label="FILTER" />
+      <SpSelect label="Type"   value={p.filterType ?? 'lowpass'}        options={FILTER_TYPES}               onChange={v => onADSR({ filterType: v })} />
+      <SpSlider label="Freq"   min={20}  max={20000} step={10}          value={p.filterFrequency ?? 800}     onChange={v => onADSR({ filterFrequency: v })} unit="Hz" />
+      <SpSelect label="Roll"   value={String(p.filterRolloff ?? -12)}   options={FILTER_ROLLOFFS.map(String)} onChange={v => onADSR({ filterRolloff: Number(v) })} />
+      <SpSlider label="Q"      min={0.1} max={20}   step={0.1}          value={p.filterQ ?? 1}               onChange={v => onADSR({ filterQ: v })} />
+      <SpSection label="FILTER ENV" />
+      <SpSlider label="A"      min={0.001} max={2}  step={0.001}        value={p.filterEnvAttack ?? 0.001}   onChange={v => onADSR({ filterEnvAttack: v })} />
+      <SpSlider label="D"      min={0.001} max={2}  step={0.001}        value={p.filterEnvDecay ?? 0.3}      onChange={v => onADSR({ filterEnvDecay: v })} />
+      <SpSlider label="S"      min={0} max={1}      step={0.01}         value={p.filterEnvSustain ?? 0.3}    onChange={v => onADSR({ filterEnvSustain: v })} />
+      <SpSlider label="R"      min={0.01} max={4}   step={0.01}         value={p.filterEnvRelease ?? 0.8}    onChange={v => onADSR({ filterEnvRelease: v })} />
+      <SpSlider label="Base"   min={20}  max={20000} step={10}          value={p.filterEnvBaseFreq ?? 200}   onChange={v => onADSR({ filterEnvBaseFreq: v })} unit="Hz" />
+      <SpSlider label="Oct"    min={0}   max={8}    step={0.5}          value={p.filterEnvOctaves ?? 3}      onChange={v => onADSR({ filterEnvOctaves: v })} />
+      <SpSlider label="Exp"    min={0.1} max={8}    step={0.1}          value={p.filterEnvExponent ?? 2}     onChange={v => onADSR({ filterEnvExponent: v })} />
+    </div>
+  )
+
+  if (synthType === 'FMSynth') return (
+    <div className="sp-panel">
+      <SpSection label="CARRIER OSC" />
+      <SpSelect label="Type"   value={p.oscillatorType ?? 'sine'}     options={OSC_TYPES} onChange={v => onADSR({ oscillatorType: v })} />
+      <SpSlider label="Phase"  min={0} max={360} step={1}              value={p.phase ?? 0}              onChange={v => onADSR({ phase: v })} unit="°" />
+      <SpSlider label="Dtn"    min={-200} max={200} step={1}           value={p.detune ?? 0}             onChange={v => onADSR({ detune: v })} unit="¢" />
+      <SpSection label="MODULATOR" />
+      <SpSelect label="Type"   value={p.modulationOscType ?? 'sine'}  options={OSC_TYPES} onChange={v => onADSR({ modulationOscType: v })} />
+      <SpSlider label="Harm"   min={0.1} max={20}  step={0.1}          value={p.harmonicity ?? 3}        onChange={v => onADSR({ harmonicity: v })} />
+      <SpSlider label="Idx"    min={0}   max={100} step={0.5}          value={p.modulationIndex ?? 0}    onChange={v => onADSR({ modulationIndex: v })} />
+      <SpSection label="MOD ENV" />
+      <SpSlider label="A"      min={0.001} max={2} step={0.001}        value={p.modAttack ?? 0.5}        onChange={v => onADSR({ modAttack: v })} />
+      <SpSlider label="D"      min={0.001} max={2} step={0.001}        value={p.modDecay ?? 0.1}         onChange={v => onADSR({ modDecay: v })} />
+      <SpSlider label="S"      min={0} max={1}     step={0.01}         value={p.modSustain ?? 1.0}       onChange={v => onADSR({ modSustain: v })} />
+      <SpSlider label="R"      min={0.01} max={4}  step={0.01}         value={p.modRelease ?? 1.4}       onChange={v => onADSR({ modRelease: v })} />
+      <SpSection label="AMP ENV" />
+      {envBlock()}
+    </div>
+  )
+
+  if (synthType === 'AMSynth') return (
+    <div className="sp-panel">
+      <SpSection label="CARRIER OSC" />
+      <SpSelect label="Type"   value={p.oscillatorType ?? 'sine'}      options={OSC_TYPES} onChange={v => onADSR({ oscillatorType: v })} />
+      <SpSlider label="Phase"  min={0} max={360} step={1}               value={p.phase ?? 0}             onChange={v => onADSR({ phase: v })} unit="°" />
+      <SpSlider label="Dtn"    min={-200} max={200} step={1}            value={p.detune ?? 0}            onChange={v => onADSR({ detune: v })} unit="¢" />
+      <SpSection label="MODULATOR" />
+      <SpSelect label="Type"   value={p.modulationOscType ?? 'square'}  options={OSC_TYPES} onChange={v => onADSR({ modulationOscType: v })} />
+      <SpSlider label="Harm"   min={0.1} max={20}  step={0.1}           value={p.harmonicity ?? 3}       onChange={v => onADSR({ harmonicity: v })} />
+      <SpSection label="MOD ENV" />
+      <SpSlider label="A"      min={0.001} max={2} step={0.001}         value={p.modAttack ?? 0.5}       onChange={v => onADSR({ modAttack: v })} />
+      <SpSlider label="D"      min={0.001} max={2} step={0.001}         value={p.modDecay ?? 0.0}        onChange={v => onADSR({ modDecay: v })} />
+      <SpSlider label="S"      min={0} max={1}     step={0.01}          value={p.modSustain ?? 1.0}      onChange={v => onADSR({ modSustain: v })} />
+      <SpSlider label="R"      min={0.01} max={4}  step={0.01}          value={p.modRelease ?? 0.5}      onChange={v => onADSR({ modRelease: v })} />
+      <SpSection label="AMP ENV" />
+      {envBlock()}
+    </div>
+  )
+
+  if (synthType === 'DuoSynth') return (
+    <div className="sp-panel">
+      <SpSection label="OSC" />
+      <SpSelect label="Type"    value={p.voice0OscType ?? 'sawtooth'} options={OSC_TYPES} onChange={v => onADSR({ voice0OscType: v })} />
+      <SpSlider label="Dtn"     min={-200} max={200} step={1}          value={p.detune ?? 0}              onChange={v => onADSR({ detune: v })} unit="¢" />
+      <SpSlider label="Harm"    min={0.1} max={6}    step={0.1}        value={p.duoHarmonicity ?? 1.5}    onChange={v => onADSR({ duoHarmonicity: v })} />
+      <SpSection label="VIBRATO" />
+      <SpSlider label="Rate"    min={0.1} max={20}   step={0.1}        value={p.vibratoRate ?? 5}          onChange={v => onADSR({ vibratoRate: v })} unit="Hz" />
+      <SpSlider label="Amt"     min={0}   max={1}    step={0.01}       value={p.vibratoAmount ?? 0.5}      onChange={v => onADSR({ vibratoAmount: v })} />
+      <SpSection label="ENV" />
+      {envBlock()}
+    </div>
+  )
+
+  // Default: basic Synth
+  return (
+    <div className="sp-panel">
+      <SpSection label="OSC" />
+      <SpSelect label="Type"  value={p.oscillatorType ?? 'sine'} options={OSC_TYPES} onChange={v => onADSR({ oscillatorType: v })} />
+      <SpSlider label="Phase" min={0} max={360} step={1}          value={p.phase ?? 0}  onChange={v => onADSR({ phase: v })} unit="°" />
+      <SpSlider label="Dtn"   min={-200} max={200} step={1}       value={p.detune ?? 0} onChange={v => onADSR({ detune: v })} unit="¢" />
+      <SpSection label="ENV" />
+      {envBlock()}
+    </div>
+  )
+}
+
+function FilterPanel({ filter, onFilter }) {
+  const p = { ...DEFAULT_FILTER, ...filter }
+  return (
+    <div className="sp-panel">
+      <SpSection label="FILTER" />
+      <SpSelect label="Type" value={p.type}      options={FILTER_TYPES} onChange={v => onFilter({ type: v })} />
+      <SpSlider label="Freq" min={20}  max={20000} step={10}  value={p.frequency} onChange={v => onFilter({ frequency: v })} unit="Hz" />
+      <SpSlider label="Q"    min={0.1} max={20}    step={0.1} value={p.Q}         onChange={v => onFilter({ Q: v })} />
+    </div>
+  )
+}
+
+function EqPanel({ eq, onEq }) {
+  const p = { ...DEFAULT_EQ, ...eq }
+  return (
+    <div className="sp-panel">
+      <SpSection label="EQ" />
+      <SpSlider label="Low"   min={-24} max={24}   step={0.5} value={p.low}           onChange={v => onEq({ low: v })}  unit="dB" />
+      <SpSlider label="Mid"   min={-24} max={24}   step={0.5} value={p.mid}           onChange={v => onEq({ mid: v })}  unit="dB" />
+      <SpSlider label="High"  min={-24} max={24}   step={0.5} value={p.high}          onChange={v => onEq({ high: v })} unit="dB" />
+      <SpSlider label="LoFq"  min={100} max={1000} step={10}  value={p.lowFrequency}  onChange={v => onEq({ lowFrequency: v })}  unit="Hz" />
+      <SpSlider label="HiFq"  min={1000} max={8000} step={50} value={p.highFrequency} onChange={v => onEq({ highFrequency: v })} unit="Hz" />
+    </div>
+  )
+}
+
+const ROOT_MIDI = 62  // D4 baseline (matches engine.js default)
+
+// Bar labels rendered once per rail: "1", "2", "3", "4" at bar boundaries
+const BAR_LABELS = Array.from({ length: GRID_BARS }, (_, i) => ({
+  bar: i + 1,
+  pct: (i / GRID_BARS) * 100,
+}))
+
+// ── Stop rail: stops quantized to 4-bar × 16th-note grid (64 cells) ──────────
+function StopRail({
+  route, progress = 0, mode = 'mock', vehicles = [],
+  trackScale = { root: 'C', scaleType: 'major' }, octaveShift = 0,
+  pitchMap,
+}) {
   if (!route.stops.length) return <div className="stop-rail stop-rail--empty" />
 
   const total = route.totalDist || route.stops[route.stops.length - 1]?.dist || 1
+  const PAD   = 0.1  // keep dots 10% from top/bottom edges
 
-  // In mock mode: highlight the last stop whose position ≤ playhead progress
+  const scaleIntervals = SCALES[trackScale.scaleType] ?? SCALES.major
+  const rootMidi = ROOT_MIDI + octaveShift * 12
+
+  // Snap all stops to grid cells — this is the canonical X position
+  const gridStops = snapStopsToGrid(route.stops, total)
+
+  // Always compute lat range for vehicle markers in live mode
+  const lats     = route.stops.map(s => s.lat).filter(v => v != null)
+  const minLat   = lats.length ? Math.min(...lats) : 0
+  const maxLat   = lats.length ? Math.max(...lats) : 1
+  const latRange = Math.max(maxLat - minLat, 0.0001)
+
+  // When a pitchMap exists: y-axis reflects MIDI pitch (piano roll style)
+  // Otherwise: y-axis reflects latitude (geographic)
+  const stopPoints = pitchMap
+    ? (() => {
+        const midis    = pitchMap.map(n => noteToMidi(n))
+        const midiMin  = Math.min(...midis)
+        const midiMax  = Math.max(...midis)
+        const midiRange = Math.max(midiMax - midiMin, 1)
+        return gridStops.map((stop) => {
+          const x        = ((stop.cellIdx + 0.5) / GRID_TOTAL_CELLS) * 100
+          const noteName = pitchMap[stop.originalIdx] ?? '—'
+          const midi     = noteToMidi(noteName)
+          const y        = (PAD + (1 - (midi - midiMin) / midiRange) * (1 - PAD * 2)) * 100
+          return { ...stop, x, y, noteName }
+        })
+      })()
+    : gridStops.map(stop => {
+        const x        = ((stop.cellIdx + 0.5) / GRID_TOTAL_CELLS) * 100
+        const y        = stop.lat != null
+          ? (PAD + (1 - (stop.lat - minLat) / latRange) * (1 - PAD * 2)) * 100
+          : 50
+        const noteName = stop.lat != null ? latToNote(stop.lat, rootMidi, scaleIntervals) : '—'
+        return { ...stop, x, y, noteName }
+      })
+
+  // Active stop: last grid stop whose cell fraction is <= playhead progress
   const activeStopId = mode === 'mock'
-    ? [...route.stops].reverse().find(s => (s.dist / total) <= progress)?.id
+    ? [...stopPoints].reverse().find(s => (s.cellIdx / GRID_TOTAL_CELLS) <= progress)?.id
     : null
 
-  // Vehicle markers for live mode
   const vehicleMarkers = mode === 'live'
     ? vehicles.map(v => {
         const ph = resolvePlayhead(route, v.lat, v.lng)
-        return ph ? { ...v, pct: ph.pct } : null
+        if (!ph) return null
+        const y = v.lat != null
+          ? (PAD + (1 - (v.lat - minLat) / latRange) * (1 - PAD * 2)) * 100
+          : 50
+        return { ...v, pct: ph.pct, y }
       }).filter(Boolean)
     : []
 
+  const polylinePoints = stopPoints.map(p => `${p.x},${p.y}`).join(' ')
+
   return (
     <div className="stop-rail">
-      <div className="stop-rail-line" style={{ '--line-color': route.color }} />
+      {/* Bar number labels */}
+      {BAR_LABELS.map(({ bar, pct }) => (
+        <span
+          key={bar}
+          className="stop-rail-bar-label"
+          style={{ left: `${pct}%` }}
+        >
+          {bar}
+        </span>
+      ))}
 
-      {route.stops.map(stop => {
-        const pct = total > 0 ? (stop.dist / total) * 100 : 0
-        return (
-          <div
-            key={stop.id}
-            className={[
-              'stop-dot',
-              stop.id === activeStopId ? 'active' : '',
-              mode === 'live' ? 'stop-dot--ref' : '',
-            ].filter(Boolean).join(' ')}
-            style={{ '--pos': `${pct}%`, '--line-color': route.color }}
-            title={stop.name}
-          >
-            <span className="stop-label">{stop.name}</span>
-          </div>
-        )
-      })}
+      <svg className="stop-rail-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+        <polyline
+          points={polylinePoints}
+          fill="none"
+          stroke={route.color}
+          strokeWidth="1.5"
+          opacity="0.25"
+        />
+      </svg>
+
+      {stopPoints.map(stop => (
+        <div
+          key={stop.id}
+          className={[
+            'stop-dot',
+            stop.id === activeStopId ? 'active' : '',
+            mode === 'live' ? 'stop-dot--ref' : '',
+          ].filter(Boolean).join(' ')}
+          style={{
+            '--pos': `${stop.x}%`,
+            '--y-pos': `${stop.y}%`,
+            '--line-color': route.color,
+          }}
+          title={`${stop.name} · bar ${stop.bar + 1} beat ${stop.beat + 1}.${stop.sixteenth + 1}`}
+        >
+          <span className="stop-label">{stop.name}</span>
+          <span className="stop-note-label">{stop.noteName}</span>
+        </div>
+      ))}
 
       {vehicleMarkers.map((vm, i) => (
         <div
           key={vm.vehicleId ?? i}
           className="vehicle-marker"
-          style={{ '--pos': `${vm.pct}%`, '--line-color': route.color }}
+          style={{ '--pos': `${vm.pct}%`, '--y-pos': `${vm.y}%`, '--line-color': route.color }}
           title={`${vm.routeShortName} · ${vm.vehicleId}`}
         />
       ))}

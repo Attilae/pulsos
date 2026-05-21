@@ -28,6 +28,11 @@ app.get('/api/snapshot', (_req, res) => {
   res.json({ vehicles: feed ? feed.getSnapshot() : [] })
 })
 
+app.get('/api/metro-debug', (_req, res) => {
+  if (!feed) return res.json({ error: 'feed not started' })
+  res.json(feed.getMetroDebug())
+})
+
 function broadcast(msg) {
   const text = JSON.stringify(msg)
   for (const client of wss.clients) {

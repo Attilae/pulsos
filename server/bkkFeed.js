@@ -60,12 +60,13 @@ export class BkkFeed extends EventEmitter {
       this.tripData.clear()
       this.metroTrips.clear()
 
+
       for (const entity of feed.entity) {
         const tu = entity.tripUpdate
         if (!tu) continue
 
-        const tripId    = tu.trip?.tripId ?? null
-        const vehicleId = tu.vehicle?.id ?? (tripId ? `trip:${tripId}` : entity.id)
+        const tripId    = tu.trip?.tripId || null
+        const vehicleId = tu.vehicle?.id || (tripId ? `trip:${tripId}` : entity.id)
         if (!vehicleId) continue
 
         // Overall trip delay (fallback: first stop arrival delay)
@@ -225,7 +226,7 @@ export class BkkFeed extends EventEmitter {
         const v = entity.vehicle
         if (!v?.trip) continue
 
-        const vehicleId = v.vehicle?.id ?? entity.id
+        const vehicleId = v.vehicle?.id || entity.id
         const routeId   = v.trip.routeId
         const stopId    = v.stopId
         const status    = v.currentStatus ?? 2  // default IN_TRANSIT_TO
@@ -333,6 +334,34 @@ export class BkkFeed extends EventEmitter {
 
   getSnapshot() {
     return [...this.prevState.values()].filter(v => v.lat)
+  }
+
+  getMetroDebug() {
+    const nowSec = Date.now() / 1000
+    const trips = []
+    for (const [tripKey, trip] of this.metroTrips) {
+      const { vehicleId, routeId, stopTimeUpdates } = trip
+      const route  = this.lookup.routes[routeId]
+      const sample = stopTimeUpdates.slice(0, 3).map(stu => ({
+        stopId:  stu.stopId,
+        stopResolved: !!this.lookup.stops[stu.stopId],
+        arrTime: stu.arrival?.time  ? Number(stu.arrival.time)  : null,
+        depTime: stu.departure?.time ? Number(stu.departure.time) : null,
+        arrInPast: stu.arrival?.time  ? Number(stu.arrival.time)  <= nowSec : null,
+        depInPast: stu.departure?.time ? Number(stu.departure.time) <= nowSec : null,
+      }))
+      trips.push({ tripKey, vehicleId, routeId, shortName: route?.shortName, stopCount: stopTimeUpdates.length, sample })
+    }
+    const metroInSnapshot = [...this.prevState.values()].filter(v => {
+      const r = this.lookup.routes[v.routeId]
+      return r?.lineType === 'metro'
+    })
+    return {
+      nowSec: Math.floor(nowSec),
+      metroTripCount: this.metroTrips.size,
+      metroInSnapshot: metroInSnapshot.length,
+      trips: trips.slice(0, 5),
+    }
   }
 
   // ── Alerts poll (every 60 s) ─────────────────────────────────────────────────

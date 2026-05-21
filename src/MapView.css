@@ -23,6 +23,90 @@
   background: #0d0d0d;
 }
 
+/* ── Track status overlay ─────────────────────────────────────────────────── */
+.map-track-status {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 999;
+  background: rgba(13, 13, 13, 0.82);
+  border: 1px solid #333;
+  border-radius: 4px;
+  padding: 6px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  pointer-events: none;
+  backdrop-filter: blur(4px);
+}
+
+.map-status-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-family: 'Courier New', monospace;
+  font-size: 0.68rem;
+  color: #e8e8e8;
+  transition: opacity 0.2s;
+}
+
+.map-status-row--dim {
+  opacity: 0.28;
+}
+
+.map-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.map-status-name {
+  flex: 1;
+  letter-spacing: 0.04em;
+}
+
+.map-status-badge {
+  font-size: 0.58rem;
+  font-weight: bold;
+  padding: 1px 4px;
+  border-radius: 2px;
+  line-height: 1.4;
+  letter-spacing: 0.06em;
+}
+
+.map-status-badge--mute {
+  background: #5a3a00;
+  border: 1px solid #c07000;
+  color: #ffaa00;
+}
+
+.map-status-badge--solo {
+  background: #003a5a;
+  border: 1px solid #0080c0;
+  color: #40b8ff;
+}
+
+/* ── Playhead markers ─────────────────────────────────────────────────────── */
+.map-playhead-pulse {
+  animation: map-ring-pulse 1.2s ease-out infinite;
+}
+
+.map-playhead-dot {
+  animation: map-dot-glow 1.2s ease-in-out infinite;
+}
+
+@keyframes map-ring-pulse {
+  0%   { opacity: 0.7; }
+  50%  { opacity: 0.25; }
+  100% { opacity: 0.7; }
+}
+
+@keyframes map-dot-glow {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.7; }
+}
+
 /* Style the Leaflet layer control to match the dark theme */
 .leaflet-control-layers {
   background: #1a1a1a !important;
