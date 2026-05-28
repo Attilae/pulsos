@@ -43,16 +43,18 @@ function parseRow(line) {
   return cols
 }
 
-// ── 1. Routes — metro (1) + tram (0) ─────────────────────────────────────────
+// ── 1. Routes — metro (1) + tram (0) + bus (3) + trolleybus (11) ─────────────
+
+const TYPE_MAP = { '0': 'tram', '1': 'metro', '3': 'bus', '11': 'trolley' }
 
 console.log('Loading routes…')
 const routes = await readCsv(
   'routes.txt',
-  r => r.route_type === '0' || r.route_type === '1',
+  r => TYPE_MAP[r.route_type] != null,
   r => ({
     id:        r.route_id,
     name:      r.route_short_name,
-    type:      r.route_type === '1' ? 'metro' : 'tram',
+    type:      TYPE_MAP[r.route_type],
     color:     `#${r.route_color}`,
     textColor: `#${r.route_text_color}`,
     desc:      r.route_desc,
@@ -61,7 +63,8 @@ const routes = await readCsv(
 )
 routes.sort((a, b) => a.sortOrder - b.sortOrder)
 const routeIds = new Set(routes.map(r => r.id))
-console.log(`  ${routes.length} routes (metro + tram)`)
+const typeCounts = routes.reduce((a, r) => ({ ...a, [r.type]: (a[r.type] ?? 0) + 1 }), {})
+console.log(`  ${routes.length} routes`, typeCounts)
 
 // ── 2. Trips — one canonical trip per (route_id, direction_id) ───────────────
 

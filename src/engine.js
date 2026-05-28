@@ -10,19 +10,50 @@ import {
   generatePitchMap, SCALES, noteToMidi, MODES,
 } from './mappings.js'
 
-export const LINE_TYPES = ['metro', 'tram', 'bus', 'hev']
+export const LINE_TYPES = ['metro', 'tram', 'trolley', 'bus', 'hev']
 
 export const LINE_TYPE_COLORS = {
-  metro: '#E2001A',
-  tram:  '#FFD700',
-  bus:   '#0066CC',
-  hev:   '#009640',
+  metro:   '#E2001A',
+  tram:    '#FFD700',
+  trolley: '#C8102E',
+  bus:     '#0066CC',
+  hev:     '#009640',
 }
 
 export const SYNTH_TYPES = [
   'Synth', 'FMSynth', 'AMSynth', 'MonoSynth',
   'MembraneSynth', 'MetalSynth', 'NoiseSynth', 'PluckSynth', 'DuoSynth',
+  'Sampler',
 ]
+
+// Multi-sample instruments for Tone.Sampler. Each preset maps a handful of
+// notes to hosted sample files; Tone.Sampler pitch-shifts between them.
+export const SAMPLER_PRESETS = {
+  piano: {
+    id: 'piano', label: 'Piano',
+    baseUrl: 'https://tonejs.github.io/audio/salamander/',
+    urls: {
+      A0: 'A0.mp3', C1: 'C1.mp3', 'D#1': 'Ds1.mp3', 'F#1': 'Fs1.mp3',
+      A1: 'A1.mp3', C2: 'C2.mp3', 'D#2': 'Ds2.mp3', 'F#2': 'Fs2.mp3',
+      A2: 'A2.mp3', C3: 'C3.mp3', 'D#3': 'Ds3.mp3', 'F#3': 'Fs3.mp3',
+      A3: 'A3.mp3', C4: 'C4.mp3', 'D#4': 'Ds4.mp3', 'F#4': 'Fs4.mp3',
+      A4: 'A4.mp3', C5: 'C5.mp3', 'D#5': 'Ds5.mp3', 'F#5': 'Fs5.mp3',
+      A5: 'A5.mp3', C6: 'C6.mp3', A6: 'A6.mp3', C7: 'C7.mp3', C8: 'C8.mp3',
+    },
+  },
+  casio: {
+    id: 'casio', label: 'Casio',
+    baseUrl: 'https://tonejs.github.io/audio/casio/',
+    urls: {
+      A1: 'A1.mp3', 'A#1': 'As1.mp3', B1: 'B1.mp3', C2: 'C2.mp3',
+      'C#2': 'Cs2.mp3', D2: 'D2.mp3', 'D#2': 'Ds2.mp3', E2: 'E2.mp3',
+      F2: 'F2.mp3', 'F#2': 'Fs2.mp3', G2: 'G2.mp3', 'G#1': 'Gs1.mp3',
+    },
+  },
+}
+
+export const SAMPLER_PRESET_LIST = Object.values(SAMPLER_PRESETS)
+  .map(p => ({ id: p.id, label: p.label }))
 
 export const SYNTH_DEFAULTS = {
   Synth: {
@@ -92,6 +123,7 @@ export const SYNTH_DEFAULTS = {
     release: 0.8, releaseCurve: 'exponential',
     duoHarmonicity: 1.5, vibratoRate: 5, vibratoAmount: 0.5,
   },
+  Sampler: { samplerPreset: 'piano', attack: 0.01, release: 1.0 },
 }
 
 function buildSynthOpts(synthType, params = {}, volume) {
@@ -134,6 +166,13 @@ function buildSynthOpts(synthType, params = {}, volume) {
       ...vol,
       harmonicity: p.metalHarmonicity, modulationIndex: p.metalModIndex,
       octaves: p.metalOctaves, resonance: p.resonance, envelope: env,
+    }
+    case 'Sampler': {
+      const preset = SAMPLER_PRESETS[p.samplerPreset] ?? SAMPLER_PRESETS.piano
+      return {
+        ...vol, urls: preset.urls, baseUrl: preset.baseUrl,
+        attack: p.attack ?? 0.01, release: p.release ?? 1.0,
+      }
     }
     case 'NoiseSynth': return { ...vol, noise: { type: p.noiseType }, envelope: env }
     case 'PluckSynth': return { ...vol, attackNoise: p.attackNoise, dampening: p.dampening, resonance: p.resonance }
@@ -203,6 +242,7 @@ export const SYNTH_PARAM_TARGETS = {
     { id: 'synth.vibratoRate',    label: 'Vibrato Rate', group: 'Duo', min: 0, max: 20 },
     { id: 'synth.vibratoAmount',  label: 'Vibrato Amt',  group: 'Duo', min: 0, max: 1 },
   ],
+  Sampler: [],
 }
 
 // Look up an automation destination's spec ({min, max, unit, ...}) by id.
@@ -221,11 +261,12 @@ export function findTargetSpec(paramTarget, synthType) {
 // Apply a single flat param key directly to a live synth without disturbing other params.
 function applySynthParam(synth, synthType, paramKey, value) {
   try {
+    const isSampler = synthType === 'Sampler'
     switch (paramKey) {
-      case 'attack':              synth.set({ envelope: { attack: value } }); break
-      case 'decay':               synth.set({ envelope: { decay: value } }); break
-      case 'sustain':             synth.set({ envelope: { sustain: value } }); break
-      case 'release':             synth.set({ envelope: { release: value } }); break
+      case 'attack':              synth.set(isSampler ? { attack: value }  : { envelope: { attack: value } }); break
+      case 'decay':               if (!isSampler) synth.set({ envelope: { decay: value } }); break
+      case 'sustain':             if (!isSampler) synth.set({ envelope: { sustain: value } }); break
+      case 'release':             synth.set(isSampler ? { release: value } : { envelope: { release: value } }); break
       case 'detune':              synth.set({ detune: value }); break
       case 'harmonicity':         synth.set({ harmonicity: value }); break
       case 'modulationIndex':     synth.set({ modulationIndex: value }); break
@@ -259,7 +300,7 @@ function applySynthParam(synth, synthType, paramKey, value) {
   } catch {}
 }
 
-const NO_HARMONY = new Set(['MembraneSynth', 'MetalSynth', 'NoiseSynth', 'PluckSynth'])
+const NO_HARMONY = new Set(['MembraneSynth', 'MetalSynth', 'NoiseSynth', 'PluckSynth', 'Sampler'])
 
 export class TransitEngine {
   constructor(onEvent) {
@@ -296,6 +337,9 @@ export class TransitEngine {
     // Per-route portamento glide time (seconds). routeId → number
     this._glides = {}
 
+    // Per-route legato mode: routeId → boolean
+    this._legatoRoutes = {}
+
     // Per-route mixer settings (persist across start/stop)
     this._routeVolumesDb = {}   // routeId → dB (-Infinity..+6)
     this._routePans      = {}   // routeId → -1..1
@@ -324,6 +368,18 @@ export class TransitEngine {
 
     // Drone mode per route: routeId → { enabled, rootNote }
     this._droneRoutes = {}
+
+    // Per-route speed multiplier: routeId → number (default 1)
+    this._trackSpeeds = {}
+
+    // Per-route loop section: routeId → { startCell, endCell } within 0..GRID_TOTAL_CELLS
+    this._trackLoopRegions = {}
+
+    // Cached soundModes from last startMock — read by _buildRoutePart for noteDur
+    this._cachedSoundModes = {}
+
+    // Active Tone.Part instances per route (created in startMock)
+    this._routeParts = {}
 
     // Cached routes for static-curve rebuilds
     this._routes = null
@@ -410,6 +466,17 @@ export class TransitEngine {
     const entry = this._mockSynths.get(routeId)
     if (entry?.synth && 'portamento' in entry.synth) {
       try { entry.synth.portamento = seconds } catch {}
+    }
+  }
+
+  setLegato(routeId, enabled) {
+    this._legatoRoutes[routeId] = enabled
+    if (!enabled) {
+      // release any held legato note
+      const entry = this._mockSynths.get(routeId)
+      if (entry?.synth) {
+        try { entry.synth.triggerRelease(Tone.now()) } catch {}
+      }
     }
   }
 
@@ -606,13 +673,16 @@ export class TransitEngine {
       case 'NoiseSynth':    return new Tone.NoiseSynth(opts)
       case 'PluckSynth':    return new Tone.PluckSynth(opts)
       case 'DuoSynth':      return new Tone.DuoSynth(opts)
+      case 'Sampler':       return new Tone.Sampler(opts)
       default:              return new Tone.Synth(opts)
     }
   }
 
   _triggerSynth(entry, note, dur, time) {
     const { synth, synthType, harmonySynth, harmonyInterval } = entry
-    if (synthType === 'NoiseSynth') {
+    if (synthType === 'Sampler') {
+      if (synth.loaded) synth.triggerAttackRelease(note, dur, time)
+    } else if (synthType === 'NoiseSynth') {
       synth.triggerAttackRelease(dur, time)
     } else if (synthType === 'PluckSynth') {
       synth.triggerAttack(note, time)
@@ -622,6 +692,25 @@ export class TransitEngine {
         harmonySynth.triggerAttackRelease(
           Tone.Frequency(note).transpose(harmonyInterval).toFrequency(), dur, time
         )
+      }
+    }
+  }
+
+  _triggerLegatoNote(entry, note, time) {
+    const { synth, synthType, harmonySynth, harmonyInterval } = entry
+    // For legato: attack only — note holds until the next attack replaces it
+    if (synthType === 'NoiseSynth') {
+      synth.triggerAttack(time)
+    } else if (synthType === 'Sampler') {
+      if (synth.loaded) synth.triggerAttack(note, time)
+    } else {
+      try { synth.triggerAttack(note, time) } catch {}
+      if (harmonySynth && harmonyInterval) {
+        try {
+          harmonySynth.triggerAttack(
+            Tone.Frequency(note).transpose(harmonyInterval).toFrequency(), time
+          )
+        } catch {}
       }
     }
   }
@@ -848,6 +937,7 @@ export class TransitEngine {
     const loopSec = (LOOP_BEATS / bpm) * 60
 
     this._routes = routes
+    this._cachedSoundModes = soundModes
     this._createFxBuses()
     this._createRouteSynths(routes, soundModes, synthTypes, adsr)
 
@@ -855,57 +945,84 @@ export class TransitEngine {
     Tone.Transport.loopEnd = loopSec
 
     for (const route of routes) {
-      if (!route.stops?.length || !route.totalDist) continue
-
-      const gridStops = snapStopsToGrid(route.stops, route.totalDist)
-
-      // Automation source routes: schedule data dispatch only (no notes)
-      if (this._automationSources.has(route.id)) {
-        gridStops.forEach((stop) => {
-          const scheduleAt = (stop.cellIdx / GRID_TOTAL_CELLS) * loopSec
-          Tone.Transport.schedule(() => {
-            this._dispatchFromSourceRoute(route.id, stop.id, {
-              lat: stop.lat, lng: stop.lng, stopIdx: stop.originalIdx,
-            })
-          }, scheduleAt)
-        })
-        continue
-      }
-
-      const entry = this._mockSynths.get(route.id)
-      if (!entry) continue
-
-      const noteDur = soundModes[route.id]?.mode !== 'percussive' ? '4n' : '8n'
-
-      // Build auto pitch map once per route (geographic by default).
-      // A manually-set pitchMap via setPitchMap() always wins.
-      const { root: autoRoot = 'C', scaleType: autoScale = 'dorian' } = entry.scale ?? {}
-      const autoRootMidi  = noteToMidi(`${autoRoot}3`)
-      const autoModeScale = SCALES[autoScale] ?? MODES.dorian
-      const autoStrategy  = this._pitchMapStrategies[route.id] ?? 'geographic'
-      const autoPitchMap  = generatePitchMap(route.stops, autoRootMidi, autoModeScale, autoStrategy)
-
-      gridStops.forEach((stop) => {
-        const scheduleAt = (stop.cellIdx / GRID_TOTAL_CELLS) * loopSec
-
-        Tone.Transport.schedule((time) => {
-          if (this._soloRoutes.size > 0 && !this._soloRoutes.has(route.id)) return
-          if (this._routeMuted[route.id]) return
-          if (this._droneRoutes[route.id]?.enabled) return
-
-          const e = this._mockSynths.get(route.id)
-          if (!e) return
-          const { root = 'C', scaleType = 'major' } = e.scale ?? {}
-          const manualMap = this._pitchMaps[route.id]
-          const rawNote   = (manualMap ?? autoPitchMap)[stop.originalIdx] ?? randomFromScale(root, scaleType)
-          const note = shiftOctaveNote(rawNote, this._octaveShifts[route.id] ?? 0)
-          this._triggerSynth(e, note, noteDur, time)
-          this.onEvent({ routeShortName: route.name, stopName: stop.name, note, lineType: route.type })
-        }, scheduleAt)
-      })
+      const part = this._buildRoutePart(route)
+      if (part) this._routeParts[route.id] = part
     }
 
     Tone.Transport.start()
+  }
+
+  // Build (or rebuild) a single route's Tone.Part using the current
+  // speed + loop-region state. Returns the Part, or null if the route
+  // can't be scheduled (missing stops, missing mock synth entry, etc.)
+  _buildRoutePart(route) {
+    if (!route?.stops?.length || !route?.totalDist) return null
+
+    const LOOP_BEATS  = 16
+    const loopSec     = (LOOP_BEATS / Tone.Transport.bpm.value) * 60
+    const speed       = this._trackSpeeds[route.id] ?? 1
+
+    const region      = this._trackLoopRegions[route.id]
+    const rawStart    = region?.startCell ?? 0
+    const rawEnd      = region?.endCell ?? GRID_TOTAL_CELLS
+    const startCell   = Math.max(0, Math.min(GRID_TOTAL_CELLS - 1, rawStart))
+    const endCell     = Math.max(startCell + 1, Math.min(GRID_TOTAL_CELLS, rawEnd))
+    const regionLen   = endCell - startCell
+    const partLoopSec = (regionLen / GRID_TOTAL_CELLS) * loopSec / speed
+
+    const gridStops = snapStopsToGrid(route.stops, route.totalDist)
+      .filter(s => s.cellIdx >= startCell && s.cellIdx < endCell)
+
+    // Automation source routes: schedule data dispatch only (no notes)
+    if (this._automationSources.has(route.id)) {
+      const automationPart = new Tone.Part((time, stop) => {
+        this._dispatchFromSourceRoute(route.id, stop.id, {
+          lat: stop.lat, lng: stop.lng, stopIdx: stop.originalIdx,
+        })
+      }, gridStops.map(stop => [((stop.cellIdx - startCell) / regionLen) * partLoopSec, stop]))
+      automationPart.loop    = true
+      automationPart.loopEnd = partLoopSec
+      automationPart.start(0)
+      return automationPart
+    }
+
+    const entry = this._mockSynths.get(route.id)
+    if (!entry) return null
+
+    const soundMode = this._cachedSoundModes?.[route.id]?.mode
+    const noteDur   = soundMode !== 'percussive' ? '4n' : '8n'
+
+    // Build auto pitch map once per route (geographic by default).
+    // A manually-set pitchMap via setPitchMap() always wins.
+    const { root: autoRoot = 'C', scaleType: autoScale = 'dorian' } = entry.scale ?? {}
+    const autoRootMidi  = noteToMidi(`${autoRoot}3`)
+    const autoModeScale = SCALES[autoScale] ?? MODES.dorian
+    const autoStrategy  = this._pitchMapStrategies[route.id] ?? 'geographic'
+    const autoPitchMap  = generatePitchMap(route.stops, autoRootMidi, autoModeScale, autoStrategy)
+
+    const part = new Tone.Part((time, stop) => {
+      if (this._soloRoutes.size > 0 && !this._soloRoutes.has(route.id)) return
+      if (this._routeMuted[route.id]) return
+      if (this._droneRoutes[route.id]?.enabled) return
+
+      const e = this._mockSynths.get(route.id)
+      if (!e) return
+      const { root = 'C', scaleType = 'major' } = e.scale ?? {}
+      const manualMap = this._pitchMaps[route.id]
+      const rawNote   = (manualMap ?? autoPitchMap)[stop.originalIdx] ?? randomFromScale(root, scaleType)
+      const note = shiftOctaveNote(rawNote, this._octaveShifts[route.id] ?? 0)
+      if (this._legatoRoutes[route.id]) {
+        this._triggerLegatoNote(e, note, time)
+      } else {
+        this._triggerSynth(e, note, noteDur, time)
+      }
+      this.onEvent({ routeShortName: route.name, stopName: stop.name, note, lineType: route.type })
+    }, gridStops.map(stop => [((stop.cellIdx - startCell) / regionLen) * partLoopSec, stop]))
+
+    part.loop    = true
+    part.loopEnd = partLoopSec
+    part.start(0)
+    return part
   }
 
   startLive(routes, soundModes = {}, bpm = 120, synthTypes = {}, adsr = {}, effects = {}) {
@@ -929,10 +1046,13 @@ export class TransitEngine {
 
     const e = this._mockSynths.get(routeId)
     if (!e) return
-    const dur  = '8n'
     const time = Math.max(Tone.now(), (e._lastTriggerTime ?? 0) + 0.001)
     e._lastTriggerTime = time
-    this._triggerSynth(e, note, dur, time)
+    if (this._legatoRoutes[routeId]) {
+      this._triggerLegatoNote(e, note, time)
+    } else {
+      this._triggerSynth(e, note, '8n', time)
+    }
     this.onEvent({ routeShortName: routeId, note, lineType: routeType })
   }
 
@@ -958,6 +1078,34 @@ export class TransitEngine {
       entry.synth.frequency.rampTo(Tone.Frequency(rootNote).toFrequency(), 0.1)
   }
 
+  setTrackSpeed(routeId, multiplier) {
+    this._trackSpeeds[routeId] = multiplier
+    this._rebuildRoutePart(routeId)
+  }
+
+  setTrackLoopRegion(routeId, region) {
+    if (!region) return
+    this._trackLoopRegions[routeId] = {
+      startCell: Math.max(0, Math.min(GRID_TOTAL_CELLS - 1, Math.round(region.startCell ?? 0))),
+      endCell:   Math.max(1, Math.min(GRID_TOTAL_CELLS, Math.round(region.endCell ?? GRID_TOTAL_CELLS))),
+    }
+    this._rebuildRoutePart(routeId)
+  }
+
+  getRouteProgress(routeId) {
+    const part = this._routeParts[routeId]
+    return part ? part.progress : null
+  }
+
+  _rebuildRoutePart(routeId) {
+    const route = this._routes?.find(r => r.id === routeId)
+    if (!route) return
+    this._routeParts[routeId]?.dispose()
+    delete this._routeParts[routeId]
+    const part = this._buildRoutePart(route)
+    if (part) this._routeParts[routeId] = part
+  }
+
   setSynthType(routeId, routeType, synthType, envelope) {
     const entry = this._mockSynths.get(routeId)
     if (!entry) return
@@ -979,7 +1127,22 @@ export class TransitEngine {
   updateEnvelope(routeId, params) {
     const e = this._mockSynths.get(routeId)
     if (!e) return
+    if (e.synthType === 'Sampler') {
+      // Sampler's attack/release are top-level; never push urls through .set()
+      const live = {}
+      if (params.attack  != null) live.attack  = params.attack
+      if (params.release != null) live.release = params.release
+      if (Object.keys(live).length) e.synth.set(live)
+      return
+    }
     e.synth.set(buildSynthOpts(e.synthType, params))
+  }
+
+  // Load a user-uploaded AudioBuffer into a route's Sampler at the given note.
+  setSamplerBuffer(routeId, note = 'C4', audioBuffer) {
+    const e = this._mockSynths.get(routeId)
+    if (e?.synthType !== 'Sampler' || !audioBuffer) return
+    try { e.synth.add(note, audioBuffer) } catch (err) { console.warn('setSamplerBuffer', err) }
   }
 
   // ── DAW controls ─────────────────────────────────────────────────────────────
@@ -1012,6 +1175,17 @@ export class TransitEngine {
     Tone.Transport.stop()
     Tone.Transport.position = 0
 
+    for (const part of Object.values(this._routeParts)) part.dispose()
+    this._routeParts = {}
+
+    // Release any held legato notes before disposal
+    for (const [routeId, legato] of Object.entries(this._legatoRoutes)) {
+      if (legato) {
+        const entry = this._mockSynths.get(routeId)
+        if (entry?.synth) try { entry.synth.triggerRelease(Tone.now()) } catch {}
+      }
+    }
+
     for (const entry of this._mockSynths.values()) this._disposeRouteEntry(entry)
     this._mockSynths.clear()
 
@@ -1033,6 +1207,7 @@ export class TransitEngine {
 
   dispose() {
     this.stopMock()
+    // _routeParts already disposed by stopMock
     for (const at of Object.values(this._automationLanes)) at.dispose()
     this._automationLanes    = {}
     this._automationLaneCfgs = {}

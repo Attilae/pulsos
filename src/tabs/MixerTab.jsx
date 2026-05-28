@@ -3,18 +3,37 @@ import * as Tone from 'tone'
 import { TransitEngine, SYNTH_DEFAULTS } from '../engine.js'
 import { FX_BUSES } from '../fxTrack.js'
 import { randomFromScale, latToNote, shiftOctaveNote, SCALES } from '../mappings.js'
-import DawView from '../DawView.jsx'
+import DawView, { NOTE_ROOTS, SCALE_TYPES } from '../DawView.jsx'
 import MapView from '../MapView.jsx'
+import SongMenu from '../SongMenu.jsx'
+import { useSongPersistence } from '../useSongPersistence.js'
 
 const MAX_EVENTS = 80
 
-const DEFAULT_ROUTE_IDS = new Set([
-  '5100', '5200', '5300', '5400',           // M1 M2 M3 M4
-  '3010', '3020', '3040', '3060', '3170', '3190', // Tram 1, 2, 4, 6, 17, 19
-])
+const STARTUP_PICKS = { tram: 5, trolley: 5, bus: 5 }
+
+function pickStartupRoutes(allRoutes) {
+  const byType = {}
+  for (const r of allRoutes) {
+    if (!r.stops?.length) continue
+    if (!byType[r.type]) byType[r.type] = []
+    byType[r.type].push(r)
+  }
+  const picked = [...(byType.metro ?? [])]
+  for (const [type, n] of Object.entries(STARTUP_PICKS)) {
+    const pool = [...(byType[type] ?? [])]
+    for (let i = pool.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1))
+      ;[pool[i], pool[j]] = [pool[j], pool[i]]
+    }
+    picked.push(...pool.slice(0, n))
+  }
+  return picked
+}
 
 export default function MixerTab() {
-  const engineRef = useRef(null)
+  const engineRef   = useRef(null)
+  const stoppingRef = useRef(false)
 
   const [view,    setView]    = useState('daw')   // 'map' | 'daw'
   const [mode,    setMode]    = useState('mock')  // 'mock' | 'live'
@@ -58,14 +77,20 @@ export default function MixerTab() {
 
   const [bpm, setBpm] = useState(120)
 
+  // Last harmony applied via the global selector (shown when lanes diverge)
+  const [globalHarmony, setGlobalHarmony] = useState({ root: 'C', scaleType: 'major' })
+
   const [activeFxTracks, setActiveFxTracks] = useState([])
 
   const [masterVolume, setMasterVolume] = useState(0)
 
   const [trackOctaves,    setTrackOctaves]    = useState({})
   const [trackGlides,     setTrackGlides]     = useState({})
+  const [trackLegatos,    setTrackLegatos]    = useState({})
   const [trackDroneModes, setTrackDroneModes] = useState({})
   const [trackDroneRoots, setTrackDroneRoots] = useState({})
+  const [trackSpeeds,     setTrackSpeeds]     = useState({})
+  const [trackLoopRegions, setTrackLoopRegions] = useState({})
 
   const [liveSnapshot,    setLiveSnapshot]    = useState(null)
   const [snapshotLoading, setSnapshotLoading] = useState(false)
@@ -74,7 +99,7 @@ export default function MixerTab() {
     fetch('/data/lines.json')
       .then(r => r.json())
       .then(d => {
-        const routes = d.routes.filter(r => DEFAULT_ROUTE_IDS.has(r.id))
+        const routes = pickStartupRoutes(d.routes)
         setRoutes(routes)
         setTrackPitchMaps(
           Object.fromEntries(
@@ -115,10 +140,22 @@ export default function MixerTab() {
     if (!engine) return
 
     if (started) {
-      engine.stopMock()
-      setStarted(false)
+      if (stoppingRef.current) return
+      stoppingRef.current = true
+
+      const FADE_OUT = 0.35
+      Tone.getDestination().volume.rampTo(-80, FADE_OUT)
+      setTimeout(() => {
+        engine.stopMock()
+        Tone.getDestination().volume.value = masterVolume
+        setStarted(false)
+        stoppingRef.current = false
+      }, FADE_OUT * 1000 + 60)
     } else {
       await engine.start()
+
+      // Start silent, fade in after transport starts
+      Tone.getDestination().volume.value = -80
 
       const smMap = {}
       for (const [rid, m] of Object.entries(trackSoundModes)) {
@@ -135,6 +172,8 @@ export default function MixerTab() {
         engine.startLive(routes ?? [], smMap, bpm, trackSynthTypes, trackADSRs)
       }
       setStarted(true)
+
+      Tone.getDestination().volume.rampTo(masterVolume, 0.5)
     }
   }
 
@@ -191,6 +230,25 @@ export default function MixerTab() {
     })
   }, [])
 
+  const handleSamplerPreset = useCallback((routeId, routeType, presetId) => {
+    setTrackADSRs(a => {
+      const next = { ...a, [routeId]: { ...a[routeId], samplerPreset: presetId } }
+      engineRef.current?.setSynthType(routeId, routeType, 'Sampler', next[routeId])
+      return next
+    })
+  }, [])
+
+  const handleSamplerUpload = useCallback(async (routeId, file, note) => {
+    if (!file) return
+    try {
+      const buf = await file.arrayBuffer()
+      const audioBuffer = await Tone.getContext().rawContext.decodeAudioData(buf)
+      engineRef.current?.setSamplerBuffer(routeId, note, audioBuffer)
+    } catch (err) {
+      console.error('Sampler sample decode failed:', err)
+    }
+  }, [])
+
   const handleFilter = useCallback((routeId, params) => {
     setTrackFilters(f => {
       const next = { ...f, [routeId]: { ...f[routeId], ...params } }
@@ -233,6 +291,32 @@ export default function MixerTab() {
       return rs
     })
   }
+
+  // Apply one harmony to every lane at once.
+  const handleGlobalHarmony = (scale) => {
+    setGlobalHarmony(scale)
+    for (const route of routes ?? []) {
+      handleScale(route.id, route.name, scale)
+    }
+  }
+
+  // Do all lanes currently share one harmony? `common` is that shared value
+  // when unified; when lanes diverge, `mixed` is true and the global selector
+  // falls back to showing the last globally-applied harmony.
+  const { harmonyMixed, harmonyCommon } = useMemo(() => {
+    const ids = routes?.map(r => r.id) ?? []
+    if (ids.length === 0) return { harmonyMixed: false, harmonyCommon: null }
+    const first = trackScales[ids[0]] ?? { root: 'C', scaleType: 'major' }
+    for (const id of ids) {
+      const sc = trackScales[id] ?? { root: 'C', scaleType: 'major' }
+      if (sc.root !== first.root || sc.scaleType !== first.scaleType) {
+        return { harmonyMixed: true, harmonyCommon: null }
+      }
+    }
+    return { harmonyMixed: false, harmonyCommon: first }
+  }, [routes, trackScales])
+
+  const harmonyValue = harmonyMixed ? globalHarmony : (harmonyCommon ?? globalHarmony)
 
   const handleRandomizePitches = useCallback((routeId) => {
     setRoutes(rs => {
@@ -308,6 +392,11 @@ export default function MixerTab() {
     engineRef.current?.setGlide(routeId, seconds)
   }, [])
 
+  const handleLegato = useCallback((routeId, enabled) => {
+    setTrackLegatos(l => ({ ...l, [routeId]: enabled }))
+    engineRef.current?.setLegato(routeId, enabled)
+  }, [])
+
   const handleDroneMode = useCallback((routeId, enabled) => {
     setTrackDroneModes(m => ({ ...m, [routeId]: enabled }))
     setTrackDroneRoots(r => {
@@ -320,6 +409,16 @@ export default function MixerTab() {
   const handleDroneRoot = useCallback((routeId, note) => {
     setTrackDroneRoots(r => ({ ...r, [routeId]: note }))
     engineRef.current?.setDroneRoot(routeId, note)
+  }, [])
+
+  const handleTrackSpeed = useCallback((routeId, multiplier) => {
+    setTrackSpeeds(s => ({ ...s, [routeId]: multiplier }))
+    engineRef.current?.setTrackSpeed(routeId, multiplier)
+  }, [])
+
+  const handleTrackLoopRegion = useCallback((routeId, region) => {
+    setTrackLoopRegions(r => ({ ...r, [routeId]: region }))
+    engineRef.current?.setTrackLoopRegion(routeId, region)
   }, [])
 
   const handleAddFxTrack = useCallback((busId) => {
@@ -386,11 +485,48 @@ export default function MixerTab() {
     engineRef.current?.setRoutePan(routeId, value)
   }
 
+  const songState = useMemo(() => ({
+    bpm, mode, view, masterVolume,
+    volumes, muted, pans, soloRoutes,
+    trackSoundModes, trackScales, trackSynthTypes, trackADSRs,
+    trackFilters, trackEqs, trackPitchMaps,
+    trackOctaves, trackGlides, trackDroneModes, trackDroneRoots, trackSpeeds, trackLoopRegions,
+    activeFxTracks, fxBusWet, fxBusMuted, fxBusSoloed, fxBusParams,
+    sendMatrix, automationCfg,
+  }), [
+    bpm, mode, view, masterVolume,
+    volumes, muted, pans, soloRoutes,
+    trackSoundModes, trackScales, trackSynthTypes, trackADSRs,
+    trackFilters, trackEqs, trackPitchMaps,
+    trackOctaves, trackGlides, trackDroneModes, trackDroneRoots, trackSpeeds, trackLoopRegions,
+    activeFxTracks, fxBusWet, fxBusMuted, fxBusSoloed, fxBusParams,
+    sendMatrix, automationCfg,
+  ])
+
+  const songSetters = useMemo(() => ({
+    setBpm, setMode, setView, setMasterVolume,
+    setVolumes, setMuted, setPans, setSoloRoutes,
+    setTrackSoundModes, setTrackScales, setTrackSynthTypes, setTrackADSRs,
+    setTrackFilters, setTrackEqs, setTrackPitchMaps,
+    setTrackOctaves, setTrackGlides, setTrackDroneModes, setTrackDroneRoots, setTrackSpeeds, setTrackLoopRegions,
+    setActiveFxTracks, setFxBusWet, setFxBusMuted, setFxBusSoloed, setFxBusParams,
+    setSendMatrix, setAutomationCfg,
+  }), [])
+
+  const song = useSongPersistence({
+    state:   songState,
+    setters: songSetters,
+    engineRef,
+    routes,
+  })
+
   return (
     <div className={`daw ${view === 'map' ? 'daw--map' : ''}`}>
       <header className="daw-header">
         <h2 className="daw-subtitle">Map</h2>
         <p className="daw-sub">Budapest public transport → generative music</p>
+
+        <SongMenu {...song} />
 
         <div className="view-toggle">
           <button
@@ -412,6 +548,32 @@ export default function MixerTab() {
             className={`mode-btn ${mode === 'live' ? 'active' : ''}`}
             onClick={() => { if (started) { engineRef.current?.stopMock(); setStarted(false) }; setMode('live') }}
           >BKK Live</button>
+        </div>
+
+        <div className="harmony-control">
+          <label>Harmony</label>
+          <select
+            className="scale-root-select"
+            value={harmonyValue.root}
+            onChange={e => handleGlobalHarmony({ ...harmonyValue, root: e.target.value })}
+          >
+            {NOTE_ROOTS.map(n => <option key={n} value={n}>{n}</option>)}
+          </select>
+          <select
+            className="scale-type-select"
+            value={harmonyValue.scaleType}
+            onChange={e => handleGlobalHarmony({ ...harmonyValue, scaleType: e.target.value })}
+          >
+            {SCALE_TYPES.map(([key, label]) => (
+              <option key={key} value={key}>{label}</option>
+            ))}
+          </select>
+          {harmonyMixed && (
+            <span
+              className="harmony-mixed-indicator"
+              title="Lanes are not all in the same harmony — pick a value to re-sync them all"
+            >● Mixed</span>
+          )}
         </div>
 
         <div className="bpm-control">
@@ -470,6 +632,12 @@ export default function MixerTab() {
         trackOctaves={trackOctaves}
         trackGlides={trackGlides}
         onGlide={handleGlide}
+        trackLegatos={trackLegatos}
+        onLegato={handleLegato}
+        trackSpeeds={trackSpeeds}
+        onTrackSpeed={handleTrackSpeed}
+        trackLoopRegions={trackLoopRegions}
+        onTrackLoopRegion={handleTrackLoopRegion}
         trackDroneModes={trackDroneModes}
         trackDroneRoots={trackDroneRoots}
         onDroneMode={handleDroneMode}
@@ -482,6 +650,8 @@ export default function MixerTab() {
         onScale={handleScale}
         onSynthType={handleSynthType}
         onADSR={handleADSR}
+        onSamplerPreset={handleSamplerPreset}
+        onSamplerUpload={handleSamplerUpload}
         onFilter={handleFilter}
         onEq={handleEq}
         onSendLevel={handleSendLevel}

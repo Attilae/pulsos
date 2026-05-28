@@ -147,6 +147,19 @@ body { background: var(--bg); color: var(--text); font-family: 'Courier New', mo
 }
 .bpm-control input:disabled { opacity: 0.5; }
 
+.harmony-control {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 0.72rem; color: var(--muted);
+}
+.harmony-control .scale-root-select { font-size: 0.72rem; width: 46px; }
+.harmony-control .scale-type-select { font-size: 0.72rem; flex: 0 0 auto; width: 90px; }
+.harmony-mixed-indicator {
+  font-size: 0.66rem;
+  color: var(--accent);
+  white-space: nowrap;
+  letter-spacing: 0.02em;
+}
+
 .transport-btn {
   padding: 7px 20px;
   border: 1px solid var(--border);

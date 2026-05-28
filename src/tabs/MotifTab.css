@@ -1,0 +1,125 @@
+.motif-tab {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  height: 100%;
+  min-height: 0;
+  flex: 1;
+  background: var(--bg);
+}
+
+/* ── Header ───────────────────────────────────────────────────────────── */
+.motif-header {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 12px 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.motif-title {
+  font-size: 1.05rem;
+  letter-spacing: 0.12em;
+  color: var(--accent);
+  white-space: nowrap;
+  margin-right: auto;
+}
+.motif-field {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+.motif-field select,
+.motif-field input {
+  background: var(--surface2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  font-family: inherit;
+  font-size: 0.78rem;
+  padding: 5px 6px;
+  outline: none;
+}
+.motif-field select { min-width: 100px; }
+.motif-field input { width: 56px; text-align: center; }
+.motif-field input:disabled { opacity: 0.5; }
+
+/* ── Board ────────────────────────────────────────────────────────────── */
+.motif-board {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  overflow-y: auto;
+  min-height: 0;
+}
+.motif-roll {
+  width: 100%;
+  height: clamp(220px, 50vh, 360px);
+  background: #111;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.motif-roll-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.motif-meta {
+  display: flex;
+  gap: 6px;
+  font-size: 0.74rem;
+  color: var(--muted);
+  letter-spacing: 0.04em;
+}
+.motif-meta-sep { color: #3a3a3a; }
+
+.motif-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.motif-btn {
+  padding: 9px 18px;
+  background: var(--surface2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  font-family: inherit;
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+.motif-btn:hover:not(:disabled) { background: #2a2a2a; }
+.motif-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+.motif-btn--primary {
+  border-color: var(--accent);
+  color: var(--accent);
+  padding: 9px 24px;
+}
+.motif-btn--primary:hover:not(:disabled) {
+  background: rgba(200, 240, 64, 0.1);
+}
+.motif-btn--primary.on {
+  border-color: #f04040;
+  color: #f04040;
+}
+.motif-btn--primary.on:hover { background: rgba(240, 64, 64, 0.1); }
+
+/* ── Footer ───────────────────────────────────────────────────────────── */
+.motif-footer {
+  padding: 8px 20px;
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+}
+.motif-hint {
+  font-size: 0.72rem;
+  color: var(--muted);
+  text-align: center;
+}

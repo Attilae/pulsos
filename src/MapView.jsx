@@ -29,10 +29,14 @@ function isRouteActive(route, muted, soloRoutes) {
   return true
 }
 
-function routeOpacity(route, muted, soloRoutes) {
-  return isRouteActive(route, muted, soloRoutes)
-    ? (route.type === 'metro' ? 0.92 : 0.8)
-    : 0.08
+function routeStyle(route, muted, soloRoutes) {
+  const active = isRouteActive(route, muted, soloRoutes)
+  const isMuted = !active
+  return {
+    opacity:   active ? (route.type === 'metro' ? 0.88 : 0.75) : 0.22,
+    weight:    active ? (route.type === 'metro' ? 2.5  : 1.5)  : (route.type === 'metro' ? 1.5 : 1),
+    dashArray: isMuted ? '4 7' : null,
+  }
 }
 
 // Calls map.invalidateSize() when the map becomes visible after being hidden
@@ -47,6 +51,19 @@ function MapResizer({ active }) {
   return null
 }
 
+// Creates a dedicated Leaflet pane for playhead markers and wires up a ref to it
+function PlayheadPaneSetup({ paneRef }) {
+  const map = useMap()
+  useEffect(() => {
+    if (!map.getPane('playhead')) {
+      const pane = map.createPane('playhead')
+      pane.style.zIndex = '450'
+    }
+    paneRef.current = map.getPane('playhead') ?? null
+  }, [map, paneRef])
+  return null
+}
+
 export default function MapView({
   className = '',
   active = true,
@@ -58,16 +75,24 @@ export default function MapView({
   liveSnapshot = null,
 }) {
   const [playheadPositions, setPlayheadPositions] = useState({})
-  const rafRef   = useRef(null)
-  const mutedRef = useRef(muted)
-  const soloRef  = useRef(soloRoutes)
+  const rafRef       = useRef(null)
+  const mutedRef     = useRef(muted)
+  const soloRef      = useRef(soloRoutes)
+  const playheadPane = useRef(null)   // DOM div for the playhead Leaflet pane
 
   useEffect(() => { mutedRef.current = muted },      [muted])
   useEffect(() => { soloRef.current  = soloRoutes }, [soloRoutes])
 
-  const metro     = routes?.filter(r => r.type === 'metro') ?? []
-  const trams     = routes?.filter(r => r.type === 'tram')  ?? []
-  const allRoutes = [...metro, ...trams]
+  const LAYERS = [
+    { type: 'metro',   label: 'Metro' },
+    { type: 'tram',    label: 'Tram' },
+    { type: 'trolley', label: 'Trolley' },
+    { type: 'bus',     label: 'Bus' },
+  ]
+  const routesByType = Object.fromEntries(
+    LAYERS.map(l => [l.type, routes?.filter(r => r.type === l.type) ?? []])
+  )
+  const allRoutes = LAYERS.flatMap(l => routesByType[l.type])
 
   // rAF loop — only runs in mock mode while playing
   useEffect(() => {
@@ -77,6 +102,7 @@ export default function MapView({
     }
 
     let lastUpdate = 0
+    const FADE_ZONE = 0.06
 
     function tick(ts) {
       rafRef.current = requestAnimationFrame(tick)
@@ -84,6 +110,18 @@ export default function MapView({
       lastUpdate = ts
 
       const progress = Tone.getTransport().progress
+
+      // Fade in at start (0→FADE_ZONE), full in middle, fade out at end (1-FADE_ZONE→1).
+      // Applied directly to the pane DOM element — no React state, no re-render.
+      const fadeOp = progress < FADE_ZONE
+        ? progress / FADE_ZONE
+        : progress > 1 - FADE_ZONE
+          ? (1 - progress) / FADE_ZONE
+          : 1
+      if (playheadPane.current) {
+        playheadPane.current.style.opacity = String(fadeOp)
+      }
+
       const next = {}
       for (const route of routes) {
         if (!isRouteActive(route, mutedRef.current, soloRef.current)) continue
@@ -97,6 +135,7 @@ export default function MapView({
     return () => {
       cancelAnimationFrame(rafRef.current)
       setPlayheadPositions({})
+      if (playheadPane.current) playheadPane.current.style.opacity = '1'
     }
   }, [started, mode, routes])
 
@@ -139,6 +178,7 @@ export default function MapView({
         zoomControl={true}
       >
         <MapResizer active={active} />
+        <PlayheadPaneSetup paneRef={playheadPane} />
 
         <TileLayer
           url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
@@ -147,69 +187,54 @@ export default function MapView({
         />
 
         <LayersControl position="topright">
-          {/* ── Metro layer ── */}
-          <LayersControl.Overlay checked name="Metro">
-            <>
-              {metro.map(route => {
-                const op = routeOpacity(route, muted, soloRoutes)
-                const wt = isRouteActive(route, muted, soloRoutes) ? 5 : 3
-                return route.polylines.map(pl => (
-                  <Polyline
-                    key={`${route.id}_${pl.direction}`}
-                    positions={pl.coords}
-                    color={route.color}
-                    weight={wt}
-                    opacity={op}
-                  >
-                    <Tooltip sticky>{route.name} — {route.desc}</Tooltip>
-                  </Polyline>
-                ))
-              })}
-              {metro.map(route =>
-                route.stops.map(stop => (
-                  <CircleMarker
-                    key={stop.id}
-                    center={[stop.lat, stop.lon]}
-                    radius={4}
-                    color={route.color}
-                    fillColor={route.color}
-                    fillOpacity={isRouteActive(route, muted, soloRoutes) ? 0.9 : 0.1}
-                    weight={1.5}
-                  >
-                    <Tooltip>{stop.name}</Tooltip>
-                  </CircleMarker>
-                ))
-              )}
-            </>
-          </LayersControl.Overlay>
-
-          {/* ── Tram layer ── */}
-          <LayersControl.Overlay checked name="Tram">
-            <>
-              {trams.map(route => {
-                const op = routeOpacity(route, muted, soloRoutes)
-                const wt = isRouteActive(route, muted, soloRoutes) ? 3 : 2
-                return route.polylines.map(pl => (
-                  <Polyline
-                    key={`${route.id}_${pl.direction}`}
-                    positions={pl.coords}
-                    color={route.color}
-                    weight={wt}
-                    opacity={op}
-                  >
-                    <Tooltip sticky>{route.name} — {route.desc}</Tooltip>
-                  </Polyline>
-                ))
-              })}
-            </>
-          </LayersControl.Overlay>
+          {LAYERS.map(({ type, label }) => {
+            const layerRoutes = routesByType[type]
+            if (!layerRoutes.length) return null
+            const showStops = type === 'metro'
+            return (
+              <LayersControl.Overlay key={type} checked name={label}>
+                <>
+                  {layerRoutes.map(route => {
+                    const { opacity, weight, dashArray } = routeStyle(route, muted, soloRoutes)
+                    return route.polylines.map(pl => (
+                      <Polyline
+                        key={`${route.id}_${pl.direction}`}
+                        positions={pl.coords}
+                        color={route.color}
+                        weight={weight}
+                        opacity={opacity}
+                        dashArray={dashArray}
+                      >
+                        <Tooltip sticky>{route.name} — {route.desc}</Tooltip>
+                      </Polyline>
+                    ))
+                  })}
+                  {showStops && layerRoutes.map(route =>
+                    route.stops.map(stop => (
+                      <CircleMarker
+                        key={stop.id}
+                        center={[stop.lat, stop.lon]}
+                        radius={4}
+                        color={route.color}
+                        fillColor={route.color}
+                        fillOpacity={isRouteActive(route, muted, soloRoutes) ? 0.9 : 0.1}
+                        weight={1.5}
+                      >
+                        <Tooltip>{stop.name}</Tooltip>
+                      </CircleMarker>
+                    ))
+                  )}
+                </>
+              </LayersControl.Overlay>
+            )
+          })}
         </LayersControl>
 
-        {/* ── Mock mode: playhead dot per route ── */}
+        {/* ── Mock mode: playhead dot per route (rendered in dedicated pane for fade control) ── */}
         {mode === 'mock' && Object.entries(playheadPositions).map(([routeId, { lat, lng }]) => {
           const route = allRoutes.find(r => r.id === routeId)
           if (!route) return null
-          return <PlayheadMarker key={routeId} lat={lat} lng={lng} color={route.color} />
+          return <PlayheadMarker key={routeId} lat={lat} lng={lng} color={route.color} pane="playhead" />
         })}
 
         {/* ── Live mode: vehicle dots ── */}
@@ -226,7 +251,8 @@ export default function MapView({
   )
 }
 
-function PlayheadMarker({ lat, lng, color }) {
+function PlayheadMarker({ lat, lng, color, pane }) {
+  const opts = pane ? { pane } : {}
   return (
     <>
       <CircleMarker
@@ -237,6 +263,7 @@ function PlayheadMarker({ lat, lng, color }) {
         fillOpacity={0.12}
         weight={2}
         className="map-playhead-pulse"
+        {...opts}
       />
       <CircleMarker
         center={[lat, lng]}
@@ -246,6 +273,7 @@ function PlayheadMarker({ lat, lng, color }) {
         fillOpacity={0.95}
         weight={2.5}
         className="map-playhead-dot"
+        {...opts}
       />
     </>
   )

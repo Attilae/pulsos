@@ -1,6 +1,6 @@
 import * as Tone from 'tone'
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { SYNTH_DEFAULTS, SYNTH_PARAM_TARGETS, findTargetSpec } from './engine.js'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { SYNTH_DEFAULTS, SYNTH_PARAM_TARGETS, findTargetSpec, SAMPLER_PRESET_LIST } from './engine.js'
 import { AUTOMATION_SOURCES } from './automationTrack.js'
 import { FX_BUSES, AUTOMATION_TARGETS, FX_PARAM_SPECS } from './fxTrack.js'
 import { latToNote, noteToMidi, SCALES, normalizeStopLat, normalizeStopSequence, normalizeLongitude, snapStopsToGrid, GRID_TOTAL_CELLS, GRID_BARS } from './mappings.js'
@@ -9,10 +9,11 @@ import './DawView.css'
 const SYNTH_TYPES = [
   'Synth', 'FMSynth', 'AMSynth', 'MonoSynth',
   'MembraneSynth', 'MetalSynth', 'NoiseSynth', 'PluckSynth', 'DuoSynth',
+  'Sampler',
 ]
 
-const NOTE_ROOTS = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
-const SCALE_TYPES = [
+export const NOTE_ROOTS = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
+export const SCALE_TYPES = [
   ['major',           'Major'],
   ['minor',           'Minor'],
   ['pentatonic',      'Pent.'],
@@ -24,6 +25,16 @@ const SCALE_TYPES = [
 ]
 
 const DRONE_NOTES = NOTE_ROOTS.flatMap(n => [1, 2, 3, 4, 5].map(oct => `${n}${oct}`))
+
+const SPEED_OPTIONS = [
+  { value: 0.25, label: '÷4',   title: '0.25× speed — one pass every 4 loops' },
+  { value: 0.5,  label: '÷2',   title: '0.5× speed — one pass every 2 loops' },
+  { value: 1,    label: '1×',   title: 'Normal speed' },
+  { value: 1.5,  label: '×1.5', title: '1.5× speed — 3:2 polyrhythm' },
+  { value: 2,    label: '×2',   title: '2× speed — two passes per loop' },
+  { value: 3,    label: '×3',   title: '3× speed — three passes per loop' },
+  { value: 4,    label: '×4',   title: '4× speed — four passes per loop' },
+]
 
 const OSC_TYPES = ['sine', 'triangle', 'square', 'sawtooth', 'fatsine', 'fattriangle', 'fatsquare', 'fatsawtooth', 'pulse', 'pwm']
 const FILTER_TYPES = ['lowpass', 'highpass', 'bandpass', 'notch']
@@ -52,22 +63,20 @@ export default function DawView({
   liveSnapshot, snapshotLoading,
   trackSoundModes, trackScales, trackSynthTypes, trackADSRs, trackFilters, trackEqs,
   sendMatrix, automationCfg, automationSourceIds,
-  fxBusWet, activeFxTracks, masterVolume, trackOctaves, trackGlides,
+  fxBusWet, activeFxTracks, masterVolume, trackOctaves, trackGlides, trackLegatos, trackSpeeds, trackLoopRegions,
   trackDroneModes, trackDroneRoots, onDroneMode, onDroneRoot,
   onVolume, onMute, onPan, onSolo,
-  onSoundMode, onScale, onSynthType, onADSR, onFilter, onEq,
+  onSoundMode, onScale, onSynthType, onADSR, onSamplerPreset, onSamplerUpload, onFilter, onEq,
   onSendLevel, onFxBusWet, fxBusMuted, fxBusSoloed, onFxBusMute, onFxBusSolo,
   fxBusParams, onFxBusParam, onFxBusCustomIR,
   onAddFxTrack, onRemoveFxTrack, onMasterVolume,
-  onOctaveShift, onGlide,
+  onOctaveShift, onGlide, onLegato, onTrackSpeed, onTrackLoopRegion,
   onAddAutomationLane, onRemoveAutomationLane, onUpdateAutomationLane,
   onRefetch, onVehicleCrossed,
   trackPitchMaps, onRandomizePitches,
 }) {
-  const playheadRef           = useRef(null)
   const tracksRef             = useRef(null)
   const animRef               = useRef(null)
-  const railOffsetRef         = useRef(412)
   const lastProgressRef       = useRef(0)
   const lastProgressUpdateRef = useRef(0)
   const [playheadProgress, setPlayheadProgress] = useState(0)
@@ -83,26 +92,8 @@ export default function DawView({
   }, [liveSnapshot])
 
   useEffect(() => {
-    if (!routes) return
-    const measure = () => {
-      const railEl   = tracksRef.current?.querySelector('.stop-rail')
-      const tracksEl = tracksRef.current
-      if (!railEl || !tracksEl) return
-      railOffsetRef.current = railEl.getBoundingClientRect().left
-                            - tracksEl.getBoundingClientRect().left
-    }
-    measure()
-    window.addEventListener('resize', measure)
-    return () => window.removeEventListener('resize', measure)
-  }, [routes])
-
-  useEffect(() => {
-    const ph = playheadRef.current
-    if (!ph) return
-
     if (!started) {
       cancelAnimationFrame(animRef.current)
-      ph.style.left = `${railOffsetRef.current}px`
       setPlayheadProgress(0)
       lastProgressRef.current = 0
       return
@@ -110,11 +101,6 @@ export default function DawView({
 
     const tick = () => {
       const progress = Tone.getTransport().progress
-
-      const tracksEl = tracksRef.current
-      const railLeft = railOffsetRef.current
-      const railWidth = tracksEl ? tracksEl.offsetWidth - railLeft - 12 : 0
-      ph.style.left = `${railLeft + progress * railWidth}px`
 
       const now = performance.now()
       if (now - lastProgressUpdateRef.current > 66) {
@@ -159,8 +145,15 @@ export default function DawView({
   }, [automationCfg])
 
   // Source routes rendered inside their instrument's track-group, not their own section
-  const metro = routes?.filter(r => r.type === 'metro' && !srcIds.has(r.id)) ?? []
-  const trams = routes?.filter(r => r.type === 'tram'  && !srcIds.has(r.id)) ?? []
+  const SECTIONS = [
+    { type: 'metro',   label: 'Metro' },
+    { type: 'tram',    label: 'Tram' },
+    { type: 'trolley', label: 'Trolley' },
+    { type: 'bus',     label: 'Bus' },
+  ]
+  const routesByType = Object.fromEntries(
+    SECTIONS.map(s => [s.type, routes?.filter(r => r.type === s.type && !srcIds.has(r.id)) ?? []])
+  )
   // All routes by id for source picker lookups
   const routeById = useMemo(() => {
     const map = {}
@@ -171,11 +164,6 @@ export default function DawView({
   return (
     <div className={`daw-body${className ? ` ${className}` : ''}`}>
       <main className="daw-tracks" ref={tracksRef}>
-        <div
-          ref={playheadRef}
-          className={`daw-global-playhead ${started ? 'active' : ''}`}
-          style={{ left: `${railOffsetRef.current}px` }}
-        />
 
         {!routes && <div className="daw-loading">Loading line data…</div>}
 
@@ -196,11 +184,11 @@ export default function DawView({
           </div>
         )}
 
-        {/* ── Metro section ── */}
-        {metro.length > 0 && (
-          <>
-            <div className="daw-section-label">Metro</div>
-            {metro.map(route => {
+        {/* ── Sections per line type ── */}
+        {SECTIONS.map(({ type, label }) => routesByType[type].length > 0 && (
+          <div key={type}>
+            <div className="daw-section-label">{label}</div>
+            {routesByType[type].map(route => {
               const lanes = Object.entries(automationCfg?.[route.id] ?? {})
               // Source routes attached to this instrument
               const attachedSrcIds = [...new Set(
@@ -234,16 +222,24 @@ export default function DawView({
                     onSolo={() => onSolo(route.id)}
                     octaveShift={trackOctaves?.[route.id] ?? 0}
                     glide={trackGlides?.[route.id] ?? 0}
+                    legato={trackLegatos?.[route.id] ?? false}
+                    speed={trackSpeeds?.[route.id] ?? 1}
+                    loopRegion={trackLoopRegions?.[route.id]}
+                    onLoopRegion={r => onTrackLoopRegion(route.id, r)}
                     onSoundMode={m => onSoundMode(route.id, route.name, m)}
                     onScale={s => onScale(route.id, route.name, s)}
                     onSynthType={st => onSynthType(route.id, route.type, st)}
                     onADSR={p => onADSR(route.id, p)}
+                    onSamplerPreset={id => onSamplerPreset(route.id, route.type, id)}
+                    onSamplerUpload={(file, note) => onSamplerUpload(route.id, file, note)}
                     filter={trackFilters?.[route.id] ?? DEFAULT_FILTER}
                     eq={trackEqs?.[route.id] ?? DEFAULT_EQ}
                     onFilter={p => onFilter(route.id, p)}
                     onEq={p => onEq(route.id, p)}
                     onOctaveShift={shift => onOctaveShift(route.id, shift)}
                     onGlide={s => onGlide(route.id, s)}
+                    onLegato={en => onLegato(route.id, en)}
+                    onSpeed={m => onTrackSpeed(route.id, m)}
                     onDroneMode={en => onDroneMode(route.id, en)}
                     onDroneRoot={n => onDroneRoot(route.id, n)}
                     pitchMap={trackPitchMaps?.[route.id]}
@@ -273,87 +269,8 @@ export default function DawView({
                 </div>
               )
             })}
-          </>
-        )}
-
-        {/* ── Tram section ── */}
-        {trams.length > 0 && (
-          <>
-            <div className="daw-section-label">Tram</div>
-            {trams.map(route => {
-              const lanes = Object.entries(automationCfg?.[route.id] ?? {})
-              const attachedSrcIds = [...new Set(
-                lanes.map(([, lc]) => lc?.sourceRouteId).filter(Boolean)
-              )]
-              return (
-                <div key={route.id} className={`track-group ${lanes.length > 0 ? 'track-group--has-lanes' : ''}`}>
-                  <LineTrack
-                    route={route}
-                    mode={mode}
-                    started={started}
-                    progress={playheadProgress}
-                    volume={volumes[route.id] ?? 0}
-                    muted={muted[route.id] ?? false}
-                    pan={pans[route.id] ?? 0}
-                    isSoloed={soloRoutes.has(route.id)}
-                    vehicles={vehiclesByRoute[route.name] ?? []}
-                    soundMode={trackSoundModes?.[route.id] ?? 'harmonic'}
-                    trackScale={trackScales?.[route.id] ?? { root: 'C', scaleType: 'major' }}
-                    synthType={trackSynthTypes?.[route.id] ?? 'Synth'}
-                    adsr={trackADSRs?.[route.id] ?? SYNTH_DEFAULTS['Synth']}
-                    droneMode={trackDroneModes?.[route.id] ?? false}
-                    droneRoot={trackDroneRoots?.[route.id] ?? 'C3'}
-                    laneCount={lanes.length}
-                    activeFxTracks={activeFxTracks ?? []}
-                    sendMatrix={sendMatrix}
-                    onSendLevel={(busId, lvl) => onSendLevel(route.id, busId, lvl)}
-                    onVolume={v => onVolume(route.id, v)}
-                    onMute={() => onMute(route.id)}
-                    onPan={v => onPan(route.id, v)}
-                    onSolo={() => onSolo(route.id)}
-                    octaveShift={trackOctaves?.[route.id] ?? 0}
-                    glide={trackGlides?.[route.id] ?? 0}
-                    onSoundMode={m => onSoundMode(route.id, route.name, m)}
-                    onScale={s => onScale(route.id, route.name, s)}
-                    onSynthType={st => onSynthType(route.id, route.type, st)}
-                    onADSR={p => onADSR(route.id, p)}
-                    filter={trackFilters?.[route.id] ?? DEFAULT_FILTER}
-                    eq={trackEqs?.[route.id] ?? DEFAULT_EQ}
-                    onFilter={p => onFilter(route.id, p)}
-                    onEq={p => onEq(route.id, p)}
-                    onOctaveShift={shift => onOctaveShift(route.id, shift)}
-                    onGlide={s => onGlide(route.id, s)}
-                    onDroneMode={en => onDroneMode(route.id, en)}
-                    onDroneRoot={n => onDroneRoot(route.id, n)}
-                    pitchMap={trackPitchMaps?.[route.id]}
-                    onRandomizePitches={() => onRandomizePitches(route.id)}
-                    onAddLane={() => onAddAutomationLane(route.id)}
-                  />
-                  {attachedSrcIds.map(srcId => (
-                    <AutomationSourceTrack
-                      key={srcId}
-                      srcRoute={routeById[srcId]}
-                      instRoute={route}
-                      automationCfg={automationCfg}
-                    />
-                  ))}
-                  {lanes.map(([laneId, laneCfg]) => (
-                    <AutomationLane
-                      key={laneId}
-                      instRoute={route}
-                      laneCfg={laneCfg}
-                      allRoutes={routes ?? []}
-                      activeFxTracks={activeFxTracks ?? []}
-                      synthType={trackSynthTypes?.[route.id] ?? 'Synth'}
-                      onUpdate={cfg => onUpdateAutomationLane(route.id, laneId, cfg)}
-                      onRemove={() => onRemoveAutomationLane(route.id, laneId)}
-                    />
-                  ))}
-                </div>
-              )
-            })}
-          </>
-        )}
+          </div>
+        ))}
 
       </main>
 
@@ -396,11 +313,13 @@ function LineTrack({
   vehicles, soundMode, trackScale, synthType, adsr,
   filter, eq,
   droneMode, droneRoot,
-  laneCount, activeFxTracks, sendMatrix, octaveShift, glide,
+  laneCount, activeFxTracks, sendMatrix, octaveShift, glide, legato, speed,
+  loopRegion, onLoopRegion,
   pitchMap, onRandomizePitches,
   onVolume, onMute, onPan, onSolo, onSoundMode, onScale, onSynthType, onADSR,
+  onSamplerPreset, onSamplerUpload,
   onFilter, onEq,
-  onSendLevel, onOctaveShift, onGlide, onDroneMode, onDroneRoot, onAddLane,
+  onSendLevel, onOctaveShift, onGlide, onLegato, onSpeed, onDroneMode, onDroneRoot, onAddLane,
 }) {
   const [envOpen,    setEnvOpen]    = useState(false)
   const [filterOpen, setFilterOpen] = useState(false)
@@ -468,15 +387,18 @@ function LineTrack({
           <select className="synth-select" value={synthType} onChange={e => onSynthType(e.target.value)}>
             {SYNTH_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
           </select>
-          <button className={`env-toggle-btn ${envOpen ? 'active' : ''}`}
-            onClick={() => setEnvOpen(o => !o)} title="Envelope">ENV</button>
+          <button
+            className={`env-toggle-btn ${envOpen ? 'active' : ''} ${legato ? 'env-toggle-btn--disabled' : ''}`}
+            onClick={() => !legato && setEnvOpen(o => !o)}
+            title={legato ? 'Envelope disabled in legato mode' : 'Envelope'}
+          >ENV</button>
           <button className={`env-toggle-btn ${filterOpen ? 'active' : ''}`}
             onClick={() => setFilterOpen(o => !o)} title="Filter">FLT</button>
           <button className={`env-toggle-btn ${eqOpen ? 'active' : ''}`}
             onClick={() => setEqOpen(o => !o)} title="EQ">EQ</button>
         </div>
 
-        {envOpen    && <EnvPanel    synthType={synthType} adsr={adsr} onADSR={onADSR} />}
+        {envOpen && !legato && <EnvPanel synthType={synthType} adsr={adsr} onADSR={onADSR} onSamplerPreset={onSamplerPreset} onSamplerUpload={onSamplerUpload} />}
         {filterOpen && <FilterPanel filter={filter} onFilter={onFilter} />}
         {eqOpen     && <EqPanel     eq={eq} onEq={onEq} />}
 
@@ -497,6 +419,29 @@ function LineTrack({
             className="glide-slider"
           />
           <span className="glide-val">{Math.round((glide ?? 0) * 1000)}ms</span>
+          <button
+            className={`legato-btn ${legato ? 'active' : ''}`}
+            onClick={() => onLegato(!legato)}
+            title={legato ? 'Legato on — click to disable' : 'Enable legato (hold + glide)'}
+            style={legato ? { borderColor: route.color, color: route.color } : {}}
+          >LEG</button>
+        </div>
+
+        <div className="speed-row">
+          <span className="speed-label">SPEED</span>
+          <div className="speed-btns">
+            {SPEED_OPTIONS.map(opt => (
+              <button
+                key={opt.value}
+                className={`speed-btn ${(speed ?? 1) === opt.value ? 'active' : ''}`}
+                style={(speed ?? 1) === opt.value ? { borderColor: route.color, color: route.color } : {}}
+                onClick={() => onSpeed(opt.value)}
+                title={opt.title}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
         </div>
 
         <div className="sound-mode-row">
@@ -544,11 +489,15 @@ function LineTrack({
       <StopRail
         route={route}
         progress={progress}
+        speed={speed ?? 1}
+        started={started}
         mode={mode}
         vehicles={vehicles}
         trackScale={trackScale}
         octaveShift={octaveShift ?? 0}
         pitchMap={pitchMap}
+        loopRegion={loopRegion}
+        onLoopRegion={onLoopRegion}
       />
     </div>
   )
@@ -571,7 +520,7 @@ function AutomationLane({ instRoute, laneCfg, allRoutes, activeFxTracks, synthTy
       !t.id.startsWith('send.') || active.includes(t.id.slice(5))
     )
     // Common envelope params apply to all except PluckSynth (no standard envelope)
-    const commonParams = synthType !== 'PluckSynth' ? SYNTH_PARAM_TARGETS.common : []
+    const commonParams = (synthType !== 'PluckSynth' && synthType !== 'Sampler') ? SYNTH_PARAM_TARGETS.common : []
     const typeParams   = SYNTH_PARAM_TARGETS[synthType] ?? []
     const all = [...base, ...commonParams, ...typeParams]
     // Group by .group field
@@ -859,6 +808,47 @@ function CustomIRPicker({ onCustomIR }) {
   )
 }
 
+function SamplerUploadRow({ onSamplerUpload }) {
+  const inputRef = useRef(null)
+  const [note, setNote] = useState('C4')
+  const [name, setName] = useState(null)
+  const [error, setError] = useState(null)
+  const baseNotes = ['C2', 'C3', 'C4', 'C5', 'A3', 'A4']
+
+  function handleFile(e) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setError(null)
+    try {
+      setName(file.name)
+      onSamplerUpload?.(file, note)
+    } catch (err) {
+      console.error('Sampler upload failed:', err)
+      setError('failed')
+    }
+  }
+
+  return (
+    <div className="sp-row sp-row--select">
+      <span className="sp-label">File</span>
+      <select className="sp-select" value={note} onChange={e => setNote(e.target.value)}
+        title="Base note for the uploaded sample">
+        {baseNotes.map(n => <option key={n} value={n}>{n}</option>)}
+      </select>
+      <button type="button" className="sp-select" onClick={() => inputRef.current?.click()}>
+        {error ?? name ?? 'Choose…'}
+      </button>
+      <input
+        ref={inputRef}
+        type="file"
+        accept="audio/*"
+        style={{ display: 'none' }}
+        onChange={handleFile}
+      />
+    </div>
+  )
+}
+
 function FxParamControl({ spec, value, onChange }) {
   if (spec.kind === 'enum') {
     return (
@@ -1003,9 +993,27 @@ function SpSliderWithCurve({ label, min, max, step, value, onChange, curveValue,
   )
 }
 
-function EnvPanel({ synthType, adsr, onADSR }) {
+function EnvPanel({ synthType, adsr, onADSR, onSamplerPreset, onSamplerUpload }) {
   const def = SYNTH_DEFAULTS[synthType] ?? SYNTH_DEFAULTS['Synth']
   const p = { ...def, ...adsr }
+
+  if (synthType === 'Sampler') return (
+    <div className="sp-panel">
+      <SpSection label="SAMPLER" />
+      <div className="sp-row sp-row--select">
+        <span className="sp-label">Inst</span>
+        <select className="sp-select" value={p.samplerPreset ?? 'piano'}
+          onChange={e => onSamplerPreset?.(e.target.value)}>
+          {SAMPLER_PRESET_LIST.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
+        </select>
+      </div>
+      <SpSection label="ENV" />
+      <SpSlider label="A" min={0} max={2} step={0.001} value={p.attack ?? 0.01} onChange={v => onADSR({ attack: v })} />
+      <SpSlider label="R" min={0.01} max={6} step={0.01} value={p.release ?? 1.0} onChange={v => onADSR({ release: v })} />
+      <SpSection label="UPLOAD" />
+      <SamplerUploadRow onSamplerUpload={onSamplerUpload} />
+    </div>
+  )
 
   const envBlock = (hasViz = true) => (
     <>
@@ -1191,10 +1199,80 @@ const BAR_LABELS = Array.from({ length: GRID_BARS }, (_, i) => ({
 
 // ── Stop rail: stops quantized to 4-bar × 16th-note grid (64 cells) ──────────
 function StopRail({
-  route, progress = 0, mode = 'mock', vehicles = [],
+  route, progress = 0, speed = 1, started = false, mode = 'mock', vehicles = [],
   trackScale = { root: 'C', scaleType: 'major' }, octaveShift = 0,
   pitchMap,
+  loopRegion, onLoopRegion,
 }) {
+  const needleRef = useRef(null)
+  const railRef   = useRef(null)
+
+  const startCell = Math.max(0, Math.min(GRID_TOTAL_CELLS - 1, Math.round(loopRegion?.startCell ?? 0)))
+  const endCell   = Math.max(startCell + 1, Math.min(GRID_TOTAL_CELLS, Math.round(loopRegion?.endCell ?? GRID_TOTAL_CELLS)))
+  const regionLen = endCell - startCell
+  const startPct  = (startCell / GRID_TOTAL_CELLS) * 100
+  const endPct    = (endCell   / GRID_TOTAL_CELLS) * 100
+
+  // Drive the playhead from the track's local part progress so a shrunk
+  // section visibly loops at its own (faster) rate.
+  useEffect(() => {
+    const el = needleRef.current
+    if (!el) return
+    if (!started) {
+      el.style.left = `${startPct}%`
+      return
+    }
+    let rafId
+    const tick = () => {
+      const bpm = Tone.Transport.bpm.value || 120
+      const loopSec = (16 / bpm) * 60  // 4 bars
+      const partLoopSec = (regionLen / GRID_TOTAL_CELLS) * loopSec / (speed || 1)
+      const t = Tone.getTransport().seconds
+      const local = partLoopSec > 0 ? ((t % partLoopSec) + partLoopSec) % partLoopSec / partLoopSec : 0
+      const x = startPct + local * (endPct - startPct)
+      el.style.left = `${x}%`
+      rafId = requestAnimationFrame(tick)
+    }
+    rafId = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(rafId)
+  }, [started, speed, startPct, endPct, regionLen])
+
+  // ── Loop-handle drag ──────────────────────────────────────────────────────
+  const cellFromClientX = useCallback((clientX) => {
+    const rect = railRef.current?.getBoundingClientRect()
+    if (!rect || rect.width === 0) return 0
+    const frac = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width))
+    return Math.round(frac * GRID_TOTAL_CELLS)
+  }, [])
+
+  const dragRef = useRef(null)  // 'start' | 'end' | null
+  useEffect(() => {
+    const onMove = (e) => {
+      if (!dragRef.current || !onLoopRegion) return
+      const cell = cellFromClientX(e.clientX)
+      if (dragRef.current === 'start') {
+        const newStart = Math.max(0, Math.min(endCell - 1, cell))
+        if (newStart !== startCell) onLoopRegion({ startCell: newStart, endCell })
+      } else {
+        const newEnd = Math.max(startCell + 1, Math.min(GRID_TOTAL_CELLS, cell))
+        if (newEnd !== endCell) onLoopRegion({ startCell, endCell: newEnd })
+      }
+    }
+    const onUp = () => { dragRef.current = null }
+    window.addEventListener('pointermove', onMove)
+    window.addEventListener('pointerup',   onUp)
+    return () => {
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup',   onUp)
+    }
+  }, [startCell, endCell, cellFromClientX, onLoopRegion])
+
+  const handlePointerDown = (which) => (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+    dragRef.current = which
+  }
+
   if (!route.stops.length) return <div className="stop-rail stop-rail--empty" />
 
   const total = route.totalDist || route.stops[route.stops.length - 1]?.dist || 1
@@ -1237,9 +1315,22 @@ function StopRail({
         return { ...stop, x, y, noteName }
       })
 
-  // Active stop: last grid stop whose cell fraction is <= playhead progress
+  // Per-track local progress (0..1) inside the loop region — wraps at the
+  // shrunken loop length so a 1-bar section completes a cycle in 1 bar.
+  const bpm = Tone.Transport.bpm.value || 120
+  const loopSec = (16 / bpm) * 60
+  const partLoopSec = (regionLen / GRID_TOTAL_CELLS) * loopSec / (speed || 1)
+  const transportSec = started ? Tone.getTransport().seconds : 0
+  const localProgress = partLoopSec > 0
+    ? ((transportSec % partLoopSec) + partLoopSec) % partLoopSec / partLoopSec
+    : 0
+
+  // Active stop: last in-region stop whose relative position <= local progress
   const activeStopId = mode === 'mock'
-    ? [...stopPoints].reverse().find(s => (s.cellIdx / GRID_TOTAL_CELLS) <= progress)?.id
+    ? [...stopPoints]
+        .filter(s => s.cellIdx >= startCell && s.cellIdx < endCell)
+        .reverse()
+        .find(s => ((s.cellIdx - startCell) / regionLen) <= localProgress)?.id
     : null
 
   const vehicleMarkers = mode === 'live'
@@ -1256,7 +1347,41 @@ function StopRail({
   const polylinePoints = stopPoints.map(p => `${p.x},${p.y}`).join(' ')
 
   return (
-    <div className="stop-rail">
+    <div className="stop-rail" ref={railRef}>
+      {/* Dim regions outside the loop band */}
+      {startPct > 0 && (
+        <div
+          className="loop-region-dim"
+          style={{ left: 0, width: `${startPct}%` }}
+        />
+      )}
+      {endPct < 100 && (
+        <div
+          className="loop-region-dim"
+          style={{ left: `${endPct}%`, width: `${100 - endPct}%` }}
+        />
+      )}
+
+      {/* Draggable loop-region handles */}
+      <div
+        className="loop-handle loop-handle--start"
+        style={{ left: `${startPct}%`, '--line-color': route.color }}
+        onPointerDown={handlePointerDown('start')}
+        title={`Loop start · cell ${startCell}/${GRID_TOTAL_CELLS}`}
+      />
+      <div
+        className="loop-handle loop-handle--end"
+        style={{ left: `${endPct}%`, '--line-color': route.color }}
+        onPointerDown={handlePointerDown('end')}
+        title={`Loop end · cell ${endCell}/${GRID_TOTAL_CELLS}`}
+      />
+
+      <div
+        ref={needleRef}
+        className={`lane-playhead ${started ? 'active' : ''}`}
+        style={{ '--line-color': route.color }}
+      />
+
       {/* Bar number labels */}
       {BAR_LABELS.map(({ bar, pct }) => (
         <span

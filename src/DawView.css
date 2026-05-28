@@ -2,20 +2,56 @@
   display: contents; /* lets App.jsx grid control placement */
 }
 
-/* ── Global DAW playhead (rail-aligned, driven by Tone.Transport) ───────── */
-.daw-global-playhead {
+/* ── Per-lane playhead needle (inside each stop-rail) ───────────────────── */
+.lane-playhead {
   position: absolute;
   top: 0;
   height: 100%;
   width: 2px;
   transform: translateX(-50%);
-  background: color-mix(in srgb, var(--accent) 22%, transparent);
-  box-shadow: 0 0 10px 4px color-mix(in srgb, var(--accent) 10%, transparent);
+  background: color-mix(in srgb, var(--line-color, var(--accent)) 55%, transparent);
+  box-shadow: 0 0 8px 3px color-mix(in srgb, var(--line-color, var(--accent)) 20%, transparent);
   pointer-events: none;
-  z-index: 20;
+  z-index: 10;
   display: none;
+  will-change: left;
 }
-.daw-global-playhead.active { display: block; }
+.lane-playhead.active { display: block; }
+
+/* ── Loop-region selection (per-track section) ─────────────────────────── */
+.loop-region-dim {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.45);
+  pointer-events: none;
+  z-index: 4;
+}
+
+.loop-handle {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  width: 8px;
+  transform: translateX(-50%);
+  cursor: ew-resize;
+  z-index: 11;
+  touch-action: none;
+}
+.loop-handle::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 2px;
+  height: 100%;
+  background: color-mix(in srgb, var(--line-color, var(--accent)) 85%, white);
+  box-shadow: 0 0 6px 1px color-mix(in srgb, var(--line-color, var(--accent)) 50%, transparent);
+}
+.loop-handle:hover::before {
+  width: 3px;
+}
 
 /* ── Section labels ─────────────────────────────────────────────────────── */
 .daw-section-label {
@@ -374,6 +410,40 @@
 .glide-label { font-size: 0.52rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; width: 36px; flex-shrink: 0; }
 .glide-slider { flex: 1; height: 2px; accent-color: var(--accent); cursor: pointer; min-width: 0; }
 .glide-val { font-size: 0.55rem; color: var(--accent); width: 44px; text-align: right; font-variant-numeric: tabular-nums; flex-shrink: 0; }
+
+.legato-btn {
+  flex-shrink: 0;
+  padding: 1px 5px;
+  font-size: 0.5rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  border-radius: 3px;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+.legato-btn:hover { color: var(--fg); border-color: var(--fg); }
+.legato-btn.active { background: transparent; }
+
+.env-toggle-btn--disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+/* ── Speed multiplier ───────────────────────────────────────────────────── */
+.speed-row { display: flex; align-items: center; gap: 6px; }
+.speed-label { font-size: 0.52rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; width: 36px; flex-shrink: 0; }
+.speed-btns { display: flex; gap: 2px; flex-wrap: wrap; }
+.speed-btn {
+  font-size: 0.5rem; padding: 2px 4px; border-radius: 3px;
+  background: var(--bg2); border: 1px solid var(--border);
+  color: var(--muted); cursor: pointer; line-height: 1.3;
+  transition: border-color 0.15s, color 0.15s;
+}
+.speed-btn:hover { border-color: var(--accent); color: var(--accent); }
+.speed-btn.active { background: color-mix(in srgb, currentColor 12%, transparent); font-weight: 600; }
 
 /* ── Sound mode selector ────────────────────────────────────────────────── */
 .sound-mode-row { display: flex; align-items: center; gap: 4px; }
