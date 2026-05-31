@@ -8,12 +8,14 @@
     "start": "next start",
     "feed": "node feed/index.js",
     "preprocess": "node scripts/preprocess_lines.js",
+    "upload:lines": "node scripts/upload-lines.js",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push"
   },
   "dependencies": {
     "@tonejs/midi": "^2.0.28",
+    "@vercel/blob": "^2.4.0",
     "adm-zip": "^0.5.17",
     "better-auth": "^1.2.8",
     "dotenv": "^17.4.2",

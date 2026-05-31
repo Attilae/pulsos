@@ -39,6 +39,7 @@ Both are required for **BKK Live** mode. `npm run dev` alone is enough for **moc
 npm run build      # next build
 npm run start      # serve the production build
 npm run preprocess # regenerate public/data/lines.json from data/budapest_gtfs/
+npm run upload:lines # upload public/data/lines.json to Vercel Blob (needs BLOB_READ_WRITE_TOKEN)
 npm run db:generate # drizzle-kit: emit SQL migration from lib/db/schema.js
 npm run db:migrate  # drizzle-kit: apply migrations to DATABASE_URL
 npm run db:push     # drizzle-kit: push schema directly (dev)
@@ -53,6 +54,8 @@ There is **no test runner and no linter configured** — don't assume `npm test`
 - `BETTER_AUTH_SECRET` (≥32 chars), `BETTER_AUTH_URL`, `NEXT_PUBLIC_APP_URL` — Better Auth.
 - `OPENROUTER_API_KEY` — required only for the AI Composer (`POST /api/compose`).
 - `OPENROUTER_MODEL` — optional override (default `anthropic/claude-sonnet-4.5`).
+- `NEXT_PUBLIC_LINES_URL` — Vercel Blob URL for `lines.json` in production; unset locally
+  (falls back to `public/data/lines.json`). `BLOB_READ_WRITE_TOKEN` — only for `upload:lines`.
 - `RESEND_API_KEY`, `EMAIL_FROM` — magic-link email; **optional in dev** (links print to the
   server console when unset).
 - `FEED_HTTP_URL` — server-side, where `/api/snapshot` proxies to (default `http://localhost:3005`).
@@ -68,14 +71,17 @@ There is **no test runner and no linter configured** — don't assume `npm test`
 ### Data pipeline gotchas
 
 - `public/data/lines.json` is the preprocessed route/stop/polyline file the **frontend** loads
-  (~23 MB, committed). Regenerate it with `npm run preprocess`, which reads the raw GTFS in
-  `data/budapest_gtfs/` (gitignored — not in the repo by default).
+  (~22 MB). Regenerate it with `npm run preprocess`, which reads the raw GTFS in
+  `data/budapest_gtfs/` (gitignored — not in the repo by default). In production it's served
+  from **Vercel Blob** (`npm run upload:lines` → set `NEXT_PUBLIC_LINES_URL`); the local
+  `public/` copy is the dev fallback.
 - The **feed service** independently downloads + caches the BKK static GTFS to
   `feed/cache/gtfs_lookup.json` (gitignored) on first run via `feed/gtfsLoader.js`. Bump
   `CACHE_VERSION` there when changing the lookup schema, or delete the cache to force a rebuild.
-- The frontend has **no Vite proxy** (Vite is gone). It fetches `/data/lines.json` from
-  `public/`, reaches stateless backend logic via same-origin `/api/*` route handlers, and the
-  live WebSocket via `NEXT_PUBLIC_FEED_WS_URL` (`lib/liveClient.js`).
+- The frontend has **no Vite proxy** (Vite is gone). It fetches the route data via
+  `NEXT_PUBLIC_LINES_URL` (Blob) or `/data/lines.json` (`lib/shared/useRoutes.js`), reaches
+  stateless backend logic via same-origin `/api/*` route handlers, and the live WebSocket via
+  `NEXT_PUBLIC_FEED_WS_URL` (`lib/liveClient.js`).
 
 ## Architecture
 
@@ -176,7 +182,8 @@ polyline/grid helpers. `mockData.js` holds mock-mode data and a `latToNote` copy
   mints a `share_id`; the link `/?shared=<id>` is publicly readable (`/api/shared/:id`) and the
   hook imports it on load as a detached/unsaved song (Save As to keep a copy).
 - **AI Composer**: `lib/ai/composer.js` builds the system prompt from the live route list and
-  validates the model's JSON plan; `app/api/compose` proxies the call same-origin; `applyAIPlan`
+  validates the model's JSON plan; `app/api/compose` proxies the call same-origin (**gated to
+  signed-in users** — it spends the OpenRouter key); `applyAIPlan`
   in MixerTab applies a plan by **replaying the same handlers a human would click** (order
   matters — see the comment there).
 

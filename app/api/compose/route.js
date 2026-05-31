@@ -3,9 +3,17 @@
 // builds the messages (system + user prompt); we attach key + model and force a
 // JSON object response.
 
+import { auth } from '@/lib/auth.js'
+
 const APP_URL = process.env.BETTER_AUTH_URL || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
 
 export async function POST(req) {
+  // Gated: the AI Composer spends the OpenRouter key, so require a signed-in user.
+  const session = await auth.api.getSession({ headers: req.headers })
+  if (!session?.user) {
+    return Response.json({ error: 'Sign in to use the AI Composer.' }, { status: 401 })
+  }
+
   const key = process.env.OPENROUTER_API_KEY
   if (!key) return Response.json({ error: 'OPENROUTER_API_KEY missing' }, { status: 500 })
 
