@@ -1,6 +1,6 @@
 import * as Tone from 'tone'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { SYNTH_DEFAULTS, SYNTH_PARAM_TARGETS, findTargetSpec, SAMPLER_PRESET_LIST } from './engine.js'
+import { SYNTH_DEFAULTS, SYNTH_PARAM_TARGETS, findTargetSpec, SAMPLER_PRESET_LIST, SAMPLER_PRESETS } from './engine.js'
 import { AUTOMATION_SOURCES } from './automationTrack.js'
 import { FX_BUSES, AUTOMATION_TARGETS, FX_PARAM_SPECS } from './fxTrack.js'
 import { latToNote, noteToMidi, SCALES, normalizeStopLat, normalizeStopSequence, normalizeLongitude, snapStopsToGrid, GRID_TOTAL_CELLS, GRID_BARS } from './mappings.js'
@@ -25,6 +25,17 @@ export const SCALE_TYPES = [
 ]
 
 const DRONE_NOTES = NOTE_ROOTS.flatMap(n => [1, 2, 3, 4, 5].map(oct => `${n}${oct}`))
+
+// Stop-rail pitch source. 'manual' = editable per-stop map; the rest are engine-generated.
+// 'volatileWalk' re-rolls each loop from live GTFS data (see docs/gtfs-salt.md).
+const PITCH_STRATEGY_OPTIONS = [
+  ['manual',       'Manual'],
+  ['geographic',   'Geo'],
+  ['randomWalk',   'Walk'],
+  ['volatileWalk', 'Volatile'],
+  ['index',        'Index'],
+  ['random',       'Random'],
+]
 
 const SPEED_OPTIONS = [
   { value: 0.25, label: '÷4',   title: '0.25× speed — one pass every 4 loops' },
@@ -74,6 +85,7 @@ export default function DawView({
   onAddAutomationLane, onRemoveAutomationLane, onUpdateAutomationLane,
   onRefetch, onVehicleCrossed,
   trackPitchMaps, onRandomizePitches,
+  trackPitchStrategies, onPitchStrategy,
 }) {
   const tracksRef             = useRef(null)
   const animRef               = useRef(null)
@@ -244,6 +256,8 @@ export default function DawView({
                     onDroneRoot={n => onDroneRoot(route.id, n)}
                     pitchMap={trackPitchMaps?.[route.id]}
                     onRandomizePitches={() => onRandomizePitches(route.id)}
+                    pitchStrategy={trackPitchStrategies?.[route.id] ?? 'manual'}
+                    onPitchStrategy={s => onPitchStrategy(route.id, s)}
                     onAddLane={() => onAddAutomationLane(route.id)}
                   />
                   {attachedSrcIds.map(srcId => (
@@ -316,6 +330,7 @@ function LineTrack({
   laneCount, activeFxTracks, sendMatrix, octaveShift, glide, legato, speed,
   loopRegion, onLoopRegion,
   pitchMap, onRandomizePitches,
+  pitchStrategy = 'manual', onPitchStrategy,
   onVolume, onMute, onPan, onSolo, onSoundMode, onScale, onSynthType, onADSR,
   onSamplerPreset, onSamplerUpload,
   onFilter, onEq,
@@ -475,10 +490,23 @@ function LineTrack({
                   </select>
                 </>
               )}
+              <select
+                className="pitch-strategy-select"
+                value={pitchStrategy}
+                onChange={e => onPitchStrategy?.(e.target.value)}
+                title="Stop-rail pitch source — Volatile re-rolls each loop from live transit data"
+              >
+                {PITCH_STRATEGY_OPTIONS.map(([key, label]) => (
+                  <option key={key} value={key}>{label}</option>
+                ))}
+              </select>
               <button
                 className="randomize-btn"
                 onClick={onRandomizePitches}
-                title="Re-randomize note pitches"
+                disabled={pitchStrategy !== 'manual'}
+                title={pitchStrategy === 'manual'
+                  ? 'Re-randomize note pitches'
+                  : 'Switch to Manual to edit individual note pitches'}
               >↺</button>
             </>
           )}
@@ -997,23 +1025,38 @@ function EnvPanel({ synthType, adsr, onADSR, onSamplerPreset, onSamplerUpload })
   const def = SYNTH_DEFAULTS[synthType] ?? SYNTH_DEFAULTS['Synth']
   const p = { ...def, ...adsr }
 
-  if (synthType === 'Sampler') return (
+  if (synthType === 'Sampler') {
+    const presetId = p.samplerPreset ?? 'piano'
+    const preset   = SAMPLER_PRESETS[presetId]
+    return (
     <div className="sp-panel">
       <SpSection label="SAMPLER" />
       <div className="sp-row sp-row--select">
         <span className="sp-label">Inst</span>
-        <select className="sp-select" value={p.samplerPreset ?? 'piano'}
+        <select className="sp-select" value={presetId}
           onChange={e => onSamplerPreset?.(e.target.value)}>
           {SAMPLER_PRESET_LIST.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
         </select>
       </div>
+      {preset?.license && (
+        <div className="sp-row sp-row--credits" title={preset.attribution}>
+          <span className="sp-label">©</span>
+          <span className="sp-credits-text">
+            {preset.license} · {preset.attribution}
+            {preset.source && (
+              <> · <a className="sp-credits-link" href={preset.source} target="_blank" rel="noopener noreferrer">source ↗</a></>
+            )}
+          </span>
+        </div>
+      )}
       <SpSection label="ENV" />
       <SpSlider label="A" min={0} max={2} step={0.001} value={p.attack ?? 0.01} onChange={v => onADSR({ attack: v })} />
       <SpSlider label="R" min={0.01} max={6} step={0.01} value={p.release ?? 1.0} onChange={v => onADSR({ release: v })} />
       <SpSection label="UPLOAD" />
       <SamplerUploadRow onSamplerUpload={onSamplerUpload} />
     </div>
-  )
+    )
+  }
 
   const envBlock = (hasViz = true) => (
     <>

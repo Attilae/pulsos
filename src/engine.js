@@ -8,6 +8,7 @@ import {
   latToNote, randomFromScale, shiftOctaveNote, denormalizeToRange,
   snapStopsToGrid, GRID_TOTAL_CELLS,
   generatePitchMap, SCALES, noteToMidi, MODES,
+  hashStringToInt, mulberry32, makeSalt,
 } from './mappings.js'
 
 export const LINE_TYPES = ['metro', 'tram', 'trolley', 'bus', 'hev']
@@ -30,7 +31,7 @@ export const SYNTH_TYPES = [
 // notes to hosted sample files; Tone.Sampler pitch-shifts between them.
 export const SAMPLER_PRESETS = {
   piano: {
-    id: 'piano', label: 'Piano',
+    id: 'piano', label: 'Piano (Salamander)',
     baseUrl: 'https://tonejs.github.io/audio/salamander/',
     urls: {
       A0: 'A0.mp3', C1: 'C1.mp3', 'D#1': 'Ds1.mp3', 'F#1': 'Fs1.mp3',
@@ -40,6 +41,8 @@ export const SAMPLER_PRESETS = {
       A4: 'A4.mp3', C5: 'C5.mp3', 'D#5': 'Ds5.mp3', 'F#5': 'Fs5.mp3',
       A5: 'A5.mp3', C6: 'C6.mp3', A6: 'A6.mp3', C7: 'C7.mp3', C8: 'C8.mp3',
     },
+    license: 'CC-BY 3.0', attribution: 'Salamander Grand Piano V3 (Alexander Holm)',
+    source: 'https://github.com/sfzinstruments/SalamanderGrandPiano',
   },
   casio: {
     id: 'casio', label: 'Casio',
@@ -49,6 +52,148 @@ export const SAMPLER_PRESETS = {
       'C#2': 'Cs2.mp3', D2: 'D2.mp3', 'D#2': 'Ds2.mp3', E2: 'E2.mp3',
       F2: 'F2.mp3', 'F#2': 'Fs2.mp3', G2: 'G2.mp3', 'G#1': 'Gs1.mp3',
     },
+    license: 'CC-BY 3.0', attribution: 'Tonejs/audio sample set',
+    source: 'https://github.com/Tonejs/audio',
+  },
+  'bass-electric': {
+    id: 'bass-electric', label: 'Electric Bass',
+    baseUrl: 'https://nbrosowsky.github.io/tonejs-instruments/samples/bass-electric/',
+    urls: { 'A#1': 'As1.mp3', 'A#2': 'As2.mp3', 'A#3': 'As3.mp3', 'A#4': 'As4.mp3', 'C#1': 'Cs1.mp3', 'C#2': 'Cs2.mp3', 'C#3': 'Cs3.mp3', 'C#4': 'Cs4.mp3', 'E1': 'E1.mp3', 'E2': 'E2.mp3', 'E3': 'E3.mp3', 'E4': 'E4.mp3', 'G1': 'G1.mp3', 'G2': 'G2.mp3', 'G3': 'G3.mp3', 'G4': 'G4.mp3' },
+    license: 'CC-BY 3.0', attribution: 'nbrosowsky/tonejs-instruments',
+    source: 'https://github.com/nbrosowsky/tonejs-instruments',
+  },
+  bassoon: {
+    id: 'bassoon', label: 'Bassoon',
+    baseUrl: 'https://nbrosowsky.github.io/tonejs-instruments/samples/bassoon/',
+    urls: { 'A4': 'A4.mp3', 'C3': 'C3.mp3', 'C4': 'C4.mp3', 'C5': 'C5.mp3', 'E4': 'E4.mp3', 'G2': 'G2.mp3', 'G3': 'G3.mp3', 'G4': 'G4.mp3', 'A2': 'A2.mp3', 'A3': 'A3.mp3' },
+    license: 'CC-BY 3.0', attribution: 'nbrosowsky/tonejs-instruments',
+    source: 'https://github.com/nbrosowsky/tonejs-instruments',
+  },
+  cello: {
+    id: 'cello', label: 'Cello',
+    baseUrl: 'https://nbrosowsky.github.io/tonejs-instruments/samples/cello/',
+    urls: { 'E3': 'E3.mp3', 'E4': 'E4.mp3', 'F2': 'F2.mp3', 'F3': 'F3.mp3', 'F4': 'F4.mp3', 'F#3': 'Fs3.mp3', 'F#4': 'Fs4.mp3', 'G2': 'G2.mp3', 'G3': 'G3.mp3', 'G4': 'G4.mp3', 'G#2': 'Gs2.mp3', 'G#3': 'Gs3.mp3', 'G#4': 'Gs4.mp3', 'A2': 'A2.mp3', 'A3': 'A3.mp3', 'A4': 'A4.mp3', 'A#2': 'As2.mp3', 'A#3': 'As3.mp3', 'B2': 'B2.mp3', 'B3': 'B3.mp3', 'B4': 'B4.mp3', 'C2': 'C2.mp3', 'C3': 'C3.mp3', 'C4': 'C4.mp3', 'C5': 'C5.mp3', 'C#3': 'Cs3.mp3', 'C#4': 'Cs4.mp3', 'D2': 'D2.mp3', 'D3': 'D3.mp3', 'D4': 'D4.mp3', 'D#2': 'Ds2.mp3', 'D#3': 'Ds3.mp3', 'D#4': 'Ds4.mp3', 'E2': 'E2.mp3' },
+    license: 'CC-BY 3.0', attribution: 'nbrosowsky/tonejs-instruments',
+    source: 'https://github.com/nbrosowsky/tonejs-instruments',
+  },
+  clarinet: {
+    id: 'clarinet', label: 'Clarinet',
+    baseUrl: 'https://nbrosowsky.github.io/tonejs-instruments/samples/clarinet/',
+    urls: { 'D4': 'D4.mp3', 'D5': 'D5.mp3', 'D6': 'D6.mp3', 'F3': 'F3.mp3', 'F4': 'F4.mp3', 'F5': 'F5.mp3', 'F#6': 'Fs6.mp3', 'A#3': 'As3.mp3', 'A#4': 'As4.mp3', 'A#5': 'As5.mp3', 'D3': 'D3.mp3' },
+    license: 'CC-BY 3.0', attribution: 'nbrosowsky/tonejs-instruments',
+    source: 'https://github.com/nbrosowsky/tonejs-instruments',
+  },
+  contrabass: {
+    id: 'contrabass', label: 'Contrabass',
+    baseUrl: 'https://nbrosowsky.github.io/tonejs-instruments/samples/contrabass/',
+    urls: { 'C2': 'C2.mp3', 'C#3': 'Cs3.mp3', 'D2': 'D2.mp3', 'E2': 'E2.mp3', 'E3': 'E3.mp3', 'F#1': 'Fs1.mp3', 'F#2': 'Fs2.mp3', 'G1': 'G1.mp3', 'G#2': 'Gs2.mp3', 'G#3': 'Gs3.mp3', 'A2': 'A2.mp3', 'A#1': 'As1.mp3', 'B3': 'B3.mp3' },
+    license: 'CC-BY 3.0', attribution: 'nbrosowsky/tonejs-instruments',
+    source: 'https://github.com/nbrosowsky/tonejs-instruments',
+  },
+  flute: {
+    id: 'flute', label: 'Flute',
+    baseUrl: 'https://nbrosowsky.github.io/tonejs-instruments/samples/flute/',
+    urls: { 'A6': 'A6.mp3', 'C4': 'C4.mp3', 'C5': 'C5.mp3', 'C6': 'C6.mp3', 'C7': 'C7.mp3', 'E4': 'E4.mp3', 'E5': 'E5.mp3', 'E6': 'E6.mp3', 'A4': 'A4.mp3', 'A5': 'A5.mp3' },
+    license: 'CC-BY 3.0', attribution: 'nbrosowsky/tonejs-instruments',
+    source: 'https://github.com/nbrosowsky/tonejs-instruments',
+  },
+  'french-horn': {
+    id: 'french-horn', label: 'French Horn',
+    baseUrl: 'https://nbrosowsky.github.io/tonejs-instruments/samples/french-horn/',
+    urls: { 'D3': 'D3.mp3', 'D5': 'D5.mp3', 'D#2': 'Ds2.mp3', 'F3': 'F3.mp3', 'F5': 'F5.mp3', 'G2': 'G2.mp3', 'A1': 'A1.mp3', 'A3': 'A3.mp3', 'C2': 'C2.mp3', 'C4': 'C4.mp3' },
+    license: 'CC-BY 3.0', attribution: 'nbrosowsky/tonejs-instruments',
+    source: 'https://github.com/nbrosowsky/tonejs-instruments',
+  },
+  'guitar-acoustic': {
+    id: 'guitar-acoustic', label: 'Guitar (Acoustic)',
+    baseUrl: 'https://nbrosowsky.github.io/tonejs-instruments/samples/guitar-acoustic/',
+    urls: { 'F4': 'F4.mp3', 'F#2': 'Fs2.mp3', 'F#3': 'Fs3.mp3', 'F#4': 'Fs4.mp3', 'G2': 'G2.mp3', 'G3': 'G3.mp3', 'G4': 'G4.mp3', 'G#2': 'Gs2.mp3', 'G#3': 'Gs3.mp3', 'G#4': 'Gs4.mp3', 'A2': 'A2.mp3', 'A3': 'A3.mp3', 'A4': 'A4.mp3', 'A#2': 'As2.mp3', 'A#3': 'As3.mp3', 'A#4': 'As4.mp3', 'B2': 'B2.mp3', 'B3': 'B3.mp3', 'B4': 'B4.mp3', 'C3': 'C3.mp3', 'C4': 'C4.mp3', 'C5': 'C5.mp3', 'C#3': 'Cs3.mp3', 'C#4': 'Cs4.mp3', 'C#5': 'Cs5.mp3', 'D2': 'D2.mp3', 'D3': 'D3.mp3', 'D4': 'D4.mp3', 'D5': 'D5.mp3', 'D#2': 'Ds2.mp3', 'D#3': 'Ds3.mp3', 'E2': 'E2.mp3', 'E3': 'E3.mp3', 'E4': 'E4.mp3', 'F2': 'F2.mp3', 'F3': 'F3.mp3' },
+    license: 'CC-BY 3.0', attribution: 'nbrosowsky/tonejs-instruments',
+    source: 'https://github.com/nbrosowsky/tonejs-instruments',
+  },
+  'guitar-electric': {
+    id: 'guitar-electric', label: 'Guitar (Electric)',
+    baseUrl: 'https://nbrosowsky.github.io/tonejs-instruments/samples/guitar-electric/',
+    urls: { 'D#3': 'Ds3.mp3', 'D#4': 'Ds4.mp3', 'D#5': 'Ds5.mp3', 'E2': 'E2.mp3', 'F#2': 'Fs2.mp3', 'F#3': 'Fs3.mp3', 'F#4': 'Fs4.mp3', 'F#5': 'Fs5.mp3', 'A2': 'A2.mp3', 'A3': 'A3.mp3', 'A4': 'A4.mp3', 'A5': 'A5.mp3', 'C3': 'C3.mp3', 'C4': 'C4.mp3', 'C5': 'C5.mp3', 'C6': 'C6.mp3', 'C#2': 'Cs2.mp3' },
+    license: 'CC-BY 3.0', attribution: 'nbrosowsky/tonejs-instruments',
+    source: 'https://github.com/nbrosowsky/tonejs-instruments',
+  },
+  'guitar-nylon': {
+    id: 'guitar-nylon', label: 'Guitar (Nylon)',
+    baseUrl: 'https://nbrosowsky.github.io/tonejs-instruments/samples/guitar-nylon/',
+    urls: { 'F#2': 'Fs2.mp3', 'F#3': 'Fs3.mp3', 'F#4': 'Fs4.mp3', 'F#5': 'Fs5.mp3', 'G3': 'G3.mp3', 'G#2': 'Gs2.mp3', 'G#4': 'Gs4.mp3', 'G#5': 'Gs5.mp3', 'A2': 'A2.mp3', 'A3': 'A3.mp3', 'A4': 'A4.mp3', 'A5': 'A5.mp3', 'A#5': 'As5.mp3', 'B1': 'B1.mp3', 'B2': 'B2.mp3', 'B3': 'B3.mp3', 'B4': 'B4.mp3', 'C#3': 'Cs3.mp3', 'C#4': 'Cs4.mp3', 'C#5': 'Cs5.mp3', 'D2': 'D2.mp3', 'D3': 'D3.mp3', 'D5': 'D5.mp3', 'D#4': 'Ds4.mp3', 'E2': 'E2.mp3', 'E3': 'E3.mp3', 'E4': 'E4.mp3', 'E5': 'E5.mp3' },
+    license: 'CC-BY 3.0', attribution: 'nbrosowsky/tonejs-instruments',
+    source: 'https://github.com/nbrosowsky/tonejs-instruments',
+  },
+  harmonium: {
+    id: 'harmonium', label: 'Harmonium',
+    baseUrl: 'https://nbrosowsky.github.io/tonejs-instruments/samples/harmonium/',
+    urls: { 'C2': 'C2.mp3', 'C3': 'C3.mp3', 'C4': 'C4.mp3', 'C5': 'C5.mp3', 'C#2': 'Cs2.mp3', 'C#3': 'Cs3.mp3', 'C#4': 'Cs4.mp3', 'C#5': 'Cs5.mp3', 'D2': 'D2.mp3', 'D3': 'D3.mp3', 'D4': 'D4.mp3', 'D5': 'D5.mp3', 'D#2': 'Ds2.mp3', 'D#3': 'Ds3.mp3', 'D#4': 'Ds4.mp3', 'E2': 'E2.mp3', 'E3': 'E3.mp3', 'E4': 'E4.mp3', 'F2': 'F2.mp3', 'F3': 'F3.mp3', 'F4': 'F4.mp3', 'F#2': 'Fs2.mp3', 'F#3': 'Fs3.mp3', 'G2': 'G2.mp3', 'G3': 'G3.mp3', 'G4': 'G4.mp3', 'G#2': 'Gs2.mp3', 'G#3': 'Gs3.mp3', 'G#4': 'Gs4.mp3', 'A2': 'A2.mp3', 'A3': 'A3.mp3', 'A4': 'A4.mp3', 'A#2': 'As2.mp3', 'A#3': 'As3.mp3', 'A#4': 'As4.mp3' },
+    license: 'CC-BY 3.0', attribution: 'nbrosowsky/tonejs-instruments',
+    source: 'https://github.com/nbrosowsky/tonejs-instruments',
+  },
+  harp: {
+    id: 'harp', label: 'Harp',
+    baseUrl: 'https://nbrosowsky.github.io/tonejs-instruments/samples/harp/',
+    urls: { 'C5': 'C5.mp3', 'D2': 'D2.mp3', 'D4': 'D4.mp3', 'D6': 'D6.mp3', 'D7': 'D7.mp3', 'E1': 'E1.mp3', 'E3': 'E3.mp3', 'E5': 'E5.mp3', 'F2': 'F2.mp3', 'F4': 'F4.mp3', 'F6': 'F6.mp3', 'F7': 'F7.mp3', 'G1': 'G1.mp3', 'G3': 'G3.mp3', 'G5': 'G5.mp3', 'A2': 'A2.mp3', 'A4': 'A4.mp3', 'A6': 'A6.mp3', 'B1': 'B1.mp3', 'B3': 'B3.mp3', 'B5': 'B5.mp3', 'B6': 'B6.mp3', 'C3': 'C3.mp3' },
+    license: 'CC-BY 3.0', attribution: 'nbrosowsky/tonejs-instruments',
+    source: 'https://github.com/nbrosowsky/tonejs-instruments',
+  },
+  organ: {
+    id: 'organ', label: 'Organ',
+    baseUrl: 'https://nbrosowsky.github.io/tonejs-instruments/samples/organ/',
+    urls: { 'C3': 'C3.mp3', 'C4': 'C4.mp3', 'C5': 'C5.mp3', 'C6': 'C6.mp3', 'D#1': 'Ds1.mp3', 'D#2': 'Ds2.mp3', 'D#3': 'Ds3.mp3', 'D#4': 'Ds4.mp3', 'D#5': 'Ds5.mp3', 'F#1': 'Fs1.mp3', 'F#2': 'Fs2.mp3', 'F#3': 'Fs3.mp3', 'F#4': 'Fs4.mp3', 'F#5': 'Fs5.mp3', 'A1': 'A1.mp3', 'A2': 'A2.mp3', 'A3': 'A3.mp3', 'A4': 'A4.mp3', 'A5': 'A5.mp3', 'C1': 'C1.mp3', 'C2': 'C2.mp3' },
+    license: 'CC-BY 3.0', attribution: 'nbrosowsky/tonejs-instruments',
+    source: 'https://github.com/nbrosowsky/tonejs-instruments',
+  },
+  'piano-tji': {
+    id: 'piano-tji', label: 'Piano (Tji)',
+    baseUrl: 'https://nbrosowsky.github.io/tonejs-instruments/samples/piano/',
+    urls: { 'A1': 'A1.mp3', 'A2': 'A2.mp3', 'A3': 'A3.mp3', 'A4': 'A4.mp3', 'A5': 'A5.mp3', 'A6': 'A6.mp3', 'A7': 'A7.mp3', 'C1': 'C1.mp3', 'C2': 'C2.mp3', 'C3': 'C3.mp3', 'C4': 'C4.mp3', 'C5': 'C5.mp3', 'C6': 'C6.mp3', 'C7': 'C7.mp3', 'D#1': 'Ds1.mp3', 'D#2': 'Ds2.mp3', 'D#3': 'Ds3.mp3', 'D#4': 'Ds4.mp3', 'D#5': 'Ds5.mp3', 'D#6': 'Ds6.mp3', 'D#7': 'Ds7.mp3', 'F#1': 'Fs1.mp3', 'F#2': 'Fs2.mp3', 'F#3': 'Fs3.mp3', 'F#4': 'Fs4.mp3', 'F#5': 'Fs5.mp3', 'F#6': 'Fs6.mp3', 'F#7': 'Fs7.mp3' },
+    license: 'CC-BY 3.0', attribution: 'nbrosowsky/tonejs-instruments',
+    source: 'https://github.com/nbrosowsky/tonejs-instruments',
+  },
+  saxophone: {
+    id: 'saxophone', label: 'Saxophone',
+    baseUrl: 'https://nbrosowsky.github.io/tonejs-instruments/samples/saxophone/',
+    urls: { 'D#5': 'Ds5.mp3', 'E3': 'E3.mp3', 'E4': 'E4.mp3', 'E5': 'E5.mp3', 'F3': 'F3.mp3', 'F4': 'F4.mp3', 'F5': 'F5.mp3', 'F#3': 'Fs3.mp3', 'F#4': 'Fs4.mp3', 'F#5': 'Fs5.mp3', 'G3': 'G3.mp3', 'G4': 'G4.mp3', 'G5': 'G5.mp3', 'G#3': 'Gs3.mp3', 'G#4': 'Gs4.mp3', 'G#5': 'Gs5.mp3', 'A4': 'A4.mp3', 'A5': 'A5.mp3', 'A#3': 'As3.mp3', 'A#4': 'As4.mp3', 'B3': 'B3.mp3', 'B4': 'B4.mp3', 'C4': 'C4.mp3', 'C5': 'C5.mp3', 'C#3': 'Cs3.mp3', 'C#4': 'Cs4.mp3', 'C#5': 'Cs5.mp3', 'D3': 'D3.mp3', 'D4': 'D4.mp3', 'D5': 'D5.mp3', 'D#3': 'Ds3.mp3', 'D#4': 'Ds4.mp3' },
+    license: 'CC-BY 3.0', attribution: 'nbrosowsky/tonejs-instruments',
+    source: 'https://github.com/nbrosowsky/tonejs-instruments',
+  },
+  trombone: {
+    id: 'trombone', label: 'Trombone',
+    baseUrl: 'https://nbrosowsky.github.io/tonejs-instruments/samples/trombone/',
+    urls: { 'A#3': 'As3.mp3', 'C3': 'C3.mp3', 'C4': 'C4.mp3', 'C#2': 'Cs2.mp3', 'C#4': 'Cs4.mp3', 'D3': 'D3.mp3', 'D4': 'D4.mp3', 'D#2': 'Ds2.mp3', 'D#3': 'Ds3.mp3', 'D#4': 'Ds4.mp3', 'F2': 'F2.mp3', 'F3': 'F3.mp3', 'F4': 'F4.mp3', 'G#2': 'Gs2.mp3', 'G#3': 'Gs3.mp3', 'A#1': 'As1.mp3', 'A#2': 'As2.mp3' },
+    license: 'CC-BY 3.0', attribution: 'nbrosowsky/tonejs-instruments',
+    source: 'https://github.com/nbrosowsky/tonejs-instruments',
+  },
+  trumpet: {
+    id: 'trumpet', label: 'Trumpet',
+    baseUrl: 'https://nbrosowsky.github.io/tonejs-instruments/samples/trumpet/',
+    urls: { 'C6': 'C6.mp3', 'D5': 'D5.mp3', 'D#4': 'Ds4.mp3', 'F3': 'F3.mp3', 'F4': 'F4.mp3', 'F5': 'F5.mp3', 'G4': 'G4.mp3', 'A3': 'A3.mp3', 'A5': 'A5.mp3', 'A#4': 'As4.mp3', 'C4': 'C4.mp3' },
+    license: 'CC-BY 3.0', attribution: 'nbrosowsky/tonejs-instruments',
+    source: 'https://github.com/nbrosowsky/tonejs-instruments',
+  },
+  tuba: {
+    id: 'tuba', label: 'Tuba',
+    baseUrl: 'https://nbrosowsky.github.io/tonejs-instruments/samples/tuba/',
+    urls: { 'A#2': 'As2.mp3', 'A#3': 'As3.mp3', 'D3': 'D3.mp3', 'D4': 'D4.mp3', 'D#2': 'Ds2.mp3', 'F1': 'F1.mp3', 'F2': 'F2.mp3', 'F3': 'F3.mp3', 'A#1': 'As1.mp3' },
+    license: 'CC-BY 3.0', attribution: 'nbrosowsky/tonejs-instruments',
+    source: 'https://github.com/nbrosowsky/tonejs-instruments',
+  },
+  violin: {
+    id: 'violin', label: 'Violin',
+    baseUrl: 'https://nbrosowsky.github.io/tonejs-instruments/samples/violin/',
+    urls: { 'A3': 'A3.mp3', 'A4': 'A4.mp3', 'A5': 'A5.mp3', 'A6': 'A6.mp3', 'C4': 'C4.mp3', 'C5': 'C5.mp3', 'C6': 'C6.mp3', 'C7': 'C7.mp3', 'E4': 'E4.mp3', 'E5': 'E5.mp3', 'E6': 'E6.mp3', 'G4': 'G4.mp3', 'G5': 'G5.mp3', 'G6': 'G6.mp3' },
+    license: 'CC-BY 3.0', attribution: 'nbrosowsky/tonejs-instruments',
+    source: 'https://github.com/nbrosowsky/tonejs-instruments',
+  },
+  xylophone: {
+    id: 'xylophone', label: 'Xylophone',
+    baseUrl: 'https://nbrosowsky.github.io/tonejs-instruments/samples/xylophone/',
+    urls: { 'C8': 'C8.mp3', 'G4': 'G4.mp3', 'G5': 'G5.mp3', 'G6': 'G6.mp3', 'G7': 'G7.mp3', 'C5': 'C5.mp3', 'C6': 'C6.mp3', 'C7': 'C7.mp3' },
+    license: 'CC-BY 3.0', attribution: 'nbrosowsky/tonejs-instruments',
+    source: 'https://github.com/nbrosowsky/tonejs-instruments',
   },
 }
 
@@ -352,8 +497,12 @@ export class TransitEngine {
     // Per-route pre-assigned pitch maps: routeId → string[] (one note per stop)
     this._pitchMaps = {}
 
-    // Per-route pitch map strategy: routeId → 'geographic' | 'randomWalk' | 'index' | 'random'
+    // Per-route pitch map strategy: routeId → 'geographic' | 'randomWalk' | 'volatileWalk' | 'index' | 'random'
     this._pitchMapStrategies = {}
+
+    // Running uint32 hash of live GTFS volatile fields (delay/speed/lat/lng), used
+    // to seed the 'volatileWalk' stop-rail strategy. 0 = no live data yet (mock).
+    this._liveSalt = 0
 
     // FX bus mute/solo state (persists across start/stop)
     this._fxMutedIds = new Set()
@@ -486,6 +635,8 @@ export class TransitEngine {
 
   setPitchMapStrategy(routeId, strategy) {
     this._pitchMapStrategies[routeId] = strategy
+    // Strategy is read when the Part is built, so rebuild if one is already running.
+    if (this._routeParts[routeId]) this._rebuildRoutePart(routeId)
   }
 
   // ── Send matrix ───────────────────────────────────────────────────────────────
@@ -805,6 +956,15 @@ export class TransitEngine {
     const note = this.computeNote(lat ?? 47.49, octaveShift)
     this._fleet.set(vehicleId, { lat: lat ?? 47.49, lng: lng ?? 19.05, note, lineType, currentStatus, routeShortName })
 
+    // Accumulate live network entropy for the volatile stop-rail salt.
+    this._liveSalt = makeSalt(
+      this._liveSalt,
+      Math.round(delay ?? 0),
+      Math.round((speed ?? 0) * 10),
+      Math.round((lat ?? 0) * 1e4),
+      Math.round((lng ?? 0) * 1e4),
+    )
+
     // Automation source routes: only dispatch data, never create voices or play notes
     if (vehicleRoute?.id && this._automationSources.has(vehicleRoute.id)) {
       this._dispatchVehiclePosition(vehicleRoute.id, lat, lng)
@@ -998,7 +1158,22 @@ export class TransitEngine {
     const autoRootMidi  = noteToMidi(`${autoRoot}3`)
     const autoModeScale = SCALES[autoScale] ?? MODES.dorian
     const autoStrategy  = this._pitchMapStrategies[route.id] ?? 'geographic'
-    const autoPitchMap  = generatePitchMap(route.stops, autoRootMidi, autoModeScale, autoStrategy)
+    const isVolatile    = autoStrategy === 'volatileWalk'
+
+    // Static strategies build their note-per-stop map once. 'volatileWalk' rebuilds
+    // each loop from the live network salt (or the stable route fingerprint when no
+    // live data exists, e.g. mock mode), so the rail re-voices as the network drifts.
+    const routeSeed   = hashStringToInt(route.id)
+    const firstIdx    = gridStops[0]?.originalIdx
+    let volatileMap   = null
+    let volatileNonce = 0
+    const buildVolatileMap = () => {
+      const seed = this._liveSalt
+        ? makeSalt(routeSeed, this._liveSalt, volatileNonce)
+        : routeSeed
+      return generatePitchMap(route.stops, autoRootMidi, autoModeScale, 'volatileWalk', mulberry32(seed))
+    }
+    const autoPitchMap = isVolatile ? null : generatePitchMap(route.stops, autoRootMidi, autoModeScale, autoStrategy)
 
     const part = new Tone.Part((time, stop) => {
       if (this._soloRoutes.size > 0 && !this._soloRoutes.has(route.id)) return
@@ -1009,7 +1184,13 @@ export class TransitEngine {
       if (!e) return
       const { root = 'C', scaleType = 'major' } = e.scale ?? {}
       const manualMap = this._pitchMaps[route.id]
-      const rawNote   = (manualMap ?? autoPitchMap)[stop.originalIdx] ?? randomFromScale(root, scaleType)
+      // Re-roll the volatile map at the start of each loop (first stop fires).
+      if (isVolatile && !manualMap && (volatileMap === null || stop.originalIdx === firstIdx)) {
+        volatileNonce++
+        volatileMap = buildVolatileMap()
+      }
+      const activeMap = manualMap ?? (isVolatile ? volatileMap : autoPitchMap)
+      const rawNote   = activeMap[stop.originalIdx] ?? randomFromScale(root, scaleType)
       const note = shiftOctaveNote(rawNote, this._octaveShifts[route.id] ?? 0)
       if (this._legatoRoutes[route.id]) {
         this._triggerLegatoNote(e, note, time)

@@ -5,6 +5,7 @@ import { FX_BUSES } from '../fxTrack.js'
 import { randomFromScale, latToNote, shiftOctaveNote, SCALES } from '../mappings.js'
 import DawView, { NOTE_ROOTS, SCALE_TYPES } from '../DawView.jsx'
 import MapView from '../MapView.jsx'
+import AIComposerPanel from '../AIComposerPanel.jsx'
 import SongMenu from '../SongMenu.jsx'
 import { useSongPersistence } from '../useSongPersistence.js'
 
@@ -51,6 +52,10 @@ export default function MixerTab() {
   const [trackFilters,    setTrackFilters]    = useState({})
   const [trackEqs,        setTrackEqs]        = useState({})
   const [trackPitchMaps,  setTrackPitchMaps]  = useState({})
+  // routeId → 'manual' | 'geographic' | 'randomWalk' | 'volatileWalk' | 'index' | 'random'.
+  // 'manual' (default) uses the editable per-stop pitch map; any other value lets the
+  // engine generate the rail and bypasses the manual map.
+  const [trackPitchStrategies, setTrackPitchStrategies] = useState({})
 
   const [sendMatrix, setSendMatrix] = useState({})
 
@@ -163,7 +168,13 @@ export default function MixerTab() {
       }
 
       for (const [rid, notes] of Object.entries(trackPitchMaps)) {
-        engine.setPitchMap(rid, notes)
+        const strat = trackPitchStrategies[rid] ?? 'manual'
+        if (strat === 'manual') {
+          engine.setPitchMap(rid, notes)
+        } else {
+          engine.setPitchMap(rid, null)
+          engine.setPitchMapStrategy(rid, strat)
+        }
       }
 
       if (mode === 'mock') {
@@ -334,6 +345,20 @@ export default function MixerTab() {
     })
   }, [])
 
+  const handlePitchStrategy = useCallback((routeId, strategy) => {
+    setTrackPitchStrategies(s => ({ ...s, [routeId]: strategy }))
+    const engine = engineRef.current
+    if (!engine) return
+    if (strategy === 'manual') {
+      // Restore the editable per-stop map (kept in React state) as the engine map.
+      setTrackPitchMaps(m => { engine.setPitchMap(routeId, m[routeId] ?? null); return m })
+    } else {
+      // Bypass the manual map so the engine generates the rail with this strategy.
+      engine.setPitchMap(routeId, null)
+      engine.setPitchMapStrategy(routeId, strategy)
+    }
+  }, [])
+
   const handleSendLevel = useCallback((instRouteId, fxBusId, level) => {
     const key = `${instRouteId}:${fxBusId}`
     setSendMatrix(m => ({ ...m, [key]: level }))
@@ -485,11 +510,58 @@ export default function MixerTab() {
     engineRef.current?.setRoutePan(routeId, value)
   }
 
+  // Apply a validated AI Composer plan by replaying the same handlers a human
+  // would click. Order matters: harmony before per-track scale, scale before
+  // pitch strategy (handleScale rewrites the manual pitch map), FX track added
+  // before its wet/params/sends are set.
+  const applyAIPlan = useCallback((plan) => {
+    if (!plan) return
+
+    if (plan.bpm != null)          setBpm(plan.bpm)
+    if (plan.masterVolume != null) handleMasterVolume(plan.masterVolume)
+    if (plan.harmony)              handleGlobalHarmony(plan.harmony)
+
+    for (const t of plan.tracks ?? []) {
+      const route = routes?.find(r => r.id === t.routeId)
+      if (!route) continue
+
+      if (t.synthType)    handleSynthType(t.routeId, route.type, t.synthType)
+      if (t.samplerPreset) handleSamplerPreset(t.routeId, route.type, t.samplerPreset)
+      if (t.volume != null) handleVolume(t.routeId, t.volume)
+      if (t.pan != null)    handlePan(t.routeId, t.pan)
+      if (t.octave != null) handleOctaveShift(t.routeId, t.octave)
+      if (t.glide != null)  handleGlide(t.routeId, t.glide)
+      if (t.legato != null) handleLegato(t.routeId, t.legato)
+      if (t.scale)          handleScale(t.routeId, route.name, t.scale)
+      if (t.pitchStrategy)  handlePitchStrategy(t.routeId, t.pitchStrategy)
+      if (t.drone) {
+        handleDroneMode(t.routeId, !!t.drone.enabled)
+        if (t.drone.root) handleDroneRoot(t.routeId, t.drone.root)
+      }
+    }
+
+    for (const f of plan.fx ?? []) {
+      handleAddFxTrack(f.busId)
+      if (f.wet != null) handleFxBusWet(f.busId, f.wet)
+      for (const [paramId, value] of Object.entries(f.params ?? {})) {
+        handleFxBusParam(f.busId, paramId, value)
+      }
+      for (const s of f.sends ?? []) {
+        handleSendLevel(s.routeId, f.busId, s.level)
+      }
+    }
+  }, [
+    routes, handleMasterVolume, handleSynthType, handleSamplerPreset,
+    handleOctaveShift, handleGlide, handleLegato, handlePitchStrategy,
+    handleDroneMode, handleDroneRoot, handleAddFxTrack, handleFxBusWet,
+    handleFxBusParam, handleSendLevel,
+  ])
+
   const songState = useMemo(() => ({
     bpm, mode, view, masterVolume,
     volumes, muted, pans, soloRoutes,
     trackSoundModes, trackScales, trackSynthTypes, trackADSRs,
-    trackFilters, trackEqs, trackPitchMaps,
+    trackFilters, trackEqs, trackPitchMaps, trackPitchStrategies,
     trackOctaves, trackGlides, trackDroneModes, trackDroneRoots, trackSpeeds, trackLoopRegions,
     activeFxTracks, fxBusWet, fxBusMuted, fxBusSoloed, fxBusParams,
     sendMatrix, automationCfg,
@@ -497,7 +569,7 @@ export default function MixerTab() {
     bpm, mode, view, masterVolume,
     volumes, muted, pans, soloRoutes,
     trackSoundModes, trackScales, trackSynthTypes, trackADSRs,
-    trackFilters, trackEqs, trackPitchMaps,
+    trackFilters, trackEqs, trackPitchMaps, trackPitchStrategies,
     trackOctaves, trackGlides, trackDroneModes, trackDroneRoots, trackSpeeds, trackLoopRegions,
     activeFxTracks, fxBusWet, fxBusMuted, fxBusSoloed, fxBusParams,
     sendMatrix, automationCfg,
@@ -507,7 +579,7 @@ export default function MixerTab() {
     setBpm, setMode, setView, setMasterVolume,
     setVolumes, setMuted, setPans, setSoloRoutes,
     setTrackSoundModes, setTrackScales, setTrackSynthTypes, setTrackADSRs,
-    setTrackFilters, setTrackEqs, setTrackPitchMaps,
+    setTrackFilters, setTrackEqs, setTrackPitchMaps, setTrackPitchStrategies,
     setTrackOctaves, setTrackGlides, setTrackDroneModes, setTrackDroneRoots, setTrackSpeeds, setTrackLoopRegions,
     setActiveFxTracks, setFxBusWet, setFxBusMuted, setFxBusSoloed, setFxBusParams,
     setSendMatrix, setAutomationCfg,
@@ -604,6 +676,12 @@ export default function MixerTab() {
         soloRoutes={soloRoutes}
         liveSnapshot={liveSnapshot}
       />
+      <AIComposerPanel
+        className={view !== 'map' ? 'view-hidden' : ''}
+        routes={routes}
+        started={started}
+        onApply={applyAIPlan}
+      />
       <DawView
         className={view !== 'daw' ? 'view-hidden' : ''}
         mode={mode}
@@ -674,6 +752,8 @@ export default function MixerTab() {
         onVehicleCrossed={handleVehicleCrossed}
         trackPitchMaps={trackPitchMaps}
         onRandomizePitches={handleRandomizePitches}
+        trackPitchStrategies={trackPitchStrategies}
+        onPitchStrategy={handlePitchStrategy}
       />
     </div>
   )

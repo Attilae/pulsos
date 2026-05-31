@@ -357,16 +357,63 @@ export function normalizeLongitude(lng) {
   return Math.max(0, Math.min(1, ((lng ?? BUD_LNG_MIN) - BUD_LNG_MIN) / (BUD_LNG_MAX - BUD_LNG_MIN)))
 }
 
+// ── Seeded randomness ("salt") ────────────────────────────────────────────────
+// A deterministic PRNG seeded from a salt, so "random" becomes a pure function of
+// GTFS values. Used by the stop-rail (generatePitchMap) so a line's note sequence
+// is a product of the live network rather than Math.random(). See docs/gtfs-salt.md.
+
+// FNV-1a 32-bit hash of a string → uint32. For string GTFS ids (routeId, stopId…).
+export function hashStringToInt(str) {
+  let h = 0x811c9dc5
+  for (let i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i)
+    h = Math.imul(h, 0x01000193)
+  }
+  return h >>> 0
+}
+
+// mulberry32: uint32 seed → () => float in [0,1). Fast, well-distributed.
+export function mulberry32(seed) {
+  let a = seed >>> 0
+  return function () {
+    a = (a + 0x6d2b79f5) | 0
+    let t = Math.imul(a ^ (a >>> 15), 1 | a)
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+  }
+}
+
+// Mix any number of string|number parts into a single uint32 seed (FNV-1a with a
+// separator between parts so [12,3] and [1,23] don't collide).
+export function makeSalt(...parts) {
+  let h = 0x811c9dc5
+  for (const p of parts) {
+    const s = typeof p === 'string' ? p : String(p)
+    for (let i = 0; i < s.length; i++) {
+      h ^= s.charCodeAt(i)
+      h = Math.imul(h, 0x01000193)
+    }
+    h ^= 0x2c  // separator
+    h = Math.imul(h, 0x01000193)
+  }
+  return h >>> 0
+}
+
 // ── Generative pitch maps ─────────────────────────────────────────────────────
 // Build a note-per-stop array for a route before scheduling.
 // strategy:
-//   'geographic'  — stop latitude → scale degree (city geography = melody contour)
-//   'randomWalk'  — Markov-style ±1 step walk through scale degrees (melodic drift)
-//   'index'       — stop order maps linearly low→high across two octaves
-//   'random'      — unweighted random (legacy fallback)
-export const PITCH_MAP_STRATEGIES = ['geographic', 'randomWalk', 'index', 'random']
+//   'geographic'   — stop latitude → scale degree (city geography = melody contour)
+//   'randomWalk'   — Markov-style ±1 step walk through scale degrees (melodic drift)
+//   'volatileWalk' — same walk as randomWalk, but the caller seeds `rng` from a live
+//                    GTFS salt and rebuilds each loop, so the rail re-voices as the
+//                    network drifts (see engine._buildRoutePart). See docs/gtfs-salt.md.
+//   'index'        — stop order maps linearly low→high across two octaves
+//   'random'       — unweighted random (legacy fallback)
+// `rng` is an injectable () => [0,1) source; defaults to Math.random for callers that
+// don't supply a seeded generator.
+export const PITCH_MAP_STRATEGIES = ['geographic', 'randomWalk', 'volatileWalk', 'index', 'random']
 
-export function generatePitchMap(stops, rootMidi = 62, modeScale = MODES.dorian, strategy = 'geographic') {
+export function generatePitchMap(stops, rootMidi = 62, modeScale = MODES.dorian, strategy = 'geographic', rng = Math.random) {
   if (!stops?.length) return []
   const octaveRange = 2
   const totalSteps  = modeScale.length * octaveRange
@@ -381,10 +428,10 @@ export function generatePitchMap(stops, rootMidi = 62, modeScale = MODES.dorian,
     return stops.map(s => midiToNote(latToMidi(s.lat ?? 47.49, rootMidi, modeScale)))
   }
 
-  if (strategy === 'randomWalk') {
+  if (strategy === 'randomWalk' || strategy === 'volatileWalk') {
     let cursor = Math.floor(totalSteps / 2)
     return stops.map(() => {
-      const r    = Math.random()
+      const r    = rng()
       const step = r < 0.40 ? 1 : r < 0.80 ? -1 : 0   // 40% up / 40% down / 20% hold
       cursor += step
       return stepToNote(cursor)
@@ -400,7 +447,7 @@ export function generatePitchMap(stops, rootMidi = 62, modeScale = MODES.dorian,
   }
 
   // 'random' fallback
-  return stops.map(() => stepToNote(Math.floor(Math.random() * totalSteps)))
+  return stops.map(() => stepToNote(Math.floor(rng() * totalSteps)))
 }
 
 // ── Grid quantization ─────────────────────────────────────────────────────────
