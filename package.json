@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "server": "node server/index.js",
+    "feed": "node feed/index.js",
     "preprocess": "node scripts/preprocess_lines.js",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",

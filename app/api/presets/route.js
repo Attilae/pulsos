@@ -15,7 +15,7 @@ export async function GET(req) {
   if (!u) return Response.json({ error: 'unauthorized' }, { status: 401 })
 
   const rows = await db
-    .select({ id: presets.id, name: presets.name, updatedAt: presets.updatedAt })
+    .select({ id: presets.id, name: presets.name, shareId: presets.shareId, updatedAt: presets.updatedAt })
     .from(presets)
     .where(eq(presets.userId, u.id))
     .orderBy(desc(presets.updatedAt))
@@ -23,6 +23,7 @@ export async function GET(req) {
   return Response.json(rows.map((r) => ({
     id: r.id,
     name: r.name,
+    shareId: r.shareId,
     updatedAt: r.updatedAt?.getTime?.() ?? r.updatedAt,
   })))
 }
@@ -60,6 +61,7 @@ export function serialize(row) {
     id: row.id,
     name: row.name,
     state: row.state,
+    shareId: row.shareId ?? null,
     createdAt: row.createdAt?.getTime?.() ?? row.createdAt,
     updatedAt: row.updatedAt?.getTime?.() ?? row.updatedAt,
   }

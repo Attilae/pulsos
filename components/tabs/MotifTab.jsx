@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Midi } from '@tonejs/midi'
-import { useRoutes } from '../shared/useRoutes.js'
+import { useRoutes } from '@/lib/shared/useRoutes.js'
 import {
   generateMotif, MotifPreview, midiToName,
   SCALE_ROOTS, SCALE_MODES, LENGTH_OPTIONS, STEPS_PER_BAR,
-} from '../engines/motifEngine.js'
+} from '@/lib/engines/motifEngine.js'
 import './MotifTab.css'
 
 const MODE_NAMES = Object.keys(SCALE_MODES)

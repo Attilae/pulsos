@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Midi } from '@tonejs/midi'
-import { useRoutes } from '../shared/useRoutes.js'
+import { useRoutes } from '@/lib/shared/useRoutes.js'
 import {
   LoopEngine, BARS, STEPS_PER_BAR, TOTAL_STEPS, SLOT_COUNT, SLOT_IDS, SLOT_COLORS,
   SCALE_ROOTS, SCALE_MODES, notesFromRoute, midiToName,
-} from '../engines/loopEngine.js'
+} from '@/lib/engines/loopEngine.js'
 import './LoopCapturerTab.css'
 
 const MODE_NAMES = Object.keys(SCALE_MODES)

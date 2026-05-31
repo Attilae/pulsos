@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useRoutes } from '../shared/useRoutes.js'
+import { useRoutes } from '@/lib/shared/useRoutes.js'
 import {
   PhonesEngine, VOICE_DEFS, BARS, TOTAL_BEATS, BPM, phraseFromRoute,
-} from '../engines/phonesEngine.js'
+} from '@/lib/engines/phonesEngine.js'
 import './HeadphoneTab.css'
 
 export default function HeadphoneTab() {
