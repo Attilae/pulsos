@@ -4,6 +4,7 @@ import DrumMachineTab   from './tabs/DrumMachineTab.jsx'
 import LoopCapturerTab  from './tabs/LoopCapturerTab.jsx'
 import HeadphoneTab     from './tabs/HeadphoneTab.jsx'
 import MotifTab         from './tabs/MotifTab.jsx'
+import AuthControl      from './AuthControl.jsx'
 import './app.css'
 
 const TABS = [
@@ -33,6 +34,7 @@ export default function App() {
             </button>
           ))}
         </div>
+        <AuthControl />
       </nav>
       <main className="tab-body">
         <Active />

@@ -7,7 +7,8 @@ import { SYNTH_DEFAULTS, SAMPLER_PRESET_LIST } from '../engine.js'
 import { FX_BUSES, FX_PARAM_SPECS } from '../fxTrack.js'
 import { NOTE_ROOTS, SCALE_TYPES } from '../DawView.jsx'
 
-const COMPOSE_URL = 'http://localhost:3005/api/compose'
+const FEED_HTTP = process.env.NEXT_PUBLIC_FEED_HTTP_URL || 'http://localhost:3005'
+const COMPOSE_URL = `${FEED_HTTP}/api/compose`
 
 export const SYNTH_TYPES         = Object.keys(SYNTH_DEFAULTS)
 const SCALE_TYPE_KEYS            = SCALE_TYPES.map(([k]) => k)
