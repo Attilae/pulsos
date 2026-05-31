@@ -192,6 +192,37 @@ Done and verified (`npx next build` passes; `drizzle-kit generate` produced
 
 The existing Vite app (`npm run dev` + `npm run server`) is untouched.
 
-**Next (slice 2):** port `src/App.jsx` → `app/`, move `src/*` → `components/`/`lib/`,
-client-ify the audio components, then delete the Vite-specific files.
+## 9. Slice 2 status (shell port — done, verified)
+
+The DAW now runs as a Next.js app. Verified: `next build` passes, `next dev`
+serves `/` (200), `/api/auth/ok` → `{ok:true}`, `/api/presets` → 401 unauth, and
+a real browser load renders the full DAW (tracks, pitch maps, transport, Sign-in
+control) with **no console errors** and Tone.js initialized client-side.
+
+Approach + deviations from the original sketch:
+
+- **`src/` was kept in place** rather than moved to `components/`/`lib/`. Moving
+  ~25 files would have rewritten dozens of correct relative imports for zero
+  functional gain; Next doesn't care where components live. So: `app/` = routes,
+  `lib/` = auth/DB/persistence (slice 1), `src/` = the existing UI + engine,
+  `server/` = the (still-to-be-extracted) feed. The "move to components/lib"
+  reshuffle is now optional cosmetic cleanup, not a blocker.
+- **Whole DAW is client-only.** `app/page.jsx` (`'use client'`) loads
+  `src/App.jsx` via `next/dynamic` with `ssr: false`, so Tone.js/Leaflet never
+  execute on the server — no need to audit every file for `window` access.
+- **Persistence wired to the DB.** `src/tabs/MixerTab.jsx` now imports the async
+  `lib/useSongPersistence.js`; the three `src/` duplicates were deleted. Saving is
+  gated on a signed-in session (header `AuthControl`).
+- **Hardcoded `localhost:3005`** in `liveClient.js`, `ai/composer.js`, and the
+  MixerTab snapshot fetch are now `process.env.NEXT_PUBLIC_FEED_*` with localhost
+  fallbacks.
+- **Vite retired:** deleted `index.html`, `vite.config.js`, `src/main.jsx`;
+  dropped `vite` + `@vitejs/plugin-react`; `npm run dev/build/start` are now Next.
+- **next.config.js** pins `outputFileTracingRoot` (a stray `~/package-lock.json`
+  otherwise makes Next guess the wrong workspace root).
+
+**Next (slice 3):** move `/api/compose` to a same-origin Next route handler (logic
+already exists in `server/index.js`) and add the `/api/snapshot` proxy, then point
+`ai/composer.js` at same-origin instead of the feed service. **Slice 4:** extract
+`server/` → `feed/` and deploy it as the always-on service.
 ```

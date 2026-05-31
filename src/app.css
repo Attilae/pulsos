@@ -60,6 +60,73 @@ body { background: var(--bg); color: var(--text); font-family: 'Courier New', mo
   flex-direction: column;
 }
 
+/* ── Auth control (header) ──────────────────────────────────────────────── */
+.auth-control { position: relative; margin-left: auto; }
+.auth-control--pending { color: var(--muted); font-size: 0.78rem; }
+.auth-trigger {
+  padding: 6px 12px;
+  background: var(--surface2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  font-family: inherit;
+  font-size: 0.78rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.auth-trigger:hover { background: #2a2a2a; }
+.auth-pop {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: 100;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 10px;
+  min-width: 220px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+}
+.auth-form input {
+  padding: 6px 8px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 0.78rem;
+  border-radius: 3px;
+  outline: none;
+}
+.auth-tabs { display: flex; gap: 2px; }
+.auth-tabs button {
+  flex: 1;
+  padding: 5px;
+  background: transparent;
+  color: var(--muted);
+  border: none;
+  border-bottom: 2px solid transparent;
+  font-family: inherit;
+  font-size: 0.74rem;
+  cursor: pointer;
+}
+.auth-tabs button.active { color: var(--accent); border-bottom-color: var(--accent); }
+.auth-btn {
+  padding: 7px;
+  background: var(--surface2);
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: 3px;
+  font-family: inherit;
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+.auth-btn:hover { background: #2a2a2a; }
+.auth-btn--ghost { color: var(--muted); border-color: var(--border); }
+.auth-msg { color: var(--muted); font-size: 0.7rem; }
+
 .tab-placeholder {
   flex: 1;
   display: flex;

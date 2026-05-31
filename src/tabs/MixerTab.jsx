@@ -7,7 +7,7 @@ import DawView, { NOTE_ROOTS, SCALE_TYPES } from '../DawView.jsx'
 import MapView from '../MapView.jsx'
 import AIComposerPanel from '../AIComposerPanel.jsx'
 import SongMenu from '../SongMenu.jsx'
-import { useSongPersistence } from '../useSongPersistence.js'
+import { useSongPersistence } from '../../lib/useSongPersistence.js'
 
 const MAX_EVENTS = 80
 
@@ -116,7 +116,7 @@ export default function MixerTab() {
   const fetchSnapshot = useCallback(async () => {
     setSnapshotLoading(true)
     try {
-      const res  = await fetch('http://localhost:3005/api/snapshot')
+      const res  = await fetch(`${process.env.NEXT_PUBLIC_FEED_HTTP_URL || 'http://localhost:3005'}/api/snapshot`)
       const data = await res.json()
       setLiveSnapshot(data)
     } catch (e) {

@@ -1,8 +1,11 @@
+import path from 'node:path'
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // The audio engine and its deps are browser-only; keep them out of SSR.
-  // (Tab components will be client components in slice 2.)
   reactStrictMode: true,
+  // A stray ~/package-lock.json makes Next guess the wrong monorepo root; pin
+  // file tracing to this project so standalone/Vercel builds trace correctly.
+  outputFileTracingRoot: path.join(import.meta.dirname, '.'),
 }
 
 export default nextConfig
