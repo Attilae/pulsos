@@ -12,7 +12,6 @@ const COMPOSE_URL = 'http://localhost:3005/api/compose'
 export const SYNTH_TYPES         = Object.keys(SYNTH_DEFAULTS)
 const SCALE_TYPE_KEYS            = SCALE_TYPES.map(([k]) => k)
 const SAMPLER_PRESET_IDS         = SAMPLER_PRESET_LIST.map(p => p.id)
-const PITCH_STRATEGIES           = ['manual', 'geographic', 'randomWalk', 'volatileWalk', 'index', 'random']
 
 // Native ranges, kept in sync with the handlers in MixerTab.jsx / fxTrack.js.
 const RANGES = {
@@ -78,7 +77,7 @@ VOCABULARY (only use these exact values):
 - samplerPreset (only when synthType="Sampler"): ${SAMPLER_PRESET_IDS.join(', ')}
 - scale root: ${NOTE_ROOTS.join(', ')}
 - scaleType: ${SCALE_TYPE_KEYS.join(', ')}
-- pitchStrategy: ${PITCH_STRATEGIES.join(', ')} ("geographic" maps stop latitude to pitch; "manual" keeps per-stop notes)
+- NOTE: per-stop pitch is derived automatically from each stop's geography (latitude → scale degree, longitude → octave register) — it is not configurable.
 - FX buses (busId — params with ranges):
 ${fxBusDocs()}
 
@@ -107,7 +106,6 @@ OUTPUT — return ONLY a JSON object (no markdown, no commentary) with this shap
       "glide": 0.1,
       "legato": false,
       "scale": { "root": "A", "scaleType": "dorian" },
-      "pitchStrategy": "geographic",
       "drone": { "enabled": false, "root": "A2" }
     }
   ],
@@ -189,9 +187,6 @@ export function validatePlan(raw, routes) {
       if (validHarmony(t.scale)) track.scale = normHarmony(t.scale)
       else dropped.push(`scale on "${t.routeId}"`)
     }
-
-    if (PITCH_STRATEGIES.includes(t.pitchStrategy)) track.pitchStrategy = t.pitchStrategy
-    else if (t.pitchStrategy) dropped.push(`pitchStrategy "${t.pitchStrategy}"`)
 
     if (t.drone && typeof t.drone === 'object') {
       const d = {}

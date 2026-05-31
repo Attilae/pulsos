@@ -5,10 +5,9 @@ import { VehicleVoice }   from './vehicleVoice.js'
 import { FxTrack, FX_BUSES, AUTOMATION_TARGETS } from './fxTrack.js'
 import { AutomationTrack } from './automationTrack.js'
 import {
-  latToNote, randomFromScale, shiftOctaveNote, denormalizeToRange,
+  geoToMidi, midiToNote, randomFromScale, shiftOctaveNote, denormalizeToRange,
   snapStopsToGrid, GRID_TOTAL_CELLS,
-  generatePitchMap, SCALES, noteToMidi, MODES,
-  hashStringToInt, mulberry32, makeSalt,
+  generatePitchMap, routeBounds, SCALES, noteToMidi, MODES,
 } from './mappings.js'
 
 export const LINE_TYPES = ['metro', 'tram', 'trolley', 'bus', 'hev']
@@ -494,16 +493,6 @@ export class TransitEngine {
     this._routeFilters = {}     // routeId → { type, frequency, Q }
     this._routeEqs     = {}     // routeId → { low, mid, high, lowFrequency, highFrequency }
 
-    // Per-route pre-assigned pitch maps: routeId → string[] (one note per stop)
-    this._pitchMaps = {}
-
-    // Per-route pitch map strategy: routeId → 'geographic' | 'randomWalk' | 'volatileWalk' | 'index' | 'random'
-    this._pitchMapStrategies = {}
-
-    // Running uint32 hash of live GTFS volatile fields (delay/speed/lat/lng), used
-    // to seed the 'volatileWalk' stop-rail strategy. 0 = no live data yet (mock).
-    this._liveSalt = 0
-
     // FX bus mute/solo state (persists across start/stop)
     this._fxMutedIds = new Set()
     this._fxSoloIds  = new Set()
@@ -553,10 +542,10 @@ export class TransitEngine {
     this._netState = new NetworkState(this._alertLayer.input)
   }
 
-  computeNote(lat, octaveShift = 0) {
-    const scale = this._alertLayer?.currentModeScale
+  computeNote(lat, lng, octaveShift = 0, bounds = null) {
+    const scale = this._alertLayer?.currentModeScale ?? MODES.dorian
     const root  = (this._netState?.rootMidi ?? 62) + octaveShift * 12
-    return latToNote(lat, root, scale)
+    return midiToNote(geoToMidi(lat, lng, root, scale, 3, bounds))
   }
 
   setOctaveShift(routeId, shift) {
@@ -627,16 +616,6 @@ export class TransitEngine {
         try { entry.synth.triggerRelease(Tone.now()) } catch {}
       }
     }
-  }
-
-  setPitchMap(routeId, notes) {
-    this._pitchMaps[routeId] = notes
-  }
-
-  setPitchMapStrategy(routeId, strategy) {
-    this._pitchMapStrategies[routeId] = strategy
-    // Strategy is read when the Part is built, so rebuild if one is already running.
-    if (this._routeParts[routeId]) this._rebuildRoutePart(routeId)
   }
 
   // ── Send matrix ───────────────────────────────────────────────────────────────
@@ -953,17 +932,9 @@ export class TransitEngine {
 
     const vehicleRoute   = this._routes?.find(r => r.name === routeShortName)
     const octaveShift    = vehicleRoute ? (this._octaveShifts[vehicleRoute.id] ?? 0) : 0
-    const note = this.computeNote(lat ?? 47.49, octaveShift)
+    const bounds         = vehicleRoute?.stops ? routeBounds(vehicleRoute.stops) : null
+    const note = this.computeNote(lat ?? 47.49, lng ?? 19.05, octaveShift, bounds)
     this._fleet.set(vehicleId, { lat: lat ?? 47.49, lng: lng ?? 19.05, note, lineType, currentStatus, routeShortName })
-
-    // Accumulate live network entropy for the volatile stop-rail salt.
-    this._liveSalt = makeSalt(
-      this._liveSalt,
-      Math.round(delay ?? 0),
-      Math.round((speed ?? 0) * 10),
-      Math.round((lat ?? 0) * 1e4),
-      Math.round((lng ?? 0) * 1e4),
-    )
 
     // Automation source routes: only dispatch data, never create voices or play notes
     if (vehicleRoute?.id && this._automationSources.has(vehicleRoute.id)) {
@@ -1056,6 +1027,9 @@ export class TransitEngine {
   setScale(routeId, scale) {
     const entry = this._mockSynths.get(routeId)
     if (entry) this._mockSynths.set(routeId, { ...entry, scale })
+    // The geographic pitch map is derived from the scale when the Part is built,
+    // so rebuild any running Part to re-pitch the rail into the new harmony.
+    if (this._routeParts[routeId]) this._rebuildRoutePart(routeId)
   }
 
   // ── Transport-driven playback ─────────────────────────────────────────────────
@@ -1152,28 +1126,12 @@ export class TransitEngine {
     const soundMode = this._cachedSoundModes?.[route.id]?.mode
     const noteDur   = soundMode !== 'percussive' ? '4n' : '8n'
 
-    // Build auto pitch map once per route (geographic by default).
-    // A manually-set pitchMap via setPitchMap() always wins.
+    // Build the geographic pitch map once per route: latitude → scale degree,
+    // longitude → octave register (see generatePitchMap / geoToMidi).
     const { root: autoRoot = 'C', scaleType: autoScale = 'dorian' } = entry.scale ?? {}
     const autoRootMidi  = noteToMidi(`${autoRoot}3`)
     const autoModeScale = SCALES[autoScale] ?? MODES.dorian
-    const autoStrategy  = this._pitchMapStrategies[route.id] ?? 'geographic'
-    const isVolatile    = autoStrategy === 'volatileWalk'
-
-    // Static strategies build their note-per-stop map once. 'volatileWalk' rebuilds
-    // each loop from the live network salt (or the stable route fingerprint when no
-    // live data exists, e.g. mock mode), so the rail re-voices as the network drifts.
-    const routeSeed   = hashStringToInt(route.id)
-    const firstIdx    = gridStops[0]?.originalIdx
-    let volatileMap   = null
-    let volatileNonce = 0
-    const buildVolatileMap = () => {
-      const seed = this._liveSalt
-        ? makeSalt(routeSeed, this._liveSalt, volatileNonce)
-        : routeSeed
-      return generatePitchMap(route.stops, autoRootMidi, autoModeScale, 'volatileWalk', mulberry32(seed))
-    }
-    const autoPitchMap = isVolatile ? null : generatePitchMap(route.stops, autoRootMidi, autoModeScale, autoStrategy)
+    const pitchMap      = generatePitchMap(route.stops, autoRootMidi, autoModeScale)
 
     const part = new Tone.Part((time, stop) => {
       if (this._soloRoutes.size > 0 && !this._soloRoutes.has(route.id)) return
@@ -1183,14 +1141,7 @@ export class TransitEngine {
       const e = this._mockSynths.get(route.id)
       if (!e) return
       const { root = 'C', scaleType = 'major' } = e.scale ?? {}
-      const manualMap = this._pitchMaps[route.id]
-      // Re-roll the volatile map at the start of each loop (first stop fires).
-      if (isVolatile && !manualMap && (volatileMap === null || stop.originalIdx === firstIdx)) {
-        volatileNonce++
-        volatileMap = buildVolatileMap()
-      }
-      const activeMap = manualMap ?? (isVolatile ? volatileMap : autoPitchMap)
-      const rawNote   = activeMap[stop.originalIdx] ?? randomFromScale(root, scaleType)
+      const rawNote   = pitchMap[stop.originalIdx] ?? randomFromScale(root, scaleType)
       const note = shiftOctaveNote(rawNote, this._octaveShifts[route.id] ?? 0)
       if (this._legatoRoutes[route.id]) {
         this._triggerLegatoNote(e, note, time)

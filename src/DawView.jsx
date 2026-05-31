@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { SYNTH_DEFAULTS, SYNTH_PARAM_TARGETS, findTargetSpec, SAMPLER_PRESET_LIST, SAMPLER_PRESETS } from './engine.js'
 import { AUTOMATION_SOURCES } from './automationTrack.js'
 import { FX_BUSES, AUTOMATION_TARGETS, FX_PARAM_SPECS } from './fxTrack.js'
-import { latToNote, noteToMidi, SCALES, normalizeStopLat, normalizeStopSequence, normalizeLongitude, snapStopsToGrid, GRID_TOTAL_CELLS, GRID_BARS } from './mappings.js'
+import { generatePitchMap, shiftOctaveNote, noteToMidi, SCALES, normalizeStopLat, normalizeStopSequence, normalizeLongitude, snapStopsToGrid, GRID_TOTAL_CELLS, GRID_BARS } from './mappings.js'
 import './DawView.css'
 
 const SYNTH_TYPES = [
@@ -25,17 +25,6 @@ export const SCALE_TYPES = [
 ]
 
 const DRONE_NOTES = NOTE_ROOTS.flatMap(n => [1, 2, 3, 4, 5].map(oct => `${n}${oct}`))
-
-// Stop-rail pitch source. 'manual' = editable per-stop map; the rest are engine-generated.
-// 'volatileWalk' re-rolls each loop from live GTFS data (see docs/gtfs-salt.md).
-const PITCH_STRATEGY_OPTIONS = [
-  ['manual',       'Manual'],
-  ['geographic',   'Geo'],
-  ['randomWalk',   'Walk'],
-  ['volatileWalk', 'Volatile'],
-  ['index',        'Index'],
-  ['random',       'Random'],
-]
 
 const SPEED_OPTIONS = [
   { value: 0.25, label: '÷4',   title: '0.25× speed — one pass every 4 loops' },
@@ -84,8 +73,6 @@ export default function DawView({
   onOctaveShift, onGlide, onLegato, onTrackSpeed, onTrackLoopRegion,
   onAddAutomationLane, onRemoveAutomationLane, onUpdateAutomationLane,
   onRefetch, onVehicleCrossed,
-  trackPitchMaps, onRandomizePitches,
-  trackPitchStrategies, onPitchStrategy,
 }) {
   const tracksRef             = useRef(null)
   const animRef               = useRef(null)
@@ -254,10 +241,6 @@ export default function DawView({
                     onSpeed={m => onTrackSpeed(route.id, m)}
                     onDroneMode={en => onDroneMode(route.id, en)}
                     onDroneRoot={n => onDroneRoot(route.id, n)}
-                    pitchMap={trackPitchMaps?.[route.id]}
-                    onRandomizePitches={() => onRandomizePitches(route.id)}
-                    pitchStrategy={trackPitchStrategies?.[route.id] ?? 'manual'}
-                    onPitchStrategy={s => onPitchStrategy(route.id, s)}
                     onAddLane={() => onAddAutomationLane(route.id)}
                   />
                   {attachedSrcIds.map(srcId => (
@@ -329,8 +312,6 @@ function LineTrack({
   droneMode, droneRoot,
   laneCount, activeFxTracks, sendMatrix, octaveShift, glide, legato, speed,
   loopRegion, onLoopRegion,
-  pitchMap, onRandomizePitches,
-  pitchStrategy = 'manual', onPitchStrategy,
   onVolume, onMute, onPan, onSolo, onSoundMode, onScale, onSynthType, onADSR,
   onSamplerPreset, onSamplerUpload,
   onFilter, onEq,
@@ -490,24 +471,6 @@ function LineTrack({
                   </select>
                 </>
               )}
-              <select
-                className="pitch-strategy-select"
-                value={pitchStrategy}
-                onChange={e => onPitchStrategy?.(e.target.value)}
-                title="Stop-rail pitch source — Volatile re-rolls each loop from live transit data"
-              >
-                {PITCH_STRATEGY_OPTIONS.map(([key, label]) => (
-                  <option key={key} value={key}>{label}</option>
-                ))}
-              </select>
-              <button
-                className="randomize-btn"
-                onClick={onRandomizePitches}
-                disabled={pitchStrategy !== 'manual'}
-                title={pitchStrategy === 'manual'
-                  ? 'Re-randomize note pitches'
-                  : 'Switch to Manual to edit individual note pitches'}
-              >↺</button>
             </>
           )}
         </div>
@@ -523,7 +486,6 @@ function LineTrack({
         vehicles={vehicles}
         trackScale={trackScale}
         octaveShift={octaveShift ?? 0}
-        pitchMap={pitchMap}
         loopRegion={loopRegion}
         onLoopRegion={onLoopRegion}
       />
@@ -1232,8 +1194,6 @@ function EqPanel({ eq, onEq }) {
   )
 }
 
-const ROOT_MIDI = 62  // D4 baseline (matches engine.js default)
-
 // Bar labels rendered once per rail: "1", "2", "3", "4" at bar boundaries
 const BAR_LABELS = Array.from({ length: GRID_BARS }, (_, i) => ({
   bar: i + 1,
@@ -1244,7 +1204,6 @@ const BAR_LABELS = Array.from({ length: GRID_BARS }, (_, i) => ({
 function StopRail({
   route, progress = 0, speed = 1, started = false, mode = 'mock', vehicles = [],
   trackScale = { root: 'C', scaleType: 'major' }, octaveShift = 0,
-  pitchMap,
   loopRegion, onLoopRegion,
 }) {
   const needleRef = useRef(null)
@@ -1322,7 +1281,6 @@ function StopRail({
   const PAD   = 0.1  // keep dots 10% from top/bottom edges
 
   const scaleIntervals = SCALES[trackScale.scaleType] ?? SCALES.major
-  const rootMidi = ROOT_MIDI + octaveShift * 12
 
   // Snap all stops to grid cells — this is the canonical X position
   const gridStops = snapStopsToGrid(route.stops, total)
@@ -1333,30 +1291,24 @@ function StopRail({
   const maxLat   = lats.length ? Math.max(...lats) : 1
   const latRange = Math.max(maxLat - minLat, 0.0001)
 
-  // When a pitchMap exists: y-axis reflects MIDI pitch (piano roll style)
-  // Otherwise: y-axis reflects latitude (geographic)
-  const stopPoints = pitchMap
-    ? (() => {
-        const midis    = pitchMap.map(n => noteToMidi(n))
-        const midiMin  = Math.min(...midis)
-        const midiMax  = Math.max(...midis)
-        const midiRange = Math.max(midiMax - midiMin, 1)
-        return gridStops.map((stop) => {
-          const x        = ((stop.cellIdx + 0.5) / GRID_TOTAL_CELLS) * 100
-          const noteName = pitchMap[stop.originalIdx] ?? '—'
-          const midi     = noteToMidi(noteName)
-          const y        = (PAD + (1 - (midi - midiMin) / midiRange) * (1 - PAD * 2)) * 100
-          return { ...stop, x, y, noteName }
-        })
-      })()
-    : gridStops.map(stop => {
-        const x        = ((stop.cellIdx + 0.5) / GRID_TOTAL_CELLS) * 100
-        const y        = stop.lat != null
-          ? (PAD + (1 - (stop.lat - minLat) / latRange) * (1 - PAD * 2)) * 100
-          : 50
-        const noteName = stop.lat != null ? latToNote(stop.lat, rootMidi, scaleIntervals) : '—'
-        return { ...stop, x, y, noteName }
-      })
+  // Two-axis geographic pitch map — same mapping the engine plays (engine.js):
+  // latitude → scale degree, longitude → octave register, then the per-track
+  // octave shift. The y-axis renders it piano-roll style.
+  const pitchMap = generatePitchMap(route.stops, noteToMidi(`${trackScale.root}3`), scaleIntervals)
+    .map(n => shiftOctaveNote(n, octaveShift))
+  const stopPoints = (() => {
+    const midis     = pitchMap.map(n => noteToMidi(n))
+    const midiMin   = Math.min(...midis)
+    const midiMax   = Math.max(...midis)
+    const midiRange = Math.max(midiMax - midiMin, 1)
+    return gridStops.map((stop) => {
+      const x        = ((stop.cellIdx + 0.5) / GRID_TOTAL_CELLS) * 100
+      const noteName = pitchMap[stop.originalIdx] ?? '—'
+      const midi     = noteToMidi(noteName)
+      const y        = (PAD + (1 - (midi - midiMin) / midiRange) * (1 - PAD * 2)) * 100
+      return { ...stop, x, y, noteName }
+    })
+  })()
 
   // Per-track local progress (0..1) inside the loop region — wraps at the
   // shrunken loop length so a 1-bar section completes a cycle in 1 bar.

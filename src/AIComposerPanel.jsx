@@ -114,7 +114,6 @@ function PlanPreview({ result, routeName, started, onApply, onDiscard }) {
                     t.synthType,
                     t.samplerPreset,
                     t.scale && `${t.scale.root} ${t.scale.scaleType}`,
-                    t.pitchStrategy && t.pitchStrategy !== 'manual' && t.pitchStrategy,
                     t.octave ? `${t.octave > 0 ? '+' : ''}${t.octave}oct` : null,
                     t.volume != null && `${t.volume}dB`,
                     t.drone?.enabled && 'drone',

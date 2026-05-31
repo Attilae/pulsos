@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import * as Tone from 'tone'
 import { TransitEngine, SYNTH_DEFAULTS } from '../engine.js'
 import { FX_BUSES } from '../fxTrack.js'
-import { randomFromScale, latToNote, shiftOctaveNote, SCALES } from '../mappings.js'
+import { randomFromScale, shiftOctaveNote, geoToMidi, routeBounds, midiToNote, noteToMidi, SCALES, MODES } from '../mappings.js'
 import DawView, { NOTE_ROOTS, SCALE_TYPES } from '../DawView.jsx'
 import MapView from '../MapView.jsx'
 import AIComposerPanel from '../AIComposerPanel.jsx'
@@ -51,11 +51,6 @@ export default function MixerTab() {
   const [trackADSRs,      setTrackADSRs]      = useState({})
   const [trackFilters,    setTrackFilters]    = useState({})
   const [trackEqs,        setTrackEqs]        = useState({})
-  const [trackPitchMaps,  setTrackPitchMaps]  = useState({})
-  // routeId → 'manual' | 'geographic' | 'randomWalk' | 'volatileWalk' | 'index' | 'random'.
-  // 'manual' (default) uses the editable per-stop pitch map; any other value lets the
-  // engine generate the rail and bypasses the manual map.
-  const [trackPitchStrategies, setTrackPitchStrategies] = useState({})
 
   const [sendMatrix, setSendMatrix] = useState({})
 
@@ -106,11 +101,6 @@ export default function MixerTab() {
       .then(d => {
         const routes = pickStartupRoutes(d.routes)
         setRoutes(routes)
-        setTrackPitchMaps(
-          Object.fromEntries(
-            routes.map(r => [r.id, r.stops.map(() => randomFromScale('C', 'major'))])
-          )
-        )
       })
   }, [])
 
@@ -167,16 +157,6 @@ export default function MixerTab() {
         smMap[rid] = { mode: m, scale: trackScales[rid] ?? { root: 'C', scaleType: 'major' } }
       }
 
-      for (const [rid, notes] of Object.entries(trackPitchMaps)) {
-        const strat = trackPitchStrategies[rid] ?? 'manual'
-        if (strat === 'manual') {
-          engine.setPitchMap(rid, notes)
-        } else {
-          engine.setPitchMap(rid, null)
-          engine.setPitchMapStrategy(rid, strat)
-        }
-      }
-
       if (mode === 'mock') {
         engine.startMock(routes ?? [], smMap, bpm, trackSynthTypes, trackADSRs)
       } else {
@@ -205,26 +185,26 @@ export default function MixerTab() {
   const handleVehicleCrossed = useCallback((routeId, routeType, lat, stopId) => {
     const { root = 'C', scaleType = 'major' } = trackScales[routeId] ?? {}
     const octave = trackOctaves[routeId] ?? 0
-    const pitchMap = trackPitchMaps[routeId]
     const route = routes?.find(r => r.id === routeId)
-    const stopIdx = stopId != null && route ? route.stops.findIndex(s => s.id === stopId) : -1
+    const stop = stopId != null && route ? route.stops.find(s => s.id === stopId) : null
+    const stopLat = lat ?? stop?.lat
+    const stopLng = stop?.lon ?? stop?.lng
 
     let rawNote
-    if (pitchMap && stopIdx >= 0 && pitchMap[stopIdx]) {
-      rawNote = pitchMap[stopIdx]
-    } else if (lat != null) {
-      const scaleIntervals = SCALES[scaleType] ?? SCALES.major
-      const rootMidi = 62 + octave * 12
-      rawNote = latToNote(lat, rootMidi, scaleIntervals)
+    if (stopLat != null) {
+      // Two-axis geographic pitch — same mapping the mock rail uses (engine.js),
+      // normalized to this line's own lat/lon range so the melody is dynamic.
+      const modeScale = SCALES[scaleType] ?? MODES.dorian
+      const rootMidi  = noteToMidi(`${root}3`)
+      const bounds    = route?.stops ? routeBounds(route.stops) : null
+      rawNote = midiToNote(geoToMidi(stopLat, stopLng, rootMidi, modeScale, 3, bounds))
     } else {
       rawNote = randomFromScale(root, scaleType)
     }
-    const note = pitchMap && stopIdx >= 0
-      ? shiftOctaveNote(rawNote, octave)
-      : rawNote
+    const note = shiftOctaveNote(rawNote, octave)
 
     engineRef.current?.triggerLiveNote(routeId, routeType, note)
-  }, [trackScales, trackOctaves, trackPitchMaps, routes])
+  }, [trackScales, trackOctaves, routes])
 
   const handleSynthType = useCallback((routeId, routeType, synthType) => {
     setTrackSynthTypes(s => ({ ...s, [routeId]: synthType }))
@@ -287,19 +267,12 @@ export default function MixerTab() {
 
   const handleScale = (routeId, routeShortName, scale) => {
     setTrackScales(s => ({ ...s, [routeId]: scale }))
+    // setScale rebuilds the route's Part, which re-derives the geographic pitch map
+    // from the new harmony — no manual pitch map to regenerate.
     engineRef.current?.setScale(routeId, scale)
     setTrackSoundModes(s => {
       engineRef.current?.setSoundMode(routeShortName, s[routeId] ?? 'harmonic', scale)
       return s
-    })
-    setRoutes(rs => {
-      const route = rs?.find(r => r.id === routeId)
-      if (route) {
-        const notes = route.stops.map(() => randomFromScale(scale.root, scale.scaleType))
-        setTrackPitchMaps(m => ({ ...m, [routeId]: notes }))
-        engineRef.current?.setPitchMap(routeId, notes)
-      }
-      return rs
     })
   }
 
@@ -328,36 +301,6 @@ export default function MixerTab() {
   }, [routes, trackScales])
 
   const harmonyValue = harmonyMixed ? globalHarmony : (harmonyCommon ?? globalHarmony)
-
-  const handleRandomizePitches = useCallback((routeId) => {
-    setRoutes(rs => {
-      const route = rs?.find(r => r.id === routeId)
-      if (route) {
-        setTrackScales(sc => {
-          const { root = 'C', scaleType = 'major' } = sc[routeId] ?? {}
-          const notes = route.stops.map(() => randomFromScale(root, scaleType))
-          setTrackPitchMaps(m => ({ ...m, [routeId]: notes }))
-          engineRef.current?.setPitchMap(routeId, notes)
-          return sc
-        })
-      }
-      return rs
-    })
-  }, [])
-
-  const handlePitchStrategy = useCallback((routeId, strategy) => {
-    setTrackPitchStrategies(s => ({ ...s, [routeId]: strategy }))
-    const engine = engineRef.current
-    if (!engine) return
-    if (strategy === 'manual') {
-      // Restore the editable per-stop map (kept in React state) as the engine map.
-      setTrackPitchMaps(m => { engine.setPitchMap(routeId, m[routeId] ?? null); return m })
-    } else {
-      // Bypass the manual map so the engine generates the rail with this strategy.
-      engine.setPitchMap(routeId, null)
-      engine.setPitchMapStrategy(routeId, strategy)
-    }
-  }, [])
 
   const handleSendLevel = useCallback((instRouteId, fxBusId, level) => {
     const key = `${instRouteId}:${fxBusId}`
@@ -533,7 +476,6 @@ export default function MixerTab() {
       if (t.glide != null)  handleGlide(t.routeId, t.glide)
       if (t.legato != null) handleLegato(t.routeId, t.legato)
       if (t.scale)          handleScale(t.routeId, route.name, t.scale)
-      if (t.pitchStrategy)  handlePitchStrategy(t.routeId, t.pitchStrategy)
       if (t.drone) {
         handleDroneMode(t.routeId, !!t.drone.enabled)
         if (t.drone.root) handleDroneRoot(t.routeId, t.drone.root)
@@ -552,7 +494,7 @@ export default function MixerTab() {
     }
   }, [
     routes, handleMasterVolume, handleSynthType, handleSamplerPreset,
-    handleOctaveShift, handleGlide, handleLegato, handlePitchStrategy,
+    handleOctaveShift, handleGlide, handleLegato,
     handleDroneMode, handleDroneRoot, handleAddFxTrack, handleFxBusWet,
     handleFxBusParam, handleSendLevel,
   ])
@@ -561,7 +503,7 @@ export default function MixerTab() {
     bpm, mode, view, masterVolume,
     volumes, muted, pans, soloRoutes,
     trackSoundModes, trackScales, trackSynthTypes, trackADSRs,
-    trackFilters, trackEqs, trackPitchMaps, trackPitchStrategies,
+    trackFilters, trackEqs,
     trackOctaves, trackGlides, trackDroneModes, trackDroneRoots, trackSpeeds, trackLoopRegions,
     activeFxTracks, fxBusWet, fxBusMuted, fxBusSoloed, fxBusParams,
     sendMatrix, automationCfg,
@@ -569,7 +511,7 @@ export default function MixerTab() {
     bpm, mode, view, masterVolume,
     volumes, muted, pans, soloRoutes,
     trackSoundModes, trackScales, trackSynthTypes, trackADSRs,
-    trackFilters, trackEqs, trackPitchMaps, trackPitchStrategies,
+    trackFilters, trackEqs,
     trackOctaves, trackGlides, trackDroneModes, trackDroneRoots, trackSpeeds, trackLoopRegions,
     activeFxTracks, fxBusWet, fxBusMuted, fxBusSoloed, fxBusParams,
     sendMatrix, automationCfg,
@@ -579,7 +521,7 @@ export default function MixerTab() {
     setBpm, setMode, setView, setMasterVolume,
     setVolumes, setMuted, setPans, setSoloRoutes,
     setTrackSoundModes, setTrackScales, setTrackSynthTypes, setTrackADSRs,
-    setTrackFilters, setTrackEqs, setTrackPitchMaps, setTrackPitchStrategies,
+    setTrackFilters, setTrackEqs,
     setTrackOctaves, setTrackGlides, setTrackDroneModes, setTrackDroneRoots, setTrackSpeeds, setTrackLoopRegions,
     setActiveFxTracks, setFxBusWet, setFxBusMuted, setFxBusSoloed, setFxBusParams,
     setSendMatrix, setAutomationCfg,
@@ -750,10 +692,6 @@ export default function MixerTab() {
         onUpdateAutomationLane={handleUpdateAutomationLane}
         onRefetch={fetchSnapshot}
         onVehicleCrossed={handleVehicleCrossed}
-        trackPitchMaps={trackPitchMaps}
-        onRandomizePitches={handleRandomizePitches}
-        trackPitchStrategies={trackPitchStrategies}
-        onPitchStrategy={handlePitchStrategy}
       />
     </div>
   )

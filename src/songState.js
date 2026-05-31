@@ -32,7 +32,6 @@ export function buildSnapshot(s) {
     trackADSRs:      s.trackADSRs      ?? {},
     trackFilters:    s.trackFilters    ?? {},
     trackEqs:        s.trackEqs        ?? {},
-    trackPitchMaps:  s.trackPitchMaps  ?? {},
     trackOctaves:    s.trackOctaves    ?? {},
     trackGlides:     s.trackGlides     ?? {},
     trackDroneModes: s.trackDroneModes ?? {},
@@ -102,7 +101,6 @@ export function applySnapshot(snapshot, setters, engine, routes) {
   setters.setTrackADSRs?.(s.trackADSRs ?? {})
   setters.setTrackFilters?.(s.trackFilters ?? {})
   setters.setTrackEqs?.(s.trackEqs ?? {})
-  setters.setTrackPitchMaps?.(s.trackPitchMaps ?? {})
   setters.setTrackOctaves?.(s.trackOctaves ?? {})
   setters.setTrackGlides?.(s.trackGlides ?? {})
   setters.setTrackDroneModes?.(s.trackDroneModes ?? {})
@@ -133,7 +131,6 @@ function _applyToEngine(s, engine, routes) {
     ...Object.keys(s.trackFilters ?? {}),
     ...Object.keys(s.trackEqs ?? {}),
     ...Object.keys(s.trackScales ?? {}),
-    ...Object.keys(s.trackPitchMaps ?? {}),
     ...Object.keys(s.trackOctaves ?? {}),
     ...Object.keys(s.trackGlides ?? {}),
     ...Object.keys(s.trackDroneModes ?? {}),
@@ -172,9 +169,6 @@ function _applyToEngine(s, engine, routes) {
         try { engine.setSoundMode?.(shortName, mode, scale) } catch (e) { console.warn('apply setSoundMode', e) }
       }
     }
-
-    const pitchMap = s.trackPitchMaps?.[rid]
-    if (pitchMap) { try { engine.setPitchMap?.(rid, pitchMap) } catch (e) { console.warn('apply setPitchMap', e) } }
 
     const octave = s.trackOctaves?.[rid]
     if (octave != null) { try { engine.setOctaveShift?.(rid, octave) } catch (e) { console.warn('apply setOctaveShift', e) } }

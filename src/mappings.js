@@ -61,6 +61,11 @@ function latNorm(lat) {
   return Math.max(0, Math.min(1, (lat - BUD_LAT_MIN) / (BUD_LAT_MAX - BUD_LAT_MIN)))
 }
 
+// Longitude normalized to [0,1] within Budapest
+function lngNorm(lng) {
+  return Math.max(0, Math.min(1, (lng - BUD_LNG_MIN) / (BUD_LNG_MAX - BUD_LNG_MIN)))
+}
+
 // Longitude → stereo pan [-1, 1] (Buda=left, Pest=right)
 export function lngToPan(lng) {
   return Math.max(-1, Math.min(1,
@@ -134,6 +139,46 @@ export function latToMidi(lat, rootMidi, modeScale) {
 // Convenience: lat → Tone.js note string using given mode/root
 export function latToNote(lat, rootMidi = 62, modeScale = MODES.dorian) {
   return midiToNote(latToMidi(lat, rootMidi, modeScale))
+}
+
+// Bounding box of a route's stops. `minSpan` keeps a near-straight line (or GPS
+// jitter) from being amplified into wild pitch swings: an axis that barely moves
+// stays centred instead of filling the whole range.
+export function routeBounds(stops, minSpan = 0.004) {
+  const lats = (stops ?? []).map(s => s.lat).filter(v => v != null)
+  const lngs = (stops ?? []).map(s => s.lon ?? s.lng).filter(v => v != null)
+  return {
+    latMin: lats.length ? Math.min(...lats) : BUD_LAT_MIN,
+    latMax: lats.length ? Math.max(...lats) : BUD_LAT_MAX,
+    lngMin: lngs.length ? Math.min(...lngs) : BUD_LNG_MIN,
+    lngMax: lngs.length ? Math.max(...lngs) : BUD_LNG_MAX,
+    minSpan,
+  }
+}
+
+// Normalize v to [0,1] across [min,max], widening the window to at least minSpan
+// (centred) so a tiny real range doesn't fill the whole pitch range.
+function normSpan(v, min, max, minSpan) {
+  const realSpan = max - min
+  const span = Math.max(realSpan, minSpan)
+  const lo   = min - (span - realSpan) / 2
+  return Math.max(0, Math.min(1, (v - lo) / span))
+}
+
+// Two-axis geographic pitch: latitude → scale degree (within one octave),
+// longitude → octave register. North–south is melody, east–west is register.
+// With `bounds` (a route's own box) the line uses its full pitch range, so the
+// melody is dynamic; without it, normalization falls back to the whole-city range.
+export function geoToMidi(lat, lng, rootMidi, modeScale, octaveSpan = 3, bounds = null) {
+  const latT = bounds
+    ? normSpan(lat ?? bounds.latMin, bounds.latMin, bounds.latMax, bounds.minSpan)
+    : latNorm(lat ?? BUD_LAT_MIN)
+  const lngT = bounds
+    ? normSpan(lng ?? bounds.lngMin, bounds.lngMin, bounds.lngMax, bounds.minSpan)
+    : lngNorm(lng ?? BUD_LNG_MIN)
+  const degree = Math.round(latT * (modeScale.length - 1))
+  const octave = Math.round(lngT * (octaveSpan - 1))
+  return rootMidi + modeScale[degree] + octave * 12
 }
 
 // ── Vehicle physics → sonic parameters ────────────────────────────────────────
@@ -411,43 +456,13 @@ export function makeSalt(...parts) {
 //   'random'       — unweighted random (legacy fallback)
 // `rng` is an injectable () => [0,1) source; defaults to Math.random for callers that
 // don't supply a seeded generator.
-export const PITCH_MAP_STRATEGIES = ['geographic', 'randomWalk', 'volatileWalk', 'index', 'random']
-
-export function generatePitchMap(stops, rootMidi = 62, modeScale = MODES.dorian, strategy = 'geographic', rng = Math.random) {
+// Deterministic two-axis geographic pitch map: one note per stop, where latitude
+// picks the scale degree and longitude picks the octave register (see geoToMidi).
+// Pitch and rhythm come from the same stop object, so the rail is literally a melody.
+export function generatePitchMap(stops, rootMidi = 62, modeScale = MODES.dorian, octaveSpan = 3) {
   if (!stops?.length) return []
-  const octaveRange = 2
-  const totalSteps  = modeScale.length * octaveRange
-
-  function stepToNote(step) {
-    const s   = Math.max(0, Math.min(totalSteps - 1, step))
-    const oct = Math.floor(s / modeScale.length) * 12
-    return midiToNote(rootMidi + modeScale[s % modeScale.length] + oct)
-  }
-
-  if (strategy === 'geographic') {
-    return stops.map(s => midiToNote(latToMidi(s.lat ?? 47.49, rootMidi, modeScale)))
-  }
-
-  if (strategy === 'randomWalk' || strategy === 'volatileWalk') {
-    let cursor = Math.floor(totalSteps / 2)
-    return stops.map(() => {
-      const r    = rng()
-      const step = r < 0.40 ? 1 : r < 0.80 ? -1 : 0   // 40% up / 40% down / 20% hold
-      cursor += step
-      return stepToNote(cursor)
-    })
-  }
-
-  if (strategy === 'index') {
-    return stops.map((_, i) => {
-      const t    = stops.length > 1 ? i / (stops.length - 1) : 0
-      const step = Math.round(t * (totalSteps - 1))
-      return stepToNote(step)
-    })
-  }
-
-  // 'random' fallback
-  return stops.map(() => stepToNote(Math.floor(rng() * totalSteps)))
+  const bounds = routeBounds(stops)
+  return stops.map(s => midiToNote(geoToMidi(s.lat, s.lon ?? s.lng, rootMidi, modeScale, octaveSpan, bounds)))
 }
 
 // ── Grid quantization ─────────────────────────────────────────────────────────
