@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Midi } from '@tonejs/midi'
-import { useRoutes } from '../shared/useRoutes.js'
+import { useRoutes } from '@/lib/shared/useRoutes.js'
 import {
   DrumEngine, PAD_DEFS, STEPS, SOURCE_STEPS,
   emptyPattern, emptyStops, patternFromRoute,
-} from '../engines/drumEngine.js'
+} from '@/lib/engines/drumEngine.js'
 import './DrumMachineTab.css'
 
 const PAD_MIDI_NOTES = {

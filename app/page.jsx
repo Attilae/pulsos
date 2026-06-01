@@ -5,7 +5,7 @@
 // code is evaluated on the server.
 import dynamic from 'next/dynamic'
 
-const App = dynamic(() => import('@/src/App.jsx'), {
+const App = dynamic(() => import('@/components/App.jsx'), {
   ssr: false,
   loading: () => (
     <div style={{

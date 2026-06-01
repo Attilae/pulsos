@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import * as Tone from 'tone'
-import { TransitEngine, SYNTH_DEFAULTS } from '../engine.js'
-import { FX_BUSES } from '../fxTrack.js'
-import { randomFromScale, shiftOctaveNote, geoToMidi, routeBounds, midiToNote, noteToMidi, SCALES, MODES } from '../mappings.js'
+import { TransitEngine, SYNTH_DEFAULTS } from '@/lib/engine.js'
+import { FX_BUSES } from '@/lib/fxTrack.js'
+import { randomFromScale, shiftOctaveNote, geoToMidi, routeBounds, midiToNote, noteToMidi, SCALES, MODES } from '@/lib/mappings.js'
 import DawView, { NOTE_ROOTS, SCALE_TYPES } from '../DawView.jsx'
 import MapView from '../MapView.jsx'
 import AIComposerPanel from '../AIComposerPanel.jsx'
@@ -116,7 +116,7 @@ export default function MixerTab() {
   const fetchSnapshot = useCallback(async () => {
     setSnapshotLoading(true)
     try {
-      const res  = await fetch(`${process.env.NEXT_PUBLIC_FEED_HTTP_URL || 'http://localhost:3005'}/api/snapshot`)
+      const res  = await fetch('/api/snapshot')
       const data = await res.json()
       setLiveSnapshot(data)
     } catch (e) {

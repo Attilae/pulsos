@@ -1,9 +1,9 @@
 import * as Tone from 'tone'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { SYNTH_DEFAULTS, SYNTH_PARAM_TARGETS, findTargetSpec, SAMPLER_PRESET_LIST, SAMPLER_PRESETS } from './engine.js'
-import { AUTOMATION_SOURCES } from './automationTrack.js'
-import { FX_BUSES, AUTOMATION_TARGETS, FX_PARAM_SPECS } from './fxTrack.js'
-import { generatePitchMap, shiftOctaveNote, noteToMidi, SCALES, normalizeStopLat, normalizeStopSequence, normalizeLongitude, snapStopsToGrid, GRID_TOTAL_CELLS, GRID_BARS } from './mappings.js'
+import { SYNTH_DEFAULTS, SYNTH_PARAM_TARGETS, findTargetSpec, SAMPLER_PRESET_LIST, SAMPLER_PRESETS } from '@/lib/engine.js'
+import { AUTOMATION_SOURCES } from '@/lib/automationTrack.js'
+import { FX_BUSES, AUTOMATION_TARGETS, FX_PARAM_SPECS } from '@/lib/fxTrack.js'
+import { generatePitchMap, shiftOctaveNote, noteToMidi, SCALES, normalizeStopLat, normalizeStopSequence, normalizeLongitude, snapStopsToGrid, GRID_TOTAL_CELLS, GRID_BARS } from '@/lib/mappings.js'
 import './DawView.css'
 
 const SYNTH_TYPES = [

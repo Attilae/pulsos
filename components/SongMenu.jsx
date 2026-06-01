@@ -11,9 +11,11 @@ import './SongMenu.css'
 export default function SongMenu({
   currentSong, dirty, autosaveOn, setAutosaveOn,
   songs, save, saveAs, rename, open, newSong, deleteSong,
+  share, unshare, shareUrl,
 }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const [picker,   setPicker]   = useState(false)
+  const [shareMsg, setShareMsg] = useState('')
   const rootRef = useRef(null)
 
   // Close menus on outside click + Esc
@@ -86,6 +88,26 @@ export default function SongMenu({
     deleteSong(id)
   }
 
+  const copyLink = async (url) => {
+    if (!url) return
+    try { await navigator.clipboard.writeText(url); setShareMsg('Link copied to clipboard') }
+    catch { setShareMsg(url) }
+  }
+
+  const handleShare = async () => {
+    setShareMsg('Creating link…')
+    const url = await share?.()
+    if (url) copyLink(url)
+    else setShareMsg('Save the song first to share it.')
+  }
+
+  const handleCopyShare = () => copyLink(shareUrl?.(currentSong?.shareId))
+
+  const handleUnshare = async () => {
+    await unshare?.()
+    setShareMsg('Sharing disabled')
+  }
+
   const label = currentSong?.name ?? 'Untitled (unsaved)'
 
   return (
@@ -122,6 +144,24 @@ export default function SongMenu({
               <span>Rename…</span>
             </button>
           )}
+          {currentSong && (
+            currentSong.shareId ? (
+              <>
+                <button className="song-menu-item" onClick={() => { handleCopyShare() }}>
+                  <span>Copy share link</span>
+                  <span className="song-menu-count">shared</span>
+                </button>
+                <button className="song-menu-item" onClick={handleUnshare}>
+                  <span>Stop sharing</span>
+                </button>
+              </>
+            ) : (
+              <button className="song-menu-item" onClick={handleShare}>
+                <span>Share…</span>
+              </button>
+            )
+          )}
+          {shareMsg && <div className="song-menu-meta">{shareMsg}</div>}
           <div className="song-menu-sep" />
           <label className="song-menu-item song-menu-toggle">
             <span>Autosave</span>

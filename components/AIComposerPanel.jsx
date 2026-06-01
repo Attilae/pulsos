@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { requestComposition, validatePlan } from './ai/composer.js'
+import { requestComposition, validatePlan } from '@/lib/ai/composer.js'
 import './AIComposerPanel.css'
 
 // Natural-language composer overlay for the Map tab. The user describes the

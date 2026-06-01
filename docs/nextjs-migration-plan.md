@@ -221,8 +221,56 @@ Approach + deviations from the original sketch:
 - **next.config.js** pins `outputFileTracingRoot` (a stray `~/package-lock.json`
   otherwise makes Next guess the wrong workspace root).
 
-**Next (slice 3):** move `/api/compose` to a same-origin Next route handler (logic
-already exists in `server/index.js`) and add the `/api/snapshot` proxy, then point
-`ai/composer.js` at same-origin instead of the feed service. **Slice 4:** extract
-`server/` → `feed/` and deploy it as the always-on service.
+## 10. Slice 3 status (stateless API routes — done, verified)
+
+The two stateless endpoints are now same-origin Next route handlers. Verified:
+`next build` registers both; `GET /api/snapshot` with the feed down → `200
+{"vehicles":[]}` (graceful degrade); `POST /api/compose` with no key → `500
+{"error":"OPENROUTER_API_KEY missing"}`.
+
+- `app/api/compose/route.js` — ported verbatim from `server/index.js`; OpenRouter
+  key stays server-side; `HTTP-Referer` now from `BETTER_AUTH_URL`/`NEXT_PUBLIC_APP_URL`.
+- `app/api/snapshot/route.js` — proxies `GET → ${FEED_HTTP_URL}/api/snapshot`;
+  catches feed-unreachable and returns `{ vehicles: [] }` so the UI never breaks.
+- Client repointed **same-origin**: `ai/composer.js` → `'/api/compose'`; MixerTab
+  snapshot fetch → `'/api/snapshot'`. `NEXT_PUBLIC_FEED_HTTP_URL` is now unused and
+  removed from `.env.example`.
+- Remaining feed env: `FEED_HTTP_URL` (server, snapshot proxy) and
+  `NEXT_PUBLIC_FEED_WS_URL` (client, direct WS — can't proxy WS via serverless).
+
+> Not gated on auth (parity with the old server). Consider gating `/api/compose`
+> to signed-in users before a public deploy, since it spends the OpenRouter key.
+
+## 11. Slice 4 status (feed service extracted — done, verified)
+
+`server/` → `feed/`, a self-contained, separately-deployable service. Verified:
+`node --check` + import-graph load pass, `latToNote` maps correctly
+(47.35→C3 … 47.70→A5), the key-missing guard exits 1, and `next build` is still
+green (the app never imported `server/`).
+
+- `feed/index.js` — server entry **minus `/api/compose`** (now a Next route);
+  keeps `/health`, `/api/snapshot`, `/api/metro-debug`, and the WS broadcast.
+  Adds an `ALLOWED_ORIGINS` env CORS allowlist (`*` default).
+- `feed/bkkFeed.js`, `feed/gtfsLoader.js` — moved via `git mv` (history kept).
+- `feed/pitch.js` — the one cross-dependency (`latToNote`, was imported from
+  `src/mockData.js`) copied in so the service is self-contained. **Must stay in
+  sync** with `src/mockData.js`'s copy.
+- `feed/package.json` (own minimal deps), `feed/Dockerfile`, `feed/.dockerignore`,
+  `feed/.env.example`, `feed/README.md` — standalone deploy (Railway/Fly/Render/Docker).
+- Root: `npm run server` → **`npm run feed`** (`node feed/index.js`, runs against
+  root `node_modules` locally). `.gitignore`: `server/cache/` → `feed/cache/`.
+
+> Root `package.json` still carries `express`/`ws`/`gtfs-realtime-bindings`/`adm-zip`
+> so `npm run feed` works locally without a separate install. They can be pruned
+> from root once the feed is only ever deployed standalone.
+
+**Wiring:** set `FEED_HTTP_URL` (server, `/api/snapshot` proxy) and
+`NEXT_PUBLIC_FEED_WS_URL` (browser, direct WS) to the deployed feed URL; set the
+feed's `ALLOWED_ORIGINS` to the Vercel origin.
+
+> Stale: root `CLAUDE.md` still documents the old Vite + `server/` layout — worth
+> refreshing when this branch merges to `main`.
+
+**Next (slice 5 — polish):** Vercel Blob for the 23 MB `lines.json`, OAuth,
+per-user preset sharing, and the optional `src/` → `components/`/`lib/` reshuffle.
 ```

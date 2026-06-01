@@ -1,0 +1,20 @@
+{
+  "name": "transit-daw-feed",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Always-on BKK GTFS-RT poller + WebSocket fan-out for Transit DAW.",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "adm-zip": "^0.5.17",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "gtfs-realtime-bindings": "^1.1.1",
+    "ws": "^8.20.1"
+  }
+}

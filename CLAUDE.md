@@ -11,70 +11,128 @@ city-agnostic (GTFS-RT is a global standard). Inspired by trainjazz.com.
 Music-first: every data decision serves the sound, and the UI should feel like a DAW, not a
 dashboard.
 
-## Commands
+## Topology
 
-Two processes run side by side in development — **both are required for BKK Live mode**:
+The app is a **Next.js (App Router) app deployed on Vercel** plus a **separate always-on feed
+service**. The feed can't run on Vercel serverless (it's a stateful 5 s poller broadcasting
+over WebSocket), so it's a standalone Node process (Railway/Fly/Render/Docker). See
+`docs/nextjs-migration-plan.md` for the full rationale and migration history.
 
-```bash
-npm run dev        # Vite frontend (default http://localhost:5173)
-npm run server     # Node WebSocket + HTTP backend on :3005 (PORT in .env)
+```
+Next app (Vercel)                          feed service (always-on)
+  app/         Next routes + API       ──WS──▶  feed/index.js  (GTFS-RT poll + WS fan-out)
+  components/  React UI (client-only)   proxy   feed/bkkFeed.js, gtfsLoader.js, pitch.js
+  lib/         auth, DB, persistence, audio engine, mappings
+  public/      lines.json, static
 ```
 
+## Commands
+
 ```bash
-npm run build      # Vite production build → dist/
-npm run preview    # Serve the production build
-npm run preprocess # Regenerate public/data/lines.json from data/budapest_gtfs/
+npm run dev        # Next dev server (http://localhost:3000)
+npm run feed       # feed service: BKK WebSocket + HTTP on :3005 (PORT in feed env)
+```
+
+Both are required for **BKK Live** mode. `npm run dev` alone is enough for **mock** mode.
+
+```bash
+npm run build      # next build
+npm run start      # serve the production build
+npm run preprocess # regenerate public/data/lines.json from data/budapest_gtfs/
+npm run upload:lines # upload public/data/lines.json to Vercel Blob (needs BLOB_READ_WRITE_TOKEN)
+npm run db:generate # drizzle-kit: emit SQL migration from lib/db/schema.js
+npm run db:migrate  # drizzle-kit: apply migrations to DATABASE_URL
+npm run db:push     # drizzle-kit: push schema directly (dev)
 ```
 
 There is **no test runner and no linter configured** — don't assume `npm test` exists.
 
-### Environment (.env, gitignored)
+### Environment
 
-- `BKK_API_KEY` — **required**; the server exits on startup without it. Free key from
+**Next app** (`.env`, gitignored — see `.env.example`):
+- `DATABASE_URL` — Postgres (Vercel Postgres / Neon). Required for auth + presets.
+- `BETTER_AUTH_SECRET` (≥32 chars), `BETTER_AUTH_URL`, `NEXT_PUBLIC_APP_URL` — Better Auth.
+- `OPENROUTER_API_KEY` — required only for the AI Composer (`POST /api/compose`).
+- `OPENROUTER_MODEL` — optional override (default `anthropic/claude-sonnet-4.5`).
+- `NEXT_PUBLIC_LINES_URL` — Vercel Blob URL for `lines.json` in production; unset locally
+  (falls back to `public/data/lines.json`). `BLOB_READ_WRITE_TOKEN` — only for `upload:lines`.
+- `RESEND_API_KEY`, `EMAIL_FROM` — magic-link email; **optional in dev** (links print to the
+  server console when unset).
+- `FEED_HTTP_URL` — server-side, where `/api/snapshot` proxies to (default `http://localhost:3005`).
+- `NEXT_PUBLIC_FEED_WS_URL` — browser connects to the feed's WebSocket directly.
+
+**Feed service** (`feed/.env`, gitignored — see `feed/.env.example`):
+- `BKK_API_KEY` — **required**; the process exits on startup without it. Free key from
   https://opendata.bkk.hu/data-sources
-- `OPENROUTER_API_KEY` — required only for the AI Composer (`POST /api/compose`)
-- `OPENROUTER_MODEL` — optional override (default `anthropic/claude-sonnet-4.5`)
-- `PORT` — server port (default 3005)
+- `PORT` — default 3005.
+- `ALLOWED_ORIGINS` — comma-separated CORS allowlist (`*` default; set to the Vercel origin
+  in production).
 
 ### Data pipeline gotchas
 
 - `public/data/lines.json` is the preprocessed route/stop/polyline file the **frontend** loads
-  (~23 MB, committed). Regenerate it with `npm run preprocess`, which reads the raw GTFS in
-  `data/budapest_gtfs/` (gitignored — not in the repo by default).
-- The **server** independently downloads + caches the BKK static GTFS to
-  `server/cache/gtfs_lookup.json` (gitignored) on first run via `server/gtfsLoader.js`. Bump
+  (~22 MB). Regenerate it with `npm run preprocess`, which reads the raw GTFS in
+  `data/budapest_gtfs/` (gitignored — not in the repo by default). In production it's served
+  from **Vercel Blob** (`npm run upload:lines` → set `NEXT_PUBLIC_LINES_URL`); the local
+  `public/` copy is the dev fallback.
+- The **feed service** independently downloads + caches the BKK static GTFS to
+  `feed/cache/gtfs_lookup.json` (gitignored) on first run via `feed/gtfsLoader.js`. Bump
   `CACHE_VERSION` there when changing the lookup schema, or delete the cache to force a rebuild.
-- The frontend has **no Vite proxy**: it fetches `/data/lines.json` from `public/`, and reaches
-  the live backend through hardcoded `http://localhost:3005` / `ws://localhost:3005`
-  (`src/liveClient.js`, `src/tabs/MixerTab.jsx`).
+- The frontend has **no Vite proxy** (Vite is gone). It fetches the route data via
+  `NEXT_PUBLIC_LINES_URL` (Blob) or `/data/lines.json` (`lib/shared/useRoutes.js`), reaches
+  stateless backend logic via same-origin `/api/*` route handlers, and the live WebSocket via
+  `NEXT_PUBLIC_FEED_WS_URL` (`lib/liveClient.js`).
 
 ## Architecture
 
-### Client/server split
+### `app/` — Next.js routes
 
-- **Server** (`server/`): polls BKK GTFS-RT protobuf feeds and fans events out over WebSocket.
-  - `bkkFeed.js` — `BkkFeed extends EventEmitter`. Polls VehiclePositions + TripUpdates every
-    5 s and Alerts every 60 s, diffs against previous state, and emits `arrival`,
-    `vehicle_update`, `trip_update`, `alert_update`. Also infers metro train positions from
-    TripUpdates (metro has no live VehiclePositions). Exposes `getSnapshot()` for `/api/snapshot`.
-  - `gtfsLoader.js` — loads static GTFS into a stop/route/metro-trip lookup; maps GTFS
-    `route_type` → DAW line type (`metro`/`tram`/`trolley`/`bus`/`hev`).
-  - `index.js` — Express + `ws` server. Broadcasts every feed event to all WS clients; also
-    proxies `/api/compose` to OpenRouter (keeps the key server-side, forces JSON output).
+- `page.jsx` — `'use client'`; loads the whole DAW (`components/App.jsx`) via `next/dynamic` with
+  `ssr: false`, so the browser-only audio/map code never executes on the server.
+- `layout.jsx` — root layout; imports `leaflet/dist/leaflet.css`.
+- `api/auth/[...all]/route.js` — all Better Auth endpoints.
+- `api/compose/route.js` — proxies prose → JSON plan through OpenRouter (key stays server-side).
+- `api/snapshot/route.js` — proxies `GET` to the feed service; degrades to `{vehicles:[]}` if
+  the feed is unreachable.
+- `api/presets/route.js` + `api/presets/[id]/route.js` — user-scoped song CRUD (`PUT` = upsert).
+- `api/presets/[id]/share/route.js` — owner toggles a public share link;
+  `api/shared/[shareId]/route.js` — public read-only view of a shared song (the client imports a
+  copy via Save As).
 
-- **Frontend** (`src/`): React 19 + Tone.js. `App.jsx` is a 5-tab shell. Each tab loads the
-  shared route data via `useRoutes()` (`/data/lines.json`) but otherwise owns its own audio engine.
+### `lib/` — auth, DB, persistence, and the audio engine (non-UI logic)
 
-### The main DAW (Map/DAW tab)
+- `auth.js` / `auth-client.js` — Better Auth (email+password + magic link) via the Drizzle
+  adapter; server config + React client.
+- `email.js` — Resend sender with a dev console fallback.
+- `db/schema.js` — Drizzle schema: `user`/`session`/`account`/`verification` (Better Auth) +
+  `presets` (`state jsonb`, plus a nullable `share_id` for public share links). `db/index.js`
+  — pooled `pg` client.
+- `persistence.js` — song CRUD against `/api/presets` (async; same export names as the old
+  localStorage module) + share helpers (`shareSong`/`unshareSong`/`loadShared`).
+  `songState.js` — `buildSnapshot`/`applySnapshot`. `useSongPersistence.js` — autosave hook,
+  **session-gated** (no save when signed out); also imports a `?shared=<id>` link on load.
+- **Audio engine + mapping** (all client-only, imported by the UI): `engine.js`
+  (`TransitEngine`), `mappings.js`, `mockData.js`, `vehicleVoice.js`, `fxTrack.js`,
+  `automationTrack.js`, `networkState.js`, `alertLayer.js`, `liveClient.js`, `engines/` (the four
+  secondary-tab engines), `ai/composer.js`, `shared/useRoutes.js`.
 
-`src/tabs/MixerTab.jsx` is the heart of the app and by far the largest piece of state. It:
+### `components/` — React UI (client-only)
+
+`App.jsx` is a 5-tab shell with an `AuthControl` (sign-in/up + magic link) in the header. Each
+tab loads shared route data via `useRoutes()` (`/data/lines.json`) but owns its own audio engine.
+Cross-area imports use the `@/` alias (e.g. `@/lib/engine.js`); same-area imports stay relative.
+
+#### The main DAW (Map/DAW tab)
+
+`components/tabs/MixerTab.jsx` is the heart of the app and by far the largest piece of state. It:
 - owns **all per-track settings** (volumes, pans, mutes, solos, sound modes, scales, synth types,
-  ADSR, filters, EQs, pitch maps + strategies, octave/glide/legato/drone/speed/loop-region, FX
-  send matrix, automation lane configs, FX bus state, BPM, master volume),
-- instantiates **one `TransitEngine`** (`src/engine.js`) and mirrors every UI change into it via
+  ADSR, filters, EQs, octave/glide/legato/drone/speed/loop-region, FX send matrix, automation
+  lane configs, FX bus state, BPM, master volume),
+- instantiates **one `TransitEngine`** (`lib/engine.js`) and mirrors every UI change into it via
   `engine.setX(...)` handlers,
-- renders three children sharing that state: `DawView.jsx` (the track-lane DAW UI),
-  `MapView.jsx` (Leaflet live map), and `AIComposerPanel.jsx`.
+- renders three children sharing that state: `DawView.jsx` (track-lane DAW UI), `MapView.jsx`
+  (Leaflet live map), and `AIComposerPanel.jsx`,
+- wires song persistence via `useSongPersistence` (`lib/`) + `SongMenu.jsx`.
 
 Two playback modes, both driven by `TransitEngine`:
 - **mock** — `engine.startMock()` schedules `Tone.Part`s that fire notes from each route's
@@ -82,7 +140,7 @@ Two playback modes, both driven by `TransitEngine`:
 - **live** — `engine.startLive()` + `LiveClient` WebSocket; real BKK arrivals call
   `handleVehicleCrossed` → `engine.triggerLiveNote()`.
 
-### TransitEngine (`src/engine.js`)
+#### TransitEngine (`lib/engine.js`)
 
 The audio graph and the single source of truth for sound. Roughly:
 
@@ -100,44 +158,63 @@ NetworkState (drone hum + hub-convergence chords) → AlertLayer input
   are re-applied when a synth/part is (re)built.
 - Supporting modules: `vehicleVoice.js` (per-vehicle FM voice pool, modulated by speed/occupancy/
   delay), `fxTrack.js` (`FX_BUSES`, `FX_PARAM_SPECS`, `AUTOMATION_TARGETS`, `FxTrack`),
-  `automationTrack.js` (`AutomationTrack`, `AUTOMATION_SOURCES` — route a live data field to an
-  audio param), `networkState.js` (`NetworkState`), `alertLayer.js` (`AlertLayer`).
+  `automationTrack.js` (`AutomationTrack`, `AUTOMATION_SOURCES`), `networkState.js`
+  (`NetworkState`), `alertLayer.js` (`AlertLayer`).
 
-### Musical mapping (`src/mappings.js`)
+#### Musical mapping (`lib/mappings.js`)
 
-Pure, side-effect-free functions — the place to change *how data becomes music*: `latToNote`
-(geographic pitch), the `normalizeX` family (GTFS field → 0..1 for automation), `SCALES`/`MODES`,
-seeded RNG (`hashStringToInt`/`mulberry32`/`makeSalt`), and `generatePitchMap` with the
-`PITCH_MAP_STRATEGIES` (`geographic`/`randomWalk`/`volatileWalk`/`index`/`random`). `mockData.js`
-holds mock-mode data and a duplicate `latToNote` the server imports.
+Pure, side-effect-free functions — the place to change *how data becomes music*. Per-stop pitch
+is a single **geographic stop-rail** mapping: `generatePitchMap(stops, rootMidi, modeScale,
+octaveSpan)` builds a line's note sequence from each stop's geography (latitude → scale degree,
+longitude → octave register) via `geoToMidi`/`latToMidi`. (The earlier multi-strategy /
+manual-pitch system was removed.) Also here: `SCALES`/`MODES`, the `normalizeX` family (GTFS
+field → 0..1 for automation), seeded RNG (`hashStringToInt`/`mulberry32`/`makeSalt`), and
+polyline/grid helpers. `mockData.js` holds mock-mode data and a `latToNote` copy.
 
 ### Persistence & AI
 
-- **Songs**: `persistence.js` (localStorage CRUD) + `songState.js` (`buildSnapshot`/
-  `applySnapshot` serialize the whole MixerTab state) + `useSongPersistence.js` (autosave hook) +
-  `SongMenu.jsx`. Adding new per-track state means threading it through `buildSnapshot`/
-  `applySnapshot` too, not just MixerTab.
-- **AI Composer**: `ai/composer.js` builds the system prompt from the live route list and
-  validates the model's JSON plan; the server proxies the call; `applyAIPlan` in MixerTab applies
-  a plan by **replaying the same handlers a human would click** (order matters — see the comment
-  there).
+- **Songs/presets**: `lib/persistence.js` (async CRUD → `/api/presets`, Postgres) +
+  `lib/songState.js` (`buildSnapshot`/`applySnapshot` serialize the whole MixerTab state) +
+  `lib/useSongPersistence.js` (session-gated autosave hook) + `components/SongMenu.jsx`. Adding
+  new per-track state means threading it through `buildSnapshot`/`applySnapshot` too, not just
+  MixerTab.
+- **Sharing**: an owner can publish a saved song via `SongMenu` → `POST /api/presets/:id/share`
+  mints a `share_id`; the link `/?shared=<id>` is publicly readable (`/api/shared/:id`) and the
+  hook imports it on load as a detached/unsaved song (Save As to keep a copy).
+- **AI Composer**: `lib/ai/composer.js` builds the system prompt from the live route list and
+  validates the model's JSON plan; `app/api/compose` proxies the call same-origin (**gated to
+  signed-in users** — it spends the OpenRouter key); `applyAIPlan`
+  in MixerTab applies a plan by **replaying the same handlers a human would click** (order
+  matters — see the comment there).
 
 ### Other tabs
 
 `DrumMachineTab`, `LoopCapturerTab`, `HeadphoneTab`, `MotifTab` are largely self-contained, each
-backed by its own engine in `src/engines/` (`drumEngine`, `loopEngine`, `motifEngine`,
+backed by its own engine in `lib/engines/` (`drumEngine`, `loopEngine`, `motifEngine`,
 `phonesEngine`). They reuse the same `useRoutes()` data but do not share `TransitEngine`.
+
+### `feed/` — always-on feed service
+
+A standalone, separately-deployable Node service (own `package.json`, `Dockerfile`,
+`README.md`). `feed/index.js` is an Express + `ws` server: `bkkFeed.js` (`BkkFeed extends
+EventEmitter`) polls VehiclePositions + TripUpdates every 5 s and Alerts every 60 s, diffs
+against previous state, and emits `arrival`/`vehicle_update`/`trip_update`/`alert_update`, which
+the server broadcasts to all WS clients. It also infers metro train positions from TripUpdates
+(metro has no live VehiclePositions). `gtfsLoader.js` loads static GTFS into a stop/route/
+metro-trip lookup and maps GTFS `route_type` → DAW line type. `pitch.js` holds a `latToNote`
+copy kept in sync with `lib/mockData.js`. HTTP endpoints: `/health`, `/api/snapshot`,
+`/api/metro-debug`.
 
 ### Line → instrument convention
 
 `metro` → pitched lead/bass · `tram`/`trolley` → rhythmic perc · `bus` → pads/textures ·
 `hev` → low melodic/cello · MÁV rail → long sustained pads. Line-type colors live in
-`LINE_TYPE_COLORS` (`engine.js`).
+`LINE_TYPE_COLORS` (`lib/engine.js`).
 
 ## Docs
 
-`docs/bkk-api.md` (GTFS-RT field reference), `docs/vst-plugin-plan.md` (planned JUCE VST3/AU port
-reusing the existing Node server), `docs/gtfs-salt.md`.
+`docs/nextjs-migration-plan.md` (Next/Vercel topology + migration history), `docs/bkk-api.md`
+(GTFS-RT field reference), `docs/vst-plugin-plan.md` (planned JUCE VST3/AU port), `docs/gtfs-salt.md`.
 
 ## Planned (not yet wired in)
 

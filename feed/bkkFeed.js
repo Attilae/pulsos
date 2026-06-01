@@ -1,6 +1,6 @@
 import gtfsRealtime from 'gtfs-realtime-bindings'
 import { EventEmitter } from 'events'
-import { latToNote } from '../src/mockData.js'
+import { latToNote } from './pitch.js'
 
 const { transit_realtime } = gtfsRealtime
 
