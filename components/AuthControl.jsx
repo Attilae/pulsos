@@ -3,10 +3,12 @@
 // Signed in  → shows the email + a sign-out button.
 import { useState, useRef, useEffect } from 'react'
 import { authClient, useSession, signOut } from '../lib/auth-client.js'
+import ProfilePanel from './ProfilePanel.jsx'
 
 export default function AuthControl() {
   const { data: session, isPending } = useSession()
   const [open, setOpen] = useState(false)
+  const [profileOpen, setProfileOpen] = useState(false)
   const rootRef = useRef(null)
 
   useEffect(() => {
@@ -18,18 +20,23 @@ export default function AuthControl() {
   if (isPending) return <span className="auth-control auth-control--pending">…</span>
 
   if (session) {
+    const name = session.user.name || session.user.email
     return (
       <div className="auth-control" ref={rootRef}>
         <button className="auth-trigger" onClick={() => setOpen(o => !o)}>
-          {session.user.email} ▾
+          {name} ▾
         </button>
         {open && (
           <div className="auth-pop">
+            <button className="auth-btn auth-btn--ghost" onClick={() => { setProfileOpen(true); setOpen(false) }}>
+              Profile
+            </button>
             <button className="auth-btn" onClick={() => { signOut(); setOpen(false) }}>
               Sign out
             </button>
           </div>
         )}
+        {profileOpen && <ProfilePanel onClose={() => setProfileOpen(false)} />}
       </div>
     )
   }

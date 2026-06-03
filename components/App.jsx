@@ -5,6 +5,7 @@ import LoopCapturerTab  from './tabs/LoopCapturerTab.jsx'
 import HeadphoneTab     from './tabs/HeadphoneTab.jsx'
 import MotifTab         from './tabs/MotifTab.jsx'
 import AuthControl      from './AuthControl.jsx'
+import { DialogHost }   from './Dialog.jsx'
 import './app.css'
 
 const TABS = [
@@ -39,6 +40,7 @@ export default function App() {
       <main className="tab-body">
         <Active />
       </main>
+      <DialogHost />
     </div>
   )
 }
