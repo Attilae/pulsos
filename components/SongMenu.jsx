@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { confirmDialog, promptDialog } from './Dialog.jsx'
 import './SongMenu.css'
 
 /**
@@ -38,17 +39,17 @@ export default function SongMenu({
   }, [])
 
   // Keyboard shortcuts: Cmd/Ctrl+S → Save, Cmd/Ctrl+Shift+S → Save As
-  const handleSave = useCallback(() => {
+  const handleSave = useCallback(async () => {
     if (currentSong) save()
     else {
-      const name = window.prompt('Name this song:', 'Untitled')
+      const name = await promptDialog('Name this song:', 'Untitled', { title: 'Save song', confirmLabel: 'Save' })
       if (name != null) saveAs(name)
     }
   }, [currentSong, save, saveAs])
 
-  const handleSaveAs = useCallback(() => {
+  const handleSaveAs = useCallback(async () => {
     const def = currentSong?.name ? `${currentSong.name} copy` : 'Untitled'
-    const name = window.prompt('Save as:', def)
+    const name = await promptDialog('Save as:', def, { title: 'Save as', confirmLabel: 'Save' })
     if (name != null) saveAs(name)
   }, [currentSong, saveAs])
 
@@ -64,15 +65,18 @@ export default function SongMenu({
     return () => window.removeEventListener('keydown', onKey)
   }, [handleSave, handleSaveAs])
 
-  const handleNew = () => {
-    if (dirty && currentSong && !confirm('Discard unsaved changes to current song? (Your edits will remain on screen — they just won\'t be attached to a saved song until you Save As.)')) return
+  const handleNew = async () => {
+    if (dirty && currentSong && !(await confirmDialog(
+      'Your edits will remain on screen — they just won\'t be attached to a saved song until you Save As.',
+      { title: 'Discard unsaved changes?', confirmLabel: 'Discard' },
+    ))) return
     newSong()
     setMenuOpen(false)
   }
 
-  const handleRename = () => {
+  const handleRename = async () => {
     if (!currentSong) return
-    const name = window.prompt('Rename song:', currentSong.name)
+    const name = await promptDialog('Rename song:', currentSong.name, { title: 'Rename song', confirmLabel: 'Rename' })
     if (name != null && name.trim()) rename(name)
     setMenuOpen(false)
   }
@@ -83,8 +87,10 @@ export default function SongMenu({
     setMenuOpen(false)
   }
 
-  const handleDeleteSong = (id, name) => {
-    if (!confirm(`Delete "${name}"? This cannot be undone.`)) return
+  const handleDeleteSong = async (id, name) => {
+    if (!(await confirmDialog(`Delete "${name}"? This cannot be undone.`, {
+      title: 'Delete song', confirmLabel: 'Delete', danger: true,
+    }))) return
     deleteSong(id)
   }
 
