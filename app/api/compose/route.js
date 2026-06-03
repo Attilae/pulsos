@@ -7,6 +7,14 @@ import { auth } from '@/lib/auth.js'
 
 const APP_URL = process.env.BETTER_AUTH_URL || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
 
+// Some models wrap JSON in a ```json … ``` markdown fence despite being asked
+// not to (and despite response_format: json_object). Peel it off before parsing.
+function stripJsonFence(text) {
+  const t = text.trim()
+  const fence = t.match(/^```(?:json)?\s*\n?([\s\S]*?)\n?```$/i)
+  return (fence ? fence[1] : t).trim()
+}
+
 export async function POST(req) {
   // Gated: the AI Composer spends the OpenRouter key, so require a signed-in user.
   const session = await auth.api.getSession({ headers: req.headers })
@@ -50,7 +58,7 @@ export async function POST(req) {
     if (!content) return Response.json({ error: 'No content returned from model' }, { status: 502 })
 
     let plan
-    try { plan = JSON.parse(content) }
+    try { plan = JSON.parse(stripJsonFence(content)) }
     catch { return Response.json({ error: 'Model returned invalid JSON', raw: content }, { status: 502 }) }
 
     return Response.json(plan)

@@ -72,7 +72,7 @@ export default function DawView({
   onAddFxTrack, onRemoveFxTrack, onMasterVolume,
   onOctaveShift, onGlide, onLegato, onTrackSpeed, onTrackLoopRegion,
   onAddAutomationLane, onRemoveAutomationLane, onUpdateAutomationLane,
-  onRefetch, onVehicleCrossed,
+  onRefetch, onVehicleCrossed, onExportRouteMidi,
 }) {
   const tracksRef             = useRef(null)
   const animRef               = useRef(null)
@@ -242,6 +242,7 @@ export default function DawView({
                     onDroneMode={en => onDroneMode(route.id, en)}
                     onDroneRoot={n => onDroneRoot(route.id, n)}
                     onAddLane={() => onAddAutomationLane(route.id)}
+                    onExportRouteMidi={onExportRouteMidi}
                   />
                   {attachedSrcIds.map(srcId => (
                     <AutomationSourceTrack
@@ -316,6 +317,7 @@ function LineTrack({
   onSamplerPreset, onSamplerUpload,
   onFilter, onEq,
   onSendLevel, onOctaveShift, onGlide, onLegato, onSpeed, onDroneMode, onDroneRoot, onAddLane,
+  onExportRouteMidi,
 }) {
   const [rackOpen, setRackOpen] = useState(false)
 
@@ -352,6 +354,14 @@ function LineTrack({
           <span className="pan-val">
             {pan === 0 ? 'C' : pan < 0 ? `L${Math.round(-pan * 100)}` : `R${Math.round(pan * 100)}`}
           </span>
+          <span className="lt-mix-sep" />
+          <button
+            type="button"
+            className="midi-export-btn"
+            onClick={() => onExportRouteMidi?.(route.id)}
+            disabled={!route.stops?.length}
+            title="Download MIDI for this line (session if recorded, else 4-bar loop)"
+          >↓</button>
         </div>
 
         <div className="lt-spacer" />
