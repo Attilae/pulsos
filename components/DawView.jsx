@@ -72,7 +72,7 @@ export default function DawView({
   onAddFxTrack, onRemoveFxTrack, onMasterVolume,
   onOctaveShift, onGlide, onLegato, onTrackSpeed, onTrackLoopRegion,
   onAddAutomationLane, onRemoveAutomationLane, onUpdateAutomationLane,
-  onRefetch, onVehicleCrossed,
+  onRefetch, onVehicleCrossed, onExportRouteMidi,
 }) {
   const tracksRef             = useRef(null)
   const animRef               = useRef(null)
@@ -242,6 +242,7 @@ export default function DawView({
                     onDroneMode={en => onDroneMode(route.id, en)}
                     onDroneRoot={n => onDroneRoot(route.id, n)}
                     onAddLane={() => onAddAutomationLane(route.id)}
+                    onExportRouteMidi={onExportRouteMidi}
                   />
                   {attachedSrcIds.map(srcId => (
                     <AutomationSourceTrack
@@ -316,39 +317,36 @@ function LineTrack({
   onSamplerPreset, onSamplerUpload,
   onFilter, onEq,
   onSendLevel, onOctaveShift, onGlide, onLegato, onSpeed, onDroneMode, onDroneRoot, onAddLane,
+  onExportRouteMidi,
 }) {
-  const [envOpen,    setEnvOpen]    = useState(false)
-  const [filterOpen, setFilterOpen] = useState(false)
-  const [eqOpen,     setEqOpen]     = useState(false)
+  const [rackOpen, setRackOpen] = useState(false)
 
   return (
-    <div className={`line-track ${muted ? 'line-track--muted' : ''}`}>
-      <div className="line-label" style={{ borderColor: route.color }}>
-        <div className="line-label-top">
-          <span className="line-badge" style={{ background: route.color, color: route.textColor }}>
-            {route.name}
-          </span>
-          <button
-            className={`add-lane-btn ${laneCount > 0 ? 'has-lanes' : ''}`}
-            onClick={onAddLane}
-            title="Add automation lane"
-          >
-            {laneCount > 0 ? `+${laneCount}` : '+'}
-          </button>
+    <div className={`line-track ${muted ? 'line-track--muted' : ''} ${rackOpen ? 'line-track--open' : ''}`}>
+      <div className="lt-top">
+        <div className="line-label" style={{ borderColor: route.color }}>
+          <div className="line-label-top">
+            <span className="line-badge" style={{ background: route.color, color: route.textColor }}>
+              {route.name}
+            </span>
+            <button
+              className={`add-lane-btn ${laneCount > 0 ? 'has-lanes' : ''}`}
+              onClick={onAddLane}
+              title="Add automation lane"
+            >
+              {laneCount > 0 ? `+${laneCount}` : '+'}
+            </button>
+          </div>
+          <span className="line-desc">{route.desc}</span>
         </div>
-        <span className="line-desc">{route.desc}</span>
-      </div>
 
-      <div className="line-controls">
-        <div className="line-controls-row">
+        <div className="lt-mix">
           <button className={`mute-btn ${muted ? 'active' : ''}`} onClick={onMute} title={muted ? 'Unmute' : 'Mute'}>M</button>
           <button className={`solo-btn ${isSoloed ? 'active' : ''}`} onClick={onSolo} title="Solo">S</button>
           <input type="range" min="-40" max="6" step="1"
             value={volume} onChange={e => onVolume(Number(e.target.value))} className="volume-slider" />
           <span className="volume-val">{volume}dB</span>
-        </div>
-
-        <div className="line-controls-row pan-row">
+          <span className="lt-mix-sep" />
           <span className="pan-label">PAN</span>
           <input type="range" min="-1" max="1" step="0.01"
             value={pan} onChange={e => onPan(parseFloat(e.target.value))}
@@ -356,125 +354,26 @@ function LineTrack({
           <span className="pan-val">
             {pan === 0 ? 'C' : pan < 0 ? `L${Math.round(-pan * 100)}` : `R${Math.round(pan * 100)}`}
           </span>
-        </div>
-
-        {activeFxTracks?.length > 0 && (
-          <div className="line-sends">
-            {activeFxTracks.map(busId => {
-              const bus   = FX_BUSES.find(b => b.id === busId)
-              const level = sendMatrix?.[`${route.id}:${busId}`] ?? 0
-              return (
-                <div key={busId} className="line-send-row">
-                  <span className="line-send-label">→ {bus?.label ?? busId}</span>
-                  <input
-                    type="range" min="0" max="1" step="0.01"
-                    value={level}
-                    onChange={e => onSendLevel(busId, parseFloat(e.target.value))}
-                    className="line-send-slider"
-                  />
-                  <span className="line-send-val">{Math.round(level * 100)}%</span>
-                </div>
-              )
-            })}
-          </div>
-        )}
-
-        <div className="synth-controls-row">
-          <select className="synth-select" value={synthType} onChange={e => onSynthType(e.target.value)}>
-            {SYNTH_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-          </select>
+          <span className="lt-mix-sep" />
           <button
-            className={`env-toggle-btn ${envOpen ? 'active' : ''} ${legato ? 'env-toggle-btn--disabled' : ''}`}
-            onClick={() => !legato && setEnvOpen(o => !o)}
-            title={legato ? 'Envelope disabled in legato mode' : 'Envelope'}
-          >ENV</button>
-          <button className={`env-toggle-btn ${filterOpen ? 'active' : ''}`}
-            onClick={() => setFilterOpen(o => !o)} title="Filter">FLT</button>
-          <button className={`env-toggle-btn ${eqOpen ? 'active' : ''}`}
-            onClick={() => setEqOpen(o => !o)} title="EQ">EQ</button>
+            type="button"
+            className="midi-export-btn"
+            onClick={() => onExportRouteMidi?.(route.id)}
+            disabled={!route.stops?.length}
+            title="Download MIDI for this line (session if recorded, else 4-bar loop)"
+          >↓</button>
         </div>
 
-        {envOpen && !legato && <EnvPanel synthType={synthType} adsr={adsr} onADSR={onADSR} onSamplerPreset={onSamplerPreset} onSamplerUpload={onSamplerUpload} />}
-        {filterOpen && <FilterPanel filter={filter} onFilter={onFilter} />}
-        {eqOpen     && <EqPanel     eq={eq} onEq={onEq} />}
+        <div className="lt-spacer" />
 
-        <div className="octave-row">
-          <span className="octave-label">OCT</span>
-          <button className="octave-btn" onClick={() => onOctaveShift(Math.max(-2, octaveShift - 1))}>−</button>
-          <span className="octave-val">{octaveShift >= 0 ? `+${octaveShift}` : octaveShift}</span>
-          <button className="octave-btn" onClick={() => onOctaveShift(Math.min(2, octaveShift + 1))}>+</button>
-        </div>
-
-        <div className="glide-row">
-          <span className="glide-label">GLIDE</span>
-          <input
-            type="range" min="0" max="1" step="0.01"
-            value={glide ?? 0}
-            onChange={e => onGlide(parseFloat(e.target.value))}
-            onDoubleClick={() => onGlide(0)}
-            className="glide-slider"
-          />
-          <span className="glide-val">{Math.round((glide ?? 0) * 1000)}ms</span>
-          <button
-            className={`legato-btn ${legato ? 'active' : ''}`}
-            onClick={() => onLegato(!legato)}
-            title={legato ? 'Legato on — click to disable' : 'Enable legato (hold + glide)'}
-            style={legato ? { borderColor: route.color, color: route.color } : {}}
-          >LEG</button>
-        </div>
-
-        <div className="speed-row">
-          <span className="speed-label">SPEED</span>
-          <div className="speed-btns">
-            {SPEED_OPTIONS.map(opt => (
-              <button
-                key={opt.value}
-                className={`speed-btn ${(speed ?? 1) === opt.value ? 'active' : ''}`}
-                style={(speed ?? 1) === opt.value ? { borderColor: route.color, color: route.color } : {}}
-                onClick={() => onSpeed(opt.value)}
-                title={opt.title}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="sound-mode-row">
-          <button className={`sound-mode-btn ${droneMode ? 'active' : ''}`}
-            onClick={() => onDroneMode(!droneMode)}
-            title={droneMode ? 'Switch to note mode' : 'Switch to drone mode'}>
-            {droneMode ? 'Drone' : 'Note'}
-          </button>
-          {droneMode ? (
-            <select className="scale-root-select" value={droneRoot ?? 'C3'}
-              onChange={e => onDroneRoot(e.target.value)}>
-              {DRONE_NOTES.map(n => <option key={n} value={n}>{n}</option>)}
-            </select>
-          ) : (
-            <>
-              <button className={`sound-mode-btn ${soundMode === 'percussive' ? 'active' : ''}`}
-                onClick={() => onSoundMode('percussive')}>Perc</button>
-              <button className={`sound-mode-btn ${soundMode === 'harmonic' ? 'active' : ''}`}
-                onClick={() => onSoundMode('harmonic')}>Harm</button>
-              {soundMode === 'harmonic' && (
-                <>
-                  <select className="scale-root-select" value={trackScale.root}
-                    onChange={e => onScale({ ...trackScale, root: e.target.value })}>
-                    {NOTE_ROOTS.map(n => <option key={n} value={n}>{n}</option>)}
-                  </select>
-                  <select className="scale-type-select" value={trackScale.scaleType}
-                    onChange={e => onScale({ ...trackScale, scaleType: e.target.value })}>
-                    {SCALE_TYPES.map(([key, label]) => (
-                      <option key={key} value={key}>{label}</option>
-                    ))}
-                  </select>
-                </>
-              )}
-            </>
-          )}
-        </div>
-
+        <button
+          className={`rack-toggle ${rackOpen ? 'active' : ''}`}
+          onClick={() => setRackOpen(o => !o)}
+          title={rackOpen ? 'Collapse device rack' : 'Expand device rack'}
+        >
+          DEVICE RACK
+          <span className={`rack-chevron ${rackOpen ? 'up' : ''}`}>▾</span>
+        </button>
       </div>
 
       <StopRail
@@ -489,6 +388,133 @@ function LineTrack({
         loopRegion={loopRegion}
         onLoopRegion={onLoopRegion}
       />
+
+      {rackOpen && (
+        <div className="device-rack">
+          <div className="rack-card">
+            <div className="rack-card-head">Instrument</div>
+            <select className="synth-select" value={synthType} onChange={e => onSynthType(e.target.value)}>
+              {SYNTH_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+            </select>
+            <div className="sound-mode-row">
+              <button className={`sound-mode-btn ${droneMode ? 'active' : ''}`}
+                onClick={() => onDroneMode(!droneMode)}
+                title={droneMode ? 'Switch to note mode' : 'Switch to drone mode'}>
+                {droneMode ? 'Drone' : 'Note'}
+              </button>
+              {droneMode ? (
+                <select className="scale-root-select" value={droneRoot ?? 'C3'}
+                  onChange={e => onDroneRoot(e.target.value)}>
+                  {DRONE_NOTES.map(n => <option key={n} value={n}>{n}</option>)}
+                </select>
+              ) : (
+                <>
+                  <button className={`sound-mode-btn ${soundMode === 'percussive' ? 'active' : ''}`}
+                    onClick={() => onSoundMode('percussive')}>Perc</button>
+                  <button className={`sound-mode-btn ${soundMode === 'harmonic' ? 'active' : ''}`}
+                    onClick={() => onSoundMode('harmonic')}>Harm</button>
+                  {soundMode === 'harmonic' && (
+                    <>
+                      <select className="scale-root-select" value={trackScale.root}
+                        onChange={e => onScale({ ...trackScale, root: e.target.value })}>
+                        {NOTE_ROOTS.map(n => <option key={n} value={n}>{n}</option>)}
+                      </select>
+                      <select className="scale-type-select" value={trackScale.scaleType}
+                        onChange={e => onScale({ ...trackScale, scaleType: e.target.value })}>
+                        {SCALE_TYPES.map(([key, label]) => (
+                          <option key={key} value={key}>{label}</option>
+                        ))}
+                      </select>
+                    </>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+
+          <div className="rack-card">
+            <div className="rack-card-head">{synthType}</div>
+            <EnvPanel synthType={synthType} adsr={adsr} onADSR={onADSR} onSamplerPreset={onSamplerPreset} onSamplerUpload={onSamplerUpload} />
+          </div>
+
+          <div className="rack-card">
+            <div className="rack-card-head">Filter</div>
+            <FilterPanel filter={filter} onFilter={onFilter} />
+          </div>
+
+          <div className="rack-card">
+            <div className="rack-card-head">EQ</div>
+            <EqPanel eq={eq} onEq={onEq} />
+          </div>
+
+          <div className="rack-card">
+            <div className="rack-card-head">Motion</div>
+            <div className="octave-row">
+              <span className="octave-label">OCT</span>
+              <button className="octave-btn" onClick={() => onOctaveShift(Math.max(-2, octaveShift - 1))}>−</button>
+              <span className="octave-val">{octaveShift >= 0 ? `+${octaveShift}` : octaveShift}</span>
+              <button className="octave-btn" onClick={() => onOctaveShift(Math.min(2, octaveShift + 1))}>+</button>
+            </div>
+            <div className="glide-row">
+              <span className="glide-label">GLIDE</span>
+              <input
+                type="range" min="0" max="1" step="0.01"
+                value={glide ?? 0}
+                onChange={e => onGlide(parseFloat(e.target.value))}
+                onDoubleClick={() => onGlide(0)}
+                className="glide-slider"
+              />
+              <span className="glide-val">{Math.round((glide ?? 0) * 1000)}ms</span>
+              <button
+                className={`legato-btn ${legato ? 'active' : ''}`}
+                onClick={() => onLegato(!legato)}
+                title={legato ? 'Legato on — click to disable' : 'Enable legato (hold + glide)'}
+                style={legato ? { borderColor: route.color, color: route.color } : {}}
+              >LEG</button>
+            </div>
+            <div className="speed-row">
+              <span className="speed-label">SPEED</span>
+              <div className="speed-btns">
+                {SPEED_OPTIONS.map(opt => (
+                  <button
+                    key={opt.value}
+                    className={`speed-btn ${(speed ?? 1) === opt.value ? 'active' : ''}`}
+                    style={(speed ?? 1) === opt.value ? { borderColor: route.color, color: route.color } : {}}
+                    onClick={() => onSpeed(opt.value)}
+                    title={opt.title}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {activeFxTracks?.length > 0 && (
+            <div className="rack-card">
+              <div className="rack-card-head">Sends</div>
+              <div className="line-sends">
+                {activeFxTracks.map(busId => {
+                  const bus   = FX_BUSES.find(b => b.id === busId)
+                  const level = sendMatrix?.[`${route.id}:${busId}`] ?? 0
+                  return (
+                    <div key={busId} className="line-send-row">
+                      <span className="line-send-label">→ {bus?.label ?? busId}</span>
+                      <input
+                        type="range" min="0" max="1" step="0.01"
+                        value={level}
+                        onChange={e => onSendLevel(busId, parseFloat(e.target.value))}
+                        className="line-send-slider"
+                      />
+                      <span className="line-send-val">{Math.round(level * 100)}%</span>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }
@@ -586,18 +612,19 @@ function AutomationSourceTrack({ srcRoute, instRoute, automationCfg }) {
 
   return (
     <div className="line-track line-track--auto-source">
-      <div className="line-label" style={{ borderColor: srcRoute.color }}>
-        <div className="line-label-top">
-          <span className="line-badge" style={{ background: srcRoute.color, color: srcRoute.textColor }}>
-            {srcRoute.name}
-          </span>
-          <span className="auto-src-label">DATA</span>
+      <div className="lt-top">
+        <div className="line-label" style={{ borderColor: srcRoute.color }}>
+          <div className="line-label-top">
+            <span className="line-badge" style={{ background: srcRoute.color, color: srcRoute.textColor }}>
+              {srcRoute.name}
+            </span>
+            <span className="auto-src-label">DATA</span>
+          </div>
+          {driven && (
+            <span className="auto-src-info">→ {instRoute.name}: {driven}</span>
+          )}
         </div>
-        {driven && (
-          <span className="auto-src-info">→ {instRoute.name}: {driven}</span>
-        )}
       </div>
-      <div className="line-controls" />
       <StopRail route={srcRoute} progress={0} mode="mock" vehicles={[]} />
     </div>
   )
@@ -1172,7 +1199,6 @@ function FilterPanel({ filter, onFilter }) {
   const p = { ...DEFAULT_FILTER, ...filter }
   return (
     <div className="sp-panel">
-      <SpSection label="FILTER" />
       <SpSelect label="Type" value={p.type}      options={FILTER_TYPES} onChange={v => onFilter({ type: v })} />
       <SpSlider label="Freq" min={20}  max={20000} step={10}  value={p.frequency} onChange={v => onFilter({ frequency: v })} unit="Hz" />
       <SpSlider label="Q"    min={0.1} max={20}    step={0.1} value={p.Q}         onChange={v => onFilter({ Q: v })} />
@@ -1184,7 +1210,6 @@ function EqPanel({ eq, onEq }) {
   const p = { ...DEFAULT_EQ, ...eq }
   return (
     <div className="sp-panel">
-      <SpSection label="EQ" />
       <SpSlider label="Low"   min={-24} max={24}   step={0.5} value={p.low}           onChange={v => onEq({ low: v })}  unit="dB" />
       <SpSlider label="Mid"   min={-24} max={24}   step={0.5} value={p.mid}           onChange={v => onEq({ mid: v })}  unit="dB" />
       <SpSlider label="High"  min={-24} max={24}   step={0.5} value={p.high}          onChange={v => onEq({ high: v })} unit="dB" />

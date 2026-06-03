@@ -467,3 +467,44 @@ body { background: var(--bg); color: var(--text); font-family: 'Courier New', mo
 .ev-line { color: var(--accent); width: 52px; flex-shrink: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ev-stop { color: var(--muted); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ev-note { color: var(--text);  width: 28px; text-align: right; flex-shrink: 0; }
+
+
+/* MIDI export — header + per-track */
+.midi-export-btn {
+  font-family: inherit;
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+  padding: 5px 10px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: var(--surface2);
+  color: var(--muted-strong, var(--muted));
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: color 0.12s, border-color 0.12s, background 0.12s;
+}
+.midi-export-btn:hover:not(:disabled) {
+  color: var(--text);
+  border-color: var(--muted);
+}
+.midi-export-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+.midi-export-btn--global.has-session {
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+}
+.midi-export-btn--global.has-session::after {
+  content: '';
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  margin-left: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+  vertical-align: middle;
+}
+.lt-mix .midi-export-btn {
+  min-width: 26px;
+  padding: 4px 7px;
+}

@@ -8,6 +8,10 @@ import MapView from '../MapView.jsx'
 import AIComposerPanel from '../AIComposerPanel.jsx'
 import SongMenu from '../SongMenu.jsx'
 import { useSongPersistence } from '../../lib/useSongPersistence.js'
+import {
+  MidiSessionRecorder, exportRouteMidi, exportMixMidi,
+  isRouteExportable, isRouteAudible, buildLoopMidiEvents,
+} from '@/lib/midiExport.js'
 
 const MAX_EVENTS = 80
 
@@ -33,8 +37,10 @@ function pickStartupRoutes(allRoutes) {
 }
 
 export default function MixerTab() {
-  const engineRef   = useRef(null)
-  const stoppingRef = useRef(false)
+  const engineRef        = useRef(null)
+  const stoppingRef      = useRef(false)
+  const midiRecorderRef  = useRef(null)
+  const [hasMidiSession, setHasMidiSession] = useState(false)
 
   const [view,    setView]    = useState('daw')   // 'map' | 'daw'
   const [mode,    setMode]    = useState('mock')  // 'mock' | 'live'
@@ -105,10 +111,13 @@ export default function MixerTab() {
   }, [])
 
   useEffect(() => {
+    const recorder = new MidiSessionRecorder()
+    midiRecorderRef.current = recorder
     const engine = new TransitEngine((ev) => {
       setEvents(prev => [ev, ...prev].slice(0, MAX_EVENTS))
     })
     engine.init()
+    engine.setMidiRecorder(recorder)
     engineRef.current = engine
     return () => engine.dispose()
   }, [])
@@ -144,6 +153,7 @@ export default function MixerTab() {
         engine.stopMock()
         Tone.getDestination().volume.value = masterVolume
         setStarted(false)
+        setHasMidiSession(midiRecorderRef.current?.hasData() ?? false)
         stoppingRef.current = false
       }, FADE_OUT * 1000 + 60)
     } else {
@@ -499,6 +509,48 @@ export default function MixerTab() {
     handleFxBusParam, handleSendLevel,
   ])
 
+  const midiExportCtx = useMemo(() => ({
+    bpm,
+    muted,
+    soloRoutes,
+    trackScales,
+    trackOctaves,
+    trackSoundModes,
+    trackLegatos,
+    trackSpeeds,
+    trackLoopRegions,
+    trackDroneModes,
+    automationSourceIds,
+    recorder: midiRecorderRef.current,
+  }), [
+    bpm, muted, soloRoutes, trackScales, trackOctaves, trackSoundModes,
+    trackLegatos, trackSpeeds, trackLoopRegions, trackDroneModes,
+    automationSourceIds, hasMidiSession,
+  ])
+
+  const canExportMix = useMemo(() => {
+    if (!routes?.length) return false
+    const ctx = { ...midiExportCtx, recorder: midiRecorderRef.current }
+    if (midiRecorderRef.current?.hasData()) {
+      return routes.some(r =>
+        isRouteExportable(r, r.id, ctx) && midiRecorderRef.current.getRouteEvents(r.id).length,
+      )
+    }
+    return routes.some(r =>
+      isRouteExportable(r, r.id, ctx) && isRouteAudible(r.id, ctx) && buildLoopMidiEvents(r, ctx).length,
+    )
+  }, [routes, midiExportCtx])
+
+  const handleExportRouteMidi = useCallback((routeId) => {
+    const route = routes?.find(r => r.id === routeId)
+    if (!route) return
+    exportRouteMidi(route, { ...midiExportCtx, recorder: midiRecorderRef.current })
+  }, [routes, midiExportCtx])
+
+  const handleExportMixMidi = useCallback(() => {
+    exportMixMidi(routes ?? [], { ...midiExportCtx, recorder: midiRecorderRef.current })
+  }, [routes, midiExportCtx])
+
   const songState = useMemo(() => ({
     bpm, mode, view, masterVolume,
     volumes, muted, pans, soloRoutes,
@@ -590,6 +642,14 @@ export default function MixerTab() {
           )}
         </div>
 
+        <button
+          type="button"
+          className={`midi-export-btn midi-export-btn--global${hasMidiSession ? ' has-session' : ''}`}
+          onClick={handleExportMixMidi}
+          disabled={!canExportMix}
+          title="Download multi-track MIDI (session if recorded, else 4-bar loop of audible lines)"
+        >↓ MIDI</button>
+
         <div className="bpm-control">
           <label>BPM</label>
           <input
@@ -619,7 +679,7 @@ export default function MixerTab() {
         liveSnapshot={liveSnapshot}
       />
       <AIComposerPanel
-        className={view !== 'map' ? 'view-hidden' : ''}
+        className={view !== 'map' && view !== 'daw' ? 'view-hidden' : ''}
         routes={routes}
         started={started}
         onApply={applyAIPlan}
@@ -692,6 +752,7 @@ export default function MixerTab() {
         onUpdateAutomationLane={handleUpdateAutomationLane}
         onRefetch={fetchSnapshot}
         onVehicleCrossed={handleVehicleCrossed}
+        onExportRouteMidi={handleExportRouteMidi}
       />
     </div>
   )
