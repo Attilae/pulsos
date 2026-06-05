@@ -1112,6 +1112,10 @@
   gap: 6px;
 }
 
+.fx-param-row--disabled {
+  opacity: 0.45;
+}
+
 .fx-param-label {
   font-size: 0.55rem;
   color: var(--muted);

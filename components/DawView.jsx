@@ -1,8 +1,8 @@
 import * as Tone from 'tone'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { SYNTH_DEFAULTS, availableAutomationTargets, findTargetSpec, SAMPLER_PRESET_LIST, SAMPLER_PRESETS, DRUM_VOICES, DRUM_VOICE_LICENSE } from '@/lib/engine.js'
-import { FX_BUSES, AUTOMATION_TARGETS, FX_PARAM_SPECS } from '@/lib/fxTrack.js'
-import { generatePitchMap, shiftOctaveNote, noteToMidi, SCALES, hashStopValue, snapStopsToGrid, GRID_TOTAL_CELLS, GRID_BARS } from '@/lib/mappings.js'
+import { FX_BUSES, AUTOMATION_TARGETS, FX_PARAM_SPECS, FX_SYNC_TARGETS } from '@/lib/fxTrack.js'
+import { generatePitchMap, shiftOctaveNote, noteToMidi, SCALES, hashStopValue, snapStopsToGrid, GRID_TOTAL_CELLS, GRID_BARS, denormalizeToRange, denormalizeExp } from '@/lib/mappings.js'
 import './DawView.css'
 
 const SYNTH_TYPES = [
@@ -742,7 +742,7 @@ function AutoCurveRail({ route, laneId, points, spec, started = false, speed = 1
           type="button"
           className={`auto-dot ${dragId === p.id ? 'dragging' : ''}`}
           style={{ left: `${p.x}%`, top: `${p.y}%`, '--line-color': route.color }}
-          title={`${p.name} · ${spec ? `${(spec.min + p.value * (spec.max - spec.min)).toFixed(2)}${unit}` : `${Math.round(p.value * 100)}%`}`}
+          title={`${p.name} · ${spec ? `${(spec.curve === 'exp' ? denormalizeExp(p.value, spec.min, spec.max) : denormalizeToRange(p.value, spec.min, spec.max)).toFixed(2)}${unit}` : `${Math.round(p.value * 100)}%`}`}
           onPointerDown={e => onDotDown(e, p.id)}
           onPointerMove={e => onDotMove(e, p.id)}
           onPointerUp={e => onDotUp(e, p.id)}
@@ -810,6 +810,9 @@ function MasterStrip({ volume, onVolume }) {
 
 function FxTrackCard({ bus, wet, muted, soloed, params, onWet, onMute, onSolo, onParam, onCustomIR, onRemove }) {
   const specs = FX_PARAM_SPECS[bus.id] ?? []
+  // When tempo-synced, the raw ms/Hz slider for the synced param is inert.
+  const syncTarget = FX_SYNC_TARGETS[bus.id]
+  const synced = (params?.sync ?? bus.defaults?.sync ?? 'free') !== 'free'
   return (
     <div className={`fx-track-card ${muted ? 'fx-track-card--muted' : ''}`}>
       <div className="fx-track-card-header">
@@ -833,6 +836,7 @@ function FxTrackCard({ bus, wet, muted, soloed, params, onWet, onMute, onSolo, o
               spec={spec}
               value={params?.[spec.id] ?? bus.defaults?.[spec.id]}
               onChange={v => onParam(spec.id, v)}
+              disabled={synced && spec.id === syncTarget}
             />
           ))}
           {bus.id === 'reverb' && onCustomIR && (
@@ -926,7 +930,7 @@ function SamplerUploadRow({ onSamplerUpload }) {
   )
 }
 
-function FxParamControl({ spec, value, onChange }) {
+function FxParamControl({ spec, value, onChange, disabled = false }) {
   if (spec.kind === 'enum') {
     return (
       <div className="fx-param-row">
@@ -949,7 +953,7 @@ function FxParamControl({ spec, value, onChange }) {
   const displayVal = v * scale
   const decimals = spec.step < 0.01 ? 3 : spec.step < 1 ? 2 : 0
   return (
-    <div className="fx-param-row">
+    <div className={`fx-param-row ${disabled ? 'fx-param-row--disabled' : ''}`}>
       <span className="fx-param-label">{spec.label}</span>
       <input
         type="range"
@@ -957,11 +961,12 @@ function FxParamControl({ spec, value, onChange }) {
         max={spec.max}
         step={spec.step}
         value={v}
+        disabled={disabled}
         onChange={e => onChange(parseFloat(e.target.value))}
         className="fx-param-slider"
       />
       <span className="fx-param-val">
-        {displayVal.toFixed(decimals)}{spec.unit ? ` ${spec.unit}` : ''}
+        {disabled ? 'synced' : `${displayVal.toFixed(decimals)}${spec.unit ? ` ${spec.unit}` : ''}`}
       </span>
     </div>
   )

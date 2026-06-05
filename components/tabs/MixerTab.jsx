@@ -130,6 +130,12 @@ export default function MixerTab() {
     return () => engineRef.current?.dispose()
   }, [createEngine])
 
+  // Drive tempo live: the whole transport-scheduled arrangement and any
+  // tempo-synced FX track the BPM slider immediately, not just on next Start.
+  useEffect(() => {
+    engineRef.current?.setBpm(bpm)
+  }, [bpm])
+
   const fetchSnapshot = useCallback(async () => {
     setSnapshotLoading(true)
     try {

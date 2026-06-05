@@ -4,7 +4,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Concept
 
-A web DAW that sonifies live public transport. Each transit line is a track; each station
+A web DAW that sonifies live public transport, branded **"Leið"** (Icelandic for "the way/route";
+the title lives in `app/layout.jsx`). Each transit line is a track; each station
 arrival triggers a note. Budapest (BKK) is the first city; the architecture is meant to stay
 city-agnostic (GTFS-RT is a global standard). Inspired by trainjazz.com.
 
@@ -237,3 +238,11 @@ The root-level `*.js` Pencil scripts (`headphone-orbit.js`, `loop-waveform.js`, 
 they use the `pencil.*` API with `@schema`/`@input` directives) and the `transport.pen` design
 document are generative visualizations intended for future use in the UI. They are not imported
 by the app yet — leave them in place.
+
+## Stale / legacy
+
+- `dist/` is a **stale Vite build** from before the Next migration (its `index.html` still says
+  "Transit DAW"). The live app is served by Next, not from `dist/` — don't edit it or treat it as
+  current.
+- `scripts/generate_map.py` is a one-off Python helper, separate from the JS data pipeline
+  (`preprocess_lines.js` / `upload-lines.js`).
