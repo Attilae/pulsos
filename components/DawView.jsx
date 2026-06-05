@@ -57,7 +57,7 @@ function resolvePlayhead(route, lat, lng) {
 
 export default function DawView({
   className = '',
-  mode, started, events, routes,
+  mode, started, events, routes, onRepickType,
   volumes, muted, pans, soloRoutes,
   liveSnapshot, snapshotLoading,
   trackSoundModes, trackScales, trackSynthTypes, trackADSRs, trackFilters, trackEqs,
@@ -185,7 +185,17 @@ export default function DawView({
         {/* ── Sections per line type ── */}
         {SECTIONS.map(({ type, label }) => routesByType[type].length > 0 && (
           <div key={type}>
-            <div className="daw-section-label">{label}</div>
+            <div className="daw-section-label">
+              {label}
+              {type !== 'metro' && onRepickType && (
+                <button
+                  className="section-repick-btn"
+                  onClick={() => onRepickType(type)}
+                  disabled={started}
+                  title={`Re-pick ${label} lines`}
+                >↻</button>
+              )}
+            </div>
             {routesByType[type].map(route => {
               const lanes = Object.entries(automationCfg?.[route.id] ?? {})
               // Source routes attached to this instrument

@@ -17,21 +17,27 @@ const MAX_EVENTS = 80
 
 const STARTUP_PICKS = { tram: 5, trolley: 5, bus: 5 }
 
-function pickStartupRoutes(allRoutes) {
-  const byType = {}
-  for (const r of allRoutes) {
-    if (!r.stops?.length) continue
-    if (!byType[r.type]) byType[r.type] = []
-    byType[r.type].push(r)
+// Fisher–Yates shuffle in place (unseeded — a fresh roll each call).
+function shuffle(pool) {
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[pool[i], pool[j]] = [pool[j], pool[i]]
   }
-  const picked = [...(byType.metro ?? [])]
+  return pool
+}
+
+// Randomly pick up to n routes of a single type (only routes that have stops).
+function pickType(allRoutes, type, n) {
+  const pool = allRoutes.filter(r => r.type === type && r.stops?.length)
+  shuffle(pool)
+  return pool.slice(0, n)
+}
+
+function pickStartupRoutes(allRoutes) {
+  const metro = allRoutes.filter(r => r.type === 'metro' && r.stops?.length)
+  const picked = [...metro]
   for (const [type, n] of Object.entries(STARTUP_PICKS)) {
-    const pool = [...(byType[type] ?? [])]
-    for (let i = pool.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1))
-      ;[pool[i], pool[j]] = [pool[j], pool[i]]
-    }
-    picked.push(...pool.slice(0, n))
+    picked.push(...pickType(allRoutes, type, n))
   }
   return picked
 }
@@ -78,6 +84,7 @@ export default function MixerTab() {
   const [fxBusParams, setFxBusParams] = useState({})
 
   const [routes, setRoutes] = useState(null)
+  const allRoutesRef = useRef(null)   // full lines.json route list, for re-picking
 
   const [soloRoutes, setSoloRoutes] = useState(() => new Set())
 
@@ -105,10 +112,28 @@ export default function MixerTab() {
     fetch('/data/lines.json')
       .then(r => r.json())
       .then(d => {
+        allRoutesRef.current = d.routes
         const routes = pickStartupRoutes(d.routes)
         setRoutes(routes)
       })
   }, [])
+
+  // Re-roll the random selection for a single line type (tram/trolley/bus),
+  // keeping metro and the other types untouched. No-op while playing — the
+  // running mock schedule is baked from `routes` at Start.
+  const handleRepickType = useCallback((type) => {
+    const all = allRoutesRef.current
+    if (!all || started) return
+    const fresh = pickType(all, type, STARTUP_PICKS[type] ?? 5)
+    setRoutes(prev => [...(prev ?? []).filter(r => r.type !== type), ...fresh])
+  }, [started])
+
+  // Re-roll the entire selection (all metro + fresh tram/trolley/bus picks).
+  const handleRepickAll = useCallback(() => {
+    const all = allRoutesRef.current
+    if (!all || started) return
+    setRoutes(pickStartupRoutes(all))
+  }, [started])
 
   // Build a fresh engine + MIDI recorder and stash them on the refs. Used both
   // for the initial mount and to get a clean audio graph on "New session".
@@ -712,6 +737,14 @@ export default function MixerTab() {
 
         <button
           type="button"
+          className="repick-btn"
+          onClick={handleRepickAll}
+          disabled={started || !routes}
+          title="Randomly re-select all tram, trolley and bus lines"
+        >↻ Re-pick all</button>
+
+        <button
+          type="button"
           className={`midi-export-btn midi-export-btn--global${hasMidiSession ? ' has-session' : ''}`}
           onClick={handleExportMixMidi}
           disabled={!canExportMix}
@@ -758,6 +791,7 @@ export default function MixerTab() {
         started={started}
         events={events}
         routes={routes}
+        onRepickType={handleRepickType}
         volumes={volumes}
         muted={muted}
         pans={pans}

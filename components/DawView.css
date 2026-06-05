@@ -56,6 +56,9 @@
 /* ── Section labels ─────────────────────────────────────────────────────── */
 .daw-section-label {
   grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
   padding: 6px 4px 2px;
   font-size: 0.62rem;
   text-transform: uppercase;
@@ -64,6 +67,28 @@
   border-bottom: 1px solid var(--border);
   margin-bottom: 2px;
 }
+
+.section-repick-btn {
+  font-family: inherit;
+  font-size: 0.7rem;
+  line-height: 1;
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: var(--surface2);
+  color: var(--muted);
+  cursor: pointer;
+  transition: color 0.12s, border-color 0.12s;
+}
+.section-repick-btn:hover:not(:disabled) {
+  color: var(--accent);
+  border-color: var(--muted);
+}
+.section-repick-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
 .daw-loading {
   display: flex;
