@@ -1,8 +1,8 @@
 import 'leaflet/dist/leaflet.css'
 
 export const metadata = {
-  title: 'Transit DAW',
-  description: 'Sonify live public transport.',
+  title: 'Leið — sonify the city',
+  description: 'Leið turns live public transport into music: each line a part, each arrival a note.',
 }
 
 export default function RootLayout({ children }) {

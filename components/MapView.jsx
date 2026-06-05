@@ -210,9 +210,9 @@ export default function MapView({
                     ))
                   })}
                   {showStops && layerRoutes.map(route =>
-                    route.stops.map(stop => (
+                    route.stops.map((stop, i) => (
                       <CircleMarker
-                        key={stop.id}
+                        key={`${route.id}_${stop.id}_${i}`}
                         center={[stop.lat, stop.lon]}
                         radius={4}
                         color={route.color}

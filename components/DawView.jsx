@@ -1,15 +1,14 @@
 import * as Tone from 'tone'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { SYNTH_DEFAULTS, SYNTH_PARAM_TARGETS, findTargetSpec, SAMPLER_PRESET_LIST, SAMPLER_PRESETS } from '@/lib/engine.js'
-import { AUTOMATION_SOURCES } from '@/lib/automationTrack.js'
+import { SYNTH_DEFAULTS, availableAutomationTargets, findTargetSpec, SAMPLER_PRESET_LIST, SAMPLER_PRESETS, DRUM_VOICES, DRUM_VOICE_LICENSE } from '@/lib/engine.js'
 import { FX_BUSES, AUTOMATION_TARGETS, FX_PARAM_SPECS } from '@/lib/fxTrack.js'
-import { generatePitchMap, shiftOctaveNote, noteToMidi, SCALES, normalizeStopLat, normalizeStopSequence, normalizeLongitude, snapStopsToGrid, GRID_TOTAL_CELLS, GRID_BARS } from '@/lib/mappings.js'
+import { generatePitchMap, shiftOctaveNote, noteToMidi, SCALES, hashStopValue, snapStopsToGrid, GRID_TOTAL_CELLS, GRID_BARS } from '@/lib/mappings.js'
 import './DawView.css'
 
 const SYNTH_TYPES = [
   'Synth', 'FMSynth', 'AMSynth', 'MonoSynth',
   'MembraneSynth', 'MetalSynth', 'NoiseSynth', 'PluckSynth', 'DuoSynth',
-  'Sampler',
+  'Sampler', 'Drums',
 ]
 
 export const NOTE_ROOTS = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
@@ -66,7 +65,7 @@ export default function DawView({
   fxBusWet, activeFxTracks, masterVolume, trackOctaves, trackGlides, trackLegatos, trackSpeeds, trackLoopRegions,
   trackDroneModes, trackDroneRoots, onDroneMode, onDroneRoot,
   onVolume, onMute, onPan, onSolo,
-  onSoundMode, onScale, onSynthType, onADSR, onSamplerPreset, onSamplerUpload, onFilter, onEq,
+  onSoundMode, onScale, onSynthType, onADSR, onSamplerPreset, onDrumVoice, onSamplerUpload, onFilter, onEq,
   onSendLevel, onFxBusWet, fxBusMuted, fxBusSoloed, onFxBusMute, onFxBusSolo,
   fxBusParams, onFxBusParam, onFxBusCustomIR,
   onAddFxTrack, onRemoveFxTrack, onMasterVolume,
@@ -230,6 +229,7 @@ export default function DawView({
                     onSynthType={st => onSynthType(route.id, route.type, st)}
                     onADSR={p => onADSR(route.id, p)}
                     onSamplerPreset={id => onSamplerPreset(route.id, route.type, id)}
+                    onDrumVoice={id => onDrumVoice(route.id, route.type, id)}
                     onSamplerUpload={(file, note) => onSamplerUpload(route.id, file, note)}
                     filter={trackFilters?.[route.id] ?? DEFAULT_FILTER}
                     eq={trackEqs?.[route.id] ?? DEFAULT_EQ}
@@ -255,11 +255,15 @@ export default function DawView({
                   {lanes.map(([laneId, laneCfg]) => (
                     <AutomationLane
                       key={laneId}
+                      laneId={laneId}
                       instRoute={route}
                       laneCfg={laneCfg}
                       allRoutes={routes ?? []}
                       activeFxTracks={activeFxTracks ?? []}
                       synthType={trackSynthTypes?.[route.id] ?? 'Synth'}
+                      started={started}
+                      srcSpeed={trackSpeeds?.[laneCfg.sourceRouteId] ?? 1}
+                      srcLoopRegion={trackLoopRegions?.[laneCfg.sourceRouteId]}
                       onUpdate={cfg => onUpdateAutomationLane(route.id, laneId, cfg)}
                       onRemove={() => onRemoveAutomationLane(route.id, laneId)}
                     />
@@ -314,7 +318,7 @@ function LineTrack({
   laneCount, activeFxTracks, sendMatrix, octaveShift, glide, legato, speed,
   loopRegion, onLoopRegion,
   onVolume, onMute, onPan, onSolo, onSoundMode, onScale, onSynthType, onADSR,
-  onSamplerPreset, onSamplerUpload,
+  onSamplerPreset, onDrumVoice, onSamplerUpload,
   onFilter, onEq,
   onSendLevel, onOctaveShift, onGlide, onLegato, onSpeed, onDroneMode, onDroneRoot, onAddLane,
   onExportRouteMidi,
@@ -434,7 +438,7 @@ function LineTrack({
 
           <div className="rack-card">
             <div className="rack-card-head">{synthType}</div>
-            <EnvPanel synthType={synthType} adsr={adsr} onADSR={onADSR} onSamplerPreset={onSamplerPreset} onSamplerUpload={onSamplerUpload} />
+            <EnvPanel synthType={synthType} adsr={adsr} onADSR={onADSR} onSamplerPreset={onSamplerPreset} onDrumVoice={onDrumVoice} onSamplerUpload={onSamplerUpload} />
           </div>
 
           <div className="rack-card">
@@ -520,31 +524,20 @@ function LineTrack({
 }
 
 // ── Automation lane (sub-row below instrument track) ─────────────────────────
-function AutomationLane({ instRoute, laneCfg, allRoutes, activeFxTracks, synthType = 'Synth', onUpdate, onRemove }) {
+function AutomationLane({ laneId, instRoute, laneCfg, allRoutes, activeFxTracks, synthType = 'Synth', started = false, srcSpeed = 1, srcLoopRegion, onUpdate, onRemove }) {
   const sourceRouteId = laneCfg?.sourceRouteId ?? ''
-  const source        = laneCfg?.source        ?? 'arrival.delay'
-  const paramTarget   = laneCfg?.paramTarget   ?? 'send.reverb'
-  const laneMode      = laneCfg?.mode          ?? 'live'
+  const paramTarget   = laneCfg?.paramTarget   ?? 'volume'
+  const points        = laneCfg?.points        ?? {}
 
   const sourceRoute    = allRoutes.find(r => r.id === sourceRouteId) ?? null
   const pickableRoutes = allRoutes.filter(r => r.id !== instRoute.id)
 
-  // Build grouped target options: sends + track first, then synth params for current type.
+  // Target options, grouped by .group, filtered to what's valid for this synth type.
   const groupedTargets = useMemo(() => {
-    const active = activeFxTracks ?? []
-    const base = AUTOMATION_TARGETS.filter(t =>
-      !t.id.startsWith('send.') || active.includes(t.id.slice(5))
-    )
-    // Common envelope params apply to all except PluckSynth (no standard envelope)
-    const commonParams = (synthType !== 'PluckSynth' && synthType !== 'Sampler') ? SYNTH_PARAM_TARGETS.common : []
-    const typeParams   = SYNTH_PARAM_TARGETS[synthType] ?? []
-    const all = [...base, ...commonParams, ...typeParams]
-    // Group by .group field
     const groups = {}
-    for (const t of all) {
+    for (const t of availableAutomationTargets(synthType, activeFxTracks ?? [])) {
       const g = t.group ?? 'Other'
-      if (!groups[g]) groups[g] = []
-      groups[g].push(t)
+      ;(groups[g] ??= []).push(t)
     }
     return groups
   }, [synthType, activeFxTracks])
@@ -564,13 +557,6 @@ function AutomationLane({ instRoute, laneCfg, allRoutes, activeFxTracks, synthTy
           ))}
         </select>
 
-        <select className="auto-select" value={source}
-          onChange={e => onUpdate({ source: e.target.value })}>
-          {AUTOMATION_SOURCES.map(s => (
-            <option key={s.id} value={s.id}>{s.label}</option>
-          ))}
-        </select>
-
         <select className="auto-select" value={paramTarget}
           onChange={e => onUpdate({ paramTarget: e.target.value })}>
           {Object.entries(groupedTargets).map(([group, targets]) => (
@@ -582,18 +568,18 @@ function AutomationLane({ instRoute, laneCfg, allRoutes, activeFxTracks, synthTy
           ))}
         </select>
 
-        <button className={`auto-mode-btn ${laneMode === 'live' ? 'active' : ''}`}
-          onClick={() => onUpdate({ mode: 'live' })}>Live</button>
-        <button className={`auto-mode-btn ${laneMode === 'static' ? 'active' : ''}`}
-          onClick={() => onUpdate({ mode: 'static' })}>Static</button>
-
         <button className="auto-remove-btn" onClick={onRemove} title="Remove lane">×</button>
       </div>
 
       <AutoCurveRail
-        route={sourceRoute ?? instRoute}
-        source={source}
+        route={sourceRoute}
+        laneId={laneId}
+        points={points}
         spec={findTargetSpec(paramTarget, synthType)}
+        started={started}
+        speed={srcSpeed}
+        loopRegion={srcLoopRegion}
+        onUpdate={onUpdate}
       />
     </div>
   )
@@ -603,12 +589,20 @@ function AutomationLane({ instRoute, laneCfg, allRoutes, activeFxTracks, synthTy
 function AutomationSourceTrack({ srcRoute, instRoute, automationCfg }) {
   if (!srcRoute) return null
 
-  // Collect which params this source drives on the instrument
-  const driven = Object.values(automationCfg?.[instRoute.id] ?? {})
-    .filter(lc => lc?.sourceRouteId === srcRoute.id)
-    .map(lc => lc.paramTarget)
-    .filter(Boolean)
-    .join(', ')
+  // Lanes on this instrument driven by this source line
+  const lanes = Object.entries(automationCfg?.[instRoute.id] ?? {})
+    .filter(([, lc]) => lc?.sourceRouteId === srcRoute.id)
+  const driven = lanes.map(([, lc]) => lc.paramTarget).filter(Boolean).join(', ')
+
+  // Mirror the first lane's authored curve onto the source line's stop-rail so the
+  // DATA rail dots sit at the same Y as the automation points (override or hash default).
+  const mirror = lanes[0]
+  const automationValues = mirror
+    ? Object.fromEntries((srcRoute.stops ?? []).map(s => {
+        const ov = mirror[1].points?.[s.id]
+        return [s.id, (typeof ov === 'number') ? ov : hashStopValue(mirror[0], s.id)]
+      }))
+    : null
 
   return (
     <div className="line-track line-track--auto-source">
@@ -625,70 +619,136 @@ function AutomationSourceTrack({ srcRoute, instRoute, automationCfg }) {
           )}
         </div>
       </div>
-      <StopRail route={srcRoute} progress={0} mode="mock" vehicles={[]} />
+      <StopRail route={srcRoute} progress={0} mode="mock" vehicles={[]} automationValues={automationValues} />
     </div>
   )
 }
 
-function staticValue(stop, idx, total, source) {
-  if (source === 'stop.lat')      return normalizeStopLat(stop.lat)
-  if (source === 'stop.sequence') return normalizeStopSequence(idx, total)
-  if (source === 'longitude')     return normalizeLongitude(stop.lon)
-  return null
+const AUTO_PAD = 0.1   // vertical padding so dots at value 0/1 stay inside the rail
+
+// y% (0..100, top→bottom) for a 0..1 automation value, matching StopRail's padding.
+function autoValueToY(value) {
+  return (AUTO_PAD + (1 - value) * (1 - AUTO_PAD * 2)) * 100
+}
+// Inverse: a clientY fraction (0 top .. 1 bottom) back to a clamped 0..1 value.
+function autoYToValue(frac) {
+  const v = 1 - (frac - AUTO_PAD) / (1 - AUTO_PAD * 2)
+  return Math.max(0, Math.min(1, v))
 }
 
-// Mini rail for automation lane — SVG curve for static sources, "live" hint for live ones
-function AutoCurveRail({ route, source, spec }) {
-  const stops = route.stops ?? []
-  const total = stops.length
+// Draggable per-stop automation curve. X = the chosen line's stops (snapped to the
+// same grid as instrument notes); Y = the authored value (override or hash default).
+function AutoCurveRail({ route, laneId, points, spec, started = false, speed = 1, loopRegion, onUpdate }) {
+  const railRef = useRef(null)
+  const needleRef = useRef(null)
+  const [dragId, setDragId] = useState(null)
 
-  const firstVal = total > 0 ? staticValue(stops[0], 0, total, source) : null
-  const isStatic = firstVal !== null
+  // Playhead — mirrors StopRail, driven by the source line's loop region + speed
+  // so the needle sweeps the automation curve in sync with playback.
+  const startCell = Math.max(0, Math.min(GRID_TOTAL_CELLS - 1, Math.round(loopRegion?.startCell ?? 0)))
+  const endCell   = Math.max(startCell + 1, Math.min(GRID_TOTAL_CELLS, Math.round(loopRegion?.endCell ?? GRID_TOTAL_CELLS)))
+  const regionLen = endCell - startCell
+  const startPct  = (startCell / GRID_TOTAL_CELLS) * 100
+  const endPct    = (endCell   / GRID_TOTAL_CELLS) * 100
 
-  const PAD = 0.1
-  const stopPoints = isStatic
-    ? stops.map((stop, idx) => {
-        const x = total > 1 ? (idx / (total - 1)) * 100 : 50
-        const v = staticValue(stop, idx, total, source) ?? 0.5
-        const y = (PAD + (1 - v) * (1 - PAD * 2)) * 100
-        return { x, y }
-      })
-    : []
+  useEffect(() => {
+    const el = needleRef.current
+    if (!el) return
+    if (!started) { el.style.left = `${startPct}%`; return }
+    let rafId
+    const tick = () => {
+      const bpm = Tone.Transport.bpm.value || 120
+      const loopSec = (16 / bpm) * 60
+      const partLoopSec = (regionLen / GRID_TOTAL_CELLS) * loopSec / (speed || 1)
+      const t = Tone.getTransport().seconds
+      const local = partLoopSec > 0 ? ((t % partLoopSec) + partLoopSec) % partLoopSec / partLoopSec : 0
+      el.style.left = `${startPct + local * (endPct - startPct)}%`
+      rafId = requestAnimationFrame(tick)
+    }
+    rafId = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(rafId)
+  }, [started, speed, startPct, endPct, regionLen])
+
+  const stopPoints = useMemo(() => {
+    if (!route?.stops?.length) return []
+    const gridStops = snapStopsToGrid(route.stops, route.totalDist)
+    return gridStops.map((stop) => {
+      const override = points?.[stop.id]
+      const value = (typeof override === 'number') ? override : hashStopValue(laneId, stop.id)
+      const x = ((stop.cellIdx + 0.5) / GRID_TOTAL_CELLS) * 100
+      return { id: stop.id, name: stop.name, x, y: autoValueToY(value), value }
+    })
+  }, [route, laneId, points])
 
   const polylinePoints = stopPoints.map(p => `${p.x},${p.y}`).join(' ')
+
+  const valueFromEvent = useCallback((clientY) => {
+    const el = railRef.current
+    if (!el) return null
+    const r = el.getBoundingClientRect()
+    if (r.height <= 0) return null
+    return autoYToValue((clientY - r.top) / r.height)
+  }, [])
+
+  const onDotDown = useCallback((e, stopId) => {
+    e.preventDefault()
+    e.stopPropagation()
+    e.currentTarget.setPointerCapture?.(e.pointerId)
+    setDragId(stopId)
+  }, [])
+  const onDotMove = useCallback((e, stopId) => {
+    if (dragId !== stopId) return
+    const v = valueFromEvent(e.clientY)
+    if (v == null) return
+    onUpdate({ points: { ...points, [stopId]: v } })
+  }, [dragId, points, onUpdate, valueFromEvent])
+  const onDotUp = useCallback((e, stopId) => {
+    if (dragId !== stopId) return
+    e.currentTarget.releasePointerCapture?.(e.pointerId)
+    setDragId(null)
+  }, [dragId])
 
   const unit = spec?.unit ?? ''
   const maxLabel = spec ? `${spec.max}${unit}` : ''
   const minLabel = spec ? `${spec.min}${unit}` : ''
 
+  if (!route) {
+    return (
+      <div className="auto-curve-rail">
+        <div className="auto-curve-live-hint">pick a line →</div>
+      </div>
+    )
+  }
+
   return (
-    <div className="auto-curve-rail">
+    <div className="auto-curve-rail" ref={railRef}>
       {spec && (
         <>
           <div className="auto-axis-label auto-axis-label--top">{maxLabel}</div>
           <div className="auto-axis-label auto-axis-label--bot">{minLabel}</div>
         </>
       )}
-      {isStatic ? (
-        <svg className="auto-curve-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
-          <polyline
-            points={polylinePoints}
-            fill="none"
-            stroke={route.color}
-            strokeWidth="1.5"
-            opacity="0.5"
-          />
-          {stopPoints.map((p, i) => (
-            <circle key={i} cx={p.x} cy={p.y} r="2.5"
-              fill={route.color} opacity="0.7" />
-          ))}
-        </svg>
-      ) : (
-        <>
-          <div className="auto-curve-rail-line" style={{ '--line-color': route.color }} />
-          <div className="auto-curve-live-hint">live</div>
-        </>
-      )}
+      <svg className="auto-curve-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+        <polyline points={polylinePoints} fill="none" stroke={route.color} strokeWidth="1.5" opacity="0.45" />
+      </svg>
+      <div
+        ref={needleRef}
+        className={`lane-playhead ${started ? 'active' : ''}`}
+        style={{ '--line-color': route.color }}
+      />
+      {stopPoints.map((p) => (
+        <button
+          key={p.id}
+          type="button"
+          className={`auto-dot ${dragId === p.id ? 'dragging' : ''}`}
+          style={{ left: `${p.x}%`, top: `${p.y}%`, '--line-color': route.color }}
+          title={`${p.name} · ${spec ? `${(spec.min + p.value * (spec.max - spec.min)).toFixed(2)}${unit}` : `${Math.round(p.value * 100)}%`}`}
+          onPointerDown={e => onDotDown(e, p.id)}
+          onPointerMove={e => onDotMove(e, p.id)}
+          onPointerUp={e => onDotUp(e, p.id)}
+          onPointerCancel={e => onDotUp(e, p.id)}
+        />
+      ))}
     </div>
   )
 }
@@ -1010,9 +1070,36 @@ function SpSliderWithCurve({ label, min, max, step, value, onChange, curveValue,
   )
 }
 
-function EnvPanel({ synthType, adsr, onADSR, onSamplerPreset, onSamplerUpload }) {
+function EnvPanel({ synthType, adsr, onADSR, onSamplerPreset, onDrumVoice, onSamplerUpload }) {
   const def = SYNTH_DEFAULTS[synthType] ?? SYNTH_DEFAULTS['Synth']
   const p = { ...def, ...adsr }
+
+  if (synthType === 'Drums') {
+    const voiceId = p.drumVoice ?? 'kick'
+    return (
+    <div className="sp-panel">
+      <SpSection label="DRUMS" />
+      <div className="sp-row sp-row--select">
+        <span className="sp-label">Voice</span>
+        <select className="sp-select" value={voiceId}
+          onChange={e => onDrumVoice?.(e.target.value)}>
+          {DRUM_VOICES.map(v => <option key={v.id} value={v.id}>{v.label}</option>)}
+        </select>
+      </div>
+      <div className="sp-row sp-row--credits" title={DRUM_VOICE_LICENSE.attribution}>
+        <span className="sp-label">©</span>
+        <span className="sp-credits-text">
+          {DRUM_VOICE_LICENSE.license} · {DRUM_VOICE_LICENSE.attribution}
+          {' · '}
+          <a className="sp-credits-link" href={DRUM_VOICE_LICENSE.source} target="_blank" rel="noopener noreferrer">source ↗</a>
+        </span>
+      </div>
+      <SpSection label="ENV" />
+      <SpSlider label="A" min={0} max={0.5} step={0.001} value={p.attack ?? 0.001} onChange={v => onADSR({ attack: v })} />
+      <SpSlider label="R" min={0.02} max={3} step={0.01} value={p.release ?? 0.6} onChange={v => onADSR({ release: v })} />
+    </div>
+    )
+  }
 
   if (synthType === 'Sampler') {
     const presetId = p.samplerPreset ?? 'piano'
@@ -1229,7 +1316,7 @@ const BAR_LABELS = Array.from({ length: GRID_BARS }, (_, i) => ({
 function StopRail({
   route, progress = 0, speed = 1, started = false, mode = 'mock', vehicles = [],
   trackScale = { root: 'C', scaleType: 'major' }, octaveShift = 0,
-  loopRegion, onLoopRegion,
+  loopRegion, onLoopRegion, automationValues = null,
 }) {
   const needleRef = useRef(null)
   const railRef   = useRef(null)
@@ -1328,6 +1415,11 @@ function StopRail({
     const midiRange = Math.max(midiMax - midiMin, 1)
     return gridStops.map((stop) => {
       const x        = ((stop.cellIdx + 0.5) / GRID_TOTAL_CELLS) * 100
+      // Automation-mirror mode: position dots by the lane's authored value, not pitch.
+      if (automationValues) {
+        const v = automationValues[stop.id] ?? 0.5
+        return { ...stop, x, y: autoValueToY(v), noteName: `${Math.round(v * 100)}%` }
+      }
       const noteName = pitchMap[stop.originalIdx] ?? '—'
       const midi     = noteToMidi(noteName)
       const y        = (PAD + (1 - (midi - midiMin) / midiRange) * (1 - PAD * 2)) * 100
@@ -1423,9 +1515,9 @@ function StopRail({
         />
       </svg>
 
-      {stopPoints.map(stop => (
+      {stopPoints.map((stop, i) => (
         <div
-          key={stop.id}
+          key={`${stop.id}_${i}`}
           className={[
             'stop-dot',
             stop.id === activeStopId ? 'active' : '',

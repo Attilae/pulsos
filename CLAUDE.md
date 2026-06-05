@@ -132,7 +132,11 @@ Cross-area imports use the `@/` alias (e.g. `@/lib/engine.js`); same-area import
   `engine.setX(...)` handlers,
 - renders three children sharing that state: `DawView.jsx` (track-lane DAW UI), `MapView.jsx`
   (Leaflet live map), and `AIComposerPanel.jsx`,
-- wires song persistence via `useSongPersistence` (`lib/`) + `SongMenu.jsx`.
+- wires song persistence via `useSongPersistence` (`lib/`) + `SongMenu.jsx`,
+- offers **MIDI export** (per-track and full-mix) via `lib/midiExport.js` — it reconstructs note
+  events either from a route's loop pitch map (`buildLoopMidiEvents`) or from a live
+  `MidiSessionRecorder` that `engine.js` feeds as notes fire, then writes a `.mid` blob with
+  `@tonejs/midi`.
 
 Two playback modes, both driven by `TransitEngine`:
 - **mock** — `engine.startMock()` schedules `Tone.Part`s that fire notes from each route's
@@ -156,6 +160,13 @@ NetworkState (drone hum + hub-convergence chords) → AlertLayer input
 
 - Most settings **persist across start/stop** (stored in plain `_xxx` maps on the instance) and
   are re-applied when a synth/part is (re)built.
+- **Synth types** are listed in `SYNTH_TYPES`. Two are sample-backed `Tone.Sampler`s: `Sampler`
+  (multi-sample melodic, `SAMPLER_PRESETS` + user uploads) and `Drums` (a single one-shot drum
+  voice from `DRUM_VOICES`, fired at a fixed `DRUM_TRIGGER_NOTE` so it never transposes with the
+  route melody). Both keep `attack`/`release` as top-level params — never push `urls` through
+  `.set()` (see `updateEnvelope`). Drum samples are CC0 placeholders in
+  `public/samples/drums/cc-kit/` (`DRUM_BASE_URL`; license in `DRUM_VOICE_LICENSE` +
+  `ATTRIBUTION.md`).
 - Supporting modules: `vehicleVoice.js` (per-vehicle FM voice pool, modulated by speed/occupancy/
   delay), `fxTrack.js` (`FX_BUSES`, `FX_PARAM_SPECS`, `AUTOMATION_TARGETS`, `FxTrack`),
   `automationTrack.js` (`AutomationTrack`, `AUTOMATION_SOURCES`), `networkState.js`
@@ -177,7 +188,11 @@ polyline/grid helpers. `mockData.js` holds mock-mode data and a `latToNote` copy
   `lib/songState.js` (`buildSnapshot`/`applySnapshot` serialize the whole MixerTab state) +
   `lib/useSongPersistence.js` (session-gated autosave hook) + `components/SongMenu.jsx`. Adding
   new per-track state means threading it through `buildSnapshot`/`applySnapshot` too, not just
-  MixerTab.
+  MixerTab (e.g. `drumVoice` lives in `trackADSRs` and is replayed via `handleDrumVoice`).
+- **New session**: `SongMenu` → New autosaves the current song (signed-in only; signed-out users
+  are warned first) then calls `MixerTab.resetSessionState` (`onReset` on the hook). That disposes
+  and rebuilds the `TransitEngine` for a clean audio graph and resets every per-track/FX/global
+  setter to defaults, leaving the loaded route list in place.
 - **Sharing**: an owner can publish a saved song via `SongMenu` → `POST /api/presets/:id/share`
   mints a `share_id`; the link `/?shared=<id>` is publicly readable (`/api/shared/:id`) and the
   hook imports it on load as a detached/unsaved song (Save As to keep a copy).

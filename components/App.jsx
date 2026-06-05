@@ -23,7 +23,12 @@ export default function App() {
   return (
     <div className="app-shell">
       <nav className="tab-bar">
-        <h1 className="app-title">Transit DAW</h1>
+        <h1
+          className="app-title"
+          title={'Leið (say "layth") — Icelandic for route, and for the way. In Reykjavík, every bus line is a leið. Here, so is every song.'}
+        >
+          Leið<span className="app-title-say">layth</span>
+        </h1>
         <div className="tab-bar-tabs">
           {TABS.map(t => (
             <button

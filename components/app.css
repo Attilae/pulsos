@@ -29,12 +29,23 @@ body { background: var(--bg); color: var(--text); font-family: 'Courier New', mo
   padding: 8px 16px;
 }
 .app-title {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
   font-size: 0.95rem;
   letter-spacing: 0.14em;
   color: var(--accent);
   white-space: nowrap;
   margin-right: 12px;
+  cursor: default;
 }
+.app-title-say {
+  font-size: 0.62rem;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  text-transform: lowercase;
+}
+.app-title-say::before { content: "·\00a0"; }
 .tab-bar-tabs { display: flex; gap: 2px; }
 .tab-btn {
   padding: 7px 16px;
