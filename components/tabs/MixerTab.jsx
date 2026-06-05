@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import * as Tone from 'tone'
-import { TransitEngine, SYNTH_DEFAULTS } from '@/lib/engine.js'
+import { TransitEngine, SYNTH_DEFAULTS, availableAutomationTargets } from '@/lib/engine.js'
 import { FX_BUSES } from '@/lib/fxTrack.js'
 import { randomFromScale, shiftOctaveNote, geoToMidi, routeBounds, midiToNote, noteToMidi, SCALES, MODES } from '@/lib/mappings.js'
 import DawView, { NOTE_ROOTS, SCALE_TYPES } from '../DawView.jsx'
@@ -110,17 +110,25 @@ export default function MixerTab() {
       })
   }, [])
 
-  useEffect(() => {
+  // Build a fresh engine + MIDI recorder and stash them on the refs. Used both
+  // for the initial mount and to get a clean audio graph on "New session".
+  const createEngine = useCallback(() => {
     const recorder = new MidiSessionRecorder()
     midiRecorderRef.current = recorder
+    setHasMidiSession(false)
     const engine = new TransitEngine((ev) => {
       setEvents(prev => [ev, ...prev].slice(0, MAX_EVENTS))
     })
     engine.init()
     engine.setMidiRecorder(recorder)
     engineRef.current = engine
-    return () => engine.dispose()
+    return engine
   }, [])
+
+  useEffect(() => {
+    createEngine()
+    return () => engineRef.current?.dispose()
+  }, [createEngine])
 
   const fetchSnapshot = useCallback(async () => {
     setSnapshotLoading(true)
@@ -221,7 +229,27 @@ export default function MixerTab() {
     const defaults = { ...SYNTH_DEFAULTS[synthType] }
     setTrackADSRs(a => ({ ...a, [routeId]: defaults }))
     engineRef.current?.setSynthType(routeId, routeType, synthType, defaults)
-  }, [])
+
+    // Reset any automation lane whose target is no longer valid for the new synth type
+    // (e.g. an FM-only param after switching to Drums). 'volume' is always valid.
+    const validIds = new Set(availableAutomationTargets(synthType, activeFxTracks).map(t => t.id))
+    setAutomationCfg(a => {
+      const lanes = a[routeId]
+      if (!lanes) return a
+      let changed = false
+      const nextLanes = {}
+      for (const [laneId, cfg] of Object.entries(lanes)) {
+        if (cfg?.paramTarget && !validIds.has(cfg.paramTarget)) {
+          nextLanes[laneId] = { ...cfg, paramTarget: 'volume' }
+          engineRef.current?.updateAutomationLane(routeId, laneId, { paramTarget: 'volume' })
+          changed = true
+        } else {
+          nextLanes[laneId] = cfg
+        }
+      }
+      return changed ? { ...a, [routeId]: nextLanes } : a
+    })
+  }, [activeFxTracks])
 
   const handleADSR = useCallback((routeId, params) => {
     setTrackADSRs(a => {
@@ -235,6 +263,14 @@ export default function MixerTab() {
     setTrackADSRs(a => {
       const next = { ...a, [routeId]: { ...a[routeId], samplerPreset: presetId } }
       engineRef.current?.setSynthType(routeId, routeType, 'Sampler', next[routeId])
+      return next
+    })
+  }, [])
+
+  const handleDrumVoice = useCallback((routeId, routeType, voiceId) => {
+    setTrackADSRs(a => {
+      const next = { ...a, [routeId]: { ...a[routeId], drumVoice: voiceId } }
+      engineRef.current?.setSynthType(routeId, routeType, 'Drums', next[routeId])
       return next
     })
   }, [])
@@ -416,7 +452,7 @@ export default function MixerTab() {
 
   const handleAddAutomationLane = useCallback((routeId) => {
     const laneId = `lane_${Date.now()}`
-    const cfg = { sourceRouteId: '', source: 'arrival.delay', paramTarget: 'send.reverb', mode: 'live' }
+    const cfg = { sourceRouteId: '', paramTarget: 'volume', points: {} }
     setAutomationCfg(a => ({
       ...a,
       [routeId]: { ...(a[routeId] ?? {}), [laneId]: cfg },
@@ -480,6 +516,7 @@ export default function MixerTab() {
 
       if (t.synthType)    handleSynthType(t.routeId, route.type, t.synthType)
       if (t.samplerPreset) handleSamplerPreset(t.routeId, route.type, t.samplerPreset)
+      if (t.drumVoice)    handleDrumVoice(t.routeId, route.type, t.drumVoice)
       if (t.volume != null) handleVolume(t.routeId, t.volume)
       if (t.pan != null)    handlePan(t.routeId, t.pan)
       if (t.octave != null) handleOctaveShift(t.routeId, t.octave)
@@ -503,7 +540,7 @@ export default function MixerTab() {
       }
     }
   }, [
-    routes, handleMasterVolume, handleSynthType, handleSamplerPreset,
+    routes, handleMasterVolume, handleSynthType, handleSamplerPreset, handleDrumVoice,
     handleOctaveShift, handleGlide, handleLegato,
     handleDroneMode, handleDroneRoot, handleAddFxTrack, handleFxBusWet,
     handleFxBusParam, handleSendLevel,
@@ -552,29 +589,53 @@ export default function MixerTab() {
   }, [routes, midiExportCtx])
 
   const songState = useMemo(() => ({
-    bpm, mode, view, masterVolume,
+    bpm, mode, view, masterVolume, globalHarmony,
     volumes, muted, pans, soloRoutes,
     trackSoundModes, trackScales, trackSynthTypes, trackADSRs,
     trackFilters, trackEqs,
-    trackOctaves, trackGlides, trackDroneModes, trackDroneRoots, trackSpeeds, trackLoopRegions,
+    trackOctaves, trackGlides, trackLegatos, trackDroneModes, trackDroneRoots, trackSpeeds, trackLoopRegions,
     activeFxTracks, fxBusWet, fxBusMuted, fxBusSoloed, fxBusParams,
     sendMatrix, automationCfg,
   }), [
-    bpm, mode, view, masterVolume,
+    bpm, mode, view, masterVolume, globalHarmony,
     volumes, muted, pans, soloRoutes,
     trackSoundModes, trackScales, trackSynthTypes, trackADSRs,
     trackFilters, trackEqs,
-    trackOctaves, trackGlides, trackDroneModes, trackDroneRoots, trackSpeeds, trackLoopRegions,
+    trackOctaves, trackGlides, trackLegatos, trackDroneModes, trackDroneRoots, trackSpeeds, trackLoopRegions,
     activeFxTracks, fxBusWet, fxBusMuted, fxBusSoloed, fxBusParams,
     sendMatrix, automationCfg,
   ])
 
+  // Wipe the session to a clean, empty state: stop playback, dispose the audio
+  // graph and rebuild it fresh, then reset every per-track/FX setting to default.
+  // The set of routes/tracks itself is left in place.
+  const resetSessionState = useCallback(() => {
+    stoppingRef.current = false
+    try { engineRef.current?.dispose() } catch {}
+    createEngine()
+    try { Tone.getDestination().volume.value = 0 } catch {}
+    setStarted(false)
+    setEvents([])
+
+    setVolumes({}); setMuted({}); setPans({}); setSoloRoutes(new Set())
+    setTrackSoundModes({}); setTrackScales({}); setTrackSynthTypes({}); setTrackADSRs({})
+    setTrackFilters({}); setTrackEqs({})
+    setTrackOctaves({}); setTrackGlides({}); setTrackLegatos({})
+    setTrackDroneModes({}); setTrackDroneRoots({}); setTrackSpeeds({}); setTrackLoopRegions({})
+    setActiveFxTracks([])
+    setFxBusWet(Object.fromEntries(FX_BUSES.map(b => [b.id, b.defaults?.wet ?? 1.0])))
+    setFxBusMuted({}); setFxBusSoloed({}); setFxBusParams({})
+    setSendMatrix({}); setAutomationCfg({})
+    setBpm(120); setMasterVolume(0)
+    setGlobalHarmony({ root: 'C', scaleType: 'major' })
+  }, [createEngine])
+
   const songSetters = useMemo(() => ({
-    setBpm, setMode, setView, setMasterVolume,
+    setBpm, setMode, setView, setMasterVolume, setGlobalHarmony,
     setVolumes, setMuted, setPans, setSoloRoutes,
     setTrackSoundModes, setTrackScales, setTrackSynthTypes, setTrackADSRs,
     setTrackFilters, setTrackEqs,
-    setTrackOctaves, setTrackGlides, setTrackDroneModes, setTrackDroneRoots, setTrackSpeeds, setTrackLoopRegions,
+    setTrackOctaves, setTrackGlides, setTrackLegatos, setTrackDroneModes, setTrackDroneRoots, setTrackSpeeds, setTrackLoopRegions,
     setActiveFxTracks, setFxBusWet, setFxBusMuted, setFxBusSoloed, setFxBusParams,
     setSendMatrix, setAutomationCfg,
   }), [])
@@ -584,6 +645,7 @@ export default function MixerTab() {
     setters: songSetters,
     engineRef,
     routes,
+    onReset: resetSessionState,
   })
 
   return (
@@ -731,6 +793,7 @@ export default function MixerTab() {
         onSynthType={handleSynthType}
         onADSR={handleADSR}
         onSamplerPreset={handleSamplerPreset}
+        onDrumVoice={handleDrumVoice}
         onSamplerUpload={handleSamplerUpload}
         onFilter={handleFilter}
         onEq={handleEq}

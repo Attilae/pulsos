@@ -12,7 +12,7 @@ import './SongMenu.css'
 export default function SongMenu({
   currentSong, dirty, autosaveOn, setAutosaveOn,
   songs, save, saveAs, rename, open, newSong, deleteSong,
-  share, unshare, shareUrl,
+  share, unshare, shareUrl, signedIn,
 }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const [picker,   setPicker]   = useState(false)
@@ -66,11 +66,13 @@ export default function SongMenu({
   }, [handleSave, handleSaveAs])
 
   const handleNew = async () => {
-    if (dirty && currentSong && !(await confirmDialog(
-      'Your edits will remain on screen — they just won\'t be attached to a saved song until you Save As.',
-      { title: 'Discard unsaved changes?', confirmLabel: 'Discard' },
+    // The previous session is auto-saved on New — only warn signed-out users,
+    // whose unsaved work can't be persisted.
+    if (!signedIn && dirty && !(await confirmDialog(
+      'You\'re signed out, so this session won\'t be saved. Start a new empty session anyway?',
+      { title: 'Start new session?', confirmLabel: 'New session' },
     ))) return
-    newSong()
+    await newSong()
     setMenuOpen(false)
   }
 
