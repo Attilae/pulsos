@@ -12,15 +12,19 @@ import express from 'express'
 import http from 'http'
 import { WebSocketServer } from 'ws'
 import { loadGtfs } from './gtfsLoader.js'
-import { BkkFeed } from './bkkFeed.js'
+import { GtfsRtFeed } from './bkkFeed.js'
+import { getCity } from './cities/index.js'
 
-const PORT    = process.env.PORT || 3005
-const API_KEY = process.env.BKK_API_KEY
+const PORT = process.env.PORT || 3005
+const CITY = process.env.CITY || 'budapest'
 // Comma-separated allowlist; '*' (default) allows any origin.
 const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || '*').split(',').map(s => s.trim())
 
-if (!API_KEY) {
-  console.error('[feed] BKK_API_KEY missing from env')
+const cfg     = getCity(CITY)
+const API_KEY = cfg.apiKeyEnv ? process.env[cfg.apiKeyEnv] : null
+
+if (cfg.apiKeyEnv && !API_KEY) {
+  console.error(`[feed] ${cfg.apiKeyEnv} missing from env (required for ${cfg.name})`)
   process.exit(1)
 }
 
@@ -62,16 +66,17 @@ function broadcast(msg) {
 }
 
 async function main() {
+  console.log(`[feed] City: ${cfg.name}`)
   console.log('[feed] Loading GTFS static data…')
-  const gtfs = await loadGtfs()
+  const gtfs = await loadGtfs(cfg)
 
-  feed = new BkkFeed(API_KEY, gtfs)
+  feed = new GtfsRtFeed(cfg, gtfs, API_KEY)
   feed.on('arrival',        (ev)     => broadcast({ type: 'arrival', ...ev }))
   feed.on('vehicle_update', (ev)     => broadcast({ type: 'vehicle_update', ...ev }))
   feed.on('trip_update',    (ev)     => broadcast({ type: 'trip_update', ...ev }))
   feed.on('alert_update',   (alerts) => broadcast({ type: 'alert_update', alerts }))
   feed.start()
-  console.log('[feed] BKK feed polling every 5 s')
+  console.log(`[feed] ${cfg.name} polling every ${(cfg.pollMs ?? 5000) / 1000} s`)
 
   wss.on('connection', (ws, req) => {
     const ip = req.socket.remoteAddress

@@ -40,7 +40,7 @@ const FILTER_TYPES = ['lowpass', 'highpass', 'bandpass', 'notch']
 const FILTER_ROLLOFFS = [-12, -24, -48, -96]
 const NOISE_TYPES = ['white', 'pink', 'brown']
 
-const DEFAULT_FILTER = { type: 'lowpass', frequency: 20000, Q: 1 }
+const DEFAULT_FILTER = { type: 'lowpass', frequency: 20000, Q: 4 }
 const DEFAULT_EQ     = { low: 0, mid: 0, high: 0, lowFrequency: 400, highFrequency: 2500 }
 
 // Find the stop nearest to a vehicle lat/lng, return its rail position (0–100)
@@ -78,6 +78,18 @@ export default function DawView({
   const lastProgressRef       = useRef(0)
   const lastProgressUpdateRef = useRef(0)
   const [playheadProgress, setPlayheadProgress] = useState(0)
+
+  // Live automation values reported by each lane's curve rail, keyed routeId → laneId →
+  // { paramTarget, value }. Used purely to mirror automation onto the instrument controls;
+  // transient (not persisted). Updates only when a playhead crosses a stop.
+  const [liveAuto, setLiveAuto] = useState({})
+  const handleLiveAuto = useCallback((routeId, laneId, paramTarget, value) => {
+    setLiveAuto(prev => {
+      const prevLane = prev[routeId]?.[laneId]
+      if (prevLane && prevLane.paramTarget === paramTarget && prevLane.value === value) return prev
+      return { ...prev, [routeId]: { ...prev[routeId], [laneId]: { paramTarget, value } } }
+    })
+  }, [])
 
   const vehiclesByRoute = useMemo(() => {
     if (!liveSnapshot?.vehicles) return {}
@@ -202,6 +214,18 @@ export default function DawView({
               const attachedSrcIds = [...new Set(
                 lanes.map(([, lc]) => lc?.sourceRouteId).filter(Boolean)
               )]
+              // Which params are owned by an armed automation lane, + their live value.
+              // Drives the disable + visual-sweep of the matching instrument controls.
+              const synthTypeFor = trackSynthTypes?.[route.id] ?? 'Synth'
+              const autoTargets = {}
+              for (const [laneId, cfg] of lanes) {
+                if (!cfg?.sourceRouteId) continue
+                const live = liveAuto[route.id]?.[laneId]
+                autoTargets[cfg.paramTarget] = {
+                  spec: findTargetSpec(cfg.paramTarget, synthTypeFor),
+                  value: live?.paramTarget === cfg.paramTarget ? live.value : null,
+                }
+              }
               return (
                 <div key={route.id} className={`track-group ${lanes.length > 0 ? 'track-group--has-lanes' : ''}`}>
                   <LineTrack
@@ -221,6 +245,7 @@ export default function DawView({
                     droneMode={trackDroneModes?.[route.id] ?? false}
                     droneRoot={trackDroneRoots?.[route.id] ?? 'C3'}
                     laneCount={lanes.length}
+                    autoTargets={autoTargets}
                     activeFxTracks={activeFxTracks ?? []}
                     sendMatrix={sendMatrix}
                     onSendLevel={(busId, lvl) => onSendLevel(route.id, busId, lvl)}
@@ -272,10 +297,10 @@ export default function DawView({
                       activeFxTracks={activeFxTracks ?? []}
                       synthType={trackSynthTypes?.[route.id] ?? 'Synth'}
                       started={started}
-                      srcSpeed={trackSpeeds?.[laneCfg.sourceRouteId] ?? 1}
                       srcLoopRegion={trackLoopRegions?.[laneCfg.sourceRouteId]}
                       onUpdate={cfg => onUpdateAutomationLane(route.id, laneId, cfg)}
                       onRemove={() => onRemoveAutomationLane(route.id, laneId)}
+                      onLiveValue={handleLiveAuto}
                     />
                   ))}
                 </div>
@@ -325,7 +350,7 @@ function LineTrack({
   vehicles, soundMode, trackScale, synthType, adsr,
   filter, eq,
   droneMode, droneRoot,
-  laneCount, activeFxTracks, sendMatrix, octaveShift, glide, legato, speed,
+  laneCount, autoTargets = {}, activeFxTracks, sendMatrix, octaveShift, glide, legato, speed,
   loopRegion, onLoopRegion,
   onVolume, onMute, onPan, onSolo, onSoundMode, onScale, onSynthType, onADSR,
   onSamplerPreset, onDrumVoice, onSamplerUpload,
@@ -334,6 +359,15 @@ function LineTrack({
   onExportRouteMidi,
 }) {
   const [rackOpen, setRackOpen] = useState(false)
+
+  // Automation locks: when a lane targets one of these, the control greys out and (during
+  // playback) reads the swept value. Pan/glide convert from the spec unit to the slider unit.
+  const aVol = autoCtl(autoTargets, 'volume')
+  const aPan = autoCtl(autoTargets, 'pan',   { divide: 100 })
+  const aGli = autoCtl(autoTargets, 'glide', { divide: 1000 })
+  const volDisp = aVol.display != null ? Math.round(aVol.display) : volume
+  const panDisp = aPan.display != null ? aPan.display : pan
+  const gliDisp = aGli.display != null ? aGli.display : (glide ?? 0)
 
   return (
     <div className={`line-track ${muted ? 'line-track--muted' : ''} ${rackOpen ? 'line-track--open' : ''}`}>
@@ -358,15 +392,17 @@ function LineTrack({
           <button className={`mute-btn ${muted ? 'active' : ''}`} onClick={onMute} title={muted ? 'Unmute' : 'Mute'}>M</button>
           <button className={`solo-btn ${isSoloed ? 'active' : ''}`} onClick={onSolo} title="Solo">S</button>
           <input type="range" min="-40" max="6" step="1"
-            value={volume} onChange={e => onVolume(Number(e.target.value))} className="volume-slider" />
-          <span className="volume-val">{volume}dB</span>
+            value={volDisp} onChange={e => onVolume(Number(e.target.value))}
+            disabled={aVol.disabled} className="volume-slider" />
+          <span className="volume-val">{volDisp}dB</span>
           <span className="lt-mix-sep" />
           <span className="pan-label">PAN</span>
           <input type="range" min="-1" max="1" step="0.01"
-            value={pan} onChange={e => onPan(parseFloat(e.target.value))}
-            onDoubleClick={() => onPan(0)} className="pan-slider" />
+            value={panDisp} onChange={e => onPan(parseFloat(e.target.value))}
+            onDoubleClick={() => !aPan.disabled && onPan(0)}
+            disabled={aPan.disabled} className="pan-slider" />
           <span className="pan-val">
-            {pan === 0 ? 'C' : pan < 0 ? `L${Math.round(-pan * 100)}` : `R${Math.round(pan * 100)}`}
+            {panDisp === 0 ? 'C' : panDisp < 0 ? `L${Math.round(-panDisp * 100)}` : `R${Math.round(panDisp * 100)}`}
           </span>
           <span className="lt-mix-sep" />
           <button
@@ -448,12 +484,12 @@ function LineTrack({
 
           <div className="rack-card">
             <div className="rack-card-head">{synthType}</div>
-            <EnvPanel synthType={synthType} adsr={adsr} onADSR={onADSR} onSamplerPreset={onSamplerPreset} onDrumVoice={onDrumVoice} onSamplerUpload={onSamplerUpload} />
+            <EnvPanel synthType={synthType} adsr={adsr} onADSR={onADSR} onSamplerPreset={onSamplerPreset} onDrumVoice={onDrumVoice} onSamplerUpload={onSamplerUpload} autoTargets={autoTargets} />
           </div>
 
           <div className="rack-card">
             <div className="rack-card-head">Filter</div>
-            <FilterPanel filter={filter} onFilter={onFilter} />
+            <FilterPanel filter={filter} onFilter={onFilter} autoTargets={autoTargets} />
           </div>
 
           <div className="rack-card">
@@ -473,12 +509,13 @@ function LineTrack({
               <span className="glide-label">GLIDE</span>
               <input
                 type="range" min="0" max="1" step="0.01"
-                value={glide ?? 0}
+                value={gliDisp}
                 onChange={e => onGlide(parseFloat(e.target.value))}
-                onDoubleClick={() => onGlide(0)}
+                onDoubleClick={() => !aGli.disabled && onGlide(0)}
+                disabled={aGli.disabled}
                 className="glide-slider"
               />
-              <span className="glide-val">{Math.round((glide ?? 0) * 1000)}ms</span>
+              <span className="glide-val">{Math.round(gliDisp * 1000)}ms</span>
               <button
                 className={`legato-btn ${legato ? 'active' : ''}`}
                 onClick={() => onLegato(!legato)}
@@ -510,7 +547,8 @@ function LineTrack({
               <div className="line-sends">
                 {activeFxTracks.map(busId => {
                   const bus   = FX_BUSES.find(b => b.id === busId)
-                  const level = sendMatrix?.[`${route.id}:${busId}`] ?? 0
+                  const aSend = autoCtl(autoTargets, `send.${busId}`)
+                  const level = aSend.display != null ? aSend.display : (sendMatrix?.[`${route.id}:${busId}`] ?? 0)
                   return (
                     <div key={busId} className="line-send-row">
                       <span className="line-send-label">→ {bus?.label ?? busId}</span>
@@ -518,6 +556,7 @@ function LineTrack({
                         type="range" min="0" max="1" step="0.01"
                         value={level}
                         onChange={e => onSendLevel(busId, parseFloat(e.target.value))}
+                        disabled={aSend.disabled}
                         className="line-send-slider"
                       />
                       <span className="line-send-val">{Math.round(level * 100)}%</span>
@@ -534,10 +573,25 @@ function LineTrack({
 }
 
 // ── Automation lane (sub-row below instrument track) ─────────────────────────
-function AutomationLane({ laneId, instRoute, laneCfg, allRoutes, activeFxTracks, synthType = 'Synth', started = false, srcSpeed = 1, srcLoopRegion, onUpdate, onRemove }) {
+function AutomationLane({ laneId, instRoute, laneCfg, allRoutes, activeFxTracks, synthType = 'Synth', started = false, srcLoopRegion, onUpdate, onRemove, onLiveValue }) {
   const sourceRouteId = laneCfg?.sourceRouteId ?? ''
   const paramTarget   = laneCfg?.paramTarget   ?? 'volume'
   const points        = laneCfg?.points        ?? {}
+  const speed         = laneCfg?.speed         ?? 1
+  const glide         = laneCfg?.glide         ?? 0
+
+  // Report the value currently in effect (or null) up to DawView, which mirrors it onto
+  // the matching instrument-lane control. Clear on unmount / target change so a stale lane
+  // frees its lock. `onLiveValue` is DawView's stable handler keyed by (routeId, laneId).
+  const routeId = instRoute.id
+  const handleActiveValue = useCallback(
+    v => onLiveValue?.(routeId, laneId, paramTarget, v),
+    [onLiveValue, routeId, laneId, paramTarget],
+  )
+  useEffect(
+    () => () => onLiveValue?.(routeId, laneId, paramTarget, null),
+    [onLiveValue, routeId, laneId, paramTarget],
+  )
 
   const sourceRoute    = allRoutes.find(r => r.id === sourceRouteId) ?? null
   const pickableRoutes = allRoutes.filter(r => r.id !== instRoute.id)
@@ -579,6 +633,36 @@ function AutomationLane({ laneId, instRoute, laneCfg, allRoutes, activeFxTracks,
         </select>
 
         <button className="auto-remove-btn" onClick={onRemove} title="Remove lane">×</button>
+
+        <div className="speed-row auto-speed-row">
+          <span className="speed-label">SPEED</span>
+          <div className="speed-btns">
+            {SPEED_OPTIONS.map(opt => (
+              <button
+                key={opt.value}
+                className={`speed-btn ${speed === opt.value ? 'active' : ''}`}
+                style={speed === opt.value ? { borderColor: instRoute.color, color: instRoute.color } : {}}
+                onClick={() => onUpdate({ speed: opt.value })}
+                title={opt.title}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="glide-row auto-glide-row">
+          <span className="glide-label">GLIDE</span>
+          <input
+            type="range" min="0" max="1" step="0.01"
+            value={glide}
+            onChange={e => onUpdate({ glide: parseFloat(e.target.value) })}
+            onDoubleClick={() => onUpdate({ glide: 0 })}
+            className="glide-slider"
+            style={{ accentColor: instRoute.color }}
+          />
+          <span className="glide-val" style={{ color: instRoute.color }}>{Math.round(glide * 1000)}ms</span>
+        </div>
       </div>
 
       <AutoCurveRail
@@ -587,9 +671,10 @@ function AutomationLane({ laneId, instRoute, laneCfg, allRoutes, activeFxTracks,
         points={points}
         spec={findTargetSpec(paramTarget, synthType)}
         started={started}
-        speed={srcSpeed}
+        speed={speed}
         loopRegion={srcLoopRegion}
         onUpdate={onUpdate}
+        onActiveValue={handleActiveValue}
       />
     </div>
   )
@@ -646,11 +731,32 @@ function autoYToValue(frac) {
   return Math.max(0, Math.min(1, v))
 }
 
+// Resolve a control's automation state from a route's `autoTargets` map.
+// `ids` may be a single target id or a list (a control owned by either of several ids,
+// e.g. the amp-env "A" slider is locked by both `synth.attack` and `adsr.attack`).
+// Returns { disabled, display }: disabled iff any id is targeted by an armed lane (so the
+// control greys whenever automation owns it, playing or not); display is the denormalized
+// live value (in the control's own unit, via `divide`) only while a value is flowing.
+function autoCtl(autoTargets, ids, { divide = 1 } = {}) {
+  for (const id of [].concat(ids)) {
+    const a = autoTargets?.[id]
+    if (!a) continue
+    const { spec, value } = a
+    const display = (value == null || !spec) ? null
+      : ((spec.curve === 'exp'
+          ? denormalizeExp(value, spec.min, spec.max)
+          : denormalizeToRange(value, spec.min, spec.max)) / divide)
+    return { disabled: true, display }
+  }
+  return { disabled: false, display: null }
+}
+
 // Draggable per-stop automation curve. X = the chosen line's stops (snapped to the
 // same grid as instrument notes); Y = the authored value (override or hash default).
-function AutoCurveRail({ route, laneId, points, spec, started = false, speed = 1, loopRegion, onUpdate }) {
+function AutoCurveRail({ route, laneId, points, spec, started = false, speed = 1, loopRegion, onUpdate, onActiveValue }) {
   const railRef = useRef(null)
   const needleRef = useRef(null)
+  const stopPointsRef = useRef([])
   const [dragId, setDragId] = useState(null)
 
   // Playhead — mirrors StopRail, driven by the source line's loop region + speed
@@ -664,20 +770,36 @@ function AutoCurveRail({ route, laneId, points, spec, started = false, speed = 1
   useEffect(() => {
     const el = needleRef.current
     if (!el) return
-    if (!started) { el.style.left = `${startPct}%`; return }
+    const dots = () => (railRef.current ? [...railRef.current.querySelectorAll('.auto-dot')] : [])
+    const clearActive = () => dots().forEach(d => d.classList.remove('active'))
+    if (!started) { el.style.left = `${startPct}%`; clearActive(); onActiveValue?.(null); return }
     let rafId
+    let lastActive = -1
     const tick = () => {
       const bpm = Tone.Transport.bpm.value || 120
       const loopSec = (16 / bpm) * 60
       const partLoopSec = (regionLen / GRID_TOTAL_CELLS) * loopSec / (speed || 1)
       const t = Tone.getTransport().seconds
       const local = partLoopSec > 0 ? ((t % partLoopSec) + partLoopSec) % partLoopSec / partLoopSec : 0
-      el.style.left = `${startPct + local * (endPct - startPct)}%`
+      const playLeft = startPct + local * (endPct - startPct)
+      el.style.left = `${playLeft}%`
+      // Highlight the point currently in effect: the last dot the needle has passed.
+      const ds = dots()
+      let active = -1
+      for (let i = 0; i < ds.length; i++) {
+        if (parseFloat(ds[i].dataset.x) <= playLeft) active = i
+      }
+      if (active !== lastActive) {
+        ds.forEach((d, i) => d.classList.toggle('active', i === active))
+        lastActive = active
+        // Surface the value now in effect so the parent can drive the instrument control.
+        onActiveValue?.(active >= 0 ? (stopPointsRef.current[active]?.value ?? null) : null)
+      }
       rafId = requestAnimationFrame(tick)
     }
     rafId = requestAnimationFrame(tick)
-    return () => cancelAnimationFrame(rafId)
-  }, [started, speed, startPct, endPct, regionLen])
+    return () => { cancelAnimationFrame(rafId); clearActive(); onActiveValue?.(null) }
+  }, [started, speed, startPct, endPct, regionLen, onActiveValue])
 
   const stopPoints = useMemo(() => {
     if (!route?.stops?.length) return []
@@ -689,6 +811,7 @@ function AutoCurveRail({ route, laneId, points, spec, started = false, speed = 1
       return { id: stop.id, name: stop.name, x, y: autoValueToY(value), value }
     })
   }, [route, laneId, points])
+  stopPointsRef.current = stopPoints
 
   const polylinePoints = stopPoints.map(p => `${p.x},${p.y}`).join(' ')
 
@@ -743,13 +866,14 @@ function AutoCurveRail({ route, laneId, points, spec, started = false, speed = 1
       </svg>
       <div
         ref={needleRef}
-        className={`lane-playhead ${started ? 'active' : ''}`}
+        className={`lane-playhead auto-playhead ${started ? 'active' : ''}`}
         style={{ '--line-color': route.color }}
       />
       {stopPoints.map((p) => (
         <button
           key={p.id}
           type="button"
+          data-x={p.x}
           className={`auto-dot ${dragId === p.id ? 'dragging' : ''}`}
           style={{ left: `${p.x}%`, top: `${p.y}%`, '--line-color': route.color }}
           title={`${p.name} · ${spec ? `${(spec.curve === 'exp' ? denormalizeExp(p.value, spec.min, spec.max) : denormalizeToRange(p.value, spec.min, spec.max)).toFixed(2)}${unit}` : `${Math.round(p.value * 100)}%`}`}
@@ -1032,15 +1156,15 @@ function SpSection({ label }) {
   return <div className="sp-section">{label}</div>
 }
 
-function SpSlider({ label, min, max, step, value, onChange, unit }) {
+function SpSlider({ label, min, max, step, value, onChange, unit, disabled = false }) {
   const decimals = step < 0.01 ? 3 : step < 1 ? 2 : 0
   const pct = ((value - min) / (max - min)) * 100
   return (
-    <div className="sp-row">
+    <div className={`sp-row ${disabled ? 'sp-row--auto' : ''}`}>
       <span className="sp-label">{label}</span>
       <div className="sp-track">
         <div className="sp-fill" style={{ width: `${Math.max(0, Math.min(100, pct))}%` }} />
-        <input type="range" min={min} max={max} step={step} value={value}
+        <input type="range" min={min} max={max} step={step} value={value} disabled={disabled}
           className="sp-slider" onChange={e => onChange(Number(e.target.value))} />
       </div>
       <span className="sp-val">{Number(value).toFixed(decimals)}{unit ?? ''}</span>
@@ -1068,15 +1192,15 @@ function SpCurve({ value, options, onChange }) {
   )
 }
 
-function SpSliderWithCurve({ label, min, max, step, value, onChange, curveValue, curveOptions, onCurve }) {
+function SpSliderWithCurve({ label, min, max, step, value, onChange, curveValue, curveOptions, onCurve, disabled = false }) {
   const decimals = step < 0.01 ? 3 : step < 1 ? 2 : 0
   const pct = ((value - min) / (max - min)) * 100
   return (
-    <div className="sp-row sp-row--curvy">
+    <div className={`sp-row sp-row--curvy ${disabled ? 'sp-row--auto' : ''}`}>
       <span className="sp-label">{label}</span>
       <div className="sp-track">
         <div className="sp-fill" style={{ width: `${Math.max(0, Math.min(100, pct))}%` }} />
-        <input type="range" min={min} max={max} step={step} value={value}
+        <input type="range" min={min} max={max} step={step} value={value} disabled={disabled}
           className="sp-slider" onChange={e => onChange(Number(e.target.value))} />
       </div>
       <span className="sp-val">{Number(value).toFixed(decimals)}</span>
@@ -1085,9 +1209,20 @@ function SpSliderWithCurve({ label, min, max, step, value, onChange, curveValue,
   )
 }
 
-function EnvPanel({ synthType, adsr, onADSR, onSamplerPreset, onDrumVoice, onSamplerUpload }) {
+const AMP_ENV_KEYS = new Set(['attack', 'decay', 'sustain', 'release'])
+
+function EnvPanel({ synthType, adsr, onADSR, onSamplerPreset, onDrumVoice, onSamplerUpload, autoTargets = {} }) {
   const def = SYNTH_DEFAULTS[synthType] ?? SYNTH_DEFAULTS['Synth']
   const p = { ...def, ...adsr }
+
+  // An EnvPanel slider's onADSR({ key }) maps to automation id `synth.<key>`; the amp-env
+  // A/D/S/R are also driven by `adsr.<key>`. Returns { disabled, value } to spread onto the
+  // slider — value falls back to the stored param when no live automation value is flowing.
+  const a = (key, stored) => {
+    const ids = AMP_ENV_KEYS.has(key) ? [`synth.${key}`, `adsr.${key}`] : [`synth.${key}`]
+    const r = autoCtl(autoTargets, ids)
+    return { disabled: r.disabled, value: r.display ?? stored }
+  }
 
   if (synthType === 'Drums') {
     const voiceId = p.drumVoice ?? 'kick'
@@ -1153,16 +1288,16 @@ function EnvPanel({ synthType, adsr, onADSR, onSamplerPreset, onDrumVoice, onSam
     <>
       {hasViz && <AdsrVisualizer attack={p.attack} decay={p.decay} sustain={p.sustain} release={p.release} />}
       <SpSliderWithCurve
-        label="A" min={0.001} max={2} step={0.001} value={p.attack ?? 0.005} onChange={v => onADSR({ attack: v })}
+        label="A" min={0.001} max={2} step={0.001} {...a('attack', p.attack ?? 0.005)} onChange={v => onADSR({ attack: v })}
         curveValue={p.attackCurve ?? 'exponential'} curveOptions={ALL_ENV_CURVES} onCurve={v => onADSR({ attackCurve: v })}
       />
       <SpSliderWithCurve
-        label="D" min={0.001} max={2} step={0.001} value={p.decay ?? 0.1} onChange={v => onADSR({ decay: v })}
+        label="D" min={0.001} max={2} step={0.001} {...a('decay', p.decay ?? 0.1)} onChange={v => onADSR({ decay: v })}
         curveValue={p.decayCurve ?? 'exponential'} curveOptions={DECAY_ENV_CURVES} onCurve={v => onADSR({ decayCurve: v })}
       />
-      <SpSlider label="S" min={0} max={1} step={0.01} value={p.sustain ?? 0.5} onChange={v => onADSR({ sustain: v })} />
+      <SpSlider label="S" min={0} max={1} step={0.01} {...a('sustain', p.sustain ?? 0.5)} onChange={v => onADSR({ sustain: v })} />
       <SpSliderWithCurve
-        label="R" min={0.01} max={4} step={0.01} value={p.release ?? 1.0} onChange={v => onADSR({ release: v })}
+        label="R" min={0.01} max={4} step={0.01} {...a('release', p.release ?? 1.0)} onChange={v => onADSR({ release: v })}
         curveValue={p.releaseCurve ?? 'exponential'} curveOptions={ALL_ENV_CURVES} onCurve={v => onADSR({ releaseCurve: v })}
       />
     </>
@@ -1170,9 +1305,9 @@ function EnvPanel({ synthType, adsr, onADSR, onSamplerPreset, onDrumVoice, onSam
 
   if (synthType === 'PluckSynth') return (
     <div className="sp-panel">
-      <SpSlider label="Noise" min={0} max={1}    step={0.01} value={p.attackNoise ?? 1}    onChange={v => onADSR({ attackNoise: v })} />
-      <SpSlider label="Damp"  min={200} max={8000} step={10} value={p.dampening ?? 4000}   onChange={v => onADSR({ dampening: v })} unit="Hz" />
-      <SpSlider label="Res"   min={0} max={0.98} step={0.01} value={p.resonance ?? 0.7}    onChange={v => onADSR({ resonance: v })} />
+      <SpSlider label="Noise" min={0} max={1}    step={0.01} {...a('attackNoise', p.attackNoise ?? 1)}  onChange={v => onADSR({ attackNoise: v })} />
+      <SpSlider label="Damp"  min={200} max={8000} step={10} {...a('dampening', p.dampening ?? 4000)}   onChange={v => onADSR({ dampening: v })} unit="Hz" />
+      <SpSlider label="Res"   min={0} max={0.98} step={0.01} {...a('resonance', p.resonance ?? 0.7)}    onChange={v => onADSR({ resonance: v })} />
     </div>
   )
 
@@ -1188,8 +1323,8 @@ function EnvPanel({ synthType, adsr, onADSR, onSamplerPreset, onDrumVoice, onSam
   if (synthType === 'MembraneSynth') return (
     <div className="sp-panel">
       <SpSection label="DRUM" />
-      <SpSlider label="Decay"  min={0.001} max={0.5} step={0.001} value={p.pitchDecay ?? 0.05}  onChange={v => onADSR({ pitchDecay: v })} />
-      <SpSlider label="Octav"  min={1}     max={20}  step={0.5}   value={p.membOctaves ?? 10}   onChange={v => onADSR({ membOctaves: v })} />
+      <SpSlider label="Decay"  min={0.001} max={0.5} step={0.001} {...a('pitchDecay', p.pitchDecay ?? 0.05)}  onChange={v => onADSR({ pitchDecay: v })} />
+      <SpSlider label="Octav"  min={1}     max={20}  step={0.5}   {...a('membOctaves', p.membOctaves ?? 10)}  onChange={v => onADSR({ membOctaves: v })} />
       <SpSection label="ENV" />
       {envBlock()}
     </div>
@@ -1198,10 +1333,10 @@ function EnvPanel({ synthType, adsr, onADSR, onSamplerPreset, onDrumVoice, onSam
   if (synthType === 'MetalSynth') return (
     <div className="sp-panel">
       <SpSection label="METAL" />
-      <SpSlider label="Harm"   min={0.1}  max={20}    step={0.1}  value={p.metalHarmonicity ?? 5.1} onChange={v => onADSR({ metalHarmonicity: v })} />
-      <SpSlider label="ModIdx" min={1}    max={100}   step={1}    value={p.metalModIndex ?? 32}     onChange={v => onADSR({ metalModIndex: v })} />
-      <SpSlider label="Octav"  min={0.1}  max={5}     step={0.1}  value={p.metalOctaves ?? 1.5}     onChange={v => onADSR({ metalOctaves: v })} />
-      <SpSlider label="Res"    min={100}  max={10000} step={10}   value={p.resonance ?? 4000}        onChange={v => onADSR({ resonance: v })} unit="Hz" />
+      <SpSlider label="Harm"   min={0.1}  max={20}    step={0.1}  {...a('metalHarmonicity', p.metalHarmonicity ?? 5.1)} onChange={v => onADSR({ metalHarmonicity: v })} />
+      <SpSlider label="ModIdx" min={1}    max={100}   step={1}    {...a('metalModIndex', p.metalModIndex ?? 32)}        onChange={v => onADSR({ metalModIndex: v })} />
+      <SpSlider label="Octav"  min={0.1}  max={5}     step={0.1}  {...a('metalOctaves', p.metalOctaves ?? 1.5)}         onChange={v => onADSR({ metalOctaves: v })} />
+      <SpSlider label="Res"    min={100}  max={10000} step={10}   {...a('resonance', p.resonance ?? 4000)}              onChange={v => onADSR({ resonance: v })} unit="Hz" />
       <SpSection label="ENV" />
       {envBlock()}
     </div>
@@ -1212,21 +1347,21 @@ function EnvPanel({ synthType, adsr, onADSR, onSamplerPreset, onDrumVoice, onSam
       <SpSection label="OSC" />
       <SpSelect label="Type"  value={p.oscillatorType ?? 'sawtooth'} options={OSC_TYPES}   onChange={v => onADSR({ oscillatorType: v })} />
       <SpSlider label="Phase" min={0} max={360} step={1}              value={p.phase ?? 0}  onChange={v => onADSR({ phase: v })} unit="°" />
-      <SpSlider label="Dtn"   min={-200} max={200} step={1}           value={p.detune ?? 0} onChange={v => onADSR({ detune: v })} unit="¢" />
+      <SpSlider label="Dtn"   min={-200} max={200} step={1}           {...a('detune', p.detune ?? 0)} onChange={v => onADSR({ detune: v })} unit="¢" />
       <SpSection label="ENV" />
       {envBlock()}
       <SpSection label="FILTER" />
       <SpSelect label="Type"   value={p.filterType ?? 'lowpass'}        options={FILTER_TYPES}               onChange={v => onADSR({ filterType: v })} />
-      <SpSlider label="Freq"   min={20}  max={20000} step={10}          value={p.filterFrequency ?? 800}     onChange={v => onADSR({ filterFrequency: v })} unit="Hz" />
+      <SpSlider label="Freq"   min={20}  max={20000} step={10}          {...a('filterFrequency', p.filterFrequency ?? 800)} onChange={v => onADSR({ filterFrequency: v })} unit="Hz" />
       <SpSelect label="Roll"   value={String(p.filterRolloff ?? -12)}   options={FILTER_ROLLOFFS.map(String)} onChange={v => onADSR({ filterRolloff: Number(v) })} />
-      <SpSlider label="Q"      min={0.1} max={20}   step={0.1}          value={p.filterQ ?? 1}               onChange={v => onADSR({ filterQ: v })} />
+      <SpSlider label="Q"      min={0.1} max={20}   step={0.1}          {...a('filterQ', p.filterQ ?? 1)}                   onChange={v => onADSR({ filterQ: v })} />
       <SpSection label="FILTER ENV" />
-      <SpSlider label="A"      min={0.001} max={2}  step={0.001}        value={p.filterEnvAttack ?? 0.001}   onChange={v => onADSR({ filterEnvAttack: v })} />
-      <SpSlider label="D"      min={0.001} max={2}  step={0.001}        value={p.filterEnvDecay ?? 0.3}      onChange={v => onADSR({ filterEnvDecay: v })} />
-      <SpSlider label="S"      min={0} max={1}      step={0.01}         value={p.filterEnvSustain ?? 0.3}    onChange={v => onADSR({ filterEnvSustain: v })} />
-      <SpSlider label="R"      min={0.01} max={4}   step={0.01}         value={p.filterEnvRelease ?? 0.8}    onChange={v => onADSR({ filterEnvRelease: v })} />
+      <SpSlider label="A"      min={0.001} max={2}  step={0.001}        {...a('filterEnvAttack', p.filterEnvAttack ?? 0.001)}  onChange={v => onADSR({ filterEnvAttack: v })} />
+      <SpSlider label="D"      min={0.001} max={2}  step={0.001}        {...a('filterEnvDecay', p.filterEnvDecay ?? 0.3)}      onChange={v => onADSR({ filterEnvDecay: v })} />
+      <SpSlider label="S"      min={0} max={1}      step={0.01}         {...a('filterEnvSustain', p.filterEnvSustain ?? 0.3)}  onChange={v => onADSR({ filterEnvSustain: v })} />
+      <SpSlider label="R"      min={0.01} max={4}   step={0.01}         {...a('filterEnvRelease', p.filterEnvRelease ?? 0.8)}  onChange={v => onADSR({ filterEnvRelease: v })} />
       <SpSlider label="Base"   min={20}  max={20000} step={10}          value={p.filterEnvBaseFreq ?? 200}   onChange={v => onADSR({ filterEnvBaseFreq: v })} unit="Hz" />
-      <SpSlider label="Oct"    min={0}   max={8}    step={0.5}          value={p.filterEnvOctaves ?? 3}      onChange={v => onADSR({ filterEnvOctaves: v })} />
+      <SpSlider label="Oct"    min={0}   max={8}    step={0.5}          {...a('filterEnvOctaves', p.filterEnvOctaves ?? 3)}    onChange={v => onADSR({ filterEnvOctaves: v })} />
       <SpSlider label="Exp"    min={0.1} max={8}    step={0.1}          value={p.filterEnvExponent ?? 2}     onChange={v => onADSR({ filterEnvExponent: v })} />
     </div>
   )
@@ -1236,16 +1371,16 @@ function EnvPanel({ synthType, adsr, onADSR, onSamplerPreset, onDrumVoice, onSam
       <SpSection label="CARRIER OSC" />
       <SpSelect label="Type"   value={p.oscillatorType ?? 'sine'}     options={OSC_TYPES} onChange={v => onADSR({ oscillatorType: v })} />
       <SpSlider label="Phase"  min={0} max={360} step={1}              value={p.phase ?? 0}              onChange={v => onADSR({ phase: v })} unit="°" />
-      <SpSlider label="Dtn"    min={-200} max={200} step={1}           value={p.detune ?? 0}             onChange={v => onADSR({ detune: v })} unit="¢" />
+      <SpSlider label="Dtn"    min={-200} max={200} step={1}           {...a('detune', p.detune ?? 0)}             onChange={v => onADSR({ detune: v })} unit="¢" />
       <SpSection label="MODULATOR" />
       <SpSelect label="Type"   value={p.modulationOscType ?? 'sine'}  options={OSC_TYPES} onChange={v => onADSR({ modulationOscType: v })} />
-      <SpSlider label="Harm"   min={0.1} max={20}  step={0.1}          value={p.harmonicity ?? 3}        onChange={v => onADSR({ harmonicity: v })} />
-      <SpSlider label="Idx"    min={0}   max={100} step={0.5}          value={p.modulationIndex ?? 0}    onChange={v => onADSR({ modulationIndex: v })} />
+      <SpSlider label="Harm"   min={0.1} max={20}  step={0.1}          {...a('harmonicity', p.harmonicity ?? 3)}        onChange={v => onADSR({ harmonicity: v })} />
+      <SpSlider label="Idx"    min={0}   max={100} step={0.5}          {...a('modulationIndex', p.modulationIndex ?? 0)} onChange={v => onADSR({ modulationIndex: v })} />
       <SpSection label="MOD ENV" />
-      <SpSlider label="A"      min={0.001} max={2} step={0.001}        value={p.modAttack ?? 0.5}        onChange={v => onADSR({ modAttack: v })} />
-      <SpSlider label="D"      min={0.001} max={2} step={0.001}        value={p.modDecay ?? 0.1}         onChange={v => onADSR({ modDecay: v })} />
-      <SpSlider label="S"      min={0} max={1}     step={0.01}         value={p.modSustain ?? 1.0}       onChange={v => onADSR({ modSustain: v })} />
-      <SpSlider label="R"      min={0.01} max={4}  step={0.01}         value={p.modRelease ?? 1.4}       onChange={v => onADSR({ modRelease: v })} />
+      <SpSlider label="A"      min={0.001} max={2} step={0.001}        {...a('modAttack', p.modAttack ?? 0.5)}        onChange={v => onADSR({ modAttack: v })} />
+      <SpSlider label="D"      min={0.001} max={2} step={0.001}        {...a('modDecay', p.modDecay ?? 0.1)}          onChange={v => onADSR({ modDecay: v })} />
+      <SpSlider label="S"      min={0} max={1}     step={0.01}         {...a('modSustain', p.modSustain ?? 1.0)}      onChange={v => onADSR({ modSustain: v })} />
+      <SpSlider label="R"      min={0.01} max={4}  step={0.01}         {...a('modRelease', p.modRelease ?? 1.4)}      onChange={v => onADSR({ modRelease: v })} />
       <SpSection label="AMP ENV" />
       {envBlock()}
     </div>
@@ -1256,15 +1391,15 @@ function EnvPanel({ synthType, adsr, onADSR, onSamplerPreset, onDrumVoice, onSam
       <SpSection label="CARRIER OSC" />
       <SpSelect label="Type"   value={p.oscillatorType ?? 'sine'}      options={OSC_TYPES} onChange={v => onADSR({ oscillatorType: v })} />
       <SpSlider label="Phase"  min={0} max={360} step={1}               value={p.phase ?? 0}             onChange={v => onADSR({ phase: v })} unit="°" />
-      <SpSlider label="Dtn"    min={-200} max={200} step={1}            value={p.detune ?? 0}            onChange={v => onADSR({ detune: v })} unit="¢" />
+      <SpSlider label="Dtn"    min={-200} max={200} step={1}            {...a('detune', p.detune ?? 0)}            onChange={v => onADSR({ detune: v })} unit="¢" />
       <SpSection label="MODULATOR" />
       <SpSelect label="Type"   value={p.modulationOscType ?? 'square'}  options={OSC_TYPES} onChange={v => onADSR({ modulationOscType: v })} />
-      <SpSlider label="Harm"   min={0.1} max={20}  step={0.1}           value={p.harmonicity ?? 3}       onChange={v => onADSR({ harmonicity: v })} />
+      <SpSlider label="Harm"   min={0.1} max={20}  step={0.1}           {...a('harmonicity', p.harmonicity ?? 3)}     onChange={v => onADSR({ harmonicity: v })} />
       <SpSection label="MOD ENV" />
-      <SpSlider label="A"      min={0.001} max={2} step={0.001}         value={p.modAttack ?? 0.5}       onChange={v => onADSR({ modAttack: v })} />
-      <SpSlider label="D"      min={0.001} max={2} step={0.001}         value={p.modDecay ?? 0.0}        onChange={v => onADSR({ modDecay: v })} />
-      <SpSlider label="S"      min={0} max={1}     step={0.01}          value={p.modSustain ?? 1.0}      onChange={v => onADSR({ modSustain: v })} />
-      <SpSlider label="R"      min={0.01} max={4}  step={0.01}          value={p.modRelease ?? 0.5}      onChange={v => onADSR({ modRelease: v })} />
+      <SpSlider label="A"      min={0.001} max={2} step={0.001}         {...a('modAttack', p.modAttack ?? 0.5)}       onChange={v => onADSR({ modAttack: v })} />
+      <SpSlider label="D"      min={0.001} max={2} step={0.001}         {...a('modDecay', p.modDecay ?? 0.0)}         onChange={v => onADSR({ modDecay: v })} />
+      <SpSlider label="S"      min={0} max={1}     step={0.01}          {...a('modSustain', p.modSustain ?? 1.0)}     onChange={v => onADSR({ modSustain: v })} />
+      <SpSlider label="R"      min={0.01} max={4}  step={0.01}          {...a('modRelease', p.modRelease ?? 0.5)}     onChange={v => onADSR({ modRelease: v })} />
       <SpSection label="AMP ENV" />
       {envBlock()}
     </div>
@@ -1274,11 +1409,11 @@ function EnvPanel({ synthType, adsr, onADSR, onSamplerPreset, onDrumVoice, onSam
     <div className="sp-panel">
       <SpSection label="OSC" />
       <SpSelect label="Type"    value={p.voice0OscType ?? 'sawtooth'} options={OSC_TYPES} onChange={v => onADSR({ voice0OscType: v })} />
-      <SpSlider label="Dtn"     min={-200} max={200} step={1}          value={p.detune ?? 0}              onChange={v => onADSR({ detune: v })} unit="¢" />
-      <SpSlider label="Harm"    min={0.1} max={6}    step={0.1}        value={p.duoHarmonicity ?? 1.5}    onChange={v => onADSR({ duoHarmonicity: v })} />
+      <SpSlider label="Dtn"     min={-200} max={200} step={1}          {...a('detune', p.detune ?? 0)}              onChange={v => onADSR({ detune: v })} unit="¢" />
+      <SpSlider label="Harm"    min={0.1} max={6}    step={0.1}        {...a('duoHarmonicity', p.duoHarmonicity ?? 1.5)}  onChange={v => onADSR({ duoHarmonicity: v })} />
       <SpSection label="VIBRATO" />
-      <SpSlider label="Rate"    min={0.1} max={20}   step={0.1}        value={p.vibratoRate ?? 5}          onChange={v => onADSR({ vibratoRate: v })} unit="Hz" />
-      <SpSlider label="Amt"     min={0}   max={1}    step={0.01}       value={p.vibratoAmount ?? 0.5}      onChange={v => onADSR({ vibratoAmount: v })} />
+      <SpSlider label="Rate"    min={0.1} max={20}   step={0.1}        {...a('vibratoRate', p.vibratoRate ?? 5)}          onChange={v => onADSR({ vibratoRate: v })} unit="Hz" />
+      <SpSlider label="Amt"     min={0}   max={1}    step={0.01}       {...a('vibratoAmount', p.vibratoAmount ?? 0.5)}    onChange={v => onADSR({ vibratoAmount: v })} />
       <SpSection label="ENV" />
       {envBlock()}
     </div>
@@ -1290,20 +1425,22 @@ function EnvPanel({ synthType, adsr, onADSR, onSamplerPreset, onDrumVoice, onSam
       <SpSection label="OSC" />
       <SpSelect label="Type"  value={p.oscillatorType ?? 'sine'} options={OSC_TYPES} onChange={v => onADSR({ oscillatorType: v })} />
       <SpSlider label="Phase" min={0} max={360} step={1}          value={p.phase ?? 0}  onChange={v => onADSR({ phase: v })} unit="°" />
-      <SpSlider label="Dtn"   min={-200} max={200} step={1}       value={p.detune ?? 0} onChange={v => onADSR({ detune: v })} unit="¢" />
+      <SpSlider label="Dtn"   min={-200} max={200} step={1}       {...a('detune', p.detune ?? 0)} onChange={v => onADSR({ detune: v })} unit="¢" />
       <SpSection label="ENV" />
       {envBlock()}
     </div>
   )
 }
 
-function FilterPanel({ filter, onFilter }) {
+function FilterPanel({ filter, onFilter, autoTargets = {} }) {
   const p = { ...DEFAULT_FILTER, ...filter }
+  const aFreq = autoCtl(autoTargets, 'filter.frequency')
+  const aQ    = autoCtl(autoTargets, 'filter.Q')
   return (
     <div className="sp-panel">
       <SpSelect label="Type" value={p.type}      options={FILTER_TYPES} onChange={v => onFilter({ type: v })} />
-      <SpSlider label="Freq" min={20}  max={20000} step={10}  value={p.frequency} onChange={v => onFilter({ frequency: v })} unit="Hz" />
-      <SpSlider label="Q"    min={0.1} max={20}    step={0.1} value={p.Q}         onChange={v => onFilter({ Q: v })} />
+      <SpSlider label="Freq" min={20}  max={20000} step={10}  value={aFreq.display ?? p.frequency} onChange={v => onFilter({ frequency: v })} unit="Hz" disabled={aFreq.disabled} />
+      <SpSlider label="Q"    min={0.1} max={20}    step={0.1} value={aQ.display ?? p.Q}            onChange={v => onFilter({ Q: v })} disabled={aQ.disabled} />
     </div>
   )
 }

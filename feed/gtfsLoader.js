@@ -2,44 +2,37 @@ import AdmZip from 'adm-zip'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs'
 import { dirname, join } from 'path'
 import { fileURLToPath } from 'url'
+import { routeTypeToLineType } from './routeTypes.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const CACHE_DIR = join(__dirname, 'cache')
-const CACHE_FILE = join(CACHE_DIR, 'gtfs_lookup.json')
-const GTFS_URL = 'https://go.bkk.hu/api/static/v1/public-gtfs/budapest_gtfs.zip'
-const CACHE_VERSION = 2  // bump when lookup schema changes
+const CACHE_VERSION = 3  // bump when lookup schema changes
 
-// GTFS route_type → DAW instrument type
-function routeTypeToLineType(routeType) {
-  switch (Number(routeType)) {
-    case 0:   return 'tram'   // Tram / villamosok
-    case 1:   return 'metro'  // Subway
-    case 2:   return 'hev'    // Rail (MÁV)
-    case 3:   return 'bus'    // Bus
-    case 109: return 'hev'    // Suburban rail (HÉV)
-    case 800: return 'tram'   // Trolleybus
-    default:  return 'bus'
+// Split one CSV line into fields, honoring double-quoted fields (so commas and
+// surrounding quotes inside a quoted field are handled). Used for both the
+// header row and data rows — some agencies (e.g. VBB) quote their headers too.
+function splitCSVLine(line) {
+  const values = []
+  let cur = ''
+  let inQ = false
+  for (const ch of line) {
+    if (ch === '"') { inQ = !inQ }
+    else if (ch === ',' && !inQ) { values.push(cur.trim().replace(/\r$/, '')); cur = '' }
+    else { cur += ch }
   }
+  values.push(cur.trim().replace(/\r$/, ''))
+  return values
 }
 
 function parseCSV(text) {
   const lines = text.trim().split('\n')
-  const rawHeaders = lines[0]
-  // strip BOM and whitespace from headers
-  const headers = rawHeaders.split(',').map(h => h.trim().replace(/^﻿/, '').replace(/\r$/, ''))
+  // strip BOM from the first header, then quote-aware split (handles quoted headers)
+  const headers = splitCSVLine(lines[0].replace(/^﻿/, ''))
   const rows = []
   for (let i = 1; i < lines.length; i++) {
     const line = lines[i]
     if (!line.trim()) continue
-    const values = []
-    let cur = ''
-    let inQ = false
-    for (const ch of line) {
-      if (ch === '"') { inQ = !inQ }
-      else if (ch === ',' && !inQ) { values.push(cur.trim().replace(/\r$/, '')); cur = '' }
-      else { cur += ch }
-    }
-    values.push(cur.trim().replace(/\r$/, ''))
+    const values = splitCSVLine(line)
     const row = {}
     headers.forEach((h, idx) => { row[h] = values[idx] ?? '' })
     rows.push(row)
@@ -47,22 +40,24 @@ function parseCSV(text) {
   return rows
 }
 
-const METRO_ROUTE_IDS = new Set(['5100', '5200', '5300', '5400'])
-
-export async function loadGtfs() {
+// Build the stop/route/trip lookup for a given city descriptor (feed/cities/*).
+export async function loadGtfs(cfg) {
   if (!existsSync(CACHE_DIR)) mkdirSync(CACHE_DIR, { recursive: true })
 
-  if (existsSync(CACHE_FILE)) {
-    const cached = JSON.parse(readFileSync(CACHE_FILE, 'utf-8'))
+  const cacheFile = join(CACHE_DIR, `gtfs_lookup_${cfg.id}.json`)
+  const inferModes = new Set(cfg.modesWithoutVehiclePositions ?? [])
+
+  if (existsSync(cacheFile)) {
+    const cached = JSON.parse(readFileSync(cacheFile, 'utf-8'))
     if (cached._version === CACHE_VERSION) {
-      console.log('[gtfs] Using cached lookup')
+      console.log(`[gtfs] Using cached lookup (${cfg.id})`)
       return cached
     }
     console.log('[gtfs] Cache version mismatch — rebuilding')
   }
 
-  console.log('[gtfs] Downloading budapest_gtfs.zip …')
-  const res = await fetch(GTFS_URL)
+  console.log(`[gtfs] Downloading static GTFS for ${cfg.name} …`)
+  const res = await fetch(cfg.staticGtfsUrl)
   if (!res.ok) throw new Error(`GTFS download failed: ${res.status} ${res.statusText}`)
 
   const buffer = Buffer.from(await res.arrayBuffer())
@@ -83,27 +78,31 @@ export async function loadGtfs() {
   }
 
   const routeMap = {}
+  // Route IDs whose lineType needs TripUpdate position inference (e.g. metro).
+  const inferRouteIds = new Set()
   for (const r of routes) {
+    const lineType = routeTypeToLineType(r.route_type, cfg.routeTypeOverrides)
     routeMap[r.route_id] = {
       id:        r.route_id,
       shortName: r.route_short_name,
       type:      Number(r.route_type),
-      lineType:  routeTypeToLineType(r.route_type),
+      lineType,
       color:     r.route_color ? `#${r.route_color}` : null,
     }
+    if (inferModes.has(lineType)) inferRouteIds.add(r.route_id)
   }
 
-  // Only store metro trip→route mapping (keeps cache lean)
+  // Only store trip→route mapping for inference-mode trips (keeps cache lean).
   const tripRoutes = {}
   for (const t of trips) {
-    if (METRO_ROUTE_IDS.has(t.route_id)) {
+    if (inferRouteIds.has(t.route_id)) {
       tripRoutes[t.trip_id] = t.route_id
     }
   }
 
-  const lookup = { _version: CACHE_VERSION, stops: stopMap, routes: routeMap, tripRoutes }
-  writeFileSync(CACHE_FILE, JSON.stringify(lookup))
-  console.log(`[gtfs] Cached ${Object.keys(stopMap).length} stops, ${Object.keys(routeMap).length} routes, ${Object.keys(tripRoutes).length} metro trips`)
+  const lookup = { _version: CACHE_VERSION, city: cfg.id, stops: stopMap, routes: routeMap, tripRoutes }
+  writeFileSync(cacheFile, JSON.stringify(lookup))
+  console.log(`[gtfs] Cached ${Object.keys(stopMap).length} stops, ${Object.keys(routeMap).length} routes, ${Object.keys(tripRoutes).length} inference trips`)
 
   return lookup
 }

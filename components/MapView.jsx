@@ -64,10 +64,47 @@ function PlayheadPaneSetup({ paneRef }) {
   return null
 }
 
+// Computes a lat/lng bounding box from the stops of the currently loaded routes.
+// Preferred over the city's whole-network bounds because data-derived city bounds
+// can span huge regional areas (e.g. HSL's GTFS reaches ~110 km of commuter rail/
+// bus), which would zoom the map out so far that stop dots vanish.
+function boundsFromRoutes(routes) {
+  let latMin = Infinity, latMax = -Infinity, lngMin = Infinity, lngMax = -Infinity
+  for (const r of routes ?? []) {
+    for (const s of r.stops ?? []) {
+      if (!Number.isFinite(s.lat) || !Number.isFinite(s.lon)) continue
+      if (s.lat < latMin) latMin = s.lat
+      if (s.lat > latMax) latMax = s.lat
+      if (s.lon < lngMin) lngMin = s.lon
+      if (s.lon > lngMax) lngMax = s.lon
+    }
+  }
+  return latMin <= latMax ? { latMin, latMax, lngMin, lngMax } : null
+}
+
+// Recenters the map on the active city. The MapContainer `center` prop only
+// applies on first mount, so this fits the loaded routes' bounds (falling back to
+// the city's bounds, then its center) whenever the city or its routes change.
+function CityView({ city, routes }) {
+  const map = useMap()
+  // Stable signature so we refit on city/route-set changes, not every render.
+  const key = `${city?.id ?? ''}:${routes?.length ?? 0}`
+  useEffect(() => {
+    const b = boundsFromRoutes(routes) ?? city?.bounds
+    if (b && [b.latMin, b.latMax, b.lngMin, b.lngMax].every(Number.isFinite)) {
+      map.fitBounds([[b.latMin, b.lngMin], [b.latMax, b.lngMax]], { padding: [20, 20] })
+    } else if (Array.isArray(city?.center)) {
+      map.setView(city.center, map.getZoom())
+    }
+  }, [key, map]) // eslint-disable-line react-hooks/exhaustive-deps
+  return null
+}
+
 export default function MapView({
   className = '',
   active = true,
   routes = null,
+  city = null,
   started = false,
   mode = 'mock',
   muted = {},
@@ -88,6 +125,7 @@ export default function MapView({
     { type: 'tram',    label: 'Tram' },
     { type: 'trolley', label: 'Trolley' },
     { type: 'bus',     label: 'Bus' },
+    { type: 'hev',     label: 'Rail' },
   ]
   const routesByType = Object.fromEntries(
     LAYERS.map(l => [l.type, routes?.filter(r => r.type === l.type) ?? []])
@@ -179,6 +217,7 @@ export default function MapView({
       >
         <MapResizer active={active} />
         <PlayheadPaneSetup paneRef={playheadPane} />
+        <CityView city={city} routes={allRoutes} />
 
         <TileLayer
           url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
@@ -247,6 +286,16 @@ export default function MapView({
             ))
         })}
       </MapContainer>
+
+      {city?.attribution?.text && (
+        <div className="map-attribution">
+          {city.attribution.licenseUrl ? (
+            <a href={city.attribution.licenseUrl} target="_blank" rel="noreferrer">
+              {city.attribution.text}
+            </a>
+          ) : city.attribution.text}
+        </div>
+      )}
     </div>
   )
 }

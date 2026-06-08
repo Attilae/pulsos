@@ -4,36 +4,45 @@ import { latToNote } from './pitch.js'
 
 const { transit_realtime } = gtfsRealtime
 
-const BASE = 'https://go.bkk.hu/api/query/v1/ws/gtfs-rt/full'
-const VP_URL    = `${BASE}/VehiclePositions.pb`
-const TU_URL    = `${BASE}/TripUpdates.pb`
-const AL_URL    = `${BASE}/Alerts.pb`
-const POLL_MS   = 5000
-const ALERT_MS  = 60000  // alerts change slowly; poll every minute
-
 // OccupancyStatus enum → approximate percentage
 const OCCUPANCY_PCT = [5, 25, 50, 70, 88, 100, 100, 50, 50]
 
 // TripDescriptor.ScheduleRelationship enum values
 const SR = { SCHEDULED: 0, ADDED: 1, UNSCHEDULED: 2, CANCELED: 3, REPLACEMENT: 5, DUPLICATED: 6, DELETED: 7 }
 
-export class BkkFeed extends EventEmitter {
-  constructor(apiKey, gtfsLookup) {
+// Generic GTFS-RT poller, driven by a city descriptor (feed/cities/*). Polls
+// VehiclePositions + TripUpdates every cfg.pollMs and Alerts every cfg.alertMs,
+// diffs against previous state, and emits arrival/vehicle_update/trip_update/
+// alert_update. The protobuf decode is agency-agnostic; only the feed URLs,
+// auth, geographic bounds, and which modes need position inference vary.
+export class GtfsRtFeed extends EventEmitter {
+  constructor(cfg, gtfsLookup, apiKey = null) {
     super()
+    this.cfg        = cfg
     this.apiKey     = apiKey
+    this.bounds     = cfg.bounds ?? {}
     this.lookup     = gtfsLookup
     this.prevState  = new Map()  // vehicleId → full vehicle state snapshot
     this.tripData   = new Map()  // vehicleId → { delay, uncertainty, scheduleRelationship }
     this.metroTrips = new Map()  // tripId → { vehicleId, routeId, stopTimeUpdates }
     this._vpTimer   = null
     this._alTimer   = null
+
+    // Which line types lack live VehiclePositions and need TripUpdate inference.
+    this._inferModes = new Set(cfg.modesWithoutVehiclePositions ?? [])
+
+    // Resolve feed URLs by entity type (supports split, sharded, and combined feeds).
+    const feeds = cfg.feeds ?? []
+    this._vehicleUrls = feeds.filter(f => f.entityTypes.includes('vehicle')).map(f => f.url)
+    this._tripUrls    = feeds.filter(f => f.entityTypes.includes('trip')).map(f => f.url)
+    this._alertUrls   = feeds.filter(f => f.entityTypes.includes('alert')).map(f => f.url)
   }
 
   start() {
     this._pollPositions()
     this._pollAlerts()
-    this._vpTimer = setInterval(() => this._pollPositions(), POLL_MS)
-    this._alTimer = setInterval(() => this._pollAlerts(), ALERT_MS)
+    this._vpTimer = setInterval(() => this._pollPositions(), this.cfg.pollMs ?? 5000)
+    this._alTimer = setInterval(() => this._pollAlerts(), this.cfg.alertMs ?? 60000)
   }
 
   stop() {
@@ -43,72 +52,68 @@ export class BkkFeed extends EventEmitter {
     this._alTimer = null
   }
 
-  // ── Fetch helper ─────────────────────────────────────────────────────────────
+  // ── Fetch helper (applies per-city auth) ──────────────────────────────────────
   async _fetch(url) {
-    const res = await fetch(`${url}?key=${this.apiKey}`, {
-      signal: AbortSignal.timeout(8000),
-    })
+    const auth = this.cfg.auth ?? { kind: 'none' }
+    let finalUrl = url
+    const opts = { signal: AbortSignal.timeout(8000), headers: {} }
+    if (this.apiKey && auth.kind === 'query') {
+      finalUrl += (url.includes('?') ? '&' : '?') + `${auth.name}=${this.apiKey}`
+    } else if (this.apiKey && auth.kind === 'header') {
+      opts.headers[auth.name] = this.apiKey
+    }
+    const res = await fetch(finalUrl, opts)
     if (!res.ok) throw new Error(`HTTP ${res.status} from ${url}`)
     const buf  = await res.arrayBuffer()
     return transit_realtime.FeedMessage.decode(new Uint8Array(buf))
   }
 
   // ── Trip Updates (merged with Vehicle Positions each poll) ───────────────────
-  async _fetchTripUpdates() {
-    try {
-      const feed = await this._fetch(TU_URL)
-      this.tripData.clear()
-      this.metroTrips.clear()
+  _processTripFeed(feed) {
+    for (const entity of feed.entity) {
+      const tu = entity.tripUpdate
+      if (!tu) continue
 
+      const tripId    = tu.trip?.tripId || null
+      const vehicleId = tu.vehicle?.id || (tripId ? `trip:${tripId}` : entity.id)
+      if (!vehicleId) continue
 
-      for (const entity of feed.entity) {
-        const tu = entity.tripUpdate
-        if (!tu) continue
-
-        const tripId    = tu.trip?.tripId || null
-        const vehicleId = tu.vehicle?.id || (tripId ? `trip:${tripId}` : entity.id)
-        if (!vehicleId) continue
-
-        // Overall trip delay (fallback: first stop arrival delay)
-        let delay = tu.delay ?? null
-        let uncertainty = null
-        if (delay === null && tu.stopTimeUpdate?.length) {
-          const stu = tu.stopTimeUpdate[0]
-          delay       = stu.arrival?.delay ?? stu.departure?.delay ?? 0
-          uncertainty = stu.arrival?.uncertainty ?? stu.departure?.uncertainty ?? null
-        }
-
-        const scheduleRelationship = tu.trip?.scheduleRelationship ?? SR.SCHEDULED
-
-        this.tripData.set(vehicleId, {
-          delay:                delay ?? 0,
-          uncertainty:          uncertainty ?? 0,
-          scheduleRelationship,
-        })
-
-        // Collect metro trips for position inference
-        const routeId = tu.trip?.routeId
-          ?? (tripId ? this.lookup.tripRoutes?.[tripId] : null)
-        if (!routeId) continue
-
-        const route = this.lookup.routes[routeId]
-        if (!route || route.lineType !== 'metro') continue
-        if (!tu.stopTimeUpdate?.length) continue
-        if (scheduleRelationship === SR.CANCELED) continue
-
-        this.metroTrips.set(tripId ?? vehicleId, {
-          vehicleId,
-          routeId,
-          stopTimeUpdates: tu.stopTimeUpdate,
-        })
+      // Overall trip delay (fallback: first stop arrival delay)
+      let delay = tu.delay ?? null
+      let uncertainty = null
+      if (delay === null && tu.stopTimeUpdate?.length) {
+        const stu = tu.stopTimeUpdate[0]
+        delay       = stu.arrival?.delay ?? stu.departure?.delay ?? 0
+        uncertainty = stu.arrival?.uncertainty ?? stu.departure?.uncertainty ?? null
       }
-    } catch (err) {
-      // Trip updates are non-critical — continue without them
-      console.warn('[bkk] trip update fetch failed:', err.message)
+
+      const scheduleRelationship = tu.trip?.scheduleRelationship ?? SR.SCHEDULED
+
+      this.tripData.set(vehicleId, {
+        delay:                delay ?? 0,
+        uncertainty:          uncertainty ?? 0,
+        scheduleRelationship,
+      })
+
+      // Collect inference-mode trips (e.g. metro) for position inference
+      const routeId = tu.trip?.routeId
+        ?? (tripId ? this.lookup.tripRoutes?.[tripId] : null)
+      if (!routeId) continue
+
+      const route = this.lookup.routes[routeId]
+      if (!route || !this._inferModes.has(route.lineType)) continue
+      if (!tu.stopTimeUpdate?.length) continue
+      if (scheduleRelationship === SR.CANCELED) continue
+
+      this.metroTrips.set(tripId ?? vehicleId, {
+        vehicleId,
+        routeId,
+        stopTimeUpdates: tu.stopTimeUpdate,
+      })
     }
   }
 
-  // ── Infer metro vehicle positions from TripUpdates ────────────────────────────
+  // ── Infer vehicle positions from TripUpdates (modes lacking VehiclePositions) ──
   _emitMetroUpdates() {
     const nowSec = Date.now() / 1000
 
@@ -190,7 +195,7 @@ export class BkkFeed extends EventEmitter {
         delay:                td.delay,
         uncertainty:          td.uncertainty,
         scheduleRelationship: td.scheduleRelationship,
-        note:                 latToNote(stop.lat),
+        note:                 latToNote(stop.lat, this.bounds),
       })
 
       if (newArrival) {
@@ -204,7 +209,7 @@ export class BkkFeed extends EventEmitter {
           stopName:       stop.name,
           lat:            stop.lat,
           lng:            stop.lng,
-          note:           latToNote(stop.lat),
+          note:           latToNote(stop.lat, this.bounds),
         })
       }
     }
@@ -213,122 +218,137 @@ export class BkkFeed extends EventEmitter {
   // ── Main poll: Vehicle Positions + Trip Updates ──────────────────────────────
   async _pollPositions() {
     try {
-      // Fetch both feeds concurrently
-      const [vpFeed] = await Promise.all([
-        this._fetch(VP_URL),
-        this._fetchTripUpdates(),
+      this.tripData.clear()
+      this.metroTrips.clear()
+
+      // Fetch trip + vehicle feeds concurrently. Trip feeds are non-critical
+      // (swallow per-feed errors); vehicle feed errors bubble to the outer catch.
+      const [vpFeeds] = await Promise.all([
+        Promise.all(this._vehicleUrls.map(u => this._fetch(u))),
+        Promise.all(this._tripUrls.map(u =>
+          this._fetch(u)
+            .then(f => this._processTripFeed(f))
+            .catch(err => console.warn('[feed] trip update fetch failed:', err.message))
+        )),
       ])
 
       let arrivals = 0
       let updates  = 0
+      let vehicleCount = 0
 
-      for (const entity of vpFeed.entity) {
-        const v = entity.vehicle
-        if (!v?.trip) continue
+      for (const vpFeed of vpFeeds) {
+        if (!vpFeed) continue
+        vehicleCount += vpFeed.entity.length
+        for (const entity of vpFeed.entity) {
+          const v = entity.vehicle
+          if (!v?.trip) continue
 
-        const vehicleId = v.vehicle?.id || entity.id
-        const routeId   = v.trip.routeId
-        const stopId    = v.stopId
-        const status    = v.currentStatus ?? 2  // default IN_TRANSIT_TO
+          const vehicleId = v.vehicle?.id || entity.id
+          const routeId   = v.trip.routeId
+          const stopId    = v.stopId
+          const status    = v.currentStatus ?? 2  // default IN_TRANSIT_TO
 
-        const lat = v.position?.latitude  ?? null
-        const lng = v.position?.longitude ?? null
-        const bearing = v.position?.bearing ?? 0
-        const speed   = v.position?.speed   ?? 0
+          const lat = v.position?.latitude  ?? null
+          const lng = v.position?.longitude ?? null
+          const bearing = v.position?.bearing ?? 0
+          const speed   = v.position?.speed   ?? 0
 
-        const occupancyPct = v.occupancyPercentage != null
-          ? v.occupancyPercentage
-          : (v.occupancyStatus != null ? OCCUPANCY_PCT[v.occupancyStatus] : null)
+          const occupancyPct = v.occupancyPercentage != null
+            ? v.occupancyPercentage
+            : (v.occupancyStatus != null ? OCCUPANCY_PCT[v.occupancyStatus] : null)
 
-        const carriageDetails = v.multiCarriageDetails?.length
-          ? v.multiCarriageDetails.map(c => ({
-              label:         c.label ?? null,
-              occupancyPct:  c.occupancyPercentage ?? (c.occupancyStatus != null ? OCCUPANCY_PCT[c.occupancyStatus] : null),
-            }))
-          : null
+          const carriageDetails = v.multiCarriageDetails?.length
+            ? v.multiCarriageDetails.map(c => ({
+                label:         c.label ?? null,
+                occupancyPct:  c.occupancyPercentage ?? (c.occupancyStatus != null ? OCCUPANCY_PCT[c.occupancyStatus] : null),
+              }))
+            : null
 
-        const route = this.lookup.routes[routeId]
-        if (!route) continue
+          const route = this.lookup.routes[routeId]
+          if (!route) continue
 
-        const stop  = this.lookup.stops[stopId]
-        const vehicleLat = lat ?? stop?.lat
-        const vehicleLng = lng ?? stop?.lng
+          const stop  = this.lookup.stops[stopId]
+          const vehicleLat = lat ?? stop?.lat
+          const vehicleLng = lng ?? stop?.lng
 
-        if (!vehicleLat) continue
+          if (!vehicleLat) continue
 
-        const td = this.tripData.get(vehicleId) ?? { delay: 0, uncertainty: 0, scheduleRelationship: 0 }
+          const td = this.tripData.get(vehicleId) ?? { delay: 0, uncertainty: 0, scheduleRelationship: 0 }
 
-        const prev     = this.prevState.get(vehicleId) ?? {}
-        const newArrival = status === 1 && (prev.stopId !== stopId || prev.status !== 1)
+          const prev     = this.prevState.get(vehicleId) ?? {}
+          const newArrival = status === 1 && (prev.stopId !== stopId || prev.status !== 1)
 
-        // Determine if state has changed enough to broadcast an update
-        const speedChanged   = Math.abs((prev.speed   ?? 0) - speed)   > 0.5
-        const bearingChanged = Math.abs((prev.bearing ?? 0) - bearing) > 5
-        const statusChanged  = prev.status !== status
-        const stopChanged    = prev.stopId !== stopId
-        const delayChanged   = Math.abs((prev.delay   ?? 0) - td.delay) > 5
+          // Determine if state has changed enough to broadcast an update
+          const speedChanged   = Math.abs((prev.speed   ?? 0) - speed)   > 0.5
+          const bearingChanged = Math.abs((prev.bearing ?? 0) - bearing) > 5
+          const statusChanged  = prev.status !== status
+          const stopChanged    = prev.stopId !== stopId
+          const delayChanged   = Math.abs((prev.delay   ?? 0) - td.delay) > 5
 
-        const hasChanged = statusChanged || stopChanged || speedChanged || bearingChanged || delayChanged
+          const hasChanged = statusChanged || stopChanged || speedChanged || bearingChanged || delayChanged
 
-        // Persist full state (with route info for snapshot endpoint)
-        this.prevState.set(vehicleId, {
-          vehicleId, routeId,
-          routeShortName: route.shortName, lineType: route.lineType, color: route.color,
-          stopId, stopName: stop?.name ?? null,
-          status, lat: vehicleLat, lng: vehicleLng ?? 19.05,
-          bearing, speed, occupancyPct: occupancyPct ?? 50, delay: td.delay,
-        })
+          const lngFallback = this.bounds.centerLng ?? 0
 
-        // Broadcast full vehicle_update when something meaningful changed
-        if (hasChanged) {
-          updates++
-          this.emit('vehicle_update', {
-            vehicleId,
-            routeId,
-            routeShortName:       route.shortName,
-            lineType:             route.lineType,
-            color:                route.color,
-            stopId:               stopId ?? null,
-            stopName:             stop?.name ?? null,
-            lat:                  vehicleLat,
-            lng:                  vehicleLng ?? 19.05,
-            bearing,
-            speed,
-            currentStatus:        status,
-            occupancyPct:         occupancyPct ?? 50,
-            carriageDetails,
-            delay:                td.delay,
-            uncertainty:          td.uncertainty,
-            scheduleRelationship: td.scheduleRelationship,
-            note:                 latToNote(vehicleLat),
+          // Persist full state (with route info for snapshot endpoint)
+          this.prevState.set(vehicleId, {
+            vehicleId, routeId,
+            routeShortName: route.shortName, lineType: route.lineType, color: route.color,
+            stopId, stopName: stop?.name ?? null,
+            status, lat: vehicleLat, lng: vehicleLng ?? lngFallback,
+            bearing, speed, occupancyPct: occupancyPct ?? 50, delay: td.delay,
           })
-        }
 
-        // Backward-compat arrival event (STOPPED_AT state change)
-        if (newArrival && stop && !isNaN(stop.lat)) {
-          arrivals++
-          this.emit('arrival', {
-            vehicleId,
-            routeId,
-            routeShortName: route.shortName,
-            lineType:       route.lineType,
-            color:          route.color,
-            stopId,
-            stopName:       stop.name,
-            lat:            stop.lat,
-            lng:            stop.lng ?? vehicleLng ?? 19.05,
-            note:           latToNote(stop.lat),
-          })
+          // Broadcast full vehicle_update when something meaningful changed
+          if (hasChanged) {
+            updates++
+            this.emit('vehicle_update', {
+              vehicleId,
+              routeId,
+              routeShortName:       route.shortName,
+              lineType:             route.lineType,
+              color:                route.color,
+              stopId:               stopId ?? null,
+              stopName:             stop?.name ?? null,
+              lat:                  vehicleLat,
+              lng:                  vehicleLng ?? lngFallback,
+              bearing,
+              speed,
+              currentStatus:        status,
+              occupancyPct:         occupancyPct ?? 50,
+              carriageDetails,
+              delay:                td.delay,
+              uncertainty:          td.uncertainty,
+              scheduleRelationship: td.scheduleRelationship,
+              note:                 latToNote(vehicleLat, this.bounds),
+            })
+          }
+
+          // Backward-compat arrival event (STOPPED_AT state change)
+          if (newArrival && stop && !isNaN(stop.lat)) {
+            arrivals++
+            this.emit('arrival', {
+              vehicleId,
+              routeId,
+              routeShortName: route.shortName,
+              lineType:       route.lineType,
+              color:          route.color,
+              stopId,
+              stopName:       stop.name,
+              lat:            stop.lat,
+              lng:            stop.lng ?? vehicleLng ?? lngFallback,
+              note:           latToNote(stop.lat, this.bounds),
+            })
+          }
         }
       }
 
       this._emitMetroUpdates()
 
       if (arrivals > 0 || updates > 0) {
-        process.stdout.write(`[bkk] ${arrivals} arrivals, ${updates} updates (${vpFeed.entity.length} vehicles in VP feed, ${this.metroTrips.size} metro trips)\n`)
+        process.stdout.write(`[feed] ${arrivals} arrivals, ${updates} updates (${vehicleCount} vehicles in VP feed, ${this.metroTrips.size} inference trips)\n`)
       }
     } catch (err) {
-      console.error('[bkk] poll error:', err.message)
+      console.error('[feed] poll error:', err.message)
     }
   }
 
@@ -354,7 +374,7 @@ export class BkkFeed extends EventEmitter {
     }
     const metroInSnapshot = [...this.prevState.values()].filter(v => {
       const r = this.lookup.routes[v.routeId]
-      return r?.lineType === 'metro'
+      return r && this._inferModes.has(r.lineType)
     })
     return {
       nowSec: Math.floor(nowSec),
@@ -364,35 +384,46 @@ export class BkkFeed extends EventEmitter {
     }
   }
 
-  // ── Alerts poll (every 60 s) ─────────────────────────────────────────────────
+  // ── Alerts poll (every cfg.alertMs) ──────────────────────────────────────────
   async _pollAlerts() {
     try {
-      const feed = await this._fetch(AL_URL)
+      const feeds = await Promise.all(
+        this._alertUrls.map(u => this._fetch(u).catch(err => {
+          console.warn('[feed] alert fetch failed:', err.message)
+          return null
+        }))
+      )
       const alerts = []
 
-      for (const entity of feed.entity) {
-        const al = entity.alert
-        if (!al) continue
+      for (const feed of feeds) {
+        if (!feed) continue
+        for (const entity of feed.entity) {
+          const al = entity.alert
+          if (!al) continue
 
-        alerts.push({
-          cause:          al.cause        ?? null,
-          effect:         al.effect       ?? null,
-          severityLevel:  al.severityLevel ?? 0,
-          informedEntities: (al.informedEntity ?? []).map(ie => ({
-            routeId:   ie.routeId   ?? null,
-            routeType: ie.routeType ?? null,
-            stopId:    ie.stopId    ?? null,
-            agencyId:  ie.agencyId  ?? null,
-          })),
-        })
+          alerts.push({
+            cause:          al.cause        ?? null,
+            effect:         al.effect       ?? null,
+            severityLevel:  al.severityLevel ?? 0,
+            informedEntities: (al.informedEntity ?? []).map(ie => ({
+              routeId:   ie.routeId   ?? null,
+              routeType: ie.routeType ?? null,
+              stopId:    ie.stopId    ?? null,
+              agencyId:  ie.agencyId  ?? null,
+            })),
+          })
+        }
       }
 
       this.emit('alert_update', alerts)
       if (alerts.length) {
-        console.log(`[bkk] ${alerts.length} active alerts`)
+        console.log(`[feed] ${alerts.length} active alerts`)
       }
     } catch (err) {
-      console.warn('[bkk] alert fetch failed:', err.message)
+      console.warn('[feed] alert fetch failed:', err.message)
     }
   }
 }
+
+// Back-compat alias — the original class was BkkFeed.
+export { GtfsRtFeed as BkkFeed }

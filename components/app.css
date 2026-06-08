@@ -8,6 +8,7 @@
   --text: #e8e8e8;
   --muted: #666;
   --accent: #c8f040;
+  --auto-accent: #5ad1ff;
   font-size: 14px;
 }
 
@@ -71,8 +72,29 @@ body { background: var(--bg); color: var(--text); font-family: 'Courier New', mo
   flex-direction: column;
 }
 
+/* ── City picker (header) ───────────────────────────────────────────────── */
+.city-select {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: auto;
+  color: var(--muted);
+}
+.city-select-icon { font-size: 0.8rem; color: var(--accent); }
+.city-select-input {
+  background: #161616;
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-family: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+.city-select-input:hover { border-color: var(--accent); }
+
 /* ── Auth control (header) ──────────────────────────────────────────────── */
-.auth-control { position: relative; margin-left: auto; }
+.auth-control { position: relative; }
 .auth-control--pending { color: var(--muted); font-size: 0.78rem; }
 .auth-trigger {
   padding: 6px 12px;

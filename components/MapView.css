@@ -179,3 +179,21 @@
   0%, 100% { opacity: 1; }
   50%       { opacity: 0.6; }
 }
+
+/* Per-city data attribution (bottom-left, above Leaflet's own credit). */
+.map-attribution {
+  position: absolute;
+  bottom: 6px;
+  left: 8px;
+  z-index: 999;
+  background: rgba(13, 13, 13, 0.82);
+  border: 1px solid #333;
+  border-radius: 4px;
+  padding: 3px 7px;
+  font-family: 'Courier New', monospace;
+  font-size: 0.62rem;
+  color: #9a9a9a;
+  backdrop-filter: blur(4px);
+}
+.map-attribution a { color: #c7c7c7; text-decoration: none; }
+.map-attribution a:hover { text-decoration: underline; }

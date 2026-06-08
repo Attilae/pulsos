@@ -392,6 +392,33 @@
 }
 .sp-credits-link:hover { text-decoration: underline; }
 
+/* ── Control locked by an automation lane ──────────────────────────────────
+   The instrument control for an automated param is disabled (automation owns it)
+   and sweeps to the live value during playback. A cyan tint distinguishes it from
+   a normal greyed/inactive control so it reads as "driven", not broken. */
+.sp-row--auto .sp-slider { cursor: not-allowed; }
+.sp-row--auto .sp-slider::-webkit-slider-thumb {
+  background: var(--auto-accent);
+  box-shadow: 0 0 6px 1px color-mix(in srgb, var(--auto-accent) 55%, transparent);
+}
+.sp-row--auto .sp-slider::-moz-range-thumb { background: var(--auto-accent); }
+.sp-row--auto .sp-fill {
+  background: var(--auto-accent);
+  opacity: 0.9;
+  box-shadow: 0 0 6px 1px color-mix(in srgb, var(--auto-accent) 45%, transparent);
+}
+.sp-row--auto .sp-label,
+.sp-row--auto .sp-val { color: color-mix(in srgb, var(--auto-accent) 65%, var(--muted)); }
+
+/* Native LineTrack sliders (volume/pan/glide/send) locked by automation */
+.volume-slider:disabled,
+.pan-slider:disabled,
+.glide-slider:disabled,
+.line-send-slider:disabled {
+  cursor: not-allowed;
+  accent-color: var(--auto-accent);
+}
+
 .sp-label {
   font-size: 0.52rem;
   color: var(--muted);
@@ -882,8 +909,22 @@
   display: flex;
   align-items: center;
   gap: 4px;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
 }
+
+/* SPEED control drops to its own line under the source/target selects */
+.auto-speed-row {
+  flex-basis: 100%;
+  margin-top: 3px;
+}
+.auto-speed-row .speed-label { width: auto; }
+
+/* GLIDE control drops to its own line under the speed row */
+.auto-glide-row {
+  flex-basis: 100%;
+  margin-top: 3px;
+}
+.auto-glide-row .glide-label { width: auto; }
 
 .auto-select {
   font-size: 0.58rem;
@@ -962,6 +1003,24 @@
   box-shadow: 0 0 0 4px color-mix(in srgb, var(--line-color, #888) 40%, transparent);
   transform: translate(-50%, -50%) scale(1.15);
   cursor: grabbing;
+}
+/* The automation point currently in effect (playhead just passed it) */
+.auto-dot.active {
+  transform: translate(-50%, -50%) scale(1.45);
+  border-color: #fff;
+  background: color-mix(in srgb, var(--line-color, #888) 70%, #fff);
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--line-color, #888) 45%, transparent),
+    0 0 10px 2px color-mix(in srgb, var(--line-color, #fff) 60%, transparent);
+  z-index: 5;
+}
+
+/* Bright, glowing playhead for the automation lane (overrides the dim per-lane needle) */
+.auto-playhead.lane-playhead {
+  width: 2px;
+  background: color-mix(in srgb, var(--line-color, var(--accent)) 50%, #fff);
+  box-shadow: 0 0 8px 2px color-mix(in srgb, var(--line-color, var(--accent)) 55%, transparent);
+  z-index: 6;
 }
 
 .auto-curve-live-hint {

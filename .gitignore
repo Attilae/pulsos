@@ -6,6 +6,6 @@ feed/node_modules/
 dist/
 .next/
 .DS_Store
-data/budapest_gtfs/
+data/*_gtfs/
 .vercel
 .env*

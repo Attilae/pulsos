@@ -6,8 +6,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 A web DAW that sonifies live public transport, branded **"Leið"** (Icelandic for "the way/route";
 the title lives in `app/layout.jsx`). Each transit line is a track; each station
-arrival triggers a note. Budapest (BKK) is the first city; the architecture is meant to stay
-city-agnostic (GTFS-RT is a global standard). Inspired by trainjazz.com.
+arrival triggers a note. Budapest (BKK) was the first city; the app is now **multi-city**
+(Budapest + Helsinki/HSL, with a runtime city picker) via a per-city descriptor abstraction —
+GTFS-RT is a global standard, so adding a city needs config, not engine changes. See
+`docs/multi-city-gtfs.md` and the **Multi-city** section below. Inspired by trainjazz.com.
 
 Music-first: every data decision serves the sound, and the UI should feel like a DAW, not a
 dashboard.
@@ -23,23 +25,25 @@ over WebSocket), so it's a standalone Node process (Railway/Fly/Render/Docker). 
 Next app (Vercel)                          feed service (always-on)
   app/         Next routes + API       ──WS──▶  feed/index.js  (GTFS-RT poll + WS fan-out)
   components/  React UI (client-only)   proxy   feed/bkkFeed.js, gtfsLoader.js, pitch.js
-  lib/         auth, DB, persistence, audio engine, mappings
-  public/      lines.json, static
+  lib/         auth, DB, persistence, audio engine, mappings    feed/cities/  (per-city descriptors)
+  public/      lines.<city>.json, static
 ```
 
 ## Commands
 
 ```bash
 npm run dev        # Next dev server (http://localhost:3000)
-npm run feed       # feed service: BKK WebSocket + HTTP on :3005 (PORT in feed env)
+npm run feed       # feed service: WS + HTTP on :3005 (CITY + PORT in feed env; default city budapest)
 ```
 
-Both are required for **BKK Live** mode. `npm run dev` alone is enough for **mock** mode.
+Both are required for **Live** mode. `npm run dev` alone is enough for **mock** mode.
 
 ```bash
 npm run build      # next build
 npm run start      # serve the production build
-npm run preprocess # regenerate public/data/lines.json from data/budapest_gtfs/
+npm run preprocess:budapest  # regenerate public/data/lines.budapest.json (+ mirror to lines.json)
+npm run preprocess:helsinki  # regenerate public/data/lines.helsinki.json
+# generic form: node scripts/preprocess_lines.js --city <id> [--gtfs data/<id>_gtfs]
 npm run upload:lines # upload public/data/lines.json to Vercel Blob (needs BLOB_READ_WRITE_TOKEN)
 npm run db:generate # drizzle-kit: emit SQL migration from lib/db/schema.js
 npm run db:migrate  # drizzle-kit: apply migrations to DATABASE_URL
@@ -55,34 +59,46 @@ There is **no test runner and no linter configured** — don't assume `npm test`
 - `BETTER_AUTH_SECRET` (≥32 chars), `BETTER_AUTH_URL`, `NEXT_PUBLIC_APP_URL` — Better Auth.
 - `OPENROUTER_API_KEY` — required only for the AI Composer (`POST /api/compose`).
 - `OPENROUTER_MODEL` — optional override (default `anthropic/claude-sonnet-4.5`).
-- `NEXT_PUBLIC_LINES_URL` — Vercel Blob URL for `lines.json` in production; unset locally
-  (falls back to `public/data/lines.json`). `BLOB_READ_WRITE_TOKEN` — only for `upload:lines`.
+- `NEXT_PUBLIC_LINES_URL` — Vercel Blob URL for the **default city's** `lines.json` in production;
+  unset locally (falls back to `public/data/lines.json`). `BLOB_READ_WRITE_TOKEN` — only for
+  `upload:lines`.
+- **Per-city frontend vars** (resolved in `lib/shared/cities.js`): `NEXT_PUBLIC_LINES_URL_<CITY>`
+  and `NEXT_PUBLIC_FEED_WS_URL_<CITY>` (e.g. `_HELSINKI`) point a non-default city at its Blob URL
+  and feed. A null/unset feed URL makes that city **mock-only** (Live toggle disabled).
+  `NEXT_PUBLIC_DEFAULT_CITY` — initial city id (default `budapest`).
 - `RESEND_API_KEY`, `EMAIL_FROM` — magic-link email; **optional in dev** (links print to the
   server console when unset).
 - `FEED_HTTP_URL` — server-side, where `/api/snapshot` proxies to (default `http://localhost:3005`).
 - `NEXT_PUBLIC_FEED_WS_URL` — browser connects to the feed's WebSocket directly.
 
 **Feed service** (`feed/.env`, gitignored — see `feed/.env.example`):
-- `BKK_API_KEY` — **required**; the process exits on startup without it. Free key from
-  https://opendata.bkk.hu/data-sources
+- `CITY` — which descriptor in `feed/cities/` to serve (default `budapest`). Unknown id → the
+  process exits. One feed process serves one city; run multiple processes (different `PORT`/`CITY`)
+  for multiple live cities.
+- `BKK_API_KEY` — required **only when `CITY=budapest`** (the descriptor's `apiKeyEnv`); the process
+  exits if its declared key is missing. `CITY=helsinki` needs no key (HSL RT feeds are public).
+  Free BKK key: https://opendata.bkk.hu/data-sources
 - `PORT` — default 3005.
 - `ALLOWED_ORIGINS` — comma-separated CORS allowlist (`*` default; set to the Vercel origin
   in production).
 
 ### Data pipeline gotchas
 
-- `public/data/lines.json` is the preprocessed route/stop/polyline file the **frontend** loads
-  (~22 MB). Regenerate it with `npm run preprocess`, which reads the raw GTFS in
-  `data/budapest_gtfs/` (gitignored — not in the repo by default). In production it's served
-  from **Vercel Blob** (`npm run upload:lines` → set `NEXT_PUBLIC_LINES_URL`); the local
-  `public/` copy is the dev fallback.
-- The **feed service** independently downloads + caches the BKK static GTFS to
-  `feed/cache/gtfs_lookup.json` (gitignored) on first run via `feed/gtfsLoader.js`. Bump
-  `CACHE_VERSION` there when changing the lookup schema, or delete the cache to force a rebuild.
-- The frontend has **no Vite proxy** (Vite is gone). It fetches the route data via
-  `NEXT_PUBLIC_LINES_URL` (Blob) or `/data/lines.json` (`lib/shared/useRoutes.js`), reaches
-  stateless backend logic via same-origin `/api/*` route handlers, and the live WebSocket via
-  `NEXT_PUBLIC_FEED_WS_URL` (`lib/liveClient.js`).
+- `public/data/lines.<city>.json` is the preprocessed route/stop/polyline file the **frontend**
+  loads per city (~22 MB each). Regenerate with `npm run preprocess:<city>`, which reads the raw
+  GTFS in `data/<city>_gtfs/` (gitignored). Each file embeds a `city` metadata block
+  (id/name/timezone/center/bounds/attribution) **derived from the GTFS stops** at build time, plus
+  routes mapped through `routeTypeToLineType` (filtered to the descriptor's `mapLineTypes`).
+  Budapest also **mirrors** to `lines.json` (the default-city dev fallback). In production each is
+  served from **Vercel Blob** (`npm run upload:lines` → set `NEXT_PUBLIC_LINES_URL[_<CITY>]`).
+- The **feed service** independently downloads + caches each city's static GTFS to
+  `feed/cache/gtfs_lookup_<city>.json` (gitignored) on first run via `feed/gtfsLoader.js`
+  (`loadGtfs(cfg)`). Bump `CACHE_VERSION` there when changing the lookup schema, or delete the
+  cache to force a rebuild.
+- The frontend has **no Vite proxy** (Vite is gone). It fetches the active city's route data via
+  the URL from `cities.js` (`lib/shared/useRoutes.js`, per-URL cached), reaches stateless backend
+  logic via same-origin `/api/*` route handlers, and the live WebSocket via the active city's
+  `liveWsUrl` (`lib/liveClient.js`).
 
 ## Architecture
 
@@ -212,25 +228,61 @@ backed by its own engine in `lib/engines/` (`drumEngine`, `loopEngine`, `motifEn
 ### `feed/` — always-on feed service
 
 A standalone, separately-deployable Node service (own `package.json`, `Dockerfile`,
-`README.md`). `feed/index.js` is an Express + `ws` server: `bkkFeed.js` (`BkkFeed extends
-EventEmitter`) polls VehiclePositions + TripUpdates every 5 s and Alerts every 60 s, diffs
-against previous state, and emits `arrival`/`vehicle_update`/`trip_update`/`alert_update`, which
-the server broadcasts to all WS clients. It also infers metro train positions from TripUpdates
-(metro has no live VehiclePositions). `gtfsLoader.js` loads static GTFS into a stop/route/
-metro-trip lookup and maps GTFS `route_type` → DAW line type. `pitch.js` holds a `latToNote`
-copy kept in sync with `lib/mockData.js`. HTTP endpoints: `/health`, `/api/snapshot`,
-`/api/metro-debug`.
+`README.md`). `feed/index.js` is an Express + `ws` server: it reads the `CITY` env, looks up the
+descriptor (`feed/cities/index.js` → `getCity(id)`), and constructs `GtfsRtFeed` (in `bkkFeed.js`;
+**renamed from `BkkFeed`, which is kept as a back-compat alias**) with that config. The feed polls
+the descriptor's `feeds[]` (VehiclePositions/TripUpdates every `pollMs`, Alerts every `alertMs`),
+applies the descriptor's `auth` (query/header/none), diffs against previous state, and emits
+`arrival`/`vehicle_update`/`trip_update`/`alert_update`, which the server broadcasts to all WS
+clients. It infers train positions from TripUpdates for any mode in `modesWithoutVehiclePositions`
+(metro everywhere so far). `gtfsLoader.js` (`loadGtfs(cfg)`) downloads the descriptor's
+`staticGtfsUrl` into a stop/route/metro-trip lookup, mapping `route_type` via the shared resolver.
+`pitch.js`'s `latToNote(lat, bounds)` takes the city's bounds (kept in sync with
+`lib/mockData.js`). HTTP endpoints: `/health`, `/api/snapshot`, `/api/metro-debug`.
+
+### Multi-city
+
+The city abstraction lives in **two parallel registries** — kept separate because the feed service
+deploys standalone and can't import from `lib/` (same synced-copy convention as `feed/pitch.js`):
+
+- **`feed/cities/<id>.js`** (server-only) — the full descriptor: `staticGtfsUrl`, `apiKeyEnv`,
+  `auth`, `feeds[]` (`{url, entityTypes}` — models combined/split/sharded agencies),
+  `pollMs`/`alertMs`, `modesWithoutVehiclePositions`, `routeTypeOverrides`, `mapLineTypes`,
+  `bounds`, `attribution`. Consumed by the feed **and** by `scripts/preprocess_lines.js` (which
+  *can* import it, being a build script). `feed/cities/index.js` exposes `getCity(id)`.
+- **`lib/shared/cities.js`** (browser-safe) — only what the UI needs per city: `name`, `linesUrl`,
+  `liveWsUrl` (null → mock-only). Resolves from `NEXT_PUBLIC_*` env. `lib/shared/CityContext.jsx`
+  (`CityProvider` mounted in `App.jsx`, `useCitySelection()`) holds the active `cityId`, persists
+  it to `localStorage`, and exposes `cityEntry`. `components/CitySelect.jsx` is the top-nav picker.
+
+`lib/routeTypes.js` (`routeTypeToLineType`) maps any GTFS `route_type` — standard 0–12 **and**
+extended HVT 100–1700 codes — to one of the five engine voices (`metro|tram|trolley|bus|hev`), so
+adding a city needs **no synth wiring**. **It is mirrored in `feed/routeTypes.js` — change both.**
+
+City switching at runtime: `useRoutes()`/`useCity()` (`lib/shared/useRoutes.js`) key off
+`cityEntry.linesUrl` (per-URL cache). On city change `MixerTab` calls `resetSessionState()`, loads
+the new `lines.<city>.json`, pushes its embedded `city.bounds` into the engine via
+`setCityBounds()` (`lib/mappings.js`), and forces mock mode if the city has no `liveWsUrl`.
+**Per-route pitch is independent of city bounds** — `geoToMidi`/`routeBounds` derive from each
+route's own stops; `cityBounds` only retunes the centroid/dispersion *fallbacks* (important for
+cities at very different latitudes or with negative longitudes — see `docs/multi-city-gtfs.md`).
+
+**To add a city**: write `feed/cities/<id>.js` + add it to `lib/shared/cities.js`, run
+`npm run preprocess -- --city <id> --gtfs data/<id>_gtfs`, set `CITY=<id>` for a feed process, and
+point the per-city `NEXT_PUBLIC_*` vars at the generated file/feed. No engine code changes.
 
 ### Line → instrument convention
 
 `metro` → pitched lead/bass · `tram`/`trolley` → rhythmic perc · `bus` → pads/textures ·
-`hev` → low melodic/cello · MÁV rail → long sustained pads. Line-type colors live in
-`LINE_TYPE_COLORS` (`lib/engine.js`).
+`hev` → low melodic/cello (also rail/suburban/ferry collapse here per `routeTypes.js`) · MÁV rail →
+long sustained pads. Line-type colors live in `LINE_TYPE_COLORS` (`lib/engine.js`).
 
 ## Docs
 
 `docs/nextjs-migration-plan.md` (Next/Vercel topology + migration history), `docs/bkk-api.md`
-(GTFS-RT field reference), `docs/vst-plugin-plan.md` (planned JUCE VST3/AU port), `docs/gtfs-salt.md`.
+(GTFS-RT field reference), `docs/multi-city-gtfs.md` (per-city descriptor model, agency feed
+quirks, candidate cities, generalization gotchas), `docs/vst-plugin-plan.md` (planned JUCE VST3/AU
+port), `docs/gtfs-salt.md`.
 
 ## Planned (not yet wired in)
 

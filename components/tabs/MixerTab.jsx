@@ -2,7 +2,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import * as Tone from 'tone'
 import { TransitEngine, SYNTH_DEFAULTS, availableAutomationTargets } from '@/lib/engine.js'
 import { FX_BUSES } from '@/lib/fxTrack.js'
-import { randomFromScale, shiftOctaveNote, geoToMidi, routeBounds, midiToNote, noteToMidi, SCALES, MODES } from '@/lib/mappings.js'
+import { randomFromScale, shiftOctaveNote, geoToMidi, routeBounds, midiToNote, noteToMidi, SCALES, MODES, setCityBounds } from '@/lib/mappings.js'
+import { fetchLines } from '@/lib/shared/useRoutes.js'
+import { useCitySelection } from '@/lib/shared/CityContext.jsx'
 import DawView, { NOTE_ROOTS, SCALE_TYPES } from '../DawView.jsx'
 import MapView from '../MapView.jsx'
 import AIComposerPanel from '../AIComposerPanel.jsx'
@@ -42,7 +44,30 @@ function pickStartupRoutes(allRoutes) {
   return picked
 }
 
+// Derive interchange "hubs" for the network-convergence chords from the route
+// list: the stops served by the most distinct routes, with averaged coords.
+// Used for cities other than Budapest (which keeps its curated hubs).
+function deriveHubs(allRoutes, n = 6) {
+  const byName = new Map()  // stopName → { routes:Set, lat, lng, count }
+  for (const route of allRoutes ?? []) {
+    for (const s of route.stops ?? []) {
+      if (!s.name || !Number.isFinite(s.lat)) continue
+      let e = byName.get(s.name)
+      if (!e) { e = { name: s.name, routes: new Set(), lat: 0, lng: 0, count: 0 }; byName.set(s.name, e) }
+      e.routes.add(route.id)
+      e.lat += s.lat; e.lng += (s.lon ?? s.lng ?? 0); e.count++
+    }
+  }
+  return [...byName.values()]
+    .filter(e => e.routes.size >= 2)
+    .sort((a, b) => b.routes.size - a.routes.size)
+    .slice(0, n)
+    .map(e => ({ name: e.name, lat: e.lat / e.count, lng: e.lng / e.count }))
+}
+
 export default function MixerTab() {
+  const { cityId, cityEntry } = useCitySelection()
+  const loadedCityRef    = useRef(null)   // last city whose routes are loaded
   const engineRef        = useRef(null)
   const stoppingRef      = useRef(false)
   const midiRecorderRef  = useRef(null)
@@ -84,6 +109,7 @@ export default function MixerTab() {
   const [fxBusParams, setFxBusParams] = useState({})
 
   const [routes, setRoutes] = useState(null)
+  const [city, setCity] = useState(null)   // city metadata block from lines.json
   const allRoutesRef = useRef(null)   // full lines.json route list, for re-picking
 
   const [soloRoutes, setSoloRoutes] = useState(() => new Set())
@@ -108,15 +134,28 @@ export default function MixerTab() {
   const [liveSnapshot,    setLiveSnapshot]    = useState(null)
   const [snapshotLoading, setSnapshotLoading] = useState(false)
 
+  // Load the active city's route data. On a city *switch* (not first load), wipe
+  // the session first so the engine + all per-track/FX state start clean.
   useEffect(() => {
-    fetch('/data/lines.json')
-      .then(r => r.json())
-      .then(d => {
-        allRoutesRef.current = d.routes
-        const routes = pickStartupRoutes(d.routes)
-        setRoutes(routes)
+    const isSwitch = loadedCityRef.current !== null && loadedCityRef.current !== cityId
+    if (isSwitch) {
+      resetSessionState()
+      if (!cityEntry.liveWsUrl) setMode('mock')  // no feed for this city → mock only
+    }
+    let cancelled = false
+    fetchLines(cityEntry.linesUrl)
+      .then(({ routes: all, city }) => {
+        if (cancelled) return
+        // Retune the pitch/pan fallbacks to this city before any notes are built.
+        if (city?.bounds) setCityBounds(city.bounds)
+        setCity(city ?? null)
+        allRoutesRef.current = all
+        setRoutes(pickStartupRoutes(all))
+        loadedCityRef.current = cityId
       })
-  }, [])
+      .catch(() => { if (!cancelled) { setRoutes([]); setCity(null) } })
+    return () => { cancelled = true }
+  }, [cityId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Re-roll the random selection for a single line type (tram/trolley/bus),
   // keeping metro and the other types untouched. No-op while playing — the
@@ -154,6 +193,15 @@ export default function MixerTab() {
     createEngine()
     return () => engineRef.current?.dispose()
   }, [createEngine])
+
+  // For cities other than Budapest, retune the network hubs to interchanges
+  // derived from the loaded routes (Budapest keeps its curated hubs).
+  useEffect(() => {
+    const engine = engineRef.current
+    if (!engine || !routes?.length || !city || city.id === 'budapest') return
+    const hubs = deriveHubs(allRoutesRef.current ?? routes, 6)
+    if (hubs.length) engine.setNetworkHubs(hubs)
+  }, [city, routes])
 
   // Drive tempo live: the whole transport-scheduled arrangement and any
   // tempo-synced FX track the BPM slider immediately, not just on next Start.
@@ -483,7 +531,7 @@ export default function MixerTab() {
 
   const handleAddAutomationLane = useCallback((routeId) => {
     const laneId = `lane_${Date.now()}`
-    const cfg = { sourceRouteId: '', paramTarget: 'volume', points: {} }
+    const cfg = { sourceRouteId: '', paramTarget: 'volume', points: {}, speed: 1, glide: 0 }
     setAutomationCfg(a => ({
       ...a,
       [routeId]: { ...(a[routeId] ?? {}), [laneId]: cfg },
@@ -683,7 +731,7 @@ export default function MixerTab() {
     <div className={`daw ${view === 'map' ? 'daw--map' : ''}`}>
       <header className="daw-header">
         <h2 className="daw-subtitle">Map</h2>
-        <p className="daw-sub">Budapest public transport → generative music</p>
+        <p className="daw-sub">{cityEntry.name} public transport → generative music</p>
 
         <SongMenu {...song} />
 
@@ -703,10 +751,12 @@ export default function MixerTab() {
             className={`mode-btn ${mode === 'mock' ? 'active' : ''}`}
             onClick={() => { if (started) { engineRef.current?.stopMock(); setStarted(false) }; setMode('mock') }}
           >Mock</button>
-          <button
-            className={`mode-btn ${mode === 'live' ? 'active' : ''}`}
-            onClick={() => { if (started) { engineRef.current?.stopMock(); setStarted(false) }; setMode('live') }}
-          >BKK Live</button>
+          {cityEntry.liveWsUrl && (
+            <button
+              className={`mode-btn ${mode === 'live' ? 'active' : ''}`}
+              onClick={() => { if (started) { engineRef.current?.stopMock(); setStarted(false) }; setMode('live') }}
+            >{cityEntry.name} Live</button>
+          )}
         </div>
 
         <div className="harmony-control">
@@ -773,6 +823,7 @@ export default function MixerTab() {
         className={view !== 'map' ? 'view-hidden' : ''}
         active={view === 'map'}
         routes={routes}
+        city={city}
         started={started}
         mode={mode}
         muted={muted}
