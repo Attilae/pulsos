@@ -531,7 +531,7 @@ export default function MixerTab() {
 
   const handleAddAutomationLane = useCallback((routeId) => {
     const laneId = `lane_${Date.now()}`
-    const cfg = { sourceRouteId: '', paramTarget: 'volume', points: {}, speed: 1, glide: 0 }
+    const cfg = { sourceRouteId: '', paramTarget: 'volume', points: {}, speed: 1, glide: 0, loopRegion: null }
     setAutomationCfg(a => ({
       ...a,
       [routeId]: { ...(a[routeId] ?? {}), [laneId]: cfg },

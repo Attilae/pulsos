@@ -579,6 +579,8 @@ function AutomationLane({ laneId, instRoute, laneCfg, allRoutes, activeFxTracks,
   const points        = laneCfg?.points        ?? {}
   const speed         = laneCfg?.speed         ?? 1
   const glide         = laneCfg?.glide         ?? 0
+  // Per-lane sub-loop; falls back to the source line's region until the user drags handles.
+  const effectiveRegion = laneCfg?.loopRegion ?? srcLoopRegion
 
   // Report the value currently in effect (or null) up to DawView, which mirrors it onto
   // the matching instrument-lane control. Clear on unmount / target change so a stale lane
@@ -672,7 +674,8 @@ function AutomationLane({ laneId, instRoute, laneCfg, allRoutes, activeFxTracks,
         spec={findTargetSpec(paramTarget, synthType)}
         started={started}
         speed={speed}
-        loopRegion={srcLoopRegion}
+        loopRegion={effectiveRegion}
+        onLoopRegion={region => onUpdate({ loopRegion: region })}
         onUpdate={onUpdate}
         onActiveValue={handleActiveValue}
       />
@@ -753,7 +756,7 @@ function autoCtl(autoTargets, ids, { divide = 1 } = {}) {
 
 // Draggable per-stop automation curve. X = the chosen line's stops (snapped to the
 // same grid as instrument notes); Y = the authored value (override or hash default).
-function AutoCurveRail({ route, laneId, points, spec, started = false, speed = 1, loopRegion, onUpdate, onActiveValue }) {
+function AutoCurveRail({ route, laneId, points, spec, started = false, speed = 1, loopRegion, onLoopRegion, onUpdate, onActiveValue }) {
   const railRef = useRef(null)
   const needleRef = useRef(null)
   const stopPointsRef = useRef([])
@@ -800,6 +803,44 @@ function AutoCurveRail({ route, laneId, points, spec, started = false, speed = 1
     rafId = requestAnimationFrame(tick)
     return () => { cancelAnimationFrame(rafId); clearActive(); onActiveValue?.(null) }
   }, [started, speed, startPct, endPct, regionLen, onActiveValue])
+
+  // ── Loop-handle drag (mirrors StopRail) ───────────────────────────────────
+  const cellFromClientX = useCallback((clientX) => {
+    const rect = railRef.current?.getBoundingClientRect()
+    if (!rect || rect.width === 0) return 0
+    const frac = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width))
+    return Math.round(frac * GRID_TOTAL_CELLS)
+  }, [])
+
+  const dragRef = useRef(null)  // 'start' | 'end' | null
+  useEffect(() => {
+    const onMove = (e) => {
+      if (!dragRef.current || !onLoopRegion) return
+      const cell = cellFromClientX(e.clientX)
+      if (dragRef.current === 'start') {
+        const newStart = Math.max(0, Math.min(endCell - 1, cell))
+        if (newStart !== startCell) onLoopRegion({ startCell: newStart, endCell })
+      } else {
+        const newEnd = Math.max(startCell + 1, Math.min(GRID_TOTAL_CELLS, cell))
+        if (newEnd !== endCell) onLoopRegion({ startCell, endCell: newEnd })
+      }
+    }
+    const onUp = () => { dragRef.current = null }
+    window.addEventListener('pointermove', onMove)
+    window.addEventListener('pointerup',   onUp)
+    return () => {
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup',   onUp)
+    }
+  }, [startCell, endCell, cellFromClientX, onLoopRegion])
+
+  const handlePointerDown = (which) => (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+    dragRef.current = which
+  }
+  // Double-click a handle clears the per-lane override → inherit the source region.
+  const handleReset = (e) => { e.preventDefault(); e.stopPropagation(); onLoopRegion?.(null) }
 
   const stopPoints = useMemo(() => {
     if (!route?.stops?.length) return []
@@ -861,6 +902,35 @@ function AutoCurveRail({ route, laneId, points, spec, started = false, speed = 1
           <div className="auto-axis-label auto-axis-label--bot">{minLabel}</div>
         </>
       )}
+
+      {/* Dim regions outside the loop band */}
+      {startPct > 0 && (
+        <div className="loop-region-dim" style={{ left: 0, width: `${startPct}%` }} />
+      )}
+      {endPct < 100 && (
+        <div className="loop-region-dim" style={{ left: `${endPct}%`, width: `${100 - endPct}%` }} />
+      )}
+
+      {/* Draggable loop-region handles (double-click to inherit source region) */}
+      {onLoopRegion && (
+        <>
+          <div
+            className="loop-handle loop-handle--start"
+            style={{ left: `${startPct}%`, '--line-color': route.color }}
+            onPointerDown={handlePointerDown('start')}
+            onDoubleClick={handleReset}
+            title={`Loop start · cell ${startCell}/${GRID_TOTAL_CELLS} (double-click to reset)`}
+          />
+          <div
+            className="loop-handle loop-handle--end"
+            style={{ left: `${endPct}%`, '--line-color': route.color }}
+            onPointerDown={handlePointerDown('end')}
+            onDoubleClick={handleReset}
+            title={`Loop end · cell ${endCell}/${GRID_TOTAL_CELLS} (double-click to reset)`}
+          />
+        </>
+      )}
+
       <svg className="auto-curve-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
         <polyline points={polylinePoints} fill="none" stroke={route.color} strokeWidth="1.5" opacity="0.45" />
       </svg>

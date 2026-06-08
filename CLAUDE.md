@@ -7,7 +7,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 A web DAW that sonifies live public transport, branded **"Leið"** (Icelandic for "the way/route";
 the title lives in `app/layout.jsx`). Each transit line is a track; each station
 arrival triggers a note. Budapest (BKK) was the first city; the app is now **multi-city**
-(Budapest + Helsinki/HSL, with a runtime city picker) via a per-city descriptor abstraction —
+(Budapest + Helsinki/HSL live, Berlin/VBB mock-only, with a runtime city picker) via a per-city
+descriptor abstraction —
 GTFS-RT is a global standard, so adding a city needs config, not engine changes. See
 `docs/multi-city-gtfs.md` and the **Multi-city** section below. Inspired by trainjazz.com.
 
@@ -43,6 +44,7 @@ npm run build      # next build
 npm run start      # serve the production build
 npm run preprocess:budapest  # regenerate public/data/lines.budapest.json (+ mirror to lines.json)
 npm run preprocess:helsinki  # regenerate public/data/lines.helsinki.json
+npm run preprocess:berlin    # regenerate public/data/lines.berlin.json
 # generic form: node scripts/preprocess_lines.js --city <id> [--gtfs data/<id>_gtfs]
 npm run upload:lines # upload public/data/lines.json to Vercel Blob (needs BLOB_READ_WRITE_TOKEN)
 npm run db:generate # drizzle-kit: emit SQL migration from lib/db/schema.js
