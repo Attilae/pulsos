@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import * as Tone from 'tone'
-import { TransitEngine, SYNTH_DEFAULTS, availableAutomationTargets } from '@/lib/engine.js'
+import { TransitEngine, SYNTH_DEFAULTS, availableAutomationTargets, DEFAULT_ARP } from '@/lib/engine.js'
 import { FX_BUSES } from '@/lib/fxTrack.js'
 import { randomFromScale, shiftOctaveNote, geoToMidi, routeBounds, midiToNote, noteToMidi, SCALES, MODES, setCityBounds } from '@/lib/mappings.js'
 import { fetchLines } from '@/lib/shared/useRoutes.js'
@@ -130,6 +130,7 @@ export default function MixerTab() {
   const [trackDroneRoots, setTrackDroneRoots] = useState({})
   const [trackSpeeds,     setTrackSpeeds]     = useState({})
   const [trackLoopRegions, setTrackLoopRegions] = useState({})
+  const [trackArps,       setTrackArps]       = useState({})
 
   const [liveSnapshot,    setLiveSnapshot]    = useState(null)
   const [snapshotLoading, setSnapshotLoading] = useState(false)
@@ -490,6 +491,14 @@ export default function MixerTab() {
     engineRef.current?.setLegato(routeId, enabled)
   }, [])
 
+  const handleArp = useCallback((routeId, params) => {
+    setTrackArps(a => {
+      const next = { ...a, [routeId]: { ...DEFAULT_ARP, ...a[routeId], ...params } }
+      engineRef.current?.setArpeggiator(routeId, next[routeId])
+      return next
+    })
+  }, [])
+
   const handleDroneMode = useCallback((routeId, enabled) => {
     setTrackDroneModes(m => ({ ...m, [routeId]: enabled }))
     setTrackDroneRoots(r => {
@@ -606,6 +615,7 @@ export default function MixerTab() {
         handleDroneMode(t.routeId, !!t.drone.enabled)
         if (t.drone.root) handleDroneRoot(t.routeId, t.drone.root)
       }
+      if (t.arp) handleArp(t.routeId, t.arp)
     }
 
     for (const f of plan.fx ?? []) {
@@ -620,7 +630,7 @@ export default function MixerTab() {
     }
   }, [
     routes, handleMasterVolume, handleSynthType, handleSamplerPreset, handleDrumVoice,
-    handleOctaveShift, handleGlide, handleLegato,
+    handleOctaveShift, handleGlide, handleLegato, handleArp,
     handleDroneMode, handleDroneRoot, handleAddFxTrack, handleFxBusWet,
     handleFxBusParam, handleSendLevel,
   ])
@@ -672,7 +682,7 @@ export default function MixerTab() {
     volumes, muted, pans, soloRoutes,
     trackSoundModes, trackScales, trackSynthTypes, trackADSRs,
     trackFilters, trackEqs,
-    trackOctaves, trackGlides, trackLegatos, trackDroneModes, trackDroneRoots, trackSpeeds, trackLoopRegions,
+    trackOctaves, trackGlides, trackLegatos, trackDroneModes, trackDroneRoots, trackSpeeds, trackLoopRegions, trackArps,
     activeFxTracks, fxBusWet, fxBusMuted, fxBusSoloed, fxBusParams,
     sendMatrix, automationCfg,
   }), [
@@ -680,7 +690,7 @@ export default function MixerTab() {
     volumes, muted, pans, soloRoutes,
     trackSoundModes, trackScales, trackSynthTypes, trackADSRs,
     trackFilters, trackEqs,
-    trackOctaves, trackGlides, trackLegatos, trackDroneModes, trackDroneRoots, trackSpeeds, trackLoopRegions,
+    trackOctaves, trackGlides, trackLegatos, trackDroneModes, trackDroneRoots, trackSpeeds, trackLoopRegions, trackArps,
     activeFxTracks, fxBusWet, fxBusMuted, fxBusSoloed, fxBusParams,
     sendMatrix, automationCfg,
   ])
@@ -701,6 +711,7 @@ export default function MixerTab() {
     setTrackFilters({}); setTrackEqs({})
     setTrackOctaves({}); setTrackGlides({}); setTrackLegatos({})
     setTrackDroneModes({}); setTrackDroneRoots({}); setTrackSpeeds({}); setTrackLoopRegions({})
+    setTrackArps({})
     setActiveFxTracks([])
     setFxBusWet(Object.fromEntries(FX_BUSES.map(b => [b.id, b.defaults?.wet ?? 1.0])))
     setFxBusMuted({}); setFxBusSoloed({}); setFxBusParams({})
@@ -714,7 +725,7 @@ export default function MixerTab() {
     setVolumes, setMuted, setPans, setSoloRoutes,
     setTrackSoundModes, setTrackScales, setTrackSynthTypes, setTrackADSRs,
     setTrackFilters, setTrackEqs,
-    setTrackOctaves, setTrackGlides, setTrackLegatos, setTrackDroneModes, setTrackDroneRoots, setTrackSpeeds, setTrackLoopRegions,
+    setTrackOctaves, setTrackGlides, setTrackLegatos, setTrackDroneModes, setTrackDroneRoots, setTrackSpeeds, setTrackLoopRegions, setTrackArps,
     setActiveFxTracks, setFxBusWet, setFxBusMuted, setFxBusSoloed, setFxBusParams,
     setSendMatrix, setAutomationCfg,
   }), [])
@@ -867,6 +878,8 @@ export default function MixerTab() {
         onGlide={handleGlide}
         trackLegatos={trackLegatos}
         onLegato={handleLegato}
+        trackArps={trackArps}
+        onArp={handleArp}
         trackSpeeds={trackSpeeds}
         onTrackSpeed={handleTrackSpeed}
         trackLoopRegions={trackLoopRegions}

@@ -1,6 +1,6 @@
 import * as Tone from 'tone'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { SYNTH_DEFAULTS, availableAutomationTargets, findTargetSpec, SAMPLER_PRESET_LIST, SAMPLER_PRESETS, DRUM_VOICES, DRUM_VOICE_LICENSE } from '@/lib/engine.js'
+import { SYNTH_DEFAULTS, availableAutomationTargets, findTargetSpec, SAMPLER_PRESET_LIST, SAMPLER_PRESETS, DRUM_VOICES, DRUM_VOICE_LICENSE, ARP_STYLES, ARP_RATES, DEFAULT_ARP } from '@/lib/engine.js'
 import { FX_BUSES, AUTOMATION_TARGETS, FX_PARAM_SPECS, FX_SYNC_TARGETS } from '@/lib/fxTrack.js'
 import { generatePitchMap, shiftOctaveNote, noteToMidi, SCALES, hashStopValue, snapStopsToGrid, GRID_TOTAL_CELLS, GRID_BARS, denormalizeToRange, denormalizeExp } from '@/lib/mappings.js'
 import './DawView.css'
@@ -35,6 +35,15 @@ const SPEED_OPTIONS = [
   { value: 4,    label: '×4',   title: '4× speed — four passes per loop' },
 ]
 
+// Arpeggiator display labels (values come from ARP_STYLES / ARP_RATES in engine/mappings)
+const ARP_STYLE_LABELS = {
+  up: 'Up', down: 'Dn', updown: 'Up/Dn', downup: 'Dn/Up',
+  converge: 'Conv', diverge: 'Div', random: 'Rnd',
+}
+const ARP_RATE_LABELS = {
+  '4n': '1/4', '8n': '1/8', '8t': '1/8T', '16n': '1/16', '16t': '1/16T', '32n': '1/32',
+}
+
 const OSC_TYPES = ['sine', 'triangle', 'square', 'sawtooth', 'fatsine', 'fattriangle', 'fatsquare', 'fatsawtooth', 'pulse', 'pwm']
 const FILTER_TYPES = ['lowpass', 'highpass', 'bandpass', 'notch']
 const FILTER_ROLLOFFS = [-12, -24, -48, -96]
@@ -62,14 +71,14 @@ export default function DawView({
   liveSnapshot, snapshotLoading,
   trackSoundModes, trackScales, trackSynthTypes, trackADSRs, trackFilters, trackEqs,
   sendMatrix, automationCfg, automationSourceIds,
-  fxBusWet, activeFxTracks, masterVolume, trackOctaves, trackGlides, trackLegatos, trackSpeeds, trackLoopRegions,
+  fxBusWet, activeFxTracks, masterVolume, trackOctaves, trackGlides, trackLegatos, trackArps, trackSpeeds, trackLoopRegions,
   trackDroneModes, trackDroneRoots, onDroneMode, onDroneRoot,
   onVolume, onMute, onPan, onSolo,
   onSoundMode, onScale, onSynthType, onADSR, onSamplerPreset, onDrumVoice, onSamplerUpload, onFilter, onEq,
   onSendLevel, onFxBusWet, fxBusMuted, fxBusSoloed, onFxBusMute, onFxBusSolo,
   fxBusParams, onFxBusParam, onFxBusCustomIR,
   onAddFxTrack, onRemoveFxTrack, onMasterVolume,
-  onOctaveShift, onGlide, onLegato, onTrackSpeed, onTrackLoopRegion,
+  onOctaveShift, onGlide, onLegato, onArp, onTrackSpeed, onTrackLoopRegion,
   onAddAutomationLane, onRemoveAutomationLane, onUpdateAutomationLane,
   onRefetch, onVehicleCrossed, onExportRouteMidi,
 }) {
@@ -256,6 +265,7 @@ export default function DawView({
                     octaveShift={trackOctaves?.[route.id] ?? 0}
                     glide={trackGlides?.[route.id] ?? 0}
                     legato={trackLegatos?.[route.id] ?? false}
+                    arp={trackArps?.[route.id]}
                     speed={trackSpeeds?.[route.id] ?? 1}
                     loopRegion={trackLoopRegions?.[route.id]}
                     onLoopRegion={r => onTrackLoopRegion(route.id, r)}
@@ -273,6 +283,7 @@ export default function DawView({
                     onOctaveShift={shift => onOctaveShift(route.id, shift)}
                     onGlide={s => onGlide(route.id, s)}
                     onLegato={en => onLegato(route.id, en)}
+                    onArp={params => onArp(route.id, params)}
                     onSpeed={m => onTrackSpeed(route.id, m)}
                     onDroneMode={en => onDroneMode(route.id, en)}
                     onDroneRoot={n => onDroneRoot(route.id, n)}
@@ -350,12 +361,12 @@ function LineTrack({
   vehicles, soundMode, trackScale, synthType, adsr,
   filter, eq,
   droneMode, droneRoot,
-  laneCount, autoTargets = {}, activeFxTracks, sendMatrix, octaveShift, glide, legato, speed,
+  laneCount, autoTargets = {}, activeFxTracks, sendMatrix, octaveShift, glide, legato, arp, speed,
   loopRegion, onLoopRegion,
   onVolume, onMute, onPan, onSolo, onSoundMode, onScale, onSynthType, onADSR,
   onSamplerPreset, onDrumVoice, onSamplerUpload,
   onFilter, onEq,
-  onSendLevel, onOctaveShift, onGlide, onLegato, onSpeed, onDroneMode, onDroneRoot, onAddLane,
+  onSendLevel, onOctaveShift, onGlide, onLegato, onArp, onSpeed, onDroneMode, onDroneRoot, onAddLane,
   onExportRouteMidi,
 }) {
   const [rackOpen, setRackOpen] = useState(false)
@@ -540,6 +551,85 @@ function LineTrack({
               </div>
             </div>
           </div>
+
+          {(() => {
+            const ag = { ...DEFAULT_ARP, ...arp }
+            const arpOn = !!ag.enabled
+            const dim = arpOn ? {} : { opacity: 0.4, pointerEvents: 'none' }
+            return (
+              <div className="rack-card">
+                <div className="rack-card-head">
+                  Arpeggiator
+                  <button
+                    className={`legato-btn ${arpOn ? 'active' : ''}`}
+                    onClick={() => onArp({ enabled: !arpOn })}
+                    title={arpOn ? 'Arpeggiator on — click to disable' : 'Enable arpeggiator (stop note = root)'}
+                    style={{ marginLeft: 'auto', ...(arpOn ? { borderColor: route.color, color: route.color } : {}) }}
+                  >ARP</button>
+                </div>
+
+                <div className="speed-row" style={dim}>
+                  <span className="speed-label">STYLE</span>
+                  <div className="speed-btns">
+                    {ARP_STYLES.map(st => (
+                      <button
+                        key={st}
+                        className={`speed-btn ${ag.style === st ? 'active' : ''}`}
+                        style={ag.style === st ? { borderColor: route.color, color: route.color } : {}}
+                        onClick={() => onArp({ style: st })}
+                        title={ARP_STYLE_LABELS[st] ?? st}
+                      >{ARP_STYLE_LABELS[st] ?? st}</button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="speed-row" style={dim}>
+                  <span className="speed-label">RATE</span>
+                  <div className="speed-btns">
+                    {ARP_RATES.map(rt => (
+                      <button
+                        key={rt}
+                        className={`speed-btn ${ag.rate === rt ? 'active' : ''}`}
+                        style={ag.rate === rt ? { borderColor: route.color, color: route.color } : {}}
+                        onClick={() => onArp({ rate: rt })}
+                        title={`Step rate ${ARP_RATE_LABELS[rt] ?? rt}`}
+                      >{ARP_RATE_LABELS[rt] ?? rt}</button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="octave-row" style={dim}>
+                  <span className="octave-label">OCT</span>
+                  <button className="octave-btn" onClick={() => onArp({ octaves: Math.max(1, ag.octaves - 1) })}>−</button>
+                  <span className="octave-val">{ag.octaves}</span>
+                  <button className="octave-btn" onClick={() => onArp({ octaves: Math.min(4, ag.octaves + 1) })}>+</button>
+                  <span className="octave-label" style={{ marginLeft: 10 }}>STEPS</span>
+                  <button className="octave-btn" onClick={() => onArp({ steps: Math.max(1, ag.steps - 1) })}>−</button>
+                  <span className="octave-val">{ag.steps}</span>
+                  <button className="octave-btn" onClick={() => onArp({ steps: Math.min(6, ag.steps + 1) })}>+</button>
+                </div>
+
+                <div className="octave-row" style={dim}>
+                  <span className="octave-label">DIST</span>
+                  <button className="octave-btn" onClick={() => onArp({ distance: Math.max(1, ag.distance - 1) })}>−</button>
+                  <span className="octave-val">{ag.distance}</span>
+                  <button className="octave-btn" onClick={() => onArp({ distance: Math.min(4, ag.distance + 1) })}>+</button>
+                </div>
+
+                <div className="glide-row" style={dim}>
+                  <span className="glide-label">GATE</span>
+                  <input
+                    type="range" min="0.05" max="2" step="0.05"
+                    value={ag.gate}
+                    onChange={e => onArp({ gate: parseFloat(e.target.value) })}
+                    onDoubleClick={() => onArp({ gate: 0.5 })}
+                    className="glide-slider"
+                  />
+                  <span className="glide-val">{Math.round(ag.gate * 100)}%</span>
+                </div>
+              </div>
+            )
+          })()}
 
           {activeFxTracks?.length > 0 && (
             <div className="rack-card">
