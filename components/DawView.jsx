@@ -1,6 +1,6 @@
 import * as Tone from 'tone'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { SYNTH_DEFAULTS, availableAutomationTargets, findTargetSpec, SAMPLER_PRESET_LIST, SAMPLER_PRESETS, DRUM_VOICES, DRUM_VOICE_LICENSE, ARP_STYLES, ARP_RATES, DEFAULT_ARP } from '@/lib/engine.js'
+import { SYNTH_DEFAULTS, availableAutomationTargets, findTargetSpec, SAMPLER_PRESET_LIST, SAMPLER_PRESETS, DRUM_VOICES, DRUM_VOICE_LICENSE, DEFAULT_GRANULAR, ARP_STYLES, ARP_RATES, DEFAULT_ARP } from '@/lib/engine.js'
 import { FX_BUSES, AUTOMATION_TARGETS, FX_PARAM_SPECS, FX_SYNC_TARGETS } from '@/lib/fxTrack.js'
 import { generatePitchMap, shiftOctaveNote, noteToMidi, SCALES, hashStopValue, snapStopsToGrid, GRID_TOTAL_CELLS, GRID_BARS, denormalizeToRange, denormalizeExp } from '@/lib/mappings.js'
 import './DawView.css'
@@ -71,14 +71,14 @@ export default function DawView({
   liveSnapshot, snapshotLoading,
   trackSoundModes, trackScales, trackSynthTypes, trackADSRs, trackFilters, trackEqs,
   sendMatrix, automationCfg, automationSourceIds,
-  fxBusWet, activeFxTracks, masterVolume, trackOctaves, trackGlides, trackLegatos, trackArps, trackSpeeds, trackLoopRegions,
+  fxBusWet, activeFxTracks, masterVolume, trackOctaves, trackGlides, trackLegatos, trackArps, trackGranulars, trackSpeeds, trackLoopRegions,
   trackDroneModes, trackDroneRoots, onDroneMode, onDroneRoot,
   onVolume, onMute, onPan, onSolo,
   onSoundMode, onScale, onSynthType, onADSR, onSamplerPreset, onDrumVoice, onSamplerUpload, onFilter, onEq,
   onSendLevel, onFxBusWet, fxBusMuted, fxBusSoloed, onFxBusMute, onFxBusSolo,
   fxBusParams, onFxBusParam, onFxBusCustomIR,
   onAddFxTrack, onRemoveFxTrack, onMasterVolume,
-  onOctaveShift, onGlide, onLegato, onArp, onTrackSpeed, onTrackLoopRegion,
+  onOctaveShift, onGlide, onLegato, onArp, onGranular, onTrackSpeed, onTrackLoopRegion,
   onAddAutomationLane, onRemoveAutomationLane, onUpdateAutomationLane,
   onRefetch, onVehicleCrossed, onExportRouteMidi,
 }) {
@@ -266,6 +266,7 @@ export default function DawView({
                     glide={trackGlides?.[route.id] ?? 0}
                     legato={trackLegatos?.[route.id] ?? false}
                     arp={trackArps?.[route.id]}
+                    granular={trackGranulars?.[route.id]}
                     speed={trackSpeeds?.[route.id] ?? 1}
                     loopRegion={trackLoopRegions?.[route.id]}
                     onLoopRegion={r => onTrackLoopRegion(route.id, r)}
@@ -284,6 +285,7 @@ export default function DawView({
                     onGlide={s => onGlide(route.id, s)}
                     onLegato={en => onLegato(route.id, en)}
                     onArp={params => onArp(route.id, params)}
+                    onGranular={params => onGranular(route.id, params)}
                     onSpeed={m => onTrackSpeed(route.id, m)}
                     onDroneMode={en => onDroneMode(route.id, en)}
                     onDroneRoot={n => onDroneRoot(route.id, n)}
@@ -307,6 +309,7 @@ export default function DawView({
                       allRoutes={routes ?? []}
                       activeFxTracks={activeFxTracks ?? []}
                       synthType={trackSynthTypes?.[route.id] ?? 'Synth'}
+                      granularEnabled={!!trackGranulars?.[route.id]?.enabled}
                       started={started}
                       srcLoopRegion={trackLoopRegions?.[laneCfg.sourceRouteId]}
                       onUpdate={cfg => onUpdateAutomationLane(route.id, laneId, cfg)}
@@ -361,12 +364,12 @@ function LineTrack({
   vehicles, soundMode, trackScale, synthType, adsr,
   filter, eq,
   droneMode, droneRoot,
-  laneCount, autoTargets = {}, activeFxTracks, sendMatrix, octaveShift, glide, legato, arp, speed,
+  laneCount, autoTargets = {}, activeFxTracks, sendMatrix, octaveShift, glide, legato, arp, granular, speed,
   loopRegion, onLoopRegion,
   onVolume, onMute, onPan, onSolo, onSoundMode, onScale, onSynthType, onADSR,
   onSamplerPreset, onDrumVoice, onSamplerUpload,
   onFilter, onEq,
-  onSendLevel, onOctaveShift, onGlide, onLegato, onArp, onSpeed, onDroneMode, onDroneRoot, onAddLane,
+  onSendLevel, onOctaveShift, onGlide, onLegato, onArp, onGranular, onSpeed, onDroneMode, onDroneRoot, onAddLane,
   onExportRouteMidi,
 }) {
   const [rackOpen, setRackOpen] = useState(false)
@@ -631,6 +634,93 @@ function LineTrack({
             )
           })()}
 
+          {(() => {
+            const gg = { ...DEFAULT_GRANULAR, ...granular }
+            const grainOn = !!gg.enabled
+            const dim = grainOn ? {} : { opacity: 0.4, pointerEvents: 'none' }
+            // Sliders mirror live grain.* automation (greyed + swept value) like
+            // the other instrument controls.
+            const grainRow = (label, key, min, max, step, fmt) => {
+              const a = autoCtl(autoTargets, `grain.${key}`)
+              const val = a.display ?? gg[key]
+              return (
+                <div className="glide-row" style={dim}>
+                  <span className="glide-label">{label}</span>
+                  <input
+                    type="range" min={min} max={max} step={step}
+                    value={val}
+                    disabled={a.disabled}
+                    onChange={e => onGranular({ [key]: parseFloat(e.target.value) })}
+                    className="glide-slider"
+                  />
+                  <span className="glide-val">{a.disabled ? 'auto' : fmt(val)}</span>
+                </div>
+              )
+            }
+            const pct = v => `${Math.round(v * 100)}%`
+            const ms  = v => `${Math.round(v * 1000)}ms`
+            return (
+              <div className="rack-card">
+                <div className="rack-card-head">
+                  Granular
+                  <button
+                    className={`legato-btn ${grainOn ? 'active' : ''}`}
+                    onClick={() => onGranular({ enabled: !grainOn })}
+                    title={grainOn
+                      ? 'Granular layer on — click to disable'
+                      : 'Layer a grain cloud rendered from this track’s instrument'}
+                    style={{ marginLeft: 'auto', ...(grainOn ? { borderColor: route.color, color: route.color } : {}) }}
+                  >GRAIN</button>
+                </div>
+
+                {grainRow('MIX',   'mix',          0,    1,   0.01,  pct)}
+                {grainRow('SIZE',  'grainSize',    0.01, 0.5, 0.005, ms)}
+                {grainRow('OVLP',  'overlap',      0.01, 0.5, 0.005, ms)}
+                {grainRow('RATE',  'playbackRate', 0.25, 4,   0.01,  v => `${Number(v).toFixed(2)}×`)}
+                {grainRow('LP ST', 'loopStart',    0,    1,   0.01,  pct)}
+                {grainRow('LP EN', 'loopEnd',      0,    1,   0.01,  pct)}
+                {grainRow('JITR',  'jitter',       0,    1,   0.01,  pct)}
+
+                <div className="speed-row" style={dim}>
+                  <span className="speed-label">DIR</span>
+                  <div className="speed-btns">
+                    <button
+                      className={`speed-btn ${!gg.reverse ? 'active' : ''}`}
+                      style={!gg.reverse ? { borderColor: route.color, color: route.color } : {}}
+                      onClick={() => onGranular({ reverse: false })}
+                    >FWD</button>
+                    <button
+                      className={`speed-btn ${gg.reverse ? 'active' : ''}`}
+                      style={gg.reverse ? { borderColor: route.color, color: route.color } : {}}
+                      onClick={() => onGranular({ reverse: true })}
+                    >REV</button>
+                  </div>
+                </div>
+
+                <div className="glide-row" style={dim}>
+                  <span className="glide-label">ATK</span>
+                  <input
+                    type="range" min="0" max="2" step="0.005"
+                    value={gg.attack}
+                    onChange={e => onGranular({ attack: parseFloat(e.target.value) })}
+                    className="glide-slider"
+                  />
+                  <span className="glide-val">{ms(gg.attack)}</span>
+                </div>
+                <div className="glide-row" style={dim}>
+                  <span className="glide-label">REL</span>
+                  <input
+                    type="range" min="0.01" max="6" step="0.01"
+                    value={gg.release}
+                    onChange={e => onGranular({ release: parseFloat(e.target.value) })}
+                    className="glide-slider"
+                  />
+                  <span className="glide-val">{Number(gg.release).toFixed(2)}s</span>
+                </div>
+              </div>
+            )
+          })()}
+
           {activeFxTracks?.length > 0 && (
             <div className="rack-card">
               <div className="rack-card-head">Sends</div>
@@ -663,7 +753,7 @@ function LineTrack({
 }
 
 // ── Automation lane (sub-row below instrument track) ─────────────────────────
-function AutomationLane({ laneId, instRoute, laneCfg, allRoutes, activeFxTracks, synthType = 'Synth', started = false, srcLoopRegion, onUpdate, onRemove, onLiveValue }) {
+function AutomationLane({ laneId, instRoute, laneCfg, allRoutes, activeFxTracks, synthType = 'Synth', granularEnabled = false, started = false, srcLoopRegion, onUpdate, onRemove, onLiveValue }) {
   const sourceRouteId = laneCfg?.sourceRouteId ?? ''
   const paramTarget   = laneCfg?.paramTarget   ?? 'volume'
   const points        = laneCfg?.points        ?? {}
@@ -691,12 +781,12 @@ function AutomationLane({ laneId, instRoute, laneCfg, allRoutes, activeFxTracks,
   // Target options, grouped by .group, filtered to what's valid for this synth type.
   const groupedTargets = useMemo(() => {
     const groups = {}
-    for (const t of availableAutomationTargets(synthType, activeFxTracks ?? [])) {
+    for (const t of availableAutomationTargets(synthType, activeFxTracks ?? [], granularEnabled)) {
       const g = t.group ?? 'Other'
       ;(groups[g] ??= []).push(t)
     }
     return groups
-  }, [synthType, activeFxTracks])
+  }, [synthType, activeFxTracks, granularEnabled])
 
   return (
     <div className="automation-lane">

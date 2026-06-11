@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import * as Tone from 'tone'
-import { TransitEngine, SYNTH_DEFAULTS, availableAutomationTargets, DEFAULT_ARP } from '@/lib/engine.js'
+import { TransitEngine, SYNTH_DEFAULTS, availableAutomationTargets, DEFAULT_ARP, DEFAULT_GRANULAR } from '@/lib/engine.js'
 import { FX_BUSES } from '@/lib/fxTrack.js'
 import { randomFromScale, shiftOctaveNote, geoToMidi, routeBounds, midiToNote, noteToMidi, SCALES, MODES, setCityBounds } from '@/lib/mappings.js'
 import { fetchLines } from '@/lib/shared/useRoutes.js'
@@ -131,6 +131,7 @@ export default function MixerTab() {
   const [trackSpeeds,     setTrackSpeeds]     = useState({})
   const [trackLoopRegions, setTrackLoopRegions] = useState({})
   const [trackArps,       setTrackArps]       = useState({})
+  const [trackGranulars,  setTrackGranulars]  = useState({})
 
   const [liveSnapshot,    setLiveSnapshot]    = useState(null)
   const [snapshotLoading, setSnapshotLoading] = useState(false)
@@ -304,15 +305,9 @@ export default function MixerTab() {
     engineRef.current?.triggerLiveNote(routeId, routeType, note)
   }, [trackScales, trackOctaves, routes])
 
-  const handleSynthType = useCallback((routeId, routeType, synthType) => {
-    setTrackSynthTypes(s => ({ ...s, [routeId]: synthType }))
-    const defaults = { ...SYNTH_DEFAULTS[synthType] }
-    setTrackADSRs(a => ({ ...a, [routeId]: defaults }))
-    engineRef.current?.setSynthType(routeId, routeType, synthType, defaults)
-
-    // Reset any automation lane whose target is no longer valid for the new synth type
-    // (e.g. an FM-only param after switching to Drums). 'volume' is always valid.
-    const validIds = new Set(availableAutomationTargets(synthType, activeFxTracks).map(t => t.id))
+  // Reset any automation lane whose target is no longer valid (synth type change,
+  // granular toggled off). 'volume' is always valid.
+  const resetInvalidAutomationLanes = useCallback((routeId, validIds) => {
     setAutomationCfg(a => {
       const lanes = a[routeId]
       if (!lanes) return a
@@ -329,7 +324,20 @@ export default function MixerTab() {
       }
       return changed ? { ...a, [routeId]: nextLanes } : a
     })
-  }, [activeFxTracks])
+  }, [])
+
+  const handleSynthType = useCallback((routeId, routeType, synthType) => {
+    setTrackSynthTypes(s => ({ ...s, [routeId]: synthType }))
+    const defaults = { ...SYNTH_DEFAULTS[synthType] }
+    setTrackADSRs(a => ({ ...a, [routeId]: defaults }))
+    engineRef.current?.setSynthType(routeId, routeType, synthType, defaults)
+
+    // e.g. an FM-only param lane after switching to Drums
+    const validIds = new Set(availableAutomationTargets(
+      synthType, activeFxTracks, !!trackGranulars[routeId]?.enabled
+    ).map(t => t.id))
+    resetInvalidAutomationLanes(routeId, validIds)
+  }, [activeFxTracks, trackGranulars, resetInvalidAutomationLanes])
 
   const handleADSR = useCallback((routeId, params) => {
     setTrackADSRs(a => {
@@ -365,6 +373,20 @@ export default function MixerTab() {
       console.error('Sampler sample decode failed:', err)
     }
   }, [])
+
+  const handleGranular = useCallback((routeId, params) => {
+    setTrackGranulars(g => {
+      const next = { ...g, [routeId]: { ...DEFAULT_GRANULAR, ...g[routeId], ...params } }
+      engineRef.current?.setGranular(routeId, next[routeId])
+      return next
+    })
+    // Toggling off invalidates this track's grain.* automation targets
+    if (params.enabled === false) {
+      const synthType = trackSynthTypes[routeId] ?? 'Synth'
+      const validIds = new Set(availableAutomationTargets(synthType, activeFxTracks, false).map(t => t.id))
+      resetInvalidAutomationLanes(routeId, validIds)
+    }
+  }, [trackSynthTypes, activeFxTracks, resetInvalidAutomationLanes])
 
   const handleFilter = useCallback((routeId, params) => {
     setTrackFilters(f => {
@@ -605,6 +627,7 @@ export default function MixerTab() {
       if (t.synthType)    handleSynthType(t.routeId, route.type, t.synthType)
       if (t.samplerPreset) handleSamplerPreset(t.routeId, route.type, t.samplerPreset)
       if (t.drumVoice)    handleDrumVoice(t.routeId, route.type, t.drumVoice)
+      if (t.granular)     handleGranular(t.routeId, t.granular)
       if (t.volume != null) handleVolume(t.routeId, t.volume)
       if (t.pan != null)    handlePan(t.routeId, t.pan)
       if (t.octave != null) handleOctaveShift(t.routeId, t.octave)
@@ -629,7 +652,7 @@ export default function MixerTab() {
       }
     }
   }, [
-    routes, handleMasterVolume, handleSynthType, handleSamplerPreset, handleDrumVoice,
+    routes, handleMasterVolume, handleSynthType, handleSamplerPreset, handleDrumVoice, handleGranular,
     handleOctaveShift, handleGlide, handleLegato, handleArp,
     handleDroneMode, handleDroneRoot, handleAddFxTrack, handleFxBusWet,
     handleFxBusParam, handleSendLevel,
@@ -682,7 +705,7 @@ export default function MixerTab() {
     volumes, muted, pans, soloRoutes,
     trackSoundModes, trackScales, trackSynthTypes, trackADSRs,
     trackFilters, trackEqs,
-    trackOctaves, trackGlides, trackLegatos, trackDroneModes, trackDroneRoots, trackSpeeds, trackLoopRegions, trackArps,
+    trackOctaves, trackGlides, trackLegatos, trackDroneModes, trackDroneRoots, trackSpeeds, trackLoopRegions, trackArps, trackGranulars,
     activeFxTracks, fxBusWet, fxBusMuted, fxBusSoloed, fxBusParams,
     sendMatrix, automationCfg,
   }), [
@@ -690,7 +713,7 @@ export default function MixerTab() {
     volumes, muted, pans, soloRoutes,
     trackSoundModes, trackScales, trackSynthTypes, trackADSRs,
     trackFilters, trackEqs,
-    trackOctaves, trackGlides, trackLegatos, trackDroneModes, trackDroneRoots, trackSpeeds, trackLoopRegions, trackArps,
+    trackOctaves, trackGlides, trackLegatos, trackDroneModes, trackDroneRoots, trackSpeeds, trackLoopRegions, trackArps, trackGranulars,
     activeFxTracks, fxBusWet, fxBusMuted, fxBusSoloed, fxBusParams,
     sendMatrix, automationCfg,
   ])
@@ -712,6 +735,7 @@ export default function MixerTab() {
     setTrackOctaves({}); setTrackGlides({}); setTrackLegatos({})
     setTrackDroneModes({}); setTrackDroneRoots({}); setTrackSpeeds({}); setTrackLoopRegions({})
     setTrackArps({})
+    setTrackGranulars({})
     setActiveFxTracks([])
     setFxBusWet(Object.fromEntries(FX_BUSES.map(b => [b.id, b.defaults?.wet ?? 1.0])))
     setFxBusMuted({}); setFxBusSoloed({}); setFxBusParams({})
@@ -725,7 +749,7 @@ export default function MixerTab() {
     setVolumes, setMuted, setPans, setSoloRoutes,
     setTrackSoundModes, setTrackScales, setTrackSynthTypes, setTrackADSRs,
     setTrackFilters, setTrackEqs,
-    setTrackOctaves, setTrackGlides, setTrackLegatos, setTrackDroneModes, setTrackDroneRoots, setTrackSpeeds, setTrackLoopRegions, setTrackArps,
+    setTrackOctaves, setTrackGlides, setTrackLegatos, setTrackDroneModes, setTrackDroneRoots, setTrackSpeeds, setTrackLoopRegions, setTrackArps, setTrackGranulars,
     setActiveFxTracks, setFxBusWet, setFxBusMuted, setFxBusSoloed, setFxBusParams,
     setSendMatrix, setAutomationCfg,
   }), [])
@@ -880,6 +904,8 @@ export default function MixerTab() {
         onLegato={handleLegato}
         trackArps={trackArps}
         onArp={handleArp}
+        trackGranulars={trackGranulars}
+        onGranular={handleGranular}
         trackSpeeds={trackSpeeds}
         onTrackSpeed={handleTrackSpeed}
         trackLoopRegions={trackLoopRegions}

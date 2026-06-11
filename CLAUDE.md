@@ -145,8 +145,8 @@ Cross-area imports use the `@/` alias (e.g. `@/lib/engine.js`); same-area import
 
 `components/tabs/MixerTab.jsx` is the heart of the app and by far the largest piece of state. It:
 - owns **all per-track settings** (volumes, pans, mutes, solos, sound modes, scales, synth types,
-  ADSR, filters, EQs, octave/glide/legato/drone/speed/loop-region, FX send matrix, automation
-  lane configs, FX bus state, BPM, master volume),
+  ADSR, filters, EQs, octave/glide/legato/drone/speed/loop-region, per-track arpeggiator
+  configs, FX send matrix, automation lane configs, FX bus state, BPM, master volume),
 - instantiates **one `TransitEngine`** (`lib/engine.js`) and mirrors every UI change into it via
   `engine.setX(...)` handlers,
 - renders three children sharing that state: `DawView.jsx` (track-lane DAW UI), `MapView.jsx`
@@ -200,6 +200,12 @@ longitude → octave register) via `geoToMidi`/`latToMidi`. (The earlier multi-s
 manual-pitch system was removed.) Also here: `SCALES`/`MODES`, the `normalizeX` family (GTFS
 field → 0..1 for automation), seeded RNG (`hashStringToInt`/`mulberry32`/`makeSalt`), and
 polyline/grid helpers. `mockData.js` holds mock-mode data and a `latToNote` copy.
+
+The **per-track arpeggiator** also lives here as pure logic: `buildArpSequence(rootNote, cfg,
+scaleType)` expands a single triggered note into a tempo-synced sequence; `ARP_STYLES`,
+`ARP_RATES`, and `DEFAULT_ARP` are defined here and re-exported by `engine.js` for the UI. The
+engine stores per-route configs via `setArpeggiator(routeId, cfg)` and consults them at note
+trigger time (mock and live).
 
 ### Persistence & AI
 
