@@ -119,7 +119,11 @@ export default function DawView({
     }
 
     const tick = () => {
-      const progress = Tone.getTransport().progress
+      // The global Transport no longer loops (each Part self-loops for polyrhythm), so
+      // Transport.progress stays 0. Compute the 4-bar visual cycle phase manually.
+      const bpm = Tone.Transport.bpm.value || 120
+      const loopSec = (16 / bpm) * 60
+      const progress = (Tone.getTransport().seconds % loopSec) / loopSec
 
       const now = performance.now()
       if (now - lastProgressUpdateRef.current > 66) {

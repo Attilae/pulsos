@@ -147,7 +147,11 @@ export default function MapView({
       if (ts - lastUpdate < 33) return  // ~30fps
       lastUpdate = ts
 
-      const progress = Tone.getTransport().progress
+      // The global Transport no longer loops (each Part self-loops for polyrhythm), so
+      // Transport.progress stays 0. Compute the 4-bar visual cycle phase manually.
+      const bpm = Tone.Transport.bpm.value || 120
+      const loopSec = (16 / bpm) * 60
+      const progress = (Tone.getTransport().seconds % loopSec) / loopSec
 
       // Fade in at start (0→FADE_ZONE), full in middle, fade out at end (1-FADE_ZONE→1).
       // Applied directly to the pane DOM element — no React state, no re-render.
