@@ -131,9 +131,9 @@ There is **no test runner and no linter configured** — don't assume `npm test`
   `songState.js` — `buildSnapshot`/`applySnapshot`. `useSongPersistence.js` — autosave hook,
   **session-gated** (no save when signed out); also imports a `?shared=<id>` link on load.
 - **Audio engine + mapping** (all client-only, imported by the UI): `engine.js`
-  (`TransitEngine`), `mappings.js`, `mockData.js`, `vehicleVoice.js`, `fxTrack.js`,
-  `automationTrack.js`, `networkState.js`, `alertLayer.js`, `liveClient.js`, `engines/` (the four
-  secondary-tab engines), `ai/composer.js`, `shared/useRoutes.js`.
+  (`TransitEngine`), `mappings.js`, `mockData.js`, `vehicleVoice.js`, `granularVoice.js`,
+  `fxTrack.js`, `automationTrack.js`, `networkState.js`, `alertLayer.js`, `liveClient.js`,
+  `engines/` (the four secondary-tab engines), `ai/composer.js`, `shared/useRoutes.js`.
 
 ### `components/` — React UI (client-only)
 
@@ -146,7 +146,8 @@ Cross-area imports use the `@/` alias (e.g. `@/lib/engine.js`); same-area import
 `components/tabs/MixerTab.jsx` is the heart of the app and by far the largest piece of state. It:
 - owns **all per-track settings** (volumes, pans, mutes, solos, sound modes, scales, synth types,
   ADSR, filters, EQs, octave/glide/legato/drone/speed/loop-region, per-track arpeggiator
-  configs, FX send matrix, automation lane configs, FX bus state, BPM, master volume),
+  configs, per-track granular-layer configs, FX send matrix, automation lane configs, FX bus
+  state, BPM, master volume),
 - instantiates **one `TransitEngine`** (`lib/engine.js`) and mirrors every UI change into it via
   `engine.setX(...)` handlers,
 - renders three children sharing that state: `DawView.jsx` (track-lane DAW UI), `MapView.jsx`
@@ -159,7 +160,12 @@ Cross-area imports use the `@/` alias (e.g. `@/lib/engine.js`); same-area import
 
 Two playback modes, both driven by `TransitEngine`:
 - **mock** — `engine.startMock()` schedules `Tone.Part`s that fire notes from each route's
-  per-stop pitch map on a synthetic timeline (the city "plays itself" deterministically).
+  per-stop pitch map on a synthetic timeline (the city "plays itself" deterministically). Each
+  track loops on its **own** cycle rather than a single shared 4-bar grid, so tracks of different
+  lengths drift into **polyrhythm** (decoupled from the global transport — see `bf45ac5`). Per-track
+  loop windows are stored in `engine._trackLoopRegions` and set via `setTrackLoopRegion(routeId,
+  region)`; automation lanes can carry their own `loopRegion` sub-loop (null = inherit the source
+  route's region).
 - **live** — `engine.startLive()` + `LiveClient` WebSocket; real BKK arrivals call
   `handleVehicleCrossed` → `engine.triggerLiveNote()`.
 
@@ -187,9 +193,16 @@ NetworkState (drone hum + hub-convergence chords) → AlertLayer input
   `public/samples/drums/cc-kit/` (`DRUM_BASE_URL`; license in `DRUM_VOICE_LICENSE` +
   `ATTRIBUTION.md`).
 - Supporting modules: `vehicleVoice.js` (per-vehicle FM voice pool, modulated by speed/occupancy/
-  delay), `fxTrack.js` (`FX_BUSES`, `FX_PARAM_SPECS`, `AUTOMATION_TARGETS`, `FxTrack`),
-  `automationTrack.js` (`AutomationTrack`, `AUTOMATION_SOURCES`), `networkState.js`
-  (`NetworkState`), `alertLayer.js` (`AlertLayer`).
+  delay), `granularVoice.js` (`GranularVoice` — an optional per-track `Tone.GrainPlayer` layer fed
+  by a rendered sample of the route's instrument; layered on top of each note), `fxTrack.js`
+  (`FX_BUSES`, `FX_PARAM_SPECS`, `AUTOMATION_TARGETS`, `FxTrack`), `automationTrack.js`
+  (`AutomationTrack`, `AUTOMATION_SOURCES`), `networkState.js` (`NetworkState`), `alertLayer.js`
+  (`AlertLayer`).
+- **Per-track granular layer**: opt-in per route (`DEFAULT_GRANULAR`, configs in
+  `engine._granulars`, set via `setGranular(routeId, cfg)`). When enabled it exposes extra
+  automation targets (`grain.*`, see `GRAIN_PARAM_TARGETS` / `availableAutomationTargets`). Note:
+  `Granular` was *briefly* a synth type — it is **now a layer, not a synth**; `songState.js`
+  coerces stale `'Granular'` synth-type snapshots back to a real synth.
 
 #### Musical mapping (`lib/mappings.js`)
 

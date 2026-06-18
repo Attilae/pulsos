@@ -133,6 +133,38 @@ export default function MixerTab() {
   const [trackArps,       setTrackArps]       = useState({})
   const [trackGranulars,  setTrackGranulars]  = useState({})
 
+  // Duplicate lanes (chord layers): clones of a base route with a synthetic id and
+  // per-stop diatonic pitch offsets. Descriptors: { id, sourceId, name, perStopSteps }.
+  const [duplicates, setDuplicates] = useState([])
+
+  // Base routes + a reconstructed clone route per duplicate descriptor. This is the
+  // list the engine/DAW/MIDI act on; the map deliberately uses the base `routes`.
+  const mergedRoutes = useMemo(() => {
+    if (!routes || !duplicates.length) return routes
+    const byId = new Map(routes.map(r => [r.id, r]))
+    const clonesBySource = {}
+    for (const d of duplicates) {
+      const src = byId.get(d.sourceId)
+      if (!src) continue
+      ;(clonesBySource[d.sourceId] ??= []).push(
+        { ...src, id: d.id, name: d.name, sourceId: d.sourceId, isDuplicate: true }
+      )
+    }
+    // Insert each clone directly after its source so a new copy appears right
+    // beneath the lane the user duplicated (not at the bottom of the section).
+    const out = []
+    for (const r of routes) {
+      out.push(r)
+      if (clonesBySource[r.id]) out.push(...clonesBySource[r.id])
+    }
+    return out
+  }, [routes, duplicates])
+
+  const dupStepsById = useMemo(
+    () => Object.fromEntries(duplicates.map(d => [d.id, d.perStopSteps ?? {}])),
+    [duplicates],
+  )
+
   const [liveSnapshot,    setLiveSnapshot]    = useState(null)
   const [snapshotLoading, setSnapshotLoading] = useState(false)
 
@@ -257,9 +289,9 @@ export default function MixerTab() {
       }
 
       if (mode === 'mock') {
-        engine.startMock(routes ?? [], smMap, bpm, trackSynthTypes, trackADSRs)
+        engine.startMock(mergedRoutes ?? [], smMap, bpm, trackSynthTypes, trackADSRs)
       } else {
-        engine.startLive(routes ?? [], smMap, bpm, trackSynthTypes, trackADSRs)
+        engine.startLive(mergedRoutes ?? [], smMap, bpm, trackSynthTypes, trackADSRs)
       }
       setStarted(true)
 
@@ -427,7 +459,7 @@ export default function MixerTab() {
   // Apply one harmony to every lane at once.
   const handleGlobalHarmony = (scale) => {
     setGlobalHarmony(scale)
-    for (const route of routes ?? []) {
+    for (const route of mergedRoutes ?? []) {
       handleScale(route.id, route.name, scale)
     }
   }
@@ -545,20 +577,123 @@ export default function MixerTab() {
     engineRef.current?.setTrackLoopRegion(routeId, region)
   }, [])
 
+  // ── Duplicate lanes (chord layers) ────────────────────────────────────────
+  // Copy a lane into a new clone keyed by a synthetic id, inheriting every
+  // per-track setting. Stacking copies (each re-pitched within harmony) builds a
+  // chord. The descriptor's sourceId always points at a *base* route so the clone
+  // can be reconstructed on load.
+  const handleDuplicateTrack = useCallback((sourceId) => {
+    const src = mergedRoutes?.find(r => r.id === sourceId)
+    if (!src) return
+    const realSourceId = src.sourceId ?? src.id
+    const baseName = (allRoutesRef.current?.find(r => r.id === realSourceId)?.name) ?? src.name
+    const n  = duplicates.filter(d => d.sourceId === realSourceId).length + 2
+    // Random suffix so rapid/same-millisecond duplications can't collide on id.
+    const id = `${realSourceId}~dup~${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`
+    const name = `${baseName}·${n}`
+    const perStopSteps = { ...(duplicates.find(d => d.id === sourceId)?.perStopSteps ?? {}) }
+
+    setDuplicates(prev => [...prev, { id, sourceId: realSourceId, name, perStopSteps }])
+
+    // Clone every per-track map entry sourceId → id.
+    const copy = (setter) => setter(m => (sourceId in m ? { ...m, [id]: m[sourceId] } : m))
+    copy(setVolumes); copy(setMuted); copy(setPans)
+    copy(setTrackSoundModes); copy(setTrackScales); copy(setTrackSynthTypes); copy(setTrackADSRs)
+    copy(setTrackFilters); copy(setTrackEqs)
+    copy(setTrackOctaves); copy(setTrackGlides); copy(setTrackLegatos)
+    copy(setTrackDroneModes); copy(setTrackDroneRoots); copy(setTrackSpeeds); copy(setTrackLoopRegions)
+    copy(setTrackArps); copy(setTrackGranulars)
+    setSendMatrix(m => {
+      const next = { ...m }
+      for (const [key, level] of Object.entries(m)) {
+        const [rid, bus] = key.split(':')
+        if (rid === sourceId) next[`${id}:${bus}`] = level
+      }
+      return next
+    })
+
+    // Push the copied config into the engine for the new lane. addRoute materializes
+    // the synth/Part when playing; the other setters persist into the engine's maps
+    // so a later startMock picks them up when stopped.
+    const engine = engineRef.current
+    if (!engine) return
+    const cloneRoute = { ...src, id, name, sourceId: realSourceId, isDuplicate: true }
+    const soundMode  = { mode: trackSoundModes[sourceId] ?? 'harmonic', scale: trackScales[sourceId] ?? { root: 'C', scaleType: 'major' } }
+    engine.addRoute(cloneRoute, soundMode, trackSynthTypes[sourceId] ?? 'Synth', trackADSRs[sourceId])
+    if (volumes[sourceId]   != null) engine.setRouteVolume(id, volumes[sourceId])
+    if (muted[sourceId])             engine.setRouteMute(id, true)
+    if (pans[sourceId]      != null) engine.setRoutePan(id, pans[sourceId])
+    if (trackScales[sourceId])       engine.setScale(id, trackScales[sourceId])
+    if (trackFilters[sourceId])      engine.setRouteFilter(id, trackFilters[sourceId])
+    if (trackEqs[sourceId])          engine.setRouteEq(id, trackEqs[sourceId])
+    if (trackOctaves[sourceId])      engine.setOctaveShift(id, trackOctaves[sourceId])
+    if (trackGlides[sourceId] != null) engine.setGlide(id, trackGlides[sourceId])
+    if (trackLegatos[sourceId])      engine.setLegato(id, true)
+    if (trackArps[sourceId])         engine.setArpeggiator(id, trackArps[sourceId])
+    if (trackGranulars[sourceId])    engine.setGranular(id, trackGranulars[sourceId])
+    if (trackSpeeds[sourceId] != null) engine.setTrackSpeed(id, trackSpeeds[sourceId])
+    if (trackLoopRegions[sourceId])  engine.setTrackLoopRegion(id, trackLoopRegions[sourceId])
+    if (trackDroneModes[sourceId])   engine.setDroneMode(id, true, trackDroneRoots[sourceId] ?? 'C3')
+    for (const [key, level] of Object.entries(sendMatrix)) {
+      const [rid, bus] = key.split(':')
+      if (rid === sourceId && level) engine.setSendLevel(id, bus, level)
+    }
+    if (Object.keys(perStopSteps).length) engine.setPitchOffsets(id, perStopSteps)
+  }, [mergedRoutes, duplicates, volumes, muted, pans, trackSoundModes, trackScales,
+      trackSynthTypes, trackADSRs, trackFilters, trackEqs, trackOctaves, trackGlides,
+      trackLegatos, trackDroneModes, trackDroneRoots, trackSpeeds, trackLoopRegions,
+      trackArps, trackGranulars, sendMatrix])
+
+  const handleRemoveDuplicate = useCallback((dupId) => {
+    setDuplicates(prev => prev.filter(d => d.id !== dupId))
+    const drop = (setter) => setter(m => {
+      if (!(dupId in m)) return m
+      const next = { ...m }; delete next[dupId]; return next
+    })
+    drop(setVolumes); drop(setMuted); drop(setPans)
+    drop(setTrackSoundModes); drop(setTrackScales); drop(setTrackSynthTypes); drop(setTrackADSRs)
+    drop(setTrackFilters); drop(setTrackEqs)
+    drop(setTrackOctaves); drop(setTrackGlides); drop(setTrackLegatos)
+    drop(setTrackDroneModes); drop(setTrackDroneRoots); drop(setTrackSpeeds); drop(setTrackLoopRegions)
+    drop(setTrackArps); drop(setTrackGranulars)
+    setSoloRoutes(prev => {
+      if (!prev.has(dupId)) return prev
+      const next = new Set(prev); next.delete(dupId); return next
+    })
+    setSendMatrix(m => {
+      const next = {}
+      for (const [k, v] of Object.entries(m)) if (k.split(':')[0] !== dupId) next[k] = v
+      return next
+    })
+    engineRef.current?.removeRoute(dupId)
+  }, [])
+
+  // Re-pitch one stop of a duplicate by a diatonic degree offset (0 = clear).
+  const handleStopPitch = useCallback((dupId, stopId, degrees) => {
+    setDuplicates(prev => prev.map(d => {
+      if (d.id !== dupId) return d
+      const perStopSteps = { ...(d.perStopSteps ?? {}) }
+      if (degrees) perStopSteps[stopId] = degrees
+      else delete perStopSteps[stopId]
+      engineRef.current?.setPitchOffsets(dupId, perStopSteps)
+      return { ...d, perStopSteps }
+    }))
+  }, [])
+
   const handleAddFxTrack = useCallback((busId) => {
     setActiveFxTracks(prev => prev.includes(busId) ? prev : [...prev, busId])
   }, [])
 
   const handleRemoveFxTrack = useCallback((busId) => {
     setActiveFxTracks(prev => prev.filter(id => id !== busId))
-    if (routes) {
-      for (const route of routes) {
+    if (mergedRoutes) {
+      for (const route of mergedRoutes) {
         const key = `${route.id}:${busId}`
         setSendMatrix(m => ({ ...m, [key]: 0 }))
         engineRef.current?.setSendLevel(route.id, busId, 0)
       }
     }
-  }, [routes])
+  }, [mergedRoutes])
 
   const handleAddAutomationLane = useCallback((routeId) => {
     const laneId = `lane_${Date.now()}`
@@ -678,27 +813,27 @@ export default function MixerTab() {
   ])
 
   const canExportMix = useMemo(() => {
-    if (!routes?.length) return false
+    if (!mergedRoutes?.length) return false
     const ctx = { ...midiExportCtx, recorder: midiRecorderRef.current }
     if (midiRecorderRef.current?.hasData()) {
-      return routes.some(r =>
+      return mergedRoutes.some(r =>
         isRouteExportable(r, r.id, ctx) && midiRecorderRef.current.getRouteEvents(r.id).length,
       )
     }
-    return routes.some(r =>
+    return mergedRoutes.some(r =>
       isRouteExportable(r, r.id, ctx) && isRouteAudible(r.id, ctx) && buildLoopMidiEvents(r, ctx).length,
     )
-  }, [routes, midiExportCtx])
+  }, [mergedRoutes, midiExportCtx])
 
   const handleExportRouteMidi = useCallback((routeId) => {
-    const route = routes?.find(r => r.id === routeId)
+    const route = mergedRoutes?.find(r => r.id === routeId)
     if (!route) return
     exportRouteMidi(route, { ...midiExportCtx, recorder: midiRecorderRef.current })
-  }, [routes, midiExportCtx])
+  }, [mergedRoutes, midiExportCtx])
 
   const handleExportMixMidi = useCallback(() => {
-    exportMixMidi(routes ?? [], { ...midiExportCtx, recorder: midiRecorderRef.current })
-  }, [routes, midiExportCtx])
+    exportMixMidi(mergedRoutes ?? [], { ...midiExportCtx, recorder: midiRecorderRef.current })
+  }, [mergedRoutes, midiExportCtx])
 
   const songState = useMemo(() => ({
     bpm, mode, view, masterVolume, globalHarmony,
@@ -707,7 +842,7 @@ export default function MixerTab() {
     trackFilters, trackEqs,
     trackOctaves, trackGlides, trackLegatos, trackDroneModes, trackDroneRoots, trackSpeeds, trackLoopRegions, trackArps, trackGranulars,
     activeFxTracks, fxBusWet, fxBusMuted, fxBusSoloed, fxBusParams,
-    sendMatrix, automationCfg,
+    sendMatrix, automationCfg, duplicates,
   }), [
     bpm, mode, view, masterVolume, globalHarmony,
     volumes, muted, pans, soloRoutes,
@@ -715,7 +850,7 @@ export default function MixerTab() {
     trackFilters, trackEqs,
     trackOctaves, trackGlides, trackLegatos, trackDroneModes, trackDroneRoots, trackSpeeds, trackLoopRegions, trackArps, trackGranulars,
     activeFxTracks, fxBusWet, fxBusMuted, fxBusSoloed, fxBusParams,
-    sendMatrix, automationCfg,
+    sendMatrix, automationCfg, duplicates,
   ])
 
   // Wipe the session to a clean, empty state: stop playback, dispose the audio
@@ -740,6 +875,7 @@ export default function MixerTab() {
     setFxBusWet(Object.fromEntries(FX_BUSES.map(b => [b.id, b.defaults?.wet ?? 1.0])))
     setFxBusMuted({}); setFxBusSoloed({}); setFxBusParams({})
     setSendMatrix({}); setAutomationCfg({})
+    setDuplicates([])
     setBpm(120); setMasterVolume(0)
     setGlobalHarmony({ root: 'C', scaleType: 'major' })
   }, [createEngine])
@@ -751,7 +887,7 @@ export default function MixerTab() {
     setTrackFilters, setTrackEqs,
     setTrackOctaves, setTrackGlides, setTrackLegatos, setTrackDroneModes, setTrackDroneRoots, setTrackSpeeds, setTrackLoopRegions, setTrackArps, setTrackGranulars,
     setActiveFxTracks, setFxBusWet, setFxBusMuted, setFxBusSoloed, setFxBusParams,
-    setSendMatrix, setAutomationCfg,
+    setSendMatrix, setAutomationCfg, setDuplicates,
   }), [])
 
   const song = useSongPersistence({
@@ -876,8 +1012,12 @@ export default function MixerTab() {
         mode={mode}
         started={started}
         events={events}
-        routes={routes}
+        routes={mergedRoutes}
         onRepickType={handleRepickType}
+        onDuplicateTrack={handleDuplicateTrack}
+        onRemoveDuplicate={handleRemoveDuplicate}
+        onStopPitch={handleStopPitch}
+        perStopStepsById={dupStepsById}
         volumes={volumes}
         muted={muted}
         pans={pans}

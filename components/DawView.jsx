@@ -2,7 +2,7 @@ import * as Tone from 'tone'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { SYNTH_DEFAULTS, availableAutomationTargets, findTargetSpec, SAMPLER_PRESET_LIST, SAMPLER_PRESETS, DRUM_VOICES, DRUM_VOICE_LICENSE, DEFAULT_GRANULAR, ARP_STYLES, ARP_RATES, DEFAULT_ARP } from '@/lib/engine.js'
 import { FX_BUSES, AUTOMATION_TARGETS, FX_PARAM_SPECS, FX_SYNC_TARGETS } from '@/lib/fxTrack.js'
-import { generatePitchMap, shiftOctaveNote, noteToMidi, SCALES, hashStopValue, snapStopsToGrid, GRID_TOTAL_CELLS, GRID_BARS, denormalizeToRange, denormalizeExp } from '@/lib/mappings.js'
+import { generatePitchMap, shiftOctaveNote, noteToMidi, SCALES, hashStopValue, snapStopsToGrid, GRID_TOTAL_CELLS, GRID_BARS, denormalizeToRange, denormalizeExp, transposeNoteInScale, nearestScaleDegreeOffset } from '@/lib/mappings.js'
 import './DawView.css'
 
 const SYNTH_TYPES = [
@@ -67,6 +67,7 @@ function resolvePlayhead(route, lat, lng) {
 export default function DawView({
   className = '',
   mode, started, events, routes, onRepickType,
+  onDuplicateTrack, onRemoveDuplicate, onStopPitch, perStopStepsById,
   volumes, muted, pans, soloRoutes,
   liveSnapshot, snapshotLoading,
   trackSoundModes, trackScales, trackSynthTypes, trackADSRs, trackFilters, trackEqs,
@@ -295,6 +296,10 @@ export default function DawView({
                     onDroneRoot={n => onDroneRoot(route.id, n)}
                     onAddLane={() => onAddAutomationLane(route.id)}
                     onExportRouteMidi={onExportRouteMidi}
+                    onDuplicate={() => onDuplicateTrack?.(route.id)}
+                    onRemoveDuplicate={() => onRemoveDuplicate?.(route.id)}
+                    perStopSteps={perStopStepsById?.[route.id]}
+                    onStopPitch={(stopId, degrees) => onStopPitch?.(route.id, stopId, degrees)}
                   />
                   {attachedSrcIds.map(srcId => (
                     <AutomationSourceTrack
@@ -375,8 +380,10 @@ function LineTrack({
   onFilter, onEq,
   onSendLevel, onOctaveShift, onGlide, onLegato, onArp, onGranular, onSpeed, onDroneMode, onDroneRoot, onAddLane,
   onExportRouteMidi,
+  onDuplicate, onRemoveDuplicate, perStopSteps, onStopPitch,
 }) {
   const [rackOpen, setRackOpen] = useState(false)
+  const isDuplicate = !!route.isDuplicate
 
   // Automation locks: when a lane targets one of these, the control greys out and (during
   // playback) reads the swept value. Pan/glide convert from the spec unit to the slider unit.
@@ -395,6 +402,7 @@ function LineTrack({
             <span className="line-badge" style={{ background: route.color, color: route.textColor }}>
               {route.name}
             </span>
+            {isDuplicate && <span className="dup-badge" title="Chord copy — re-pitched within harmony">copy</span>}
             <button
               className={`add-lane-btn ${laneCount > 0 ? 'has-lanes' : ''}`}
               onClick={onAddLane}
@@ -435,6 +443,21 @@ function LineTrack({
         <div className="lt-spacer" />
 
         <button
+          type="button"
+          className="dup-btn"
+          onClick={onDuplicate}
+          title="Duplicate this lane (stack copies to build a chord)"
+        >⎘</button>
+        {isDuplicate && (
+          <button
+            type="button"
+            className="dup-remove-btn"
+            onClick={onRemoveDuplicate}
+            title="Remove this copy"
+          >×</button>
+        )}
+
+        <button
           className={`rack-toggle ${rackOpen ? 'active' : ''}`}
           onClick={() => setRackOpen(o => !o)}
           title={rackOpen ? 'Collapse device rack' : 'Expand device rack'}
@@ -455,6 +478,9 @@ function LineTrack({
         octaveShift={octaveShift ?? 0}
         loopRegion={loopRegion}
         onLoopRegion={onLoopRegion}
+        editable={isDuplicate}
+        perStopSteps={perStopSteps}
+        onStopPitch={onStopPitch}
       />
 
       {rackOpen && (
@@ -1723,9 +1749,11 @@ function StopRail({
   route, progress = 0, speed = 1, started = false, mode = 'mock', vehicles = [],
   trackScale = { root: 'C', scaleType: 'major' }, octaveShift = 0,
   loopRegion, onLoopRegion, automationValues = null,
+  editable = false, perStopSteps = null, onStopPitch = null,
 }) {
   const needleRef = useRef(null)
   const railRef   = useRef(null)
+  const canEditPitch = editable && !!onStopPitch && !automationValues
 
   const startCell = Math.max(0, Math.min(GRID_TOTAL_CELLS - 1, Math.round(loopRegion?.startCell ?? 0)))
   const endCell   = Math.max(startCell + 1, Math.min(GRID_TOTAL_CELLS, Math.round(loopRegion?.endCell ?? GRID_TOTAL_CELLS)))
@@ -1793,6 +1821,45 @@ function StopRail({
     dragRef.current = which
   }
 
+  // ── Per-stop pitch drag (duplicate lanes) ──────────────────────────────────
+  // Grab a note dot and drag vertically; the new pitch snaps to the nearest scale
+  // degree (relative to the stop's geographic base note) so it stays in harmony.
+  const PITCH_DRAG_WINDOW = 24  // semitones spanned by the full rail height
+  const pitchDragRef = useRef(null)
+  useEffect(() => {
+    if (!canEditPitch) return
+    const onMove = (e) => {
+      const d = pitchDragRef.current
+      if (!d) return
+      const rect = railRef.current?.getBoundingClientRect()
+      if (!rect || rect.height === 0) return
+      const semis  = ((d.startY - e.clientY) / rect.height) * PITCH_DRAG_WINDOW
+      const target = d.startMidi + semis
+      const degrees = nearestScaleDegreeOffset(d.geoNote, target, trackScale.root, trackScale.scaleType)
+      if (degrees !== d.lastDegrees) {
+        d.lastDegrees = degrees
+        onStopPitch(d.stopId, degrees)
+      }
+    }
+    const onUp = () => { pitchDragRef.current = null }
+    window.addEventListener('pointermove', onMove)
+    window.addEventListener('pointerup',   onUp)
+    return () => {
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup',   onUp)
+    }
+  }, [canEditPitch, onStopPitch, trackScale.root, trackScale.scaleType])
+
+  const handleStopPointerDown = (stop, geoNote, displayMidi) => (e) => {
+    if (!canEditPitch) return
+    e.preventDefault()
+    e.stopPropagation()
+    pitchDragRef.current = {
+      stopId: stop.id, geoNote, startY: e.clientY, startMidi: displayMidi,
+      lastDegrees: perStopSteps?.[stop.id] ?? 0,
+    }
+  }
+
   if (!route.stops.length) return <div className="stop-rail stop-rail--empty" />
 
   const total = route.totalDist || route.stops[route.stops.length - 1]?.dist || 1
@@ -1812,8 +1879,15 @@ function StopRail({
   // Two-axis geographic pitch map — same mapping the engine plays (engine.js):
   // latitude → scale degree, longitude → octave register, then the per-track
   // octave shift. The y-axis renders it piano-roll style.
-  const pitchMap = generatePitchMap(route.stops, noteToMidi(`${trackScale.root}3`), scaleIntervals)
-    .map(n => shiftOctaveNote(n, octaveShift))
+  const baseMap = generatePitchMap(route.stops, noteToMidi(`${trackScale.root}3`), scaleIntervals)
+  // Apply per-stop diatonic offsets (duplicate lanes) then the per-track octave shift.
+  const pitchMap = baseMap.map((n, i) => {
+    const off = canEditPitch ? (perStopSteps?.[route.stops[i]?.id] ?? 0) : 0
+    const tuned = off ? transposeNoteInScale(n, off, trackScale.root, trackScale.scaleType) : n
+    return shiftOctaveNote(tuned, octaveShift)
+  })
+  // Geographic base note per stop (octave-shifted, offset-free) — drag anchor.
+  const geoDisplayMap = baseMap.map(n => shiftOctaveNote(n, octaveShift))
   const stopPoints = (() => {
     const midis     = pitchMap.map(n => noteToMidi(n))
     const midiMin   = Math.min(...midis)
@@ -1928,13 +2002,19 @@ function StopRail({
             'stop-dot',
             stop.id === activeStopId ? 'active' : '',
             mode === 'live' ? 'stop-dot--ref' : '',
+            canEditPitch ? 'stop-dot--editable' : '',
           ].filter(Boolean).join(' ')}
           style={{
             '--pos': `${stop.x}%`,
             '--y-pos': `${stop.y}%`,
             '--line-color': route.color,
           }}
-          title={`${stop.name} · bar ${stop.bar + 1} beat ${stop.beat + 1}.${stop.sixteenth + 1}`}
+          title={canEditPitch
+            ? `${stop.name} · ${stop.noteName} — drag to re-pitch (snaps to scale)`
+            : `${stop.name} · bar ${stop.bar + 1} beat ${stop.beat + 1}.${stop.sixteenth + 1}`}
+          onPointerDown={canEditPitch
+            ? handleStopPointerDown(stop, geoDisplayMap[stop.originalIdx], noteToMidi(pitchMap[stop.originalIdx]))
+            : undefined}
         >
           <span className="stop-label">{stop.name}</span>
           <span className="stop-note-label">{stop.noteName}</span>

@@ -127,8 +127,10 @@ export default function MapView({
     { type: 'bus',     label: 'Bus' },
     { type: 'hev',     label: 'Rail' },
   ]
+  // Duplicate lanes share their source's polyline, so they'd draw on top of it —
+  // hide them on the map (they're audio-only chord layers).
   const routesByType = Object.fromEntries(
-    LAYERS.map(l => [l.type, routes?.filter(r => r.type === l.type) ?? []])
+    LAYERS.map(l => [l.type, routes?.filter(r => r.type === l.type && !r.isDuplicate) ?? []])
   )
   const allRoutes = LAYERS.flatMap(l => routesByType[l.type])
 
