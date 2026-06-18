@@ -14,6 +14,7 @@ import {
   MidiSessionRecorder, exportRouteMidi, exportMixMidi,
   isRouteExportable, isRouteAudible, buildLoopMidiEvents,
 } from '@/lib/midiExport.js'
+import { exportRouteAudio, exportMixAudio } from '@/lib/audioExport.js'
 
 const MAX_EVENTS = 80
 
@@ -72,6 +73,8 @@ export default function MixerTab() {
   const stoppingRef      = useRef(false)
   const midiRecorderRef  = useRef(null)
   const [hasMidiSession, setHasMidiSession] = useState(false)
+  const [audioExporting, setAudioExporting] = useState(false)
+  const [audioProgress,  setAudioProgress]  = useState(0)
 
   const [view,    setView]    = useState('daw')   // 'map' | 'daw'
   const [mode,    setMode]    = useState('mock')  // 'mock' | 'live'
@@ -835,6 +838,29 @@ export default function MixerTab() {
     exportMixMidi(mergedRoutes ?? [], { ...midiExportCtx, recorder: midiRecorderRef.current })
   }, [mergedRoutes, midiExportCtx])
 
+  // Real-time WAV capture taps the live engine, so it needs playback running.
+  const runAudioExport = useCallback(async (fn) => {
+    if (!engineRef.current || !started || audioExporting) return
+    setAudioExporting(true)
+    setAudioProgress(0)
+    try {
+      await fn(engineRef.current, { ...midiExportCtx, recorder: undefined }, setAudioProgress)
+    } finally {
+      setAudioExporting(false)
+      setAudioProgress(0)
+    }
+  }, [started, audioExporting, midiExportCtx])
+
+  const handleExportRouteAudio = useCallback((routeId) => {
+    const route = mergedRoutes?.find(r => r.id === routeId)
+    if (!route) return
+    runAudioExport((engine, ctx, onProgress) => exportRouteAudio(engine, route, ctx, { onProgress }))
+  }, [mergedRoutes, runAudioExport])
+
+  const handleExportMixAudio = useCallback(() => {
+    runAudioExport((engine, ctx, onProgress) => exportMixAudio(engine, mergedRoutes ?? [], ctx, { onProgress }))
+  }, [mergedRoutes, runAudioExport])
+
   const songState = useMemo(() => ({
     bpm, mode, view, masterVolume, globalHarmony,
     volumes, muted, pans, soloRoutes,
@@ -972,6 +998,14 @@ export default function MixerTab() {
           title="Download multi-track MIDI (session if recorded, else 4-bar loop of audible lines)"
         >↓ MIDI</button>
 
+        <button
+          type="button"
+          className="midi-export-btn midi-export-btn--global"
+          onClick={handleExportMixAudio}
+          disabled={!started || audioExporting}
+          title="Record the live mix to a WAV file (real-time capture — play first)"
+        >{audioExporting ? `↓ WAV ${Math.round(audioProgress * 100)}%` : '↓ WAV'}</button>
+
         <div className="bpm-control">
           <label>BPM</label>
           <input
@@ -1086,6 +1120,8 @@ export default function MixerTab() {
         onRefetch={fetchSnapshot}
         onVehicleCrossed={handleVehicleCrossed}
         onExportRouteMidi={handleExportRouteMidi}
+        onExportRouteAudio={handleExportRouteAudio}
+        audioExportActive={started && !audioExporting}
       />
     </div>
   )

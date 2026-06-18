@@ -81,7 +81,7 @@ export default function DawView({
   onAddFxTrack, onRemoveFxTrack, onMasterVolume,
   onOctaveShift, onGlide, onLegato, onArp, onGranular, onTrackSpeed, onTrackLoopRegion,
   onAddAutomationLane, onRemoveAutomationLane, onUpdateAutomationLane,
-  onRefetch, onVehicleCrossed, onExportRouteMidi,
+  onRefetch, onVehicleCrossed, onExportRouteMidi, onExportRouteAudio, audioExportActive,
 }) {
   const tracksRef             = useRef(null)
   const animRef               = useRef(null)
@@ -296,6 +296,8 @@ export default function DawView({
                     onDroneRoot={n => onDroneRoot(route.id, n)}
                     onAddLane={() => onAddAutomationLane(route.id)}
                     onExportRouteMidi={onExportRouteMidi}
+                    onExportRouteAudio={onExportRouteAudio}
+                    audioExportActive={audioExportActive}
                     onDuplicate={() => onDuplicateTrack?.(route.id)}
                     onRemoveDuplicate={() => onRemoveDuplicate?.(route.id)}
                     perStopSteps={perStopStepsById?.[route.id]}
@@ -379,7 +381,7 @@ function LineTrack({
   onSamplerPreset, onDrumVoice, onSamplerUpload,
   onFilter, onEq,
   onSendLevel, onOctaveShift, onGlide, onLegato, onArp, onGranular, onSpeed, onDroneMode, onDroneRoot, onAddLane,
-  onExportRouteMidi,
+  onExportRouteMidi, onExportRouteAudio, audioExportActive,
   onDuplicate, onRemoveDuplicate, perStopSteps, onStopPitch,
 }) {
   const [rackOpen, setRackOpen] = useState(false)
@@ -438,6 +440,13 @@ function LineTrack({
             disabled={!route.stops?.length}
             title="Download MIDI for this line (session if recorded, else 4-bar loop)"
           >↓</button>
+          <button
+            type="button"
+            className="midi-export-btn wav-export-btn"
+            onClick={() => onExportRouteAudio?.(route.id)}
+            disabled={!route.stops?.length || !audioExportActive}
+            title="Record this line to WAV (real-time — play first)"
+          >♪</button>
         </div>
 
         <div className="lt-spacer" />

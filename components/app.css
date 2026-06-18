@@ -563,3 +563,7 @@ body { background: var(--bg); color: var(--text); font-family: 'Courier New', mo
   min-width: 26px;
   padding: 4px 7px;
 }
+.wav-export-btn:hover:not(:disabled) {
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+}
