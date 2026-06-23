@@ -20,6 +20,9 @@ const MAX_EVENTS = 80
 
 const STARTUP_PICKS = { tram: 5, trolley: 5, bus: 5 }
 
+// FX rack buses present in a fresh session (new song / city switch / reset).
+const DEFAULT_FX_TRACKS = ['reverb', 'delay', 'chorus', 'distortion']
+
 // Fisher–Yates shuffle in place (unseeded — a fresh roll each call).
 function shuffle(pool) {
   for (let i = pool.length - 1; i > 0; i--) {
@@ -128,7 +131,7 @@ export default function MixerTab() {
   // Last harmony applied via the global selector (shown when lanes diverge)
   const [globalHarmony, setGlobalHarmony] = useState({ root: 'C', scaleType: 'major' })
 
-  const [activeFxTracks, setActiveFxTracks] = useState([])
+  const [activeFxTracks, setActiveFxTracks] = useState(() => DEFAULT_FX_TRACKS)
 
   const [masterVolume, setMasterVolume] = useState(0)
 
@@ -918,7 +921,7 @@ export default function MixerTab() {
     setTrackDroneModes({}); setTrackDroneRoots({}); setTrackSpeeds({}); setTrackLoopRegions({})
     setTrackArps({})
     setTrackGranulars({})
-    setActiveFxTracks([])
+    setActiveFxTracks(DEFAULT_FX_TRACKS)
     setFxBusWet(Object.fromEntries(FX_BUSES.map(b => [b.id, b.defaults?.wet ?? 1.0])))
     setFxBusMuted({}); setFxBusSoloed({}); setFxBusParams({})
     setSendMatrix({}); setAutomationCfg({})
