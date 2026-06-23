@@ -45,6 +45,12 @@ function pickStartupRoutes(allRoutes) {
   return picked
 }
 
+// Every freshly (re)picked track starts disabled — the user builds up the mix
+// by enabling lanes one at a time rather than hearing the whole city at once.
+function allDisabledMap(routes) {
+  return Object.fromEntries(routes.map(r => [r.id, true]))
+}
+
 // Derive interchange "hubs" for the network-convergence chords from the route
 // list: the stops served by the most distinct routes, with averaged coords.
 // Used for cities other than Budapest (which keeps its curated hubs).
@@ -187,7 +193,10 @@ export default function MixerTab() {
         if (city?.bounds) setCityBounds(city.bounds)
         setCity(city ?? null)
         allRoutesRef.current = all
-        setRoutes(pickStartupRoutes(all))
+        const picked = pickStartupRoutes(all)
+        setRoutes(picked)
+        setDisabledRoutes(allDisabledMap(picked))
+        for (const r of picked) engineRef.current?.setRouteDisabled(r.id, true)
         loadedCityRef.current = cityId
       })
       .catch(() => { if (!cancelled) { setRoutes([]); setCity(null) } })
@@ -202,13 +211,18 @@ export default function MixerTab() {
     if (!all || started) return
     const fresh = pickType(all, type, STARTUP_PICKS[type] ?? 5)
     setRoutes(prev => [...(prev ?? []).filter(r => r.type !== type), ...fresh])
+    setDisabledRoutes(d => ({ ...d, ...allDisabledMap(fresh) }))
+    for (const r of fresh) engineRef.current?.setRouteDisabled(r.id, true)
   }, [started])
 
   // Re-roll the entire selection (all metro + fresh tram/trolley/bus picks).
   const handleRepickAll = useCallback(() => {
     const all = allRoutesRef.current
     if (!all || started) return
-    setRoutes(pickStartupRoutes(all))
+    const fresh = pickStartupRoutes(all)
+    setRoutes(fresh)
+    setDisabledRoutes(allDisabledMap(fresh))
+    for (const r of fresh) engineRef.current?.setRouteDisabled(r.id, true)
   }, [started])
 
   // Build a fresh engine + MIDI recorder and stash them on the refs. Used both
@@ -891,12 +905,13 @@ export default function MixerTab() {
   const resetSessionState = useCallback(() => {
     stoppingRef.current = false
     try { engineRef.current?.dispose() } catch {}
-    createEngine()
+    const engine = createEngine()
     try { Tone.getDestination().volume.value = 0 } catch {}
     setStarted(false)
     setEvents([])
 
-    setVolumes({}); setDisabledRoutes({}); setPans({}); setSoloRoutes(new Set())
+    setVolumes({}); setDisabledRoutes(allDisabledMap(routes ?? [])); setPans({}); setSoloRoutes(new Set())
+    for (const r of routes ?? []) engine.setRouteDisabled(r.id, true)
     setTrackSoundModes({}); setTrackScales({}); setTrackSynthTypes({}); setTrackADSRs({})
     setTrackFilters({}); setTrackEqs({})
     setTrackOctaves({}); setTrackGlides({}); setTrackLegatos({})
@@ -910,7 +925,7 @@ export default function MixerTab() {
     setDuplicates([])
     setBpm(120); setMasterVolume(0)
     setGlobalHarmony({ root: 'C', scaleType: 'major' })
-  }, [createEngine])
+  }, [createEngine, routes])
 
   const songSetters = useMemo(() => ({
     setBpm, setMode, setView, setMasterVolume, setGlobalHarmony,
