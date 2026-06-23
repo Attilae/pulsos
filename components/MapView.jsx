@@ -23,19 +23,19 @@ function positionAlongRoute(route, progress) {
   return { lat: last.lat, lng: last.lon }
 }
 
-function isRouteActive(route, muted, soloRoutes) {
-  if (muted[route.type]) return false
+function isRouteActive(route, disabled, soloRoutes) {
+  if (disabled[route.id]) return false
   if (soloRoutes.size > 0 && !soloRoutes.has(route.id)) return false
   return true
 }
 
-function routeStyle(route, muted, soloRoutes) {
-  const active = isRouteActive(route, muted, soloRoutes)
-  const isMuted = !active
+function routeStyle(route, disabled, soloRoutes) {
+  const active = isRouteActive(route, disabled, soloRoutes)
+  const isInactive = !active
   return {
     opacity:   active ? (route.type === 'metro' ? 0.88 : 0.75) : 0.22,
     weight:    active ? (route.type === 'metro' ? 2.5  : 1.5)  : (route.type === 'metro' ? 1.5 : 1),
-    dashArray: isMuted ? '4 7' : null,
+    dashArray: isInactive ? '4 7' : null,
   }
 }
 
@@ -107,17 +107,17 @@ export default function MapView({
   city = null,
   started = false,
   mode = 'mock',
-  muted = {},
+  disabled = {},
   soloRoutes = new Set(),
   liveSnapshot = null,
 }) {
   const [playheadPositions, setPlayheadPositions] = useState({})
   const rafRef       = useRef(null)
-  const mutedRef     = useRef(muted)
+  const disabledRef  = useRef(disabled)
   const soloRef      = useRef(soloRoutes)
   const playheadPane = useRef(null)   // DOM div for the playhead Leaflet pane
 
-  useEffect(() => { mutedRef.current = muted },      [muted])
+  useEffect(() => { disabledRef.current = disabled }, [disabled])
   useEffect(() => { soloRef.current  = soloRoutes }, [soloRoutes])
 
   const LAYERS = [
@@ -168,7 +168,7 @@ export default function MapView({
 
       const next = {}
       for (const route of routes) {
-        if (!isRouteActive(route, mutedRef.current, soloRef.current)) continue
+        if (!isRouteActive(route, disabledRef.current, soloRef.current)) continue
         const pos = positionAlongRoute(route, progress)
         if (pos) next[route.id] = pos
       }
@@ -200,15 +200,15 @@ export default function MapView({
       {routes && (
         <div className="map-track-status">
           {allRoutes.map(route => {
-            const active    = isRouteActive(route, muted, soloRoutes)
-            const isMuted   = muted[route.type]
-            const isSoloed  = soloRoutes.has(route.id)
+            const active     = isRouteActive(route, disabled, soloRoutes)
+            const isDisabled = disabled[route.id]
+            const isSoloed   = soloRoutes.has(route.id)
             return (
               <div key={route.id} className={`map-status-row${active ? '' : ' map-status-row--dim'}`}>
                 <span className="map-status-dot" style={{ background: route.color }} />
                 <span className="map-status-name">{route.name}</span>
-                {isMuted  && <span className="map-status-badge map-status-badge--mute">M</span>}
-                {isSoloed && <span className="map-status-badge map-status-badge--solo">S</span>}
+                {isDisabled && <span className="map-status-badge map-status-badge--disabled">OFF</span>}
+                {isSoloed   && <span className="map-status-badge map-status-badge--solo">S</span>}
               </div>
             )
           })}
@@ -240,7 +240,7 @@ export default function MapView({
               <LayersControl.Overlay key={type} checked name={label}>
                 <>
                   {layerRoutes.map(route => {
-                    const { opacity, weight, dashArray } = routeStyle(route, muted, soloRoutes)
+                    const { opacity, weight, dashArray } = routeStyle(route, disabled, soloRoutes)
                     return route.polylines.map(pl => (
                       <Polyline
                         key={`${route.id}_${pl.direction}`}
@@ -262,7 +262,7 @@ export default function MapView({
                         radius={4}
                         color={route.color}
                         fillColor={route.color}
-                        fillOpacity={isRouteActive(route, muted, soloRoutes) ? 0.9 : 0.1}
+                        fillOpacity={isRouteActive(route, disabled, soloRoutes) ? 0.9 : 0.1}
                         weight={1.5}
                       >
                         <Tooltip>{stop.name}</Tooltip>
@@ -284,7 +284,7 @@ export default function MapView({
 
         {/* ── Live mode: vehicle dots ── */}
         {mode === 'live' && allRoutes.map(route => {
-          if (!isRouteActive(route, muted, soloRoutes)) return null
+          if (!isRouteActive(route, disabled, soloRoutes)) return null
           return (vehiclesByRouteName[route.name] ?? [])
             .filter(v => v.lat != null && v.lng != null)
             .map(v => (

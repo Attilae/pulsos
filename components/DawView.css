@@ -132,7 +132,7 @@
   min-height: 44px;
 }
 .line-track > .stop-rail { flex: 0 0 auto; width: 100%; }
-.line-track--muted { opacity: 0.3; }
+.line-track--disabled { opacity: 0.3; }
 .line-track--auto-source {
   background: rgba(255, 160, 30, 0.06);
   border-top: 1px dashed rgba(255, 160, 30, 0.3);

@@ -68,13 +68,13 @@ export default function DawView({
   className = '',
   mode, started, events, routes, onRepickType,
   onDuplicateTrack, onRemoveDuplicate, onStopPitch, perStopStepsById,
-  volumes, muted, pans, soloRoutes,
+  volumes, disabled, pans, soloRoutes,
   liveSnapshot, snapshotLoading,
   trackSoundModes, trackScales, trackSynthTypes, trackADSRs, trackFilters, trackEqs,
   sendMatrix, automationCfg, automationSourceIds,
   fxBusWet, activeFxTracks, masterVolume, trackOctaves, trackGlides, trackLegatos, trackArps, trackGranulars, trackSpeeds, trackLoopRegions,
   trackDroneModes, trackDroneRoots, onDroneMode, onDroneRoot,
-  onVolume, onMute, onPan, onSolo,
+  onVolume, onDisable, onPan, onSolo,
   onSoundMode, onScale, onSynthType, onADSR, onSamplerPreset, onDrumVoice, onSamplerUpload, onFilter, onEq,
   onSendLevel, onFxBusWet, fxBusMuted, fxBusSoloed, onFxBusMute, onFxBusSolo,
   fxBusParams, onFxBusParam, onFxBusCustomIR,
@@ -248,7 +248,7 @@ export default function DawView({
                     started={started}
                     progress={playheadProgress}
                     volume={volumes[route.id] ?? 0}
-                    muted={muted[route.id] ?? false}
+                    disabled={disabled[route.id] ?? false}
                     pan={pans[route.id] ?? 0}
                     isSoloed={soloRoutes.has(route.id)}
                     vehicles={vehiclesByRoute[route.name] ?? []}
@@ -264,9 +264,9 @@ export default function DawView({
                     sendMatrix={sendMatrix}
                     onSendLevel={(busId, lvl) => onSendLevel(route.id, busId, lvl)}
                     onVolume={v => onVolume(route.id, v)}
-                    onMute={() => onMute(route.id)}
+                    onDisable={() => onDisable(route.id)}
                     onPan={v => onPan(route.id, v)}
-                    onSolo={() => onSolo(route.id)}
+                    onSolo={e => onSolo(route.id, e.metaKey || e.ctrlKey)}
                     octaveShift={trackOctaves?.[route.id] ?? 0}
                     glide={trackGlides?.[route.id] ?? 0}
                     legato={trackLegatos?.[route.id] ?? false}
@@ -371,13 +371,13 @@ export default function DawView({
 
 // ── Individual instrument track row ──────────────────────────────────────────
 function LineTrack({
-  route, mode, started, progress, volume, muted, pan, isSoloed,
+  route, mode, started, progress, volume, disabled, pan, isSoloed,
   vehicles, soundMode, trackScale, synthType, adsr,
   filter, eq,
   droneMode, droneRoot,
   laneCount, autoTargets = {}, activeFxTracks, sendMatrix, octaveShift, glide, legato, arp, granular, speed,
   loopRegion, onLoopRegion,
-  onVolume, onMute, onPan, onSolo, onSoundMode, onScale, onSynthType, onADSR,
+  onVolume, onDisable, onPan, onSolo, onSoundMode, onScale, onSynthType, onADSR,
   onSamplerPreset, onDrumVoice, onSamplerUpload,
   onFilter, onEq,
   onSendLevel, onOctaveShift, onGlide, onLegato, onArp, onGranular, onSpeed, onDroneMode, onDroneRoot, onAddLane,
@@ -397,7 +397,7 @@ function LineTrack({
   const gliDisp = aGli.display != null ? aGli.display : (glide ?? 0)
 
   return (
-    <div className={`line-track ${muted ? 'line-track--muted' : ''} ${rackOpen ? 'line-track--open' : ''}`}>
+    <div className={`line-track ${disabled ? 'line-track--disabled' : ''} ${rackOpen ? 'line-track--open' : ''}`}>
       <div className="lt-top">
         <div className="line-label" style={{ borderColor: route.color }}>
           <div className="line-label-top">
@@ -417,7 +417,7 @@ function LineTrack({
         </div>
 
         <div className="lt-mix">
-          <button className={`mute-btn ${muted ? 'active' : ''}`} onClick={onMute} title={muted ? 'Unmute' : 'Mute'}>M</button>
+          <button className={`disable-btn ${disabled ? 'active' : ''}`} onClick={onDisable} title={disabled ? 'Enable track' : 'Disable track'}>⏻</button>
           <button className={`solo-btn ${isSoloed ? 'active' : ''}`} onClick={onSolo} title="Solo">S</button>
           <input type="range" min="-40" max="6" step="1"
             value={volDisp} onChange={e => onVolume(Number(e.target.value))}

@@ -82,7 +82,7 @@ export default function MixerTab() {
   const [events,  setEvents]  = useState([])
 
   const [volumes, setVolumes] = useState({})
-  const [muted,   setMuted]   = useState({})
+  const [disabledRoutes, setDisabledRoutes] = useState({})
   const [pans,    setPans]    = useState({})
 
   const [trackSoundModes, setTrackSoundModes] = useState({})
@@ -302,16 +302,21 @@ export default function MixerTab() {
     }
   }
 
-  const handleSolo = useCallback((routeId) => {
+  // Ableton-style solo: plain click solos only this lane (muting all others);
+  // Cmd/Ctrl+click adds it to the soloed set instead of replacing it. Clicking
+  // the sole soloed lane again clears solo entirely.
+  const handleSolo = useCallback((routeId, additive) => {
     setSoloRoutes(prev => {
-      const next = new Set(prev)
-      if (next.has(routeId)) {
-        next.delete(routeId)
-        engineRef.current?.setSolo(routeId, false)
+      let next
+      if (additive) {
+        next = new Set(prev)
+        if (next.has(routeId)) next.delete(routeId)
+        else next.add(routeId)
       } else {
-        next.add(routeId)
-        engineRef.current?.setSolo(routeId, true)
+        next = (prev.size === 1 && prev.has(routeId)) ? new Set() : new Set([routeId])
       }
+      for (const id of prev) if (!next.has(id)) engineRef.current?.setSolo(id, false)
+      for (const id of next) if (!prev.has(id)) engineRef.current?.setSolo(id, true)
       return next
     })
   }, [])
@@ -600,7 +605,7 @@ export default function MixerTab() {
 
     // Clone every per-track map entry sourceId → id.
     const copy = (setter) => setter(m => (sourceId in m ? { ...m, [id]: m[sourceId] } : m))
-    copy(setVolumes); copy(setMuted); copy(setPans)
+    copy(setVolumes); copy(setDisabledRoutes); copy(setPans)
     copy(setTrackSoundModes); copy(setTrackScales); copy(setTrackSynthTypes); copy(setTrackADSRs)
     copy(setTrackFilters); copy(setTrackEqs)
     copy(setTrackOctaves); copy(setTrackGlides); copy(setTrackLegatos)
@@ -624,7 +629,7 @@ export default function MixerTab() {
     const soundMode  = { mode: trackSoundModes[sourceId] ?? 'harmonic', scale: trackScales[sourceId] ?? { root: 'C', scaleType: 'major' } }
     engine.addRoute(cloneRoute, soundMode, trackSynthTypes[sourceId] ?? 'Synth', trackADSRs[sourceId])
     if (volumes[sourceId]   != null) engine.setRouteVolume(id, volumes[sourceId])
-    if (muted[sourceId])             engine.setRouteMute(id, true)
+    if (disabledRoutes[sourceId])    engine.setRouteDisabled(id, true)
     if (pans[sourceId]      != null) engine.setRoutePan(id, pans[sourceId])
     if (trackScales[sourceId])       engine.setScale(id, trackScales[sourceId])
     if (trackFilters[sourceId])      engine.setRouteFilter(id, trackFilters[sourceId])
@@ -642,7 +647,7 @@ export default function MixerTab() {
       if (rid === sourceId && level) engine.setSendLevel(id, bus, level)
     }
     if (Object.keys(perStopSteps).length) engine.setPitchOffsets(id, perStopSteps)
-  }, [mergedRoutes, duplicates, volumes, muted, pans, trackSoundModes, trackScales,
+  }, [mergedRoutes, duplicates, volumes, disabledRoutes, pans, trackSoundModes, trackScales,
       trackSynthTypes, trackADSRs, trackFilters, trackEqs, trackOctaves, trackGlides,
       trackLegatos, trackDroneModes, trackDroneRoots, trackSpeeds, trackLoopRegions,
       trackArps, trackGranulars, sendMatrix])
@@ -653,7 +658,7 @@ export default function MixerTab() {
       if (!(dupId in m)) return m
       const next = { ...m }; delete next[dupId]; return next
     })
-    drop(setVolumes); drop(setMuted); drop(setPans)
+    drop(setVolumes); drop(setDisabledRoutes); drop(setPans)
     drop(setTrackSoundModes); drop(setTrackScales); drop(setTrackSynthTypes); drop(setTrackADSRs)
     drop(setTrackFilters); drop(setTrackEqs)
     drop(setTrackOctaves); drop(setTrackGlides); drop(setTrackLegatos)
@@ -734,10 +739,10 @@ export default function MixerTab() {
     engineRef.current?.setRouteVolume(routeId, db)
   }
 
-  const handleMute = (routeId) => {
-    setMuted(m => {
+  const handleDisable = (routeId) => {
+    setDisabledRoutes(m => {
       const next = !m[routeId]
-      engineRef.current?.setRouteMute(routeId, next)
+      engineRef.current?.setRouteDisabled(routeId, next)
       return { ...m, [routeId]: next }
     })
   }
@@ -798,7 +803,7 @@ export default function MixerTab() {
 
   const midiExportCtx = useMemo(() => ({
     bpm,
-    muted,
+    disabled: disabledRoutes,
     soloRoutes,
     trackScales,
     trackOctaves,
@@ -808,11 +813,12 @@ export default function MixerTab() {
     trackLoopRegions,
     trackDroneModes,
     automationSourceIds,
+    perStopSteps: dupStepsById,
     recorder: midiRecorderRef.current,
   }), [
-    bpm, muted, soloRoutes, trackScales, trackOctaves, trackSoundModes,
+    bpm, disabledRoutes, soloRoutes, trackScales, trackOctaves, trackSoundModes,
     trackLegatos, trackSpeeds, trackLoopRegions, trackDroneModes,
-    automationSourceIds, hasMidiSession,
+    automationSourceIds, dupStepsById, hasMidiSession,
   ])
 
   const canExportMix = useMemo(() => {
@@ -863,7 +869,7 @@ export default function MixerTab() {
 
   const songState = useMemo(() => ({
     bpm, mode, view, masterVolume, globalHarmony,
-    volumes, muted, pans, soloRoutes,
+    volumes, disabledRoutes, pans, soloRoutes,
     trackSoundModes, trackScales, trackSynthTypes, trackADSRs,
     trackFilters, trackEqs,
     trackOctaves, trackGlides, trackLegatos, trackDroneModes, trackDroneRoots, trackSpeeds, trackLoopRegions, trackArps, trackGranulars,
@@ -871,7 +877,7 @@ export default function MixerTab() {
     sendMatrix, automationCfg, duplicates,
   }), [
     bpm, mode, view, masterVolume, globalHarmony,
-    volumes, muted, pans, soloRoutes,
+    volumes, disabledRoutes, pans, soloRoutes,
     trackSoundModes, trackScales, trackSynthTypes, trackADSRs,
     trackFilters, trackEqs,
     trackOctaves, trackGlides, trackLegatos, trackDroneModes, trackDroneRoots, trackSpeeds, trackLoopRegions, trackArps, trackGranulars,
@@ -890,7 +896,7 @@ export default function MixerTab() {
     setStarted(false)
     setEvents([])
 
-    setVolumes({}); setMuted({}); setPans({}); setSoloRoutes(new Set())
+    setVolumes({}); setDisabledRoutes({}); setPans({}); setSoloRoutes(new Set())
     setTrackSoundModes({}); setTrackScales({}); setTrackSynthTypes({}); setTrackADSRs({})
     setTrackFilters({}); setTrackEqs({})
     setTrackOctaves({}); setTrackGlides({}); setTrackLegatos({})
@@ -908,7 +914,7 @@ export default function MixerTab() {
 
   const songSetters = useMemo(() => ({
     setBpm, setMode, setView, setMasterVolume, setGlobalHarmony,
-    setVolumes, setMuted, setPans, setSoloRoutes,
+    setVolumes, setDisabledRoutes, setPans, setSoloRoutes,
     setTrackSoundModes, setTrackScales, setTrackSynthTypes, setTrackADSRs,
     setTrackFilters, setTrackEqs,
     setTrackOctaves, setTrackGlides, setTrackLegatos, setTrackDroneModes, setTrackDroneRoots, setTrackSpeeds, setTrackLoopRegions, setTrackArps, setTrackGranulars,
@@ -1031,7 +1037,7 @@ export default function MixerTab() {
         city={city}
         started={started}
         mode={mode}
-        muted={muted}
+        disabled={disabledRoutes}
         soloRoutes={soloRoutes}
         liveSnapshot={liveSnapshot}
       />
@@ -1053,7 +1059,7 @@ export default function MixerTab() {
         onStopPitch={handleStopPitch}
         perStopStepsById={dupStepsById}
         volumes={volumes}
-        muted={muted}
+        disabled={disabledRoutes}
         pans={pans}
         soloRoutes={soloRoutes}
         bpm={bpm}
@@ -1089,7 +1095,7 @@ export default function MixerTab() {
         onDroneMode={handleDroneMode}
         onDroneRoot={handleDroneRoot}
         onVolume={handleVolume}
-        onMute={handleMute}
+        onDisable={handleDisable}
         onPan={handlePan}
         onSolo={handleSolo}
         onSoundMode={handleSoundMode}
