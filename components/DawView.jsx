@@ -319,6 +319,8 @@ export default function DawView({
                       laneCfg={laneCfg}
                       allRoutes={routes ?? []}
                       activeFxTracks={activeFxTracks ?? []}
+                      disabled={disabled}
+                      soloRoutes={soloRoutes}
                       synthType={trackSynthTypes?.[route.id] ?? 'Synth'}
                       granularEnabled={!!trackGranulars?.[route.id]?.enabled}
                       started={started}
@@ -792,7 +794,7 @@ function LineTrack({
 }
 
 // ── Automation lane (sub-row below instrument track) ─────────────────────────
-function AutomationLane({ laneId, instRoute, laneCfg, allRoutes, activeFxTracks, synthType = 'Synth', granularEnabled = false, started = false, srcLoopRegion, onUpdate, onRemove, onLiveValue }) {
+function AutomationLane({ laneId, instRoute, laneCfg, allRoutes, activeFxTracks, disabled, soloRoutes, synthType = 'Synth', granularEnabled = false, started = false, srcLoopRegion, onUpdate, onRemove, onLiveValue }) {
   const sourceRouteId = laneCfg?.sourceRouteId ?? ''
   const paramTarget   = laneCfg?.paramTarget   ?? 'volume'
   const points        = laneCfg?.points        ?? {}
@@ -815,7 +817,13 @@ function AutomationLane({ laneId, instRoute, laneCfg, allRoutes, activeFxTracks,
   )
 
   const sourceRoute    = allRoutes.find(r => r.id === sourceRouteId) ?? null
-  const pickableRoutes = allRoutes.filter(r => r.id !== instRoute.id)
+  // A route that's currently an active instrument lane (enabled, or soloed) elsewhere would
+  // vanish from the instrument view if picked as a source here — block it, but keep the
+  // already-selected source visible/selectable even if it later becomes active.
+  const isRouteActive  = r => soloRoutes?.has(r.id) || !(disabled?.[r.id] ?? false)
+  const pickableRoutes = allRoutes
+    .filter(r => r.id !== instRoute.id)
+    .map(r => ({ ...r, _blocked: r.id !== sourceRouteId && isRouteActive(r) }))
 
   // Target options, grouped by .group, filtered to what's valid for this synth type.
   const groupedTargets = useMemo(() => {
@@ -838,7 +846,9 @@ function AutomationLane({ laneId, instRoute, laneCfg, allRoutes, activeFxTracks,
           onChange={e => onUpdate({ sourceRouteId: e.target.value })}>
           <option value="">— pick line —</option>
           {pickableRoutes.map(r => (
-            <option key={r.id} value={r.id}>{r.name} {r.desc ? `· ${r.desc}` : ''}</option>
+            <option key={r.id} value={r.id} disabled={r._blocked}>
+              {r.name} {r.desc ? `· ${r.desc}` : ''}{r._blocked ? ' (active)' : ''}
+            </option>
           ))}
         </select>
 
