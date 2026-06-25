@@ -1,0 +1,263 @@
+.song-chainer-tab {
+  display: grid;
+  grid-template-rows: auto auto 1fr auto;
+  height: 100%;
+  min-height: 0;
+  flex: 1;
+  background: var(--bg);
+}
+
+/* ── Header ───────────────────────────────────────────────────────────── */
+.chain-header {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 12px 20px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.chain-title {
+  font-size: 1.05rem;
+  letter-spacing: 0.12em;
+  color: var(--accent);
+  white-space: nowrap;
+}
+.chain-name {
+  background: var(--surface2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  font-family: inherit;
+  font-size: 0.85rem;
+  padding: 6px 8px;
+  min-width: 180px;
+  outline: none;
+}
+.chain-field {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+.chain-field input {
+  background: var(--surface2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  font-family: inherit;
+  font-size: 0.78rem;
+  padding: 5px 6px;
+  width: 56px;
+  text-align: center;
+  outline: none;
+}
+.chain-toggle {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.74rem;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.chain-menu {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+.chain-btn {
+  padding: 8px 16px;
+  background: var(--surface2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  font-family: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+.chain-btn:hover:not(:disabled) { background: #2a2a2a; }
+.chain-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+.chain-btn--primary {
+  border-color: var(--accent);
+  color: var(--accent);
+  padding: 8px 22px;
+}
+.chain-btn--primary:hover:not(:disabled) { background: rgba(200, 240, 64, 0.1); }
+.chain-btn--primary.on { border-color: #f04040; color: #f04040; }
+.chain-btn--primary.on:hover { background: rgba(240, 64, 64, 0.1); }
+.chain-btn--danger { border-color: #b3403a; color: #e06a64; }
+.chain-open {
+  background: var(--surface2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  font-family: inherit;
+  font-size: 0.8rem;
+  padding: 7px 8px;
+  outline: none;
+  min-width: 120px;
+}
+
+/* ── Notices ──────────────────────────────────────────────────────────── */
+.chain-notice {
+  padding: 8px 20px;
+  font-size: 0.74rem;
+  color: var(--muted);
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+.chain-notice--warn {
+  color: #e6b450;
+  background: rgba(230, 180, 80, 0.08);
+}
+
+/* ── Body: picker + chain ─────────────────────────────────────────────── */
+.chain-body {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  gap: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+.chain-subhead {
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 0 0 10px;
+}
+.chain-empty {
+  font-size: 0.76rem;
+  color: var(--muted);
+  opacity: 0.7;
+  padding: 6px 0;
+}
+
+.chain-picker {
+  border-right: 1px solid var(--border);
+  background: var(--surface);
+  padding: 16px;
+  overflow-y: auto;
+  min-height: 0;
+}
+.chain-preset-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.chain-preset {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  background: var(--surface2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  font-family: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.12s, border-color 0.12s;
+}
+.chain-preset:hover { background: #2a2a2a; border-color: var(--accent); }
+.chain-preset-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chain-preset-add { color: var(--accent); font-weight: 700; }
+
+.chain-list {
+  padding: 16px 20px;
+  overflow-y: auto;
+  min-height: 0;
+}
+.chain-list-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+.chain-meta { font-size: 0.74rem; color: var(--muted); }
+
+.chain-items { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.chain-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.chain-item.playing { border-color: var(--accent); }
+.chain-item-idx {
+  font-size: 0.72rem;
+  color: var(--muted);
+  width: 18px;
+  text-align: center;
+}
+.chain-item-name {
+  font-size: 0.85rem;
+  color: var(--text);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.chain-item-field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 0.62rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.chain-item-field input,
+.chain-item-field select {
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  font-family: inherit;
+  font-size: 0.78rem;
+  padding: 4px 6px;
+  outline: none;
+}
+.chain-item-field input { width: 52px; text-align: center; }
+
+.chain-item-progress {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 2px;
+  background: var(--accent);
+  transition: width 0.1s linear;
+}
+
+.chain-item-actions { display: flex; gap: 4px; }
+.chain-icon {
+  width: 26px;
+  height: 26px;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  line-height: 1;
+}
+.chain-icon:hover:not(:disabled) { background: #2a2a2a; }
+.chain-icon:disabled { opacity: 0.3; cursor: not-allowed; }
+.chain-icon--danger:hover:not(:disabled) { border-color: #b3403a; color: #e06a64; }
+
+/* ── Footer ───────────────────────────────────────────────────────────── */
+.chain-footer {
+  padding: 8px 20px;
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+  font-size: 0.72rem;
+  color: var(--muted);
+  text-align: center;
+}

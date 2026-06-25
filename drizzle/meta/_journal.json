@@ -15,6 +15,13 @@
       "when": 1780247086468,
       "tag": "0001_grey_angel",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1782398146567,
+      "tag": "0002_needy_fallen_one",
+      "breakpoints": true
     }
   ]
 }

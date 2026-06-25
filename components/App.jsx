@@ -4,6 +4,7 @@ import DrumMachineTab   from './tabs/DrumMachineTab.jsx'
 import LoopCapturerTab  from './tabs/LoopCapturerTab.jsx'
 import HeadphoneTab     from './tabs/HeadphoneTab.jsx'
 import MotifTab         from './tabs/MotifTab.jsx'
+import SongChainerTab   from './tabs/SongChainerTab.jsx'
 import AuthControl      from './AuthControl.jsx'
 import CitySelect       from './CitySelect.jsx'
 import { CityProvider } from '@/lib/shared/CityContext.jsx'
@@ -16,6 +17,7 @@ const TABS = [
   { id: 'loops',  label: 'Loop Capturer', Comp: LoopCapturerTab },
   { id: 'phones', label: 'Headphone',     Comp: HeadphoneTab },
   { id: 'motif',  label: 'Motif',         Comp: MotifTab },
+  { id: 'chain',  label: 'Song',          Comp: SongChainerTab },
 ]
 
 export default function App() {
