@@ -254,21 +254,28 @@ export default function MapView({
                       </Polyline>
                     ))
                   })}
-                  {showStops && layerRoutes.map(route =>
-                    route.stops.map((stop, i) => (
-                      <CircleMarker
-                        key={`${route.id}_${stop.id}_${i}`}
-                        center={[stop.lat, stop.lon]}
-                        radius={4}
-                        color={route.color}
-                        fillColor={route.color}
-                        fillOpacity={isRouteActive(route, disabled, soloRoutes) ? 0.9 : 0.1}
-                        weight={1.5}
-                      >
-                        <Tooltip>{stop.name}</Tooltip>
-                      </CircleMarker>
-                    ))
-                  )}
+                  {/* Stop markers only for ACTIVE routes. Drawing every metro
+                      stop (dimmed) is prohibitively heavy for large all-metro
+                      networks like NYC's 28-line subway (~780 interactive
+                      markers) and froze the tab; a fresh all-disabled session
+                      now renders none, and stops appear as lines are enabled. */}
+                  {showStops && layerRoutes
+                    .filter(route => isRouteActive(route, disabled, soloRoutes))
+                    .map(route =>
+                      route.stops.map((stop, i) => (
+                        <CircleMarker
+                          key={`${route.id}_${stop.id}_${i}`}
+                          center={[stop.lat, stop.lon]}
+                          radius={4}
+                          color={route.color}
+                          fillColor={route.color}
+                          fillOpacity={0.9}
+                          weight={1.5}
+                        >
+                          <Tooltip>{stop.name}</Tooltip>
+                        </CircleMarker>
+                      ))
+                    )}
                 </>
               </LayersControl.Overlay>
             )

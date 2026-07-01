@@ -18,7 +18,11 @@ import { exportRouteAudio, exportMixAudio } from '@/lib/audioExport.js'
 
 const MAX_EVENTS = 80
 
-const STARTUP_PICKS = { tram: 5, trolley: 5, bus: 5 }
+// Startup lane caps per line type. Metro is capped too: most cities have a
+// handful of metro lines, but some (e.g. NYC's 28-route subway) have many —
+// without a cap they'd all open at once and freeze the map/DAW render. ≥9 keeps
+// every current non-NYC city unchanged.
+const STARTUP_PICKS = { metro: 10, tram: 5, trolley: 5, bus: 5 }
 
 // FX rack buses present in a fresh session (new song / city switch / reset).
 const DEFAULT_FX_TRACKS = ['reverb', 'delay', 'chorus', 'distortion']
@@ -40,9 +44,14 @@ function pickType(allRoutes, type, n) {
 }
 
 function pickStartupRoutes(allRoutes) {
-  const metro = allRoutes.filter(r => r.type === 'metro' && r.stops?.length)
-  const picked = [...metro]
+  // Metro: keep sort order (the "main" lines first), capped — not shuffled, so
+  // e.g. Budapest stays M1–M4 and NYC gets its first N subway lines in order.
+  const picked = [
+    ...allRoutes.filter(r => r.type === 'metro' && r.stops?.length).slice(0, STARTUP_PICKS.metro),
+  ]
+  // Other types: a fresh random sample each load.
   for (const [type, n] of Object.entries(STARTUP_PICKS)) {
+    if (type === 'metro') continue
     picked.push(...pickType(allRoutes, type, n))
   }
   return picked
@@ -122,6 +131,10 @@ export default function MixerTab() {
 
   const [routes, setRoutes] = useState(null)
   const [city, setCity] = useState(null)   // city metadata block from lines.json
+  // True while a city switch is loading its route data. On a switch MixerTab keeps
+  // the previous city's `routes` until the new fetch resolves, so `!routes` alone
+  // never signals the wait — this drives the switch preloader overlay.
+  const [switching, setSwitching] = useState(false)
   const allRoutesRef = useRef(null)   // full lines.json route list, for re-picking
 
   const [soloRoutes, setSoloRoutes] = useState(() => new Set())
@@ -188,6 +201,7 @@ export default function MixerTab() {
     if (isSwitch) {
       resetSessionState()
       if (!cityEntry.liveWsUrl) setMode('mock')  // no feed for this city → mock only
+      setSwitching(true)  // show the preloader while the new city's data loads
     }
     let cancelled = false
     fetchLines(cityEntry.linesUrl)
@@ -202,8 +216,11 @@ export default function MixerTab() {
         setDisabledRoutes(allDisabledMap(picked))
         for (const r of picked) engineRef.current?.setRouteDisabled(r.id, true)
         loadedCityRef.current = cityId
+        // Clear on the next frame so the overlay actually paints before the (heavy)
+        // route/map render commits, rather than being torn down in the same tick.
+        requestAnimationFrame(() => { if (!cancelled) setSwitching(false) })
       })
-      .catch(() => { if (!cancelled) { setRoutes([]); setCity(null) } })
+      .catch(() => { if (!cancelled) { setRoutes([]); setCity(null); setSwitching(false) } })
     return () => { cancelled = true }
   }, [cityId]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -219,7 +236,7 @@ export default function MixerTab() {
     for (const r of fresh) engineRef.current?.setRouteDisabled(r.id, true)
   }, [started])
 
-  // Re-roll the entire selection (all metro + fresh tram/trolley/bus picks).
+  // Re-roll the entire selection (capped metro + fresh tram/trolley/bus picks).
   const handleRepickAll = useCallback(() => {
     const all = allRoutesRef.current
     if (!all || started) return
@@ -961,6 +978,12 @@ export default function MixerTab() {
 
   return (
     <div className={`daw ${view === 'map' ? 'daw--map' : ''}`}>
+      {switching && (
+        <div className="city-switch-overlay" role="status" aria-live="polite">
+          <div className="city-switch-pulse" />
+          <div className="city-switch-label">Loading {cityEntry.name}…</div>
+        </div>
+      )}
       <header className="daw-header">
         <h2 className="daw-subtitle">Map</h2>
         <p className="daw-sub">{cityEntry.name} public transport → generative music</p>
