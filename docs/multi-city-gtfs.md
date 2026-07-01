@@ -59,9 +59,17 @@ with low-friction keys and reliable feeds.
   (good zero-friction smoke test). Note: **negative longitudes** — see gotchas.
   [511 transit data](https://511.org/open-data/transit),
   [BART GTFS-RT](https://www.bart.gov/schedules/developers/gtfs-realtime).
-- **New York — MTA**. Subway feeds need **no key** (v2.0.0). Subway is **sharded by line group**
-  and **TripUpdates-only** — validates the metro-inference path against a second city for free.
-  [MTA developers](https://www.mta.info/developers).
+- **New York — MTA** *(implemented, mock-only)*. Uses the supplemented subway static GTFS
+  (`web.mta.info/developers/files/google_transit_supplemented.zip`, no key) — **subway + Staten
+  Island Railway only** (route_types 1 → metro, 2 → hev; no tram/trolley/bus), so it's a two-voice
+  mix and the first **negative-longitude** city. RT subway feeds need **no key** (v2.0.0) but are
+  **sharded by line group** and **TripUpdates-only** — wire those into `feed/cities/newyork.js`
+  `feeds[]` before enabling Live. [MTA developers](https://www.mta.info/developers).
+- **Prague — PID** *(implemented, mock-only)*. Best modal fit after Budapest: metro + tram +
+  trolleybus + bus + funicular + ferry + rail → all five engine voices. Static GTFS
+  `data.pid.cz/PID_GTFS.zip` (CC-BY 4.0, no key, daily). RT is via the Golemio API and needs a
+  free `X-Access-Token` key — confirm endpoints + set `GOLEMIO_API_KEY` before enabling Live.
+  [PID open data](https://pid.cz/en/opendata/).
 - **Berlin — VBB**. Now a **first-party** GTFS-RT feed run by OpenDataVBB at
   `https://production.gtfsrt.vbb.de/data` — **no key**, 60 req/min, CC-BY 4.0. Single **combined**
   feed (TripUpdate-dominant; sparse VehiclePositions, so the TripUpdate-inference path applies to

@@ -7,9 +7,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 A web DAW that sonifies live public transport, branded **"Leið"** (Icelandic for "the way/route";
 the title lives in `app/layout.jsx`). Each transit line is a track; each station
 arrival triggers a note. Budapest (BKK) was the first city; the app is now **multi-city**
-(Budapest + Helsinki/HSL live, Berlin/VBB mock-only, with a runtime city picker) via a per-city
-descriptor abstraction —
-GTFS-RT is a global standard, so adding a city needs config, not engine changes. See
+with a runtime city picker — **five cities**: Budapest, Helsinki/HSL, Berlin/VBB, Prague/PID,
+and New York/MTA — via a per-city descriptor abstraction.
+GTFS-RT is a global standard, so adding a city needs config, not engine changes. **Live mode is
+currently disabled app-wide** (every city's `liveWsUrl` is `null` in `lib/shared/cities.js`, so
+all cities run mock-only and the Live toggle is disabled); the descriptors and `startLive` path
+are intact, so restoring Live is a config change (see that file's inline comments). See
 `docs/multi-city-gtfs.md` and the **Multi-city** section below. Inspired by trainjazz.com.
 
 Music-first: every data decision serves the sound, and the UI should feel like a DAW, not a
@@ -45,6 +48,8 @@ npm run start      # serve the production build
 npm run preprocess:budapest  # regenerate public/data/lines.budapest.json (+ mirror to lines.json)
 npm run preprocess:helsinki  # regenerate public/data/lines.helsinki.json
 npm run preprocess:berlin    # regenerate public/data/lines.berlin.json
+npm run preprocess:prague    # regenerate public/data/lines.prague.json
+npm run preprocess:newyork   # regenerate public/data/lines.newyork.json
 # generic form: node scripts/preprocess_lines.js --city <id> [--gtfs data/<id>_gtfs]
 npm run upload:lines # upload public/data/lines.json to Vercel Blob (needs BLOB_READ_WRITE_TOKEN)
 npm run db:generate # drizzle-kit: emit SQL migration from lib/db/schema.js
@@ -316,6 +321,13 @@ clients. It infers train positions from TripUpdates for any mode in `modesWithou
 `lib/mockData.js`). HTTP endpoints: `/health`, `/api/snapshot`, `/api/metro-debug`.
 
 ### Multi-city
+
+Registered cities: **budapest, helsinki, berlin, prague, newyork** (in `feed/cities/index.js` and
+`lib/shared/cities.js`). Prague/PID and New York/MTA descriptors are **mock-only with best-effort,
+unconfirmed RT `feeds[]`** (Prague needs a Golemio `X-Access-Token` key; NYC subway RT is sharded
+by line group and TripUpdates-only) — confirm those endpoints before enabling Live. NYC is the
+first city with **negative longitudes**; pitch stays correct because it derives from each route's
+own `routeBounds`, not `city.bounds` (see `docs/multi-city-gtfs.md`).
 
 The city abstraction lives in **two parallel registries** — kept separate because the feed service
 deploys standalone and can't import from `lib/` (same synced-copy convention as `feed/pitch.js`):
