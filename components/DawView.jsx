@@ -1077,7 +1077,7 @@ function AutoCurveRail({ route, laneId, points, spec, started = false, speed = 1
     return gridStops.map((stop) => {
       const override = points?.[stop.id]
       const value = (typeof override === 'number') ? override : hashStopValue(laneId, stop.id)
-      const x = ((stop.cellIdx + 0.5) / GRID_TOTAL_CELLS) * 100
+      const x = (stop.cellIdx / GRID_TOTAL_CELLS) * 100
       return { id: stop.id, name: stop.name, x, y: autoValueToY(value), value }
     })
   }, [route, laneId, points])
@@ -1913,7 +1913,7 @@ function StopRail({
     const midiMax   = Math.max(...midis)
     const midiRange = Math.max(midiMax - midiMin, 1)
     return gridStops.map((stop) => {
-      const x        = ((stop.cellIdx + 0.5) / GRID_TOTAL_CELLS) * 100
+      const x        = (stop.cellIdx / GRID_TOTAL_CELLS) * 100
       // Automation-mirror mode: position dots by the lane's authored value, not pitch.
       if (automationValues) {
         const v = automationValues[stop.id] ?? 0.5
