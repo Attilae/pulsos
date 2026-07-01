@@ -2,7 +2,7 @@ import * as Tone from 'tone'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { SYNTH_DEFAULTS, availableAutomationTargets, findTargetSpec, SAMPLER_PRESET_LIST, SAMPLER_PRESETS, DRUM_VOICES, DRUM_VOICE_LICENSE, DEFAULT_GRANULAR, ARP_STYLES, ARP_RATES, DEFAULT_ARP } from '@/lib/engine.js'
 import { FX_BUSES, AUTOMATION_TARGETS, FX_PARAM_SPECS, FX_SYNC_TARGETS } from '@/lib/fxTrack.js'
-import { generatePitchMap, shiftOctaveNote, noteToMidi, SCALES, hashStopValue, snapStopsToGrid, GRID_TOTAL_CELLS, GRID_BARS, denormalizeToRange, denormalizeExp, transposeNoteInScale, nearestScaleDegreeOffset } from '@/lib/mappings.js'
+import { generatePitchMap, shiftOctaveNote, noteToMidi, SCALES, hashStopValue, snapStopsToGrid, GRID_TOTAL_CELLS, GRID_BARS, GRID_STEPS_PER_BAR, GRID_RESOLUTION_STEPS_PER_BAR, DEFAULT_GRID_RESOLUTION, denormalizeToRange, denormalizeExp, transposeNoteInScale, nearestScaleDegreeOffset } from '@/lib/mappings.js'
 import './DawView.css'
 
 const SYNTH_TYPES = [
@@ -73,13 +73,14 @@ export default function DawView({
   trackSoundModes, trackScales, trackSynthTypes, trackADSRs, trackFilters, trackEqs,
   sendMatrix, automationCfg, automationSourceIds,
   fxBusWet, activeFxTracks, masterVolume, trackOctaves, trackGlides, trackLegatos, trackArps, trackGranulars, trackSpeeds, trackLoopRegions,
+  trackGridResolutions,
   trackDroneModes, trackDroneRoots, onDroneMode, onDroneRoot,
   onVolume, onDisable, onPan, onSolo,
   onSoundMode, onScale, onSynthType, onADSR, onSamplerPreset, onDrumVoice, onSamplerUpload, onFilter, onEq,
   onSendLevel, onFxBusWet, fxBusMuted, fxBusSoloed, onFxBusMute, onFxBusSolo,
   fxBusParams, onFxBusParam, onFxBusCustomIR,
   onAddFxTrack, onRemoveFxTrack, onMasterVolume,
-  onOctaveShift, onGlide, onLegato, onArp, onGranular, onTrackSpeed, onTrackLoopRegion,
+  onOctaveShift, onGlide, onLegato, onArp, onGranular, onTrackSpeed, onTrackLoopRegion, onGridResolution,
   onAddAutomationLane, onRemoveAutomationLane, onUpdateAutomationLane,
   onRefetch, onVehicleCrossed, onExportRouteMidi, onExportRouteAudio, audioExportActive,
 }) {
@@ -275,6 +276,8 @@ export default function DawView({
                     speed={trackSpeeds?.[route.id] ?? 1}
                     loopRegion={trackLoopRegions?.[route.id]}
                     onLoopRegion={r => onTrackLoopRegion(route.id, r)}
+                    gridResolution={trackGridResolutions?.[route.id]}
+                    onGridResolution={rt => onGridResolution(route.id, rt)}
                     onSoundMode={m => onSoundMode(route.id, route.name, m)}
                     onScale={s => onScale(route.id, route.name, s)}
                     onSynthType={st => onSynthType(route.id, route.type, st)}
@@ -309,6 +312,7 @@ export default function DawView({
                       srcRoute={routeById[srcId]}
                       instRoute={route}
                       automationCfg={automationCfg}
+                      srcGridResolution={trackGridResolutions?.[srcId]}
                     />
                   ))}
                   {lanes.map(([laneId, laneCfg]) => (
@@ -325,6 +329,7 @@ export default function DawView({
                       granularEnabled={!!trackGranulars?.[route.id]?.enabled}
                       started={started}
                       srcLoopRegion={trackLoopRegions?.[laneCfg.sourceRouteId]}
+                      srcGridResolution={trackGridResolutions?.[laneCfg.sourceRouteId]}
                       onUpdate={cfg => onUpdateAutomationLane(route.id, laneId, cfg)}
                       onRemove={() => onRemoveAutomationLane(route.id, laneId)}
                       onLiveValue={handleLiveAuto}
@@ -378,7 +383,7 @@ function LineTrack({
   filter, eq,
   droneMode, droneRoot,
   laneCount, autoTargets = {}, activeFxTracks, sendMatrix, octaveShift, glide, legato, arp, granular, speed,
-  loopRegion, onLoopRegion,
+  loopRegion, onLoopRegion, gridResolution, onGridResolution,
   onVolume, onDisable, onPan, onSolo, onSoundMode, onScale, onSynthType, onADSR,
   onSamplerPreset, onDrumVoice, onSamplerUpload,
   onFilter, onEq,
@@ -489,6 +494,7 @@ function LineTrack({
         octaveShift={octaveShift ?? 0}
         loopRegion={loopRegion}
         onLoopRegion={onLoopRegion}
+        gridResolution={gridResolution}
         editable={isDuplicate}
         perStopSteps={perStopSteps}
         onStopPitch={onStopPitch}
@@ -590,6 +596,22 @@ function LineTrack({
                     title={opt.title}
                   >
                     {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="speed-row">
+              <span className="speed-label">GRID</span>
+              <div className="speed-btns">
+                {ARP_RATES.map(rt => (
+                  <button
+                    key={rt}
+                    className={`speed-btn ${(gridResolution ?? DEFAULT_GRID_RESOLUTION) === rt ? 'active' : ''}`}
+                    style={(gridResolution ?? DEFAULT_GRID_RESOLUTION) === rt ? { borderColor: route.color, color: route.color } : {}}
+                    onClick={() => onGridResolution(rt)}
+                    title={`Note grid: ${ARP_RATE_LABELS[rt] ?? rt}`}
+                  >
+                    {ARP_RATE_LABELS[rt] ?? rt}
                   </button>
                 ))}
               </div>
@@ -794,7 +816,7 @@ function LineTrack({
 }
 
 // ── Automation lane (sub-row below instrument track) ─────────────────────────
-function AutomationLane({ laneId, instRoute, laneCfg, allRoutes, activeFxTracks, disabled, soloRoutes, synthType = 'Synth', granularEnabled = false, started = false, srcLoopRegion, onUpdate, onRemove, onLiveValue }) {
+function AutomationLane({ laneId, instRoute, laneCfg, allRoutes, activeFxTracks, disabled, soloRoutes, synthType = 'Synth', granularEnabled = false, started = false, srcLoopRegion, srcGridResolution, onUpdate, onRemove, onLiveValue }) {
   const sourceRouteId = laneCfg?.sourceRouteId ?? ''
   const paramTarget   = laneCfg?.paramTarget   ?? 'volume'
   const points        = laneCfg?.points        ?? {}
@@ -904,6 +926,7 @@ function AutomationLane({ laneId, instRoute, laneCfg, allRoutes, activeFxTracks,
         started={started}
         speed={speed}
         loopRegion={effectiveRegion}
+        gridResolution={srcGridResolution}
         onLoopRegion={region => onUpdate({ loopRegion: region })}
         onUpdate={onUpdate}
         onActiveValue={handleActiveValue}
@@ -913,7 +936,7 @@ function AutomationLane({ laneId, instRoute, laneCfg, allRoutes, activeFxTracks,
 }
 
 // ── Automation source track (data-only, shown inside instrument's track-group) ─
-function AutomationSourceTrack({ srcRoute, instRoute, automationCfg }) {
+function AutomationSourceTrack({ srcRoute, instRoute, automationCfg, srcGridResolution }) {
   if (!srcRoute) return null
 
   // Lanes on this instrument driven by this source line
@@ -946,7 +969,7 @@ function AutomationSourceTrack({ srcRoute, instRoute, automationCfg }) {
           )}
         </div>
       </div>
-      <StopRail route={srcRoute} progress={0} mode="mock" vehicles={[]} automationValues={automationValues} />
+      <StopRail route={srcRoute} progress={0} mode="mock" vehicles={[]} automationValues={automationValues} gridResolution={srcGridResolution} />
     </div>
   )
 }
@@ -985,7 +1008,9 @@ function autoCtl(autoTargets, ids, { divide = 1 } = {}) {
 
 // Draggable per-stop automation curve. X = the chosen line's stops (snapped to the
 // same grid as instrument notes); Y = the authored value (override or hash default).
-function AutoCurveRail({ route, laneId, points, spec, started = false, speed = 1, loopRegion, onLoopRegion, onUpdate, onActiveValue }) {
+function AutoCurveRail({ route, laneId, points, spec, started = false, speed = 1, loopRegion, gridResolution, onLoopRegion, onUpdate, onActiveValue }) {
+  const noteStepsPerBar = GRID_RESOLUTION_STEPS_PER_BAR[gridResolution ?? DEFAULT_GRID_RESOLUTION] ?? GRID_STEPS_PER_BAR
+  const noteTotalCells  = GRID_BARS * noteStepsPerBar
   const railRef = useRef(null)
   const needleRef = useRef(null)
   const stopPointsRef = useRef([])
@@ -1073,14 +1098,14 @@ function AutoCurveRail({ route, laneId, points, spec, started = false, speed = 1
 
   const stopPoints = useMemo(() => {
     if (!route?.stops?.length) return []
-    const gridStops = snapStopsToGrid(route.stops, route.totalDist)
+    const gridStops = snapStopsToGrid(route.stops, route.totalDist, noteTotalCells, noteStepsPerBar)
     return gridStops.map((stop) => {
       const override = points?.[stop.id]
       const value = (typeof override === 'number') ? override : hashStopValue(laneId, stop.id)
-      const x = (stop.cellIdx / GRID_TOTAL_CELLS) * 100
+      const x = (stop.cellIdx / noteTotalCells) * 100
       return { id: stop.id, name: stop.name, x, y: autoValueToY(value), value }
     })
-  }, [route, laneId, points])
+  }, [route, laneId, points, noteTotalCells, noteStepsPerBar])
   stopPointsRef.current = stopPoints
 
   const polylinePoints = stopPoints.map(p => `${p.x},${p.y}`).join(' ')
@@ -1767,12 +1792,14 @@ const BAR_LABELS = Array.from({ length: GRID_BARS }, (_, i) => ({
 function StopRail({
   route, progress = 0, speed = 1, started = false, mode = 'mock', vehicles = [],
   trackScale = { root: 'C', scaleType: 'major' }, octaveShift = 0,
-  loopRegion, onLoopRegion, automationValues = null,
+  loopRegion, onLoopRegion, gridResolution, automationValues = null,
   editable = false, perStopSteps = null, onStopPitch = null,
 }) {
   const needleRef = useRef(null)
   const railRef   = useRef(null)
   const canEditPitch = editable && !!onStopPitch && !automationValues
+  const noteStepsPerBar = GRID_RESOLUTION_STEPS_PER_BAR[gridResolution ?? DEFAULT_GRID_RESOLUTION] ?? GRID_STEPS_PER_BAR
+  const noteTotalCells  = GRID_BARS * noteStepsPerBar
 
   const startCell = Math.max(0, Math.min(GRID_TOTAL_CELLS - 1, Math.round(loopRegion?.startCell ?? 0)))
   const endCell   = Math.max(startCell + 1, Math.min(GRID_TOTAL_CELLS, Math.round(loopRegion?.endCell ?? GRID_TOTAL_CELLS)))
@@ -1887,7 +1914,7 @@ function StopRail({
   const scaleIntervals = SCALES[trackScale.scaleType] ?? SCALES.major
 
   // Snap all stops to grid cells — this is the canonical X position
-  const gridStops = snapStopsToGrid(route.stops, total)
+  const gridStops = snapStopsToGrid(route.stops, total, noteTotalCells, noteStepsPerBar)
 
   // Always compute lat range for vehicle markers in live mode
   const lats     = route.stops.map(s => s.lat).filter(v => v != null)
@@ -1913,7 +1940,7 @@ function StopRail({
     const midiMax   = Math.max(...midis)
     const midiRange = Math.max(midiMax - midiMin, 1)
     return gridStops.map((stop) => {
-      const x        = (stop.cellIdx / GRID_TOTAL_CELLS) * 100
+      const x        = (stop.cellIdx / noteTotalCells) * 100
       // Automation-mirror mode: position dots by the lane's authored value, not pitch.
       if (automationValues) {
         const v = automationValues[stop.id] ?? 0.5
@@ -1958,7 +1985,11 @@ function StopRail({
   const polylinePoints = stopPoints.map(p => `${p.x},${p.y}`).join(' ')
 
   return (
-    <div className="stop-rail" ref={railRef}>
+    <div
+      className="stop-rail"
+      ref={railRef}
+      style={{ '--cells-total': noteTotalCells, '--cells-per-beat': noteStepsPerBar / 4 }}
+    >
       {/* Dim regions outside the loop band */}
       {startPct > 0 && (
         <div
@@ -2030,7 +2061,7 @@ function StopRail({
           }}
           title={canEditPitch
             ? `${stop.name} · ${stop.noteName} — drag to re-pitch (snaps to scale)`
-            : `${stop.name} · bar ${stop.bar + 1} beat ${stop.beat + 1}.${stop.sixteenth + 1}`}
+            : `${stop.name} · bar ${stop.bar + 1} beat ${stop.beat + 1} step ${stop.sixteenth + 1}`}
           onPointerDown={canEditPitch
             ? handleStopPointerDown(stop, geoDisplayMap[stop.originalIdx], noteToMidi(pitchMap[stop.originalIdx]))
             : undefined}

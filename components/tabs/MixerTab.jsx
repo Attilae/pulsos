@@ -142,6 +142,7 @@ export default function MixerTab() {
   const [trackDroneRoots, setTrackDroneRoots] = useState({})
   const [trackSpeeds,     setTrackSpeeds]     = useState({})
   const [trackLoopRegions, setTrackLoopRegions] = useState({})
+  const [trackGridResolutions, setTrackGridResolutions] = useState({})
   const [trackArps,       setTrackArps]       = useState({})
   const [trackGranulars,  setTrackGranulars]  = useState({})
 
@@ -602,6 +603,11 @@ export default function MixerTab() {
     engineRef.current?.setTrackLoopRegion(routeId, region)
   }, [])
 
+  const handleTrackGridResolution = useCallback((routeId, rate) => {
+    setTrackGridResolutions(r => ({ ...r, [routeId]: rate }))
+    engineRef.current?.setGridResolution(routeId, rate)
+  }, [])
+
   // ── Duplicate lanes (chord layers) ────────────────────────────────────────
   // Copy a lane into a new clone keyed by a synthetic id, inheriting every
   // per-track setting. Stacking copies (each re-pitched within harmony) builds a
@@ -627,6 +633,7 @@ export default function MixerTab() {
     copy(setTrackFilters); copy(setTrackEqs)
     copy(setTrackOctaves); copy(setTrackGlides); copy(setTrackLegatos)
     copy(setTrackDroneModes); copy(setTrackDroneRoots); copy(setTrackSpeeds); copy(setTrackLoopRegions)
+    copy(setTrackGridResolutions)
     copy(setTrackArps); copy(setTrackGranulars)
     setSendMatrix(m => {
       const next = { ...m }
@@ -658,6 +665,7 @@ export default function MixerTab() {
     if (trackGranulars[sourceId])    engine.setGranular(id, trackGranulars[sourceId])
     if (trackSpeeds[sourceId] != null) engine.setTrackSpeed(id, trackSpeeds[sourceId])
     if (trackLoopRegions[sourceId])  engine.setTrackLoopRegion(id, trackLoopRegions[sourceId])
+    if (trackGridResolutions[sourceId]) engine.setGridResolution(id, trackGridResolutions[sourceId])
     if (trackDroneModes[sourceId])   engine.setDroneMode(id, true, trackDroneRoots[sourceId] ?? 'C3')
     for (const [key, level] of Object.entries(sendMatrix)) {
       const [rid, bus] = key.split(':')
@@ -667,7 +675,7 @@ export default function MixerTab() {
   }, [mergedRoutes, duplicates, volumes, disabledRoutes, pans, trackSoundModes, trackScales,
       trackSynthTypes, trackADSRs, trackFilters, trackEqs, trackOctaves, trackGlides,
       trackLegatos, trackDroneModes, trackDroneRoots, trackSpeeds, trackLoopRegions,
-      trackArps, trackGranulars, sendMatrix])
+      trackGridResolutions, trackArps, trackGranulars, sendMatrix])
 
   const handleRemoveDuplicate = useCallback((dupId) => {
     setDuplicates(prev => prev.filter(d => d.id !== dupId))
@@ -680,6 +688,7 @@ export default function MixerTab() {
     drop(setTrackFilters); drop(setTrackEqs)
     drop(setTrackOctaves); drop(setTrackGlides); drop(setTrackLegatos)
     drop(setTrackDroneModes); drop(setTrackDroneRoots); drop(setTrackSpeeds); drop(setTrackLoopRegions)
+    drop(setTrackGridResolutions)
     drop(setTrackArps); drop(setTrackGranulars)
     setSoloRoutes(prev => {
       if (!prev.has(dupId)) return prev
@@ -828,13 +837,14 @@ export default function MixerTab() {
     trackLegatos,
     trackSpeeds,
     trackLoopRegions,
+    trackGridResolutions,
     trackDroneModes,
     automationSourceIds,
     perStopSteps: dupStepsById,
     recorder: midiRecorderRef.current,
   }), [
     bpm, disabledRoutes, soloRoutes, trackScales, trackOctaves, trackSoundModes,
-    trackLegatos, trackSpeeds, trackLoopRegions, trackDroneModes,
+    trackLegatos, trackSpeeds, trackLoopRegions, trackGridResolutions, trackDroneModes,
     automationSourceIds, dupStepsById, hasMidiSession,
   ])
 
@@ -889,7 +899,7 @@ export default function MixerTab() {
     volumes, disabledRoutes, pans, soloRoutes,
     trackSoundModes, trackScales, trackSynthTypes, trackADSRs,
     trackFilters, trackEqs,
-    trackOctaves, trackGlides, trackLegatos, trackDroneModes, trackDroneRoots, trackSpeeds, trackLoopRegions, trackArps, trackGranulars,
+    trackOctaves, trackGlides, trackLegatos, trackDroneModes, trackDroneRoots, trackSpeeds, trackLoopRegions, trackGridResolutions, trackArps, trackGranulars,
     activeFxTracks, fxBusWet, fxBusMuted, fxBusSoloed, fxBusParams,
     sendMatrix, automationCfg, duplicates,
   }), [
@@ -897,7 +907,7 @@ export default function MixerTab() {
     volumes, disabledRoutes, pans, soloRoutes,
     trackSoundModes, trackScales, trackSynthTypes, trackADSRs,
     trackFilters, trackEqs,
-    trackOctaves, trackGlides, trackLegatos, trackDroneModes, trackDroneRoots, trackSpeeds, trackLoopRegions, trackArps, trackGranulars,
+    trackOctaves, trackGlides, trackLegatos, trackDroneModes, trackDroneRoots, trackSpeeds, trackLoopRegions, trackGridResolutions, trackArps, trackGranulars,
     activeFxTracks, fxBusWet, fxBusMuted, fxBusSoloed, fxBusParams,
     sendMatrix, automationCfg, duplicates,
   ])
@@ -919,6 +929,7 @@ export default function MixerTab() {
     setTrackFilters({}); setTrackEqs({})
     setTrackOctaves({}); setTrackGlides({}); setTrackLegatos({})
     setTrackDroneModes({}); setTrackDroneRoots({}); setTrackSpeeds({}); setTrackLoopRegions({})
+    setTrackGridResolutions({})
     setTrackArps({})
     setTrackGranulars({})
     setActiveFxTracks(DEFAULT_FX_TRACKS)
@@ -935,7 +946,7 @@ export default function MixerTab() {
     setVolumes, setDisabledRoutes, setPans, setSoloRoutes,
     setTrackSoundModes, setTrackScales, setTrackSynthTypes, setTrackADSRs,
     setTrackFilters, setTrackEqs,
-    setTrackOctaves, setTrackGlides, setTrackLegatos, setTrackDroneModes, setTrackDroneRoots, setTrackSpeeds, setTrackLoopRegions, setTrackArps, setTrackGranulars,
+    setTrackOctaves, setTrackGlides, setTrackLegatos, setTrackDroneModes, setTrackDroneRoots, setTrackSpeeds, setTrackLoopRegions, setTrackGridResolutions, setTrackArps, setTrackGranulars,
     setActiveFxTracks, setFxBusWet, setFxBusMuted, setFxBusSoloed, setFxBusParams,
     setSendMatrix, setAutomationCfg, setDuplicates,
   }), [])
@@ -1108,6 +1119,8 @@ export default function MixerTab() {
         onTrackSpeed={handleTrackSpeed}
         trackLoopRegions={trackLoopRegions}
         onTrackLoopRegion={handleTrackLoopRegion}
+        trackGridResolutions={trackGridResolutions}
+        onGridResolution={handleTrackGridResolution}
         trackDroneModes={trackDroneModes}
         trackDroneRoots={trackDroneRoots}
         onDroneMode={handleDroneMode}

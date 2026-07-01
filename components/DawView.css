@@ -740,25 +740,27 @@
   position: relative;
   height: 52px;
   flex: 1;
-  /* 3-tier grid background: 16th lines → beat lines → bar lines */
+  --cells-total: 64;      /* overridden inline per track's grid resolution */
+  --cells-per-beat: 4;
+  /* 3-tier grid background: note-grid lines → beat lines → bar lines */
   background-image:
-    /* 16th-note lines: 64 cells */
+    /* note-grid lines: --cells-total cells (16th notes by default) */
     repeating-linear-gradient(
       to right,
       transparent 0,
-      transparent calc(100% / 64 - 1px),
-      color-mix(in srgb, var(--border) 55%, transparent) calc(100% / 64 - 1px),
-      color-mix(in srgb, var(--border) 55%, transparent) calc(100% / 64)
+      transparent calc(100% / var(--cells-total) - 1px),
+      color-mix(in srgb, var(--border) 55%, transparent) calc(100% / var(--cells-total) - 1px),
+      color-mix(in srgb, var(--border) 55%, transparent) calc(100% / var(--cells-total))
     ),
-    /* beat lines: every 4 cells (16 per bar) */
+    /* beat lines: --cells-per-beat cells per beat, 4 beats/bar */
     repeating-linear-gradient(
       to right,
       transparent 0,
-      transparent calc(100% / 16 - 1px),
-      color-mix(in srgb, var(--text) 16%, transparent) calc(100% / 16 - 1px),
-      color-mix(in srgb, var(--text) 16%, transparent) calc(100% / 16)
+      transparent calc(100% / (var(--cells-per-beat) * 4) - 1px),
+      color-mix(in srgb, var(--text) 16%, transparent) calc(100% / (var(--cells-per-beat) * 4) - 1px),
+      color-mix(in srgb, var(--text) 16%, transparent) calc(100% / (var(--cells-per-beat) * 4))
     ),
-    /* bar lines: every 16 cells (4 bars) */
+    /* bar lines: every 4 beats (4 bars total) */
     repeating-linear-gradient(
       to right,
       transparent 0,
