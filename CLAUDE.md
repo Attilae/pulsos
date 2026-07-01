@@ -117,6 +117,8 @@ There is **no test runner and no linter configured** — don't assume `npm test`
 - `api/presets/[id]/share/route.js` — owner toggles a public share link;
   `api/shared/[shareId]/route.js` — public read-only view of a shared song (the client imports a
   copy via Save As).
+- `api/compositions/route.js` + `api/compositions/[id]/route.js` — user-scoped **composition**
+  CRUD (Song Chainer's presets-of-presets; see below), mirroring the `api/presets` contract.
 
 ### `lib/` — auth, DB, persistence, and the audio engine (non-UI logic)
 
@@ -124,27 +126,33 @@ There is **no test runner and no linter configured** — don't assume `npm test`
   adapter; server config + React client.
 - `email.js` — Resend sender with a dev console fallback.
 - `db/schema.js` — Drizzle schema: `user`/`session`/`account`/`verification` (Better Auth) +
-  `presets` (`state jsonb`, plus a nullable `share_id` for public share links). `db/index.js`
-  — pooled `pg` client.
+  `presets` (`state jsonb`, plus a nullable `share_id` for public share links) + `compositions`
+  (`items jsonb` — an ordered list of `{presetId, bars, transition}`; see Song Chainer below).
+  `db/index.js` — pooled `pg` client.
 - `persistence.js` — song CRUD against `/api/presets` (async; same export names as the old
   localStorage module) + share helpers (`shareSong`/`unshareSong`/`loadShared`).
   `songState.js` — `buildSnapshot`/`applySnapshot`. `useSongPersistence.js` — autosave hook,
   **session-gated** (no save when signed out); also imports a `?shared=<id>` link on load.
+  `compositions.js` — analogous async CRUD for Song Chainer compositions against
+  `/api/compositions`.
 - **Audio engine + mapping** (all client-only, imported by the UI): `engine.js`
   (`TransitEngine`), `mappings.js`, `mockData.js`, `vehicleVoice.js`, `granularVoice.js`,
   `fxTrack.js`, `automationTrack.js`, `networkState.js`, `alertLayer.js`, `liveClient.js`,
-  `engines/` (the four secondary-tab engines), `ai/composer.js`, `shared/useRoutes.js`.
+  `engines/` (the four secondary-tab engines), `ai/composer.js`, `shared/useRoutes.js`,
+  `audioExport.js` (WAV recording of live output — see below), `snapshotPlayer.js` +
+  `songChainPlayer.js` (Song Chainer's standalone playback — see below).
 
 ### `components/` — React UI (client-only)
 
-`App.jsx` is a 5-tab shell with an `AuthControl` (sign-in/up + magic link) in the header. Each
+`App.jsx` is a 6-tab shell (Map/DAW, Drum Machine, Loop Capturer, Headphone, Motif, and **Song**
+— the Song Chainer) with an `AuthControl` (sign-in/up + magic link) in the header. Each
 tab loads shared route data via `useRoutes()` (`/data/lines.json`) but owns its own audio engine.
 Cross-area imports use the `@/` alias (e.g. `@/lib/engine.js`); same-area imports stay relative.
 
 #### The main DAW (Map/DAW tab)
 
 `components/tabs/MixerTab.jsx` is the heart of the app and by far the largest piece of state. It:
-- owns **all per-track settings** (volumes, pans, mutes, solos, sound modes, scales, synth types,
+- owns **all per-track settings** (volumes, pans, disabled/solo, sound modes, scales, synth types,
   ADSR, filters, EQs, octave/glide/legato/drone/speed/loop-region, per-track arpeggiator
   configs, per-track granular-layer configs, FX send matrix, automation lane configs, FX bus
   state, BPM, master volume),
@@ -156,7 +164,34 @@ Cross-area imports use the `@/` alias (e.g. `@/lib/engine.js`); same-area import
 - offers **MIDI export** (per-track and full-mix) via `lib/midiExport.js` — it reconstructs note
   events either from a route's loop pitch map (`buildLoopMidiEvents`) or from a live
   `MidiSessionRecorder` that `engine.js` feeds as notes fire, then writes a `.mid` blob with
-  `@tonejs/midi`.
+  `@tonejs/midi`,
+- offers **WAV export** (per-track stem and full-mix) via `lib/audioExport.js` — unlike MIDI
+  export this captures **real-time audio** by tapping live Tone.js nodes
+  (`engine.getMasterOutputNode()` / `engine.getRouteOutputNode(routeId)`) with a `PcmRecorder`
+  during one playback pass, then encodes/downloads WAV blobs (`exportRouteAudio`/
+  `exportMixAudio`; `defaultCaptureDuration` sizes the capture to the longest audible loop).
+
+**Disable / solo / duplication** (replacing the old mute-only model):
+- `disabledRoutes` (was `mutedRoutes`) — mirrored to `engine._routeDisabled` via
+  `setRouteDisabled(routeId, disabled)`. Disabling a route doesn't just zero its gain: it skips
+  note-triggering entirely in the mock `Tone.Part` callback and in `triggerLiveNote`, hides the
+  route on the map, and excludes it from MIDI/WAV export. Freshly picked routes (new song, city
+  switch, session reset) start **all disabled** (`allDisabledMap`) so the user builds the mix
+  lane-by-lane.
+- Solo is Ableton-style: a plain click on a track's solo button replaces the solo set with just
+  that track; Cmd/Ctrl-click toggles additive membership (`handleSolo(routeId, additive)`).
+  Gating happens at note-trigger time in the engine (`_soloRoutes`), same mechanism as disable.
+- Active (soloed or non-disabled) tracks are **excluded as automation-lane sources** in
+  `DawView.jsx`'s `AutomationLane` — picking one as a source would make it vanish from the
+  instrument view once music starts.
+- `handleDuplicateTrack(sourceId)` clones a track's full per-track config (including arp/granular
+  configs) into a new synthetic route id (`<sourceId>~dup~<ts><rand>`) for **chord voicing**;
+  `handleStopPitch(dupId, stopId, degrees)` stores a per-stop diatonic scale-degree offset
+  (`duplicates[i].perStopSteps`) applied via `engine.setPitchOffsets` /
+  `transposeNoteInScale` (`lib/mappings.js`), so stacked duplicates harmonize rather than unison.
+  Duplicate lanes are audio-only and hidden from the map.
+- Fresh sessions now start with `DEFAULT_FX_TRACKS = ['reverb', 'delay', 'chorus', 'distortion']`
+  pre-activated (was empty), so automation targets like `send.reverb` are available immediately.
 
 Two playback modes, both driven by `TransitEngine`:
 - **mock** — `engine.startMock()` schedules `Tone.Part`s that fire notes from each route's
@@ -245,6 +280,25 @@ trigger time (mock and live).
 `DrumMachineTab`, `LoopCapturerTab`, `HeadphoneTab`, `MotifTab` are largely self-contained, each
 backed by its own engine in `lib/engines/` (`drumEngine`, `loopEngine`, `motifEngine`,
 `phonesEngine`). They reuse the same `useRoutes()` data but do not share `TransitEngine`.
+
+#### Song Chainer (`components/tabs/SongChainerTab.jsx`)
+
+Chains multiple saved presets (songs) into one multi-part composition — a **composition**
+references presets by id rather than embedding their state, so editing a preset updates every
+composition using it. Data model (`lib/compositions.js`, `compositions` table): `items` is
+`[{presetId, presetName, bars, transition: 'cut'|'crossfade', crossfadeBars?}]`, plus `bpm` and
+`cityId` (compositions are implicitly single-city).
+
+Playback does **not** reuse MixerTab's engine — `SongChainerTab` instantiates its own standalone
+`TransitEngine` + `SongChainPlayer` (`lib/songChainPlayer.js`). For each item, `SongChainPlayer`
+loads the referenced preset's snapshot and starts it via `lib/snapshotPlayer.js`'s
+`playSnapshotOnEngine(engine, snapshot, routes, {bpm})`, which mirrors MixerTab's own Start
+sequence (`applySnapshot` in engine-only mode → rebuild duplicate-lane routes via
+`mergeDuplicateRoutes` → `engine.startMock(...)`). Item boundaries are driven by wall-clock
+`setTimeout`s rather than `Tone.Transport.schedule`, because switching items calls
+`stopMock()` → `Tone.Transport.cancel()`, which would drop transport-scheduled callbacks.
+Transitions are either a quick declick fade (`'cut'`) or a volume dip-and-return around the
+swap (`'crossfade'`), not a true overlapping crossfade.
 
 ### `feed/` — always-on feed service
 

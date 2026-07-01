@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import MixerTab         from './tabs/MixerTab.jsx'
 import DrumMachineTab   from './tabs/DrumMachineTab.jsx'
 import LoopCapturerTab  from './tabs/LoopCapturerTab.jsx'
@@ -7,8 +7,11 @@ import MotifTab         from './tabs/MotifTab.jsx'
 import SongChainerTab   from './tabs/SongChainerTab.jsx'
 import AuthControl      from './AuthControl.jsx'
 import CitySelect       from './CitySelect.jsx'
+import TourMenu         from './TourMenu.jsx'
 import { CityProvider } from '@/lib/shared/CityContext.jsx'
 import { DialogHost }   from './Dialog.jsx'
+import { runProductTour } from '@/lib/tourSteps.js'
+import { getTourStatus }  from '@/lib/tourState.js'
 import './app.css'
 
 const TABS = [
@@ -22,7 +25,29 @@ const TABS = [
 
 export default function App() {
   const [tabId, setTabId] = useState('mixer')
+  const pendingTourRef = useRef(false)
   const Active = TABS.find(t => t.id === tabId)?.Comp ?? MixerTab
+
+  function startTour() {
+    if (tabId !== 'mixer') { pendingTourRef.current = true; setTabId('mixer') }
+    else runProductTour()
+  }
+
+  useEffect(() => {
+    if (pendingTourRef.current && tabId === 'mixer') {
+      pendingTourRef.current = false
+      const t = setTimeout(() => runProductTour(), 50)
+      return () => clearTimeout(t)
+    }
+  }, [tabId])
+
+  useEffect(() => {
+    if (getTourStatus() == null) {
+      const t = setTimeout(() => startTour(), 300)
+      return () => clearTimeout(t)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   return (
     <CityProvider>
@@ -47,6 +72,7 @@ export default function App() {
           </div>
           <CitySelect />
           <AuthControl />
+          <TourMenu startTour={startTour} />
         </nav>
         <main className="tab-body">
           <Active />
