@@ -7,8 +7,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 A web DAW that sonifies live public transport, branded **"Leið"** (Icelandic for "the way/route";
 the title lives in `app/layout.jsx`). Each transit line is a track; each station
 arrival triggers a note. Budapest (BKK) was the first city; the app is now **multi-city**
-with a runtime city picker — **five cities**: Budapest, Helsinki/HSL, Berlin/VBB, Prague/PID,
-and New York/MTA — via a per-city descriptor abstraction.
+with a runtime city picker — **seven cities**: Budapest, Helsinki/HSL, Berlin/VBB, Prague/PID,
+New York/MTA, Zürich/ZVV, and Warsaw/ZTM — via a per-city descriptor abstraction.
 GTFS-RT is a global standard, so adding a city needs config, not engine changes. **Live mode is
 currently disabled app-wide** (every city's `liveWsUrl` is `null` in `lib/shared/cities.js`, so
 all cities run mock-only and the Live toggle is disabled); the descriptors and `startLive` path
@@ -50,6 +50,8 @@ npm run preprocess:helsinki  # regenerate public/data/lines.helsinki.json
 npm run preprocess:berlin    # regenerate public/data/lines.berlin.json
 npm run preprocess:prague    # regenerate public/data/lines.prague.json
 npm run preprocess:newyork   # regenerate public/data/lines.newyork.json
+npm run preprocess:zurich    # regenerate public/data/lines.zurich.json
+npm run preprocess:warsaw    # regenerate public/data/lines.warsaw.json
 # generic form: node scripts/preprocess_lines.js --city <id> [--gtfs data/<id>_gtfs]
 npm run upload:lines # upload public/data/lines.json to Vercel Blob (needs BLOB_READ_WRITE_TOKEN)
 npm run db:generate # drizzle-kit: emit SQL migration from lib/db/schema.js
@@ -322,10 +324,13 @@ clients. It infers train positions from TripUpdates for any mode in `modesWithou
 
 ### Multi-city
 
-Registered cities: **budapest, helsinki, berlin, prague, newyork** (in `feed/cities/index.js` and
-`lib/shared/cities.js`). Prague/PID and New York/MTA descriptors are **mock-only with best-effort,
-unconfirmed RT `feeds[]`** (Prague needs a Golemio `X-Access-Token` key; NYC subway RT is sharded
-by line group and TripUpdates-only) — confirm those endpoints before enabling Live. NYC is the
+Registered cities: **budapest, helsinki, berlin, prague, newyork, zurich, warsaw** (in
+`feed/cities/index.js` and `lib/shared/cities.js`). Prague/PID, New York/MTA, Zürich/ZVV and
+Warsaw/ZTM descriptors are **mock-only with best-effort, unconfirmed RT `feeds[]`** (Prague needs a
+Golemio `X-Access-Token` key; NYC subway RT is sharded by line group and TripUpdates-only; Zürich RT
+is nationwide + key-gated so `feeds` is empty; Warsaw RT is public `vehicles.pb`/`alerts.pb`) —
+confirm those endpoints before enabling Live. Zürich has no metro and its city feed's trolleybuses
+fold into the `bus` voice; Warsaw has metro/tram/bus/rail but no trolley. NYC is the
 first city with **negative longitudes**; pitch stays correct because it derives from each route's
 own `routeBounds`, not `city.bounds` (see `docs/multi-city-gtfs.md`).
 

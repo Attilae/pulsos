@@ -85,18 +85,27 @@ function boundsFromRoutes(routes) {
 // Recenters the map on the active city. The MapContainer `center` prop only
 // applies on first mount, so this fits the loaded routes' bounds (falling back to
 // the city's bounds, then its center) whenever the city or its routes change.
-function CityView({ city, routes }) {
+function CityView({ city, routes, active }) {
   const map = useMap()
   // Stable signature so we refit on city/route-set changes, not every render.
   const key = `${city?.id ?? ''}:${routes?.length ?? 0}`
   useEffect(() => {
+    // Skip while hidden: fitBounds on a display:none (0×0) container makes
+    // Leaflet's getBoundsZoom return maxZoom, zooming to street level. We refit
+    // once the map is visible/sized (this effect also re-runs on active false→true).
+    if (!active) return
     const b = boundsFromRoutes(routes) ?? city?.bounds
-    if (b && [b.latMin, b.latMax, b.lngMin, b.lngMax].every(Number.isFinite)) {
-      map.fitBounds([[b.latMin, b.lngMin], [b.latMax, b.lngMax]], { padding: [20, 20] })
-    } else if (Array.isArray(city?.center)) {
-      map.setView(city.center, map.getZoom())
-    }
-  }, [key, map]) // eslint-disable-line react-hooks/exhaustive-deps
+    // Wait for the container to have real dimensions before computing the fit.
+    const id = setTimeout(() => {
+      map.invalidateSize()
+      if (b && [b.latMin, b.latMax, b.lngMin, b.lngMax].every(Number.isFinite)) {
+        map.fitBounds([[b.latMin, b.lngMin], [b.latMax, b.lngMax]], { padding: [20, 20] })
+      } else if (Array.isArray(city?.center)) {
+        map.setView(city.center, map.getZoom())
+      }
+    }, 60)
+    return () => clearTimeout(id)
+  }, [key, active, map]) // eslint-disable-line react-hooks/exhaustive-deps
   return null
 }
 
@@ -223,7 +232,7 @@ export default function MapView({
       >
         <MapResizer active={active} />
         <PlayheadPaneSetup paneRef={playheadPane} />
-        <CityView city={city} routes={allRoutes} />
+        <CityView city={city} routes={allRoutes} active={active} />
 
         <TileLayer
           url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"

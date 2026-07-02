@@ -78,10 +78,22 @@ with low-friction keys and reliable feeds.
   `feed/cities/berlin.js` (mock-only until Live is enabled).
   [VBB GTFS-RT](https://production.gtfsrt.vbb.de/), [OpenDataVBB](https://github.com/OpenDataVBB/gtfs-rt-feed).
 
+- **Zürich — ZVV/VBZ** *(implemented, mock-only)*. Sidesteps the nationwide-Switzerland problem by
+  using the **city open-data** GTFS (`data.stadt-zuerich.ch/dataset/vbz_fahrplandaten_gtfs`, CC0,
+  ZVV region only, no key). Covers tram + bus (VBZ trolleybuses are coded as `bus`); **no metro**
+  (Zürich has none) and no heavy rail/boats in this feed. Note the download filename is
+  **year-stamped** (`2026_google_transit.zip`). Swiss GTFS-RT is nationwide + key-gated → `feeds`
+  left empty. [Open Data Zürich](https://data.stadt-zuerich.ch/dataset/vbz_fahrplandaten_gtfs).
+- **Warsaw — ZTM** *(implemented, mock-only)*. Static GTFS built/hosted by M. Kuranowski
+  (`mkuran.pl/gtfs/warsaw.zip`) — metro + tram + bus + rail (no trolley). Public no-key GTFS-RT
+  (`mkuran.pl/gtfs/warsaw/vehicles.pb` + `alerts.pb`) is wired best-effort for future Live.
+  [mkuran.pl/gtfs](https://mkuran.pl/gtfs/).
+
 **Tier 2 — more friction**
 
 - **Chicago CTA** — key required; native realtime is partly its own JSON API.
-- **Switzerland (opentransportdata.swiss)** — clean docs, key (`Authorization`), rail-heavy.
+- **Switzerland (opentransportdata.swiss)** — clean docs, key (`Authorization`), rail-heavy; the
+  **nationwide** feed needs a geographic/agency filter (Zürich above uses the city feed instead).
 - **Paris IDFM/PRIM** — very multimodal, but native realtime is partly **SIRI**, not GTFS-RT;
   needs a SIRI→GTFS-RT bridge.
 - **Amsterdam — OVapi (GVB)** — no key, but the GTFS + GTFS-RT (`gtfs.ovapi.nl/nl/*.pb`) are

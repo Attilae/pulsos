@@ -13,6 +13,8 @@
     "preprocess:berlin": "node scripts/preprocess_lines.js --city berlin",
     "preprocess:prague": "node scripts/preprocess_lines.js --city prague",
     "preprocess:newyork": "node scripts/preprocess_lines.js --city newyork",
+    "preprocess:zurich": "node scripts/preprocess_lines.js --city zurich",
+    "preprocess:warsaw": "node scripts/preprocess_lines.js --city warsaw",
     "upload:lines": "node scripts/upload-lines.js",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",

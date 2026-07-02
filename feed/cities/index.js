@@ -7,8 +7,10 @@ import helsinki from './helsinki.js'
 import berlin from './berlin.js'
 import prague from './prague.js'
 import newyork from './newyork.js'
+import zurich from './zurich.js'
+import warsaw from './warsaw.js'
 
-const CITIES = { budapest, helsinki, berlin, prague, newyork }
+const CITIES = { budapest, helsinki, berlin, prague, newyork, zurich, warsaw }
 
 export function getCity(id) {
   const city = CITIES[id]
