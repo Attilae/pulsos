@@ -1,5 +1,5 @@
 import * as Tone from 'tone'
-import { useEffect, useRef, useState } from 'react'
+import { memo, useEffect, useMemo, useRef, useState } from 'react'
 import { MapContainer, TileLayer, Polyline, CircleMarker, Tooltip, LayersControl, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import './MapView.css'
@@ -109,7 +109,7 @@ function CityView({ city, routes, active }) {
   return null
 }
 
-export default function MapView({
+function MapView({
   className = '',
   active = true,
   routes = null,
@@ -137,11 +137,14 @@ export default function MapView({
     { type: 'hev',     label: 'Rail' },
   ]
   // Duplicate lanes share their source's polyline, so they'd draw on top of it —
-  // hide them on the map (they're audio-only chord layers).
-  const routesByType = Object.fromEntries(
-    LAYERS.map(l => [l.type, routes?.filter(r => r.type === l.type && !r.isDuplicate) ?? []])
-  )
-  const allRoutes = LAYERS.flatMap(l => routesByType[l.type])
+  // hide them on the map (they're audio-only chord layers). Memoized so the 30 fps
+  // playhead re-render doesn't rebuild these each frame.
+  const { routesByType, allRoutes } = useMemo(() => {
+    const byType = Object.fromEntries(
+      LAYERS.map(l => [l.type, routes?.filter(r => r.type === l.type && !r.isDuplicate) ?? []])
+    )
+    return { routesByType: byType, allRoutes: LAYERS.flatMap(l => byType[l.type]) }
+  }, [routes]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // rAF loop — only runs in mock mode while playing
   useEffect(() => {
@@ -201,6 +204,63 @@ export default function MapView({
     }
   }
 
+  // The static polyline + stop layer. Memoized on its only real inputs so the
+  // 30 fps playhead re-render (setPlayheadPositions) returns the same element
+  // references and React skips reconciling this heavy tree (hundreds of large
+  // polylines + up to ~780 metro stop markers for NYC-scale cities).
+  const routeLayers = useMemo(() => (
+    <LayersControl position="topright">
+      {LAYERS.map(({ type, label }) => {
+        const layerRoutes = routesByType[type]
+        if (!layerRoutes.length) return null
+        const showStops = type === 'metro'
+        return (
+          <LayersControl.Overlay key={type} checked name={label}>
+            <>
+              {layerRoutes.map(route => {
+                const { opacity, weight, dashArray } = routeStyle(route, disabled, soloRoutes)
+                return route.polylines.map(pl => (
+                  <Polyline
+                    key={`${route.id}_${pl.direction}`}
+                    positions={pl.coords}
+                    color={route.color}
+                    weight={weight}
+                    opacity={opacity}
+                    dashArray={dashArray}
+                  >
+                    <Tooltip sticky>{route.name} — {route.desc}</Tooltip>
+                  </Polyline>
+                ))
+              })}
+              {/* Stop markers only for ACTIVE routes. Drawing every metro
+                  stop (dimmed) is prohibitively heavy for large all-metro
+                  networks like NYC's 28-line subway (~780 interactive
+                  markers) and froze the tab; a fresh all-disabled session
+                  now renders none, and stops appear as lines are enabled. */}
+              {showStops && layerRoutes
+                .filter(route => isRouteActive(route, disabled, soloRoutes))
+                .map(route =>
+                  route.stops.map((stop, i) => (
+                    <CircleMarker
+                      key={`${route.id}_${stop.id}_${i}`}
+                      center={[stop.lat, stop.lon]}
+                      radius={4}
+                      color={route.color}
+                      fillColor={route.color}
+                      fillOpacity={0.9}
+                      weight={1.5}
+                    >
+                      <Tooltip>{stop.name}</Tooltip>
+                    </CircleMarker>
+                  ))
+                )}
+            </>
+          </LayersControl.Overlay>
+        )
+      })}
+    </LayersControl>
+  ), [routesByType, disabled, soloRoutes]) // eslint-disable-line react-hooks/exhaustive-deps
+
   return (
     <div className={`map-wrapper${className ? ` ${className}` : ''}`}>
       {!routes && <div className="map-loading">Loading line data…</div>}
@@ -240,56 +300,7 @@ export default function MapView({
           maxZoom={19}
         />
 
-        <LayersControl position="topright">
-          {LAYERS.map(({ type, label }) => {
-            const layerRoutes = routesByType[type]
-            if (!layerRoutes.length) return null
-            const showStops = type === 'metro'
-            return (
-              <LayersControl.Overlay key={type} checked name={label}>
-                <>
-                  {layerRoutes.map(route => {
-                    const { opacity, weight, dashArray } = routeStyle(route, disabled, soloRoutes)
-                    return route.polylines.map(pl => (
-                      <Polyline
-                        key={`${route.id}_${pl.direction}`}
-                        positions={pl.coords}
-                        color={route.color}
-                        weight={weight}
-                        opacity={opacity}
-                        dashArray={dashArray}
-                      >
-                        <Tooltip sticky>{route.name} — {route.desc}</Tooltip>
-                      </Polyline>
-                    ))
-                  })}
-                  {/* Stop markers only for ACTIVE routes. Drawing every metro
-                      stop (dimmed) is prohibitively heavy for large all-metro
-                      networks like NYC's 28-line subway (~780 interactive
-                      markers) and froze the tab; a fresh all-disabled session
-                      now renders none, and stops appear as lines are enabled. */}
-                  {showStops && layerRoutes
-                    .filter(route => isRouteActive(route, disabled, soloRoutes))
-                    .map(route =>
-                      route.stops.map((stop, i) => (
-                        <CircleMarker
-                          key={`${route.id}_${stop.id}_${i}`}
-                          center={[stop.lat, stop.lon]}
-                          radius={4}
-                          color={route.color}
-                          fillColor={route.color}
-                          fillOpacity={0.9}
-                          weight={1.5}
-                        >
-                          <Tooltip>{stop.name}</Tooltip>
-                        </CircleMarker>
-                      ))
-                    )}
-                </>
-              </LayersControl.Overlay>
-            )
-          })}
-        </LayersControl>
+        {routeLayers}
 
         {/* ── Mock mode: playhead dot per route (rendered in dedicated pane for fade control) ── */}
         {mode === 'mock' && Object.entries(playheadPositions).map(([routeId, { lat, lng }]) => {
@@ -321,6 +332,11 @@ export default function MapView({
     </div>
   )
 }
+
+// Memoized: MapView doesn't consume the per-note `events` state, and every prop
+// MixerTab passes is a state value / stable string that doesn't change per note,
+// so this skips the whole (expensive) map render on the note-driven re-render storm.
+export default memo(MapView)
 
 function PlayheadMarker({ lat, lng, color, pane }) {
   const opts = pane ? { pane } : {}

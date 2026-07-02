@@ -90,6 +90,8 @@ export default function MixerTab() {
   const engineRef        = useRef(null)
   const stoppingRef      = useRef(false)
   const midiRecorderRef  = useRef(null)
+  const pendingEventsRef = useRef([])     // notes buffered between animation frames
+  const eventsRafRef     = useRef(null)   // pending rAF flush handle
   const [hasMidiSession, setHasMidiSession] = useState(false)
   const [audioExporting, setAudioExporting] = useState(false)
   const [audioProgress,  setAudioProgress]  = useState(0)
@@ -246,6 +248,19 @@ export default function MixerTab() {
     for (const r of fresh) engineRef.current?.setRouteDisabled(r.id, true)
   }, [started])
 
+  // The engine fires onEvent once per note, per track — dozens/sec with several
+  // active tracks. Coalesce them into one state update per animation frame so the
+  // re-render rate no longer scales with note throughput (was a lag/freeze source).
+  const flushEvents = useCallback(() => {
+    eventsRafRef.current = null
+    const buffered = pendingEventsRef.current
+    if (!buffered.length) return
+    pendingEventsRef.current = []
+    // Newest first (matches the old [ev, ...prev] order); buffer is oldest-first.
+    buffered.reverse()
+    setEvents(prev => [...buffered, ...prev].slice(0, MAX_EVENTS))
+  }, [])
+
   // Build a fresh engine + MIDI recorder and stash them on the refs. Used both
   // for the initial mount and to get a clean audio graph on "New session".
   const createEngine = useCallback(() => {
@@ -253,17 +268,25 @@ export default function MixerTab() {
     midiRecorderRef.current = recorder
     setHasMidiSession(false)
     const engine = new TransitEngine((ev) => {
-      setEvents(prev => [ev, ...prev].slice(0, MAX_EVENTS))
+      pendingEventsRef.current.push(ev)
+      if (eventsRafRef.current == null) {
+        eventsRafRef.current = requestAnimationFrame(flushEvents)
+      }
     })
     engine.init()
     engine.setMidiRecorder(recorder)
     engineRef.current = engine
     return engine
-  }, [])
+  }, [flushEvents])
 
   useEffect(() => {
     createEngine()
-    return () => engineRef.current?.dispose()
+    return () => {
+      if (eventsRafRef.current != null) cancelAnimationFrame(eventsRafRef.current)
+      eventsRafRef.current = null
+      pendingEventsRef.current = []
+      engineRef.current?.dispose()
+    }
   }, [createEngine])
 
   // For cities other than Budapest, retune the network hubs to interchanges
@@ -934,6 +957,9 @@ export default function MixerTab() {
   // The set of routes/tracks itself is left in place.
   const resetSessionState = useCallback(() => {
     stoppingRef.current = false
+    if (eventsRafRef.current != null) cancelAnimationFrame(eventsRafRef.current)
+    eventsRafRef.current = null
+    pendingEventsRef.current = []
     try { engineRef.current?.dispose() } catch {}
     const engine = createEngine()
     try { Tone.getDestination().volume.value = 0 } catch {}
