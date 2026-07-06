@@ -4,6 +4,7 @@
 // Audio). We load the whole shell client-side with ssr:false so none of that
 // code is evaluated on the server.
 import dynamic from 'next/dynamic'
+import MobileGate from '@/components/MobileGate.jsx'
 
 const App = dynamic(() => import('@/components/App.jsx'), {
   ssr: false,
@@ -19,5 +20,11 @@ const App = dynamic(() => import('@/components/App.jsx'), {
 })
 
 export default function Page() {
-  return <App />
+  // MobileGate renders children only on desktop (or after an explicit
+  // opt-in), so next/dynamic never even fetches the DAW chunk on phones.
+  return (
+    <MobileGate>
+      <App />
+    </MobileGate>
+  )
 }
