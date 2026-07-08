@@ -341,6 +341,30 @@ export default function MixerTab() {
     setDrumsMuted(false)
   }, [])
 
+  const handleToggleDrumsMute = useCallback(() => setDrumsMuted(m => !m), [])
+
+  // Toggle a step by *visible* index (0..15); map through the pad's offset to the
+  // 64-slot source buffer, same as DrumMachineTab. Live: the effect re-pushes into
+  // the engine's sequencer, which reads the updated buffer on the next 16th.
+  const handleToggleDrumStep = useCallback((padId, visibleIdx) => {
+    setDrumPattern(prev => {
+      if (!prev) return prev
+      const SOURCE_STEPS = 64
+      const offset = prev.offsets?.[padId] ?? 0
+      const src = (offset + visibleIdx) % SOURCE_STEPS
+      const padPat = (prev.patterns?.[padId] ?? new Array(SOURCE_STEPS).fill(false)).slice()
+      padPat[src] = !padPat[src]
+      return { ...prev, patterns: { ...prev.patterns, [padId]: padPat } }
+    })
+  }, [])
+
+  const handleToggleDrumPadMute = useCallback((padId) => {
+    setDrumPattern(prev => {
+      if (!prev) return prev
+      return { ...prev, muted: { ...prev.muted, [padId]: !prev.muted?.[padId] } }
+    })
+  }, [])
+
   const fetchSnapshot = useCallback(async () => {
     setSnapshotLoading(true)
     try {
@@ -1138,25 +1162,6 @@ export default function MixerTab() {
           />
         </div>
 
-        {drumPattern ? (
-          <div className="drums-chip" title="Drum backing from the Drum Machine tab (plays in sync at the DAW BPM)">
-            <span className="drums-chip-icon">♪</span>
-            <span className="drums-chip-label">Drums</span>
-            <button
-              type="button"
-              className={`drums-chip-btn ${drumsMuted ? 'on' : ''}`}
-              onClick={() => setDrumsMuted(m => !m)}
-              title={drumsMuted ? 'Unmute drums' : 'Mute drums'}
-            >M</button>
-            <button
-              type="button"
-              className="drums-chip-btn"
-              onClick={handleClearDrums}
-              title="Remove drum backing"
-            >×</button>
-          </div>
-        ) : null}
-
         {canImportDrums ? (
           <button
             type="button"
@@ -1207,6 +1212,12 @@ export default function MixerTab() {
         pans={pans}
         soloRoutes={soloRoutes}
         bpm={bpm}
+        drumPattern={drumPattern}
+        drumsMuted={drumsMuted}
+        onToggleDrumStep={handleToggleDrumStep}
+        onToggleDrumPadMute={handleToggleDrumPadMute}
+        onToggleDrumsMute={handleToggleDrumsMute}
+        onClearDrums={handleClearDrums}
         liveSnapshot={liveSnapshot}
         snapshotLoading={snapshotLoading}
         trackSoundModes={trackSoundModes}

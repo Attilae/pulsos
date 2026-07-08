@@ -2,6 +2,7 @@ import * as Tone from 'tone'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { SYNTH_DEFAULTS, availableAutomationTargets, findTargetSpec, SAMPLER_PRESET_LIST, SAMPLER_PRESETS, DRUM_VOICES, DRUM_VOICE_LICENSE, DEFAULT_GRANULAR, ARP_STYLES, ARP_RATES, DEFAULT_ARP } from '@/lib/engine.js'
 import { FX_BUSES, AUTOMATION_TARGETS, FX_PARAM_SPECS, FX_SYNC_TARGETS } from '@/lib/fxTrack.js'
+import { PAD_DEFS as DRUM_PAD_DEFS, STEPS as DRUM_STEPS, SOURCE_STEPS as DRUM_SOURCE_STEPS, emptyPattern as emptyDrumPattern } from '@/lib/engines/drumEngine.js'
 import { generatePitchMap, shiftOctaveNote, noteToMidi, SCALES, hashStopValue, snapStopsToGrid, GRID_TOTAL_CELLS, GRID_BARS, GRID_STEPS_PER_BAR, GRID_RESOLUTION_STEPS_PER_BAR, DEFAULT_GRID_RESOLUTION, denormalizeToRange, denormalizeExp, transposeNoteInScale, nearestScaleDegreeOffset } from '@/lib/mappings.js'
 import './DawView.css'
 
@@ -69,6 +70,8 @@ export default function DawView({
   mode, started, events, routes, onRepickType,
   onDuplicateTrack, onRemoveDuplicate, onStopPitch, perStopStepsById,
   volumes, disabled, pans, soloRoutes,
+  bpm,
+  drumPattern, drumsMuted, onToggleDrumStep, onToggleDrumPadMute, onToggleDrumsMute, onClearDrums,
   liveSnapshot, snapshotLoading,
   trackSoundModes, trackScales, trackSynthTypes, trackADSRs, trackFilters, trackEqs,
   sendMatrix, automationCfg, automationSourceIds,
@@ -89,6 +92,7 @@ export default function DawView({
   const lastProgressRef       = useRef(0)
   const lastProgressUpdateRef = useRef(0)
   const [playheadProgress, setPlayheadProgress] = useState(0)
+  const [drumStep, setDrumStep] = useState(-1)
 
   // Live automation values reported by each lane's curve rail, keyed routeId → laneId →
   // { paramTarget, value }. Used purely to mirror automation onto the instrument controls;
@@ -116,6 +120,7 @@ export default function DawView({
     if (!started) {
       cancelAnimationFrame(animRef.current)
       setPlayheadProgress(0)
+      setDrumStep(-1)
       lastProgressRef.current = 0
       return
     }
@@ -130,6 +135,11 @@ export default function DawView({
       const now = performance.now()
       if (now - lastProgressUpdateRef.current > 66) {
         setPlayheadProgress(progress)
+        // Drum sequencer step (16th-note loop of DRUM_STEPS cells). The drum loop
+        // is shorter than the 16-beat visual cycle, so derive it independently.
+        // bpm is fixed while started (the input is disabled), so the prop is safe here.
+        const stepDur = (60 / (bpm || 120)) / 4
+        setDrumStep(Math.floor(Tone.getTransport().seconds / stepDur) % DRUM_STEPS)
         lastProgressUpdateRef.current = now
       }
 
@@ -341,6 +351,18 @@ export default function DawView({
           </div>
         ))}
 
+        {drumPattern && (
+          <DrumLane
+            pattern={drumPattern}
+            muted={drumsMuted}
+            activeStep={drumStep}
+            onToggleStep={onToggleDrumStep}
+            onTogglePadMute={onToggleDrumPadMute}
+            onToggleMute={onToggleDrumsMute}
+            onClear={onClearDrums}
+          />
+        )}
+
       </main>
 
       <aside className="event-log">
@@ -372,6 +394,66 @@ export default function DawView({
         onAddFxTrack={onAddFxTrack}
         onRemoveFxTrack={onRemoveFxTrack}
       />
+    </div>
+  )
+}
+
+// ── Drum lane (imported Drum Machine pattern, editable in-place) ─────────────
+// A mini 6-pad step sequencer pinned to the bottom of the track list. Each pad
+// shows the 16 visible steps (its 64-slot buffer windowed by the pad's offset);
+// clicking a cell toggles it live. Mirrors DrumMachineTab's grid, DAW-scoped.
+function DrumLane({ pattern, muted, activeStep, onToggleStep, onTogglePadMute, onToggleMute, onClear }) {
+  return (
+    <div className="daw-section drum-section">
+      <div className="daw-section-label">
+        <span>Drums</span>
+        <button
+          className={`drum-lane-master-btn ${muted ? 'on' : ''}`}
+          onClick={onToggleMute}
+          title={muted ? 'Unmute drums' : 'Mute drums'}
+        >{muted ? 'Muted' : 'Mute'}</button>
+        <button
+          className="drum-lane-master-btn"
+          onClick={onClear}
+          title="Remove drum lane"
+        >× Remove</button>
+      </div>
+
+      <div className={`drum-lane ${muted ? 'drum-lane--muted' : ''}`}>
+        {DRUM_PAD_DEFS.map(pad => {
+          const padPat   = pattern.patterns?.[pad.id] ?? emptyDrumPattern()
+          const offset   = pattern.offsets?.[pad.id] ?? 0
+          const padMuted = !!pattern.muted?.[pad.id]
+          return (
+            <div key={pad.id} className={`drum-lane-row ${padMuted ? 'is-muted' : ''}`}>
+              <span className="drum-lane-name">{pad.label}</span>
+              <button
+                className={`drum-lane-mute ${padMuted ? 'on' : ''}`}
+                onClick={() => onTogglePadMute(pad.id)}
+                title="Mute pad"
+              >M</button>
+              <div className="drum-lane-steps">
+                {Array.from({ length: DRUM_STEPS }).map((_, i) => {
+                  const src = (offset + i) % DRUM_SOURCE_STEPS
+                  const on  = padPat[src]
+                  return (
+                    <button
+                      key={i}
+                      className={[
+                        'drum-lane-step',
+                        on ? 'on' : '',
+                        activeStep === i ? 'playing' : '',
+                        i % 4 === 0 ? 'beat' : '',
+                      ].filter(Boolean).join(' ')}
+                      onClick={() => onToggleStep(pad.id, i)}
+                    />
+                  )
+                })}
+              </div>
+            </div>
+          )
+        })}
+      </div>
     </div>
   )
 }
