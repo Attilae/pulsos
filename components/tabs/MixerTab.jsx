@@ -166,17 +166,37 @@ export default function MixerTab() {
   // per-stop diatonic pitch offsets. Descriptors: { id, sourceId, name, perStopSteps }.
   const [duplicates, setDuplicates] = useState([])
 
+  // Merged lanes: several base lanes folded into one Tone.PolySynth chord lane.
+  // Descriptors: { id, sourceIds: [...], name, synthType }. The source lanes are
+  // hidden/consumed (see mergedConsumedIds) and their notes stack into the merged
+  // lane's polyphonic voice (engine: setMerge + _buildMergedRoutePart).
+  const [merges, setMerges] = useState([])
+
   // Optional drum backing imported from the Drum Machine tab (via the app-level
   // clipboard). null = none. Shape: { patterns, offsets, muted, bpm }.
   const [drumPattern, setDrumPattern] = useState(null)
   const [drumsMuted,  setDrumsMuted]  = useState(false)   // session-only UI toggle
   const drumClipboard = useDrumClipboard()
 
-  // Base routes + a reconstructed clone route per duplicate descriptor. This is the
-  // list the engine/DAW/MIDI act on; the map deliberately uses the base `routes`.
+  // Base route ids that have been folded into a merged PolySynth lane — hidden
+  // from the visible lane list (they play only through the merged lane).
+  const mergedConsumedIds = useMemo(() => {
+    const s = new Set()
+    for (const m of merges) for (const id of m.sourceIds ?? []) s.add(id)
+    return s
+  }, [merges])
+
+  // Base routes + a reconstructed clone route per duplicate descriptor + a synthetic
+  // route per merged lane (carrying its source routes' geometry). This is the list
+  // the engine/DAW/MIDI act on; the map deliberately uses the base `routes`.
+  // Consumed source lanes stay in the list (so the engine keeps their Parts alive
+  // and gates them silent — see engine._mergeConsumed); DawView hides them via
+  // mergedConsumedIds so only the merged lane shows.
   const mergedRoutes = useMemo(() => {
-    if (!routes || !duplicates.length) return routes
+    if (!routes) return routes
+    if (!duplicates.length && !merges.length) return routes
     const byId = new Map(routes.map(r => [r.id, r]))
+
     const clonesBySource = {}
     for (const d of duplicates) {
       const src = byId.get(d.sourceId)
@@ -185,15 +205,30 @@ export default function MixerTab() {
         { ...src, id: d.id, name: d.name, sourceId: d.sourceId, isDuplicate: true }
       )
     }
-    // Insert each clone directly after its source so a new copy appears right
-    // beneath the lane the user duplicated (not at the bottom of the section).
+
+    // Anchor each merged lane after its first source; it carries the resolved
+    // source routes so the engine can stack their notes into chords.
+    const mergesByAnchor = {}
+    for (const m of merges) {
+      const srcRoutes = (m.sourceIds ?? []).map(id => byId.get(id)).filter(Boolean)
+      if (!srcRoutes.length) continue
+      const base = srcRoutes[0]
+      ;(mergesByAnchor[base.id] ??= []).push({
+        ...base, id: m.id, name: m.name, type: base.type,
+        isMerged: true, sourceIds: m.sourceIds, sourceRoutes: srcRoutes,
+      })
+    }
+
+    // Insert each clone/merged lane directly after its source so it appears right
+    // beneath the lane it came from (not at the bottom of the section).
     const out = []
     for (const r of routes) {
       out.push(r)
       if (clonesBySource[r.id]) out.push(...clonesBySource[r.id])
+      if (mergesByAnchor[r.id]) out.push(...mergesByAnchor[r.id])
     }
     return out
-  }, [routes, duplicates])
+  }, [routes, duplicates, merges])
 
   const dupStepsById = useMemo(
     () => Object.fromEntries(duplicates.map(d => [d.id, d.perStopSteps ?? {}])),
@@ -815,6 +850,69 @@ export default function MixerTab() {
     }))
   }, [])
 
+  // ── Merged lanes (PolySynth chords) ───────────────────────────────────────
+  // Fold several base lanes into one polyphonic lane. The sources are hidden and
+  // gated silent (engine.setMerge); the merged lane stacks their per-stop notes
+  // into chords through a single Tone.PolySynth.
+  const handleMergeLanes = useCallback((sourceIds) => {
+    // Only plain base lanes can be merged; drop unknown / already-consumed ids.
+    const byId = new Map((routes ?? []).map(r => [r.id, r]))
+    const already = new Set(merges.flatMap(m => m.sourceIds ?? []))
+    const ids = [...new Set(sourceIds)].filter(id => byId.has(id) && !already.has(id))
+    if (ids.length < 2) return
+
+    const srcRoutes = ids.map(id => byId.get(id))
+    const base  = srcRoutes[0]
+    const id    = `merge~${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`
+    const rawName = srcRoutes.map(r => r.name).join('+')
+    const name  = rawName.length > 24 ? `${rawName.slice(0, 23)}…` : rawName
+    const scale = trackScales[base.id] ?? globalHarmony ?? { root: 'C', scaleType: 'major' }
+    const adsr  = { ...SYNTH_DEFAULTS.PolySynth }
+
+    setMerges(prev => [...prev, { id, sourceIds: ids, name, synthType: 'PolySynth' }])
+    setTrackSynthTypes(s => ({ ...s, [id]: 'PolySynth' }))
+    setTrackADSRs(a => ({ ...a, [id]: adsr }))
+    setTrackScales(s => ({ ...s, [id]: scale }))
+    setTrackSoundModes(s => ({ ...s, [id]: 'harmonic' }))
+    setVolumes(v => ({ ...v, [id]: 0 }))
+    setPans(p => ({ ...p, [id]: 0 }))
+
+    const engine = engineRef.current
+    if (!engine) return
+    const mergedRoute = { ...base, id, name, type: base.type, isMerged: true, sourceIds: ids, sourceRoutes: srcRoutes }
+    engine.setMerge(id, ids)   // gate sources silent first
+    engine.addRoute(mergedRoute, { mode: 'harmonic', scale }, 'PolySynth', adsr)
+    engine.setScale(id, scale)
+  }, [routes, merges, trackScales, globalHarmony])
+
+  const handleUnmerge = useCallback((mergeId) => {
+    setMerges(prev => prev.filter(m => m.id !== mergeId))
+    const drop = (setter) => setter(m => {
+      if (!(mergeId in m)) return m
+      const next = { ...m }; delete next[mergeId]; return next
+    })
+    drop(setVolumes); drop(setDisabledRoutes); drop(setPans)
+    drop(setTrackSoundModes); drop(setTrackScales); drop(setTrackSynthTypes); drop(setTrackADSRs)
+    drop(setTrackFilters); drop(setTrackEqs)
+    drop(setTrackOctaves); drop(setTrackGlides); drop(setTrackLegatos)
+    drop(setTrackDroneModes); drop(setTrackDroneRoots); drop(setTrackSpeeds); drop(setTrackLoopRegions)
+    drop(setTrackGridResolutions)
+    drop(setTrackArps); drop(setTrackGranulars)
+    setSoloRoutes(prev => {
+      if (!prev.has(mergeId)) return prev
+      const next = new Set(prev); next.delete(mergeId); return next
+    })
+    setSendMatrix(m => {
+      const next = {}
+      for (const [k, v] of Object.entries(m)) if (k.split(':')[0] !== mergeId) next[k] = v
+      return next
+    })
+    const engine = engineRef.current
+    if (!engine) return
+    engine.setMerge(mergeId, null)   // un-gate the source lanes (their Parts resume)
+    engine.removeRoute(mergeId)
+  }, [])
+
   const handleAddFxTrack = useCallback((busId) => {
     setActiveFxTracks(prev => prev.includes(busId) ? prev : [...prev, busId])
   }, [])
@@ -1002,7 +1100,7 @@ export default function MixerTab() {
     trackFilters, trackEqs,
     trackOctaves, trackGlides, trackLegatos, trackDroneModes, trackDroneRoots, trackSpeeds, trackLoopRegions, trackGridResolutions, trackArps, trackGranulars,
     activeFxTracks, fxBusWet, fxBusMuted, fxBusSoloed, fxBusParams,
-    sendMatrix, automationCfg, duplicates, drumPattern,
+    sendMatrix, automationCfg, duplicates, merges, drumPattern,
   }), [
     bpm, mode, view, masterVolume, globalHarmony,
     volumes, disabledRoutes, pans, soloRoutes,
@@ -1010,7 +1108,7 @@ export default function MixerTab() {
     trackFilters, trackEqs,
     trackOctaves, trackGlides, trackLegatos, trackDroneModes, trackDroneRoots, trackSpeeds, trackLoopRegions, trackGridResolutions, trackArps, trackGranulars,
     activeFxTracks, fxBusWet, fxBusMuted, fxBusSoloed, fxBusParams,
-    sendMatrix, automationCfg, duplicates, drumPattern,
+    sendMatrix, automationCfg, duplicates, merges, drumPattern,
   ])
 
   // Wipe the session to a clean, empty state: stop playback, dispose the audio
@@ -1040,7 +1138,7 @@ export default function MixerTab() {
     setFxBusWet(Object.fromEntries(FX_BUSES.map(b => [b.id, b.defaults?.wet ?? 1.0])))
     setFxBusMuted({}); setFxBusSoloed({}); setFxBusParams({})
     setSendMatrix({}); setAutomationCfg({})
-    setDuplicates([])
+    setDuplicates([]); setMerges([])
     setDrumPattern(null); setDrumsMuted(false)
     setBpm(120); setMasterVolume(0)
     setGlobalHarmony({ root: 'C', scaleType: 'major' })
@@ -1053,7 +1151,7 @@ export default function MixerTab() {
     setTrackFilters, setTrackEqs,
     setTrackOctaves, setTrackGlides, setTrackLegatos, setTrackDroneModes, setTrackDroneRoots, setTrackSpeeds, setTrackLoopRegions, setTrackGridResolutions, setTrackArps, setTrackGranulars,
     setActiveFxTracks, setFxBusWet, setFxBusMuted, setFxBusSoloed, setFxBusParams,
-    setSendMatrix, setAutomationCfg, setDuplicates, setDrumPattern,
+    setSendMatrix, setAutomationCfg, setDuplicates, setMerges, setDrumPattern,
   }), [])
 
   const song = useSongPersistence({
@@ -1207,6 +1305,9 @@ export default function MixerTab() {
         onRemoveDuplicate={handleRemoveDuplicate}
         onStopPitch={handleStopPitch}
         perStopStepsById={dupStepsById}
+        onMergeLanes={handleMergeLanes}
+        onUnmerge={handleUnmerge}
+        mergedConsumedIds={mergedConsumedIds}
         volumes={volumes}
         disabled={disabledRoutes}
         pans={pans}

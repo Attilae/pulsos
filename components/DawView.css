@@ -377,6 +377,42 @@
 .dup-btn:hover { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 60%, transparent); }
 .dup-remove-btn:hover { color: #f87171; border-color: color-mix(in srgb, #ef4444 60%, transparent); }
 
+/* Merged (PolySynth chord) lane badge — distinct hue from the dup badge */
+.merged-badge {
+  background: color-mix(in srgb, #a855f7 22%, transparent);
+  color: #c084fc;
+}
+
+/* ── Merge lanes toolbar ────────────────────────────────────────────────── */
+.merge-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 4px;
+  flex-wrap: wrap;
+}
+.merge-toggle, .merge-confirm, .merge-cancel {
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 3px 9px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--muted);
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+.merge-toggle:hover, .merge-confirm:hover:not(:disabled) {
+  color: #c084fc;
+  border-color: color-mix(in srgb, #a855f7 60%, transparent);
+}
+.merge-confirm:disabled { opacity: 0.4; cursor: not-allowed; }
+.merge-cancel:hover { color: #f87171; border-color: color-mix(in srgb, #ef4444 60%, transparent); }
+.merge-hint { font-size: 0.62rem; color: var(--muted); }
+.merge-check { flex-shrink: 0; cursor: pointer; accent-color: #a855f7; }
+
 /* ── Synth type selector ────────────────────────────────────────────────── */
 .synth-select {
   flex: 1;

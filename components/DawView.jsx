@@ -7,8 +7,7 @@ import { generatePitchMap, shiftOctaveNote, noteToMidi, SCALES, hashStopValue, s
 import './DawView.css'
 
 const SYNTH_TYPES = [
-  'Synth', 'FMSynth', 'AMSynth', 'MonoSynth',
-  'MembraneSynth', 'MetalSynth', 'NoiseSynth', 'PluckSynth', 'DuoSynth',
+  'Synth', 'FMSynth', 'NoiseSynth', 'PolySynth',
   'Sampler', 'Drums',
 ]
 
@@ -23,8 +22,6 @@ export const SCALE_TYPES = [
   ['lydian',          'Lydian'],
   ['mixolydian',      'Mixolyd.'],
 ]
-
-const DRONE_NOTES = NOTE_ROOTS.flatMap(n => [1, 2, 3, 4, 5].map(oct => `${n}${oct}`))
 
 const SPEED_OPTIONS = [
   { value: 0.25, label: '÷4',   title: '0.25× speed — one pass every 4 loops' },
@@ -69,6 +66,7 @@ export default function DawView({
   className = '',
   mode, started, events, routes, onRepickType,
   onDuplicateTrack, onRemoveDuplicate, onStopPitch, perStopStepsById,
+  onMergeLanes, onUnmerge, mergedConsumedIds,
   volumes, disabled, pans, soloRoutes,
   bpm,
   drumPattern, drumsMuted, onToggleDrumStep, onToggleDrumPadMute, onToggleDrumsMute, onClearDrums,
@@ -93,6 +91,18 @@ export default function DawView({
   const lastProgressUpdateRef = useRef(0)
   const [playheadProgress, setPlayheadProgress] = useState(0)
   const [drumStep, setDrumStep] = useState(-1)
+
+  // Merge mode: tick 2+ base lanes, then fold them into one PolySynth chord lane.
+  const [mergeMode, setMergeMode] = useState(false)
+  const [mergeSel,  setMergeSel]  = useState(() => new Set())
+  const toggleMergeSel = useCallback((id) => {
+    setMergeSel(prev => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+  }, [])
+  const exitMergeMode = useCallback(() => { setMergeMode(false); setMergeSel(new Set()) }, [])
 
   // Live automation values reported by each lane's curve rail, keyed routeId → laneId →
   // { paramTarget, value }. Used purely to mirror automation onto the instrument controls;
@@ -167,27 +177,18 @@ export default function DawView({
     return () => cancelAnimationFrame(animRef.current)
   }, [started, mode, routes, liveSnapshot, vehiclesByRoute, onVehicleCrossed])
 
-  const srcIds = automationSourceIds ?? new Set()
-
-  // sourceRouteId → first instrument routeId that uses it
-  const sourceToInst = useMemo(() => {
-    const map = {}
-    for (const [instId, lanes] of Object.entries(automationCfg ?? {}))
-      for (const lane of Object.values(lanes))
-        if (lane?.sourceRouteId && !map[lane.sourceRouteId])
-          map[lane.sourceRouteId] = instId
-    return map
-  }, [automationCfg])
-
-  // Source routes rendered inside their instrument's track-group, not their own section
   const SECTIONS = [
     { type: 'metro',   label: 'Metro' },
     { type: 'tram',    label: 'Tram' },
     { type: 'trolley', label: 'Trolley' },
     { type: 'bus',     label: 'Bus' },
   ]
+  // Automation-source lanes now stay visible/audible in their own section (they can
+  // both play and drive automation). Only lanes folded into a merged PolySynth lane
+  // are hidden — they still play through the merged lane.
+  const consumed = mergedConsumedIds ?? new Set()
   const routesByType = Object.fromEntries(
-    SECTIONS.map(s => [s.type, routes?.filter(r => r.type === s.type && !srcIds.has(r.id)) ?? []])
+    SECTIONS.map(s => [s.type, routes?.filter(r => r.type === s.type && !consumed.has(r.id)) ?? []])
   )
   // All routes by id for source picker lookups
   const routeById = useMemo(() => {
@@ -216,6 +217,27 @@ export default function DawView({
             >
               {snapshotLoading ? 'Fetching…' : '↺ Refetch'}
             </button>
+          </div>
+        )}
+
+        {/* ── Merge lanes toolbar ── */}
+        {routes && onMergeLanes && (
+          <div className="merge-bar">
+            {!mergeMode ? (
+              <button className="merge-toggle" onClick={() => { setMergeMode(true); setMergeSel(new Set()) }}>
+                ⧉ Merge lanes
+              </button>
+            ) : (
+              <>
+                <span className="merge-hint">Tick 2+ lanes, then fold them into one PolySynth chord lane</span>
+                <button
+                  className="merge-confirm"
+                  disabled={mergeSel.size < 2}
+                  onClick={() => { onMergeLanes([...mergeSel]); exitMergeMode() }}
+                >Merge{mergeSel.size ? ` ${mergeSel.size}` : ''}</button>
+                <button className="merge-cancel" onClick={exitMergeMode}>Cancel</button>
+              </>
+            )}
           </div>
         )}
 
@@ -315,6 +337,10 @@ export default function DawView({
                     onRemoveDuplicate={() => onRemoveDuplicate?.(route.id)}
                     perStopSteps={perStopStepsById?.[route.id]}
                     onStopPitch={(stopId, degrees) => onStopPitch?.(route.id, stopId, degrees)}
+                    mergeMode={mergeMode}
+                    mergeChecked={mergeSel.has(route.id)}
+                    onMergeToggle={() => toggleMergeSel(route.id)}
+                    onUnmerge={() => onUnmerge?.(route.id)}
                   />
                   {attachedSrcIds.map(srcId => (
                     <AutomationSourceTrack
@@ -472,9 +498,13 @@ function LineTrack({
   onSendLevel, onOctaveShift, onGlide, onLegato, onArp, onGranular, onSpeed, onDroneMode, onDroneRoot, onAddLane,
   onExportRouteMidi, onExportRouteAudio, audioExportActive,
   onDuplicate, onRemoveDuplicate, perStopSteps, onStopPitch,
+  mergeMode, mergeChecked, onMergeToggle, onUnmerge,
 }) {
   const [rackOpen, setRackOpen] = useState(false)
   const isDuplicate = !!route.isDuplicate
+  const isMerged    = !!route.isMerged
+  // Only plain base lanes can be folded into a merged lane.
+  const mergeEligible = mergeMode && !isMerged && !isDuplicate
 
   // Automation locks: when a lane targets one of these, the control greys out and (during
   // playback) reads the swept value. Pan/glide convert from the spec unit to the slider unit.
@@ -490,10 +520,20 @@ function LineTrack({
       <div className="lt-top">
         <div className="line-label" style={{ borderColor: route.color }}>
           <div className="line-label-top">
+            {mergeEligible && (
+              <input
+                type="checkbox"
+                className="merge-check"
+                checked={!!mergeChecked}
+                onChange={onMergeToggle}
+                title="Include this lane in the merge"
+              />
+            )}
             <span className="line-badge" style={{ background: route.color, color: route.textColor }}>
               {route.name}
             </span>
             {isDuplicate && <span className="dup-badge" title="Chord copy — re-pitched within harmony">copy</span>}
+            {isMerged && <span className="dup-badge merged-badge" title="Merged PolySynth chord lane">merged</span>}
             <button
               className={`add-lane-btn ${laneCount > 0 ? 'has-lanes' : ''}`}
               onClick={onAddLane}
@@ -540,18 +580,28 @@ function LineTrack({
 
         <div className="lt-spacer" />
 
-        <button
-          type="button"
-          className="dup-btn"
-          onClick={onDuplicate}
-          title="Duplicate this lane (stack copies to build a chord)"
-        >⎘</button>
+        {!isMerged && (
+          <button
+            type="button"
+            className="dup-btn"
+            onClick={onDuplicate}
+            title="Duplicate this lane (stack copies to build a chord)"
+          >⎘</button>
+        )}
         {isDuplicate && (
           <button
             type="button"
             className="dup-remove-btn"
             onClick={onRemoveDuplicate}
             title="Remove this copy"
+          >×</button>
+        )}
+        {isMerged && (
+          <button
+            type="button"
+            className="dup-remove-btn"
+            onClick={onUnmerge}
+            title="Un-merge — restore the original lanes"
           >×</button>
         )}
 
@@ -590,38 +640,16 @@ function LineTrack({
               {SYNTH_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
             </select>
             <div className="sound-mode-row">
-              <button className={`sound-mode-btn ${droneMode ? 'active' : ''}`}
-                onClick={() => onDroneMode(!droneMode)}
-                title={droneMode ? 'Switch to note mode' : 'Switch to drone mode'}>
-                {droneMode ? 'Drone' : 'Note'}
-              </button>
-              {droneMode ? (
-                <select className="scale-root-select" value={droneRoot ?? 'C3'}
-                  onChange={e => onDroneRoot(e.target.value)}>
-                  {DRONE_NOTES.map(n => <option key={n} value={n}>{n}</option>)}
-                </select>
-              ) : (
-                <>
-                  <button className={`sound-mode-btn ${soundMode === 'percussive' ? 'active' : ''}`}
-                    onClick={() => onSoundMode('percussive')}>Perc</button>
-                  <button className={`sound-mode-btn ${soundMode === 'harmonic' ? 'active' : ''}`}
-                    onClick={() => onSoundMode('harmonic')}>Harm</button>
-                  {soundMode === 'harmonic' && (
-                    <>
-                      <select className="scale-root-select" value={trackScale.root}
-                        onChange={e => onScale({ ...trackScale, root: e.target.value })}>
-                        {NOTE_ROOTS.map(n => <option key={n} value={n}>{n}</option>)}
-                      </select>
-                      <select className="scale-type-select" value={trackScale.scaleType}
-                        onChange={e => onScale({ ...trackScale, scaleType: e.target.value })}>
-                        {SCALE_TYPES.map(([key, label]) => (
-                          <option key={key} value={key}>{label}</option>
-                        ))}
-                      </select>
-                    </>
-                  )}
-                </>
-              )}
+              <select className="scale-root-select" value={trackScale.root}
+                onChange={e => onScale({ ...trackScale, root: e.target.value })}>
+                {NOTE_ROOTS.map(n => <option key={n} value={n}>{n}</option>)}
+              </select>
+              <select className="scale-type-select" value={trackScale.scaleType}
+                onChange={e => onScale({ ...trackScale, scaleType: e.target.value })}>
+                {SCALE_TYPES.map(([key, label]) => (
+                  <option key={key} value={key}>{label}</option>
+                ))}
+              </select>
             </div>
           </div>
 
@@ -921,13 +949,10 @@ function AutomationLane({ laneId, instRoute, laneCfg, allRoutes, activeFxTracks,
   )
 
   const sourceRoute    = allRoutes.find(r => r.id === sourceRouteId) ?? null
-  // A route that's currently an active instrument lane (enabled, or soloed) elsewhere would
-  // vanish from the instrument view if picked as a source here — block it, but keep the
-  // already-selected source visible/selectable even if it later becomes active.
-  const isRouteActive  = r => soloRoutes?.has(r.id) || !(disabled?.[r.id] ?? false)
-  const pickableRoutes = allRoutes
-    .filter(r => r.id !== instRoute.id)
-    .map(r => ({ ...r, _blocked: r.id !== sourceRouteId && isRouteActive(r) }))
+  // Any lane (active or not) can be a source: a source now stays visible and audible
+  // in its own section while its geographic data also drives this automation curve.
+  // A merged lane has no per-stop geography of its own, so it can't be a source.
+  const pickableRoutes = allRoutes.filter(r => r.id !== instRoute.id && !r.isMerged)
 
   // Target options, grouped by .group, filtered to what's valid for this synth type.
   const groupedTargets = useMemo(() => {
@@ -954,8 +979,8 @@ function AutomationLane({ laneId, instRoute, laneCfg, allRoutes, activeFxTracks,
             // text can't be CSS-truncated, so cap it here or the dropdown popup overflows.
             const desc = r.desc && r.desc.length > 48 ? `${r.desc.slice(0, 48).trimEnd()}…` : r.desc
             return (
-              <option key={r.id} value={r.id} disabled={r._blocked}>
-                {r.name}{desc ? ` · ${desc}` : ''}{r._blocked ? ' (active)' : ''}
+              <option key={r.id} value={r.id}>
+                {r.name}{desc ? ` · ${desc}` : ''}
               </option>
             )
           })}

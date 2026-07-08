@@ -114,7 +114,12 @@ There is **no test runner and no linter configured** — don't assume `npm test`
 ### `app/` — Next.js routes
 
 - `page.jsx` — `'use client'`; loads the whole DAW (`components/App.jsx`) via `next/dynamic` with
-  `ssr: false`, so the browser-only audio/map code never executes on the server.
+  `ssr: false`, so the browser-only audio/map code never executes on the server. Wraps it in
+  `components/MobileGate.jsx`, which renders children (and thus triggers the dynamic import of the
+  heavy DAW bundle) **only on desktop** or after an explicit opt-in — touch devices (phones *and*
+  tablets, detected by `lib/shared/isMobileDevice.js`) see a gate instead, with a
+  `leid-mobile-bypass` localStorage escape hatch. The DAW is a desktop instrument; the native-app
+  direction is in `docs/mobile-app-plan.md`.
 - `layout.jsx` — root layout; imports `leaflet/dist/leaflet.css`.
 - `api/auth/[...all]/route.js` — all Better Auth endpoints.
 - `api/compose/route.js` — proxies prose → JSON plan through OpenRouter (key stays server-side).
@@ -155,12 +160,15 @@ There is **no test runner and no linter configured** — don't assume `npm test`
 — the Song Chainer) with an `AuthControl` (sign-in/up + magic link) in the header. Each
 tab loads shared route data via `useRoutes()` (`/data/lines.json`) but owns its own audio engine.
 Cross-area imports use the `@/` alias (e.g. `@/lib/engine.js`); same-area imports stay relative.
+The header also hosts a **driver.js onboarding tour** (`components/TourMenu.jsx`, steps in
+`lib/tourSteps.js`) that auto-starts once for new visitors and can be replayed.
 
 #### The main DAW (Map/DAW tab)
 
 `components/tabs/MixerTab.jsx` is the heart of the app and by far the largest piece of state. It:
-- owns **all per-track settings** (volumes, pans, disabled/solo, sound modes, scales, synth types,
-  ADSR, filters, EQs, octave/glide/legato/drone/speed/loop-region, per-track arpeggiator
+- owns **all per-track settings** (volumes, pans, disabled/solo, scales (root + scale type — the
+  earlier per-track perc/harm sound modes and drone mode were removed from the DAW UI), synth
+  types, ADSR, filters, EQs, octave/glide/legato/speed/loop-region, per-track arpeggiator
   configs, per-track granular-layer configs, FX send matrix, automation lane configs, FX bus
   state, BPM, master volume),
 - instantiates **one `TransitEngine`** (`lib/engine.js`) and mirrors every UI change into it via
@@ -207,9 +215,19 @@ Two playback modes, both driven by `TransitEngine`:
   lengths drift into **polyrhythm** (decoupled from the global transport — see `bf45ac5`). Per-track
   loop windows are stored in `engine._trackLoopRegions` and set via `setTrackLoopRegion(routeId,
   region)`; automation lanes can carry their own `loopRegion` sub-loop (null = inherit the source
-  route's region).
+  route's region). Loop regions and per-stop notes are quantized to a shared cell grid
+  (`GRID_TOTAL_CELLS` = `GRID_BARS` × `GRID_STEPS_PER_BAR` in `mappings.js`), and each route has a
+  **per-track note-grid resolution** (`engine._gridResolutions[routeId]`, set via
+  `setGridResolution`, options in `GRID_RESOLUTION_STEPS_PER_BAR`, default `DEFAULT_GRID_RESOLUTION`)
+  that snaps its notes to a coarser/finer subdivision.
 - **live** — `engine.startLive()` + `LiveClient` WebSocket; real BKK arrivals call
   `handleVehicleCrossed` → `engine.triggerLiveNote()`.
+
+**Cross-tab drum backing**: the Drum Machine tab can "Send to Map", pushing its pattern into an
+app-level `DrumClipboardContext` (`lib/shared/DrumClipboardContext.jsx`, `DrumClipboardProvider`
+in `App.jsx`, localStorage-persisted). MixerTab pulls it in via `useDrumClipboard()` and mirrors
+it into the engine with `engine.setDrumPattern(...)` (with a session-only `drumsMuted` toggle), so
+the Map/DAW tab plays a drum backing alongside the transit-driven lanes.
 
 #### TransitEngine (`lib/engine.js`)
 
@@ -374,7 +392,7 @@ long sustained pads. Line-type colors live in `LINE_TYPE_COLORS` (`lib/engine.js
 `docs/nextjs-migration-plan.md` (Next/Vercel topology + migration history), `docs/bkk-api.md`
 (GTFS-RT field reference), `docs/multi-city-gtfs.md` (per-city descriptor model, agency feed
 quirks, candidate cities, generalization gotchas), `docs/vst-plugin-plan.md` (planned JUCE VST3/AU
-port), `docs/gtfs-salt.md`.
+port), `docs/mobile-app-plan.md` (native-app direction behind the mobile gate), `docs/gtfs-salt.md`.
 
 ## Planned (not yet wired in)
 
