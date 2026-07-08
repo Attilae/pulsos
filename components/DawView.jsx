@@ -867,11 +867,16 @@ function AutomationLane({ laneId, instRoute, laneCfg, allRoutes, activeFxTracks,
         <select className="auto-select auto-select--source-line" value={sourceRouteId}
           onChange={e => onUpdate({ sourceRouteId: e.target.value })}>
           <option value="">— pick line —</option>
-          {pickableRoutes.map(r => (
-            <option key={r.id} value={r.id} disabled={r._blocked}>
-              {r.name} {r.desc ? `· ${r.desc}` : ''}{r._blocked ? ' (active)' : ''}
-            </option>
-          ))}
+          {pickableRoutes.map(r => {
+            // Some cities (e.g. NYC/MTA) carry paragraph-length descriptions; native <option>
+            // text can't be CSS-truncated, so cap it here or the dropdown popup overflows.
+            const desc = r.desc && r.desc.length > 48 ? `${r.desc.slice(0, 48).trimEnd()}…` : r.desc
+            return (
+              <option key={r.id} value={r.id} disabled={r._blocked}>
+                {r.name}{desc ? ` · ${desc}` : ''}{r._blocked ? ' (active)' : ''}
+              </option>
+            )
+          })}
         </select>
 
         <select className="auto-select" value={paramTarget}
