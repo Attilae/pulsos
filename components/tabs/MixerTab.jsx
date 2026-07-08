@@ -5,6 +5,7 @@ import { FX_BUSES } from '@/lib/fxTrack.js'
 import { randomFromScale, shiftOctaveNote, geoToMidi, routeBounds, midiToNote, noteToMidi, SCALES, MODES, setCityBounds } from '@/lib/mappings.js'
 import { fetchLines } from '@/lib/shared/useRoutes.js'
 import { useCitySelection } from '@/lib/shared/CityContext.jsx'
+import { useDrumClipboard } from '@/lib/shared/DrumClipboardContext.jsx'
 import DawView, { NOTE_ROOTS, SCALE_TYPES } from '../DawView.jsx'
 import MapView from '../MapView.jsx'
 import AIComposerPanel from '../AIComposerPanel.jsx'
@@ -165,6 +166,12 @@ export default function MixerTab() {
   // per-stop diatonic pitch offsets. Descriptors: { id, sourceId, name, perStopSteps }.
   const [duplicates, setDuplicates] = useState([])
 
+  // Optional drum backing imported from the Drum Machine tab (via the app-level
+  // clipboard). null = none. Shape: { patterns, offsets, muted, bpm }.
+  const [drumPattern, setDrumPattern] = useState(null)
+  const [drumsMuted,  setDrumsMuted]  = useState(false)   // session-only UI toggle
+  const drumClipboard = useDrumClipboard()
+
   // Base routes + a reconstructed clone route per duplicate descriptor. This is the
   // list the engine/DAW/MIDI act on; the map deliberately uses the base `routes`.
   const mergedRoutes = useMemo(() => {
@@ -303,6 +310,36 @@ export default function MixerTab() {
   useEffect(() => {
     engineRef.current?.setBpm(bpm)
   }, [bpm])
+
+  // Mirror the imported drum backing into the engine (adds/removes/updates it
+  // live if playing; otherwise it's picked up on the next Start). The mute toggle
+  // silences every pad without discarding the pattern.
+  useEffect(() => {
+    const engine = engineRef.current
+    if (!engine) return
+    if (drumPattern && drumsMuted) {
+      const silenced = { ...drumPattern, muted: Object.fromEntries(Object.keys(drumPattern.patterns ?? {}).map(k => [k, true])) }
+      engine.setDrumPattern(silenced)
+    } else {
+      engine.setDrumPattern(drumPattern)
+    }
+  }, [drumPattern, drumsMuted])
+
+  const clipboardDrums = drumClipboard.pattern
+  const canImportDrums = !!clipboardDrums &&
+    JSON.stringify(clipboardDrums) !== JSON.stringify(drumPattern)
+
+  const handleImportDrums = useCallback(() => {
+    if (!drumClipboard.pattern) return
+    // Deep-clone so later edits in the Drum Machine tab don't mutate our copy.
+    setDrumPattern(JSON.parse(JSON.stringify(drumClipboard.pattern)))
+    setDrumsMuted(false)
+  }, [drumClipboard.pattern])
+
+  const handleClearDrums = useCallback(() => {
+    setDrumPattern(null)
+    setDrumsMuted(false)
+  }, [])
 
   const fetchSnapshot = useCallback(async () => {
     setSnapshotLoading(true)
@@ -941,7 +978,7 @@ export default function MixerTab() {
     trackFilters, trackEqs,
     trackOctaves, trackGlides, trackLegatos, trackDroneModes, trackDroneRoots, trackSpeeds, trackLoopRegions, trackGridResolutions, trackArps, trackGranulars,
     activeFxTracks, fxBusWet, fxBusMuted, fxBusSoloed, fxBusParams,
-    sendMatrix, automationCfg, duplicates,
+    sendMatrix, automationCfg, duplicates, drumPattern,
   }), [
     bpm, mode, view, masterVolume, globalHarmony,
     volumes, disabledRoutes, pans, soloRoutes,
@@ -949,7 +986,7 @@ export default function MixerTab() {
     trackFilters, trackEqs,
     trackOctaves, trackGlides, trackLegatos, trackDroneModes, trackDroneRoots, trackSpeeds, trackLoopRegions, trackGridResolutions, trackArps, trackGranulars,
     activeFxTracks, fxBusWet, fxBusMuted, fxBusSoloed, fxBusParams,
-    sendMatrix, automationCfg, duplicates,
+    sendMatrix, automationCfg, duplicates, drumPattern,
   ])
 
   // Wipe the session to a clean, empty state: stop playback, dispose the audio
@@ -980,6 +1017,7 @@ export default function MixerTab() {
     setFxBusMuted({}); setFxBusSoloed({}); setFxBusParams({})
     setSendMatrix({}); setAutomationCfg({})
     setDuplicates([])
+    setDrumPattern(null); setDrumsMuted(false)
     setBpm(120); setMasterVolume(0)
     setGlobalHarmony({ root: 'C', scaleType: 'major' })
   }, [createEngine, routes])
@@ -991,7 +1029,7 @@ export default function MixerTab() {
     setTrackFilters, setTrackEqs,
     setTrackOctaves, setTrackGlides, setTrackLegatos, setTrackDroneModes, setTrackDroneRoots, setTrackSpeeds, setTrackLoopRegions, setTrackGridResolutions, setTrackArps, setTrackGranulars,
     setActiveFxTracks, setFxBusWet, setFxBusMuted, setFxBusSoloed, setFxBusParams,
-    setSendMatrix, setAutomationCfg, setDuplicates,
+    setSendMatrix, setAutomationCfg, setDuplicates, setDrumPattern,
   }), [])
 
   const song = useSongPersistence({
@@ -1099,6 +1137,34 @@ export default function MixerTab() {
             disabled={started}
           />
         </div>
+
+        {drumPattern ? (
+          <div className="drums-chip" title="Drum backing from the Drum Machine tab (plays in sync at the DAW BPM)">
+            <span className="drums-chip-icon">♪</span>
+            <span className="drums-chip-label">Drums</span>
+            <button
+              type="button"
+              className={`drums-chip-btn ${drumsMuted ? 'on' : ''}`}
+              onClick={() => setDrumsMuted(m => !m)}
+              title={drumsMuted ? 'Unmute drums' : 'Mute drums'}
+            >M</button>
+            <button
+              type="button"
+              className="drums-chip-btn"
+              onClick={handleClearDrums}
+              title="Remove drum backing"
+            >×</button>
+          </div>
+        ) : null}
+
+        {canImportDrums ? (
+          <button
+            type="button"
+            className="drums-import-btn"
+            onClick={handleImportDrums}
+            title="Add the pattern sent from the Drum Machine tab"
+          >♪ {drumPattern ? 'Update drums' : 'Add drums'}</button>
+        ) : null}
 
         <button
           className={`transport-btn ${started ? 'stop' : 'play'}`}

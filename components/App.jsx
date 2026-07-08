@@ -9,6 +9,7 @@ import AuthControl      from './AuthControl.jsx'
 import CitySelect       from './CitySelect.jsx'
 import TourMenu         from './TourMenu.jsx'
 import { CityProvider } from '@/lib/shared/CityContext.jsx'
+import { DrumClipboardProvider } from '@/lib/shared/DrumClipboardContext.jsx'
 import { DialogHost }   from './Dialog.jsx'
 import { runProductTour } from '@/lib/tourSteps.js'
 import { getTourStatus }  from '@/lib/tourState.js'
@@ -51,6 +52,7 @@ export default function App() {
 
   return (
     <CityProvider>
+      <DrumClipboardProvider>
       <div className="app-shell">
         <nav className="tab-bar">
           <h1
@@ -79,6 +81,7 @@ export default function App() {
         </main>
         <DialogHost />
       </div>
+      </DrumClipboardProvider>
     </CityProvider>
   )
 }

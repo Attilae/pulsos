@@ -317,6 +317,50 @@ body { background: var(--bg); color: var(--text); font-family: 'Courier New', mo
 .transport-btn.stop { border-color: #f04040; color: #f04040; }
 .transport-btn:hover { background: #2a2a2a; }
 
+/* Drum backing imported from the Drum Machine tab */
+.drums-import-btn {
+  padding: 7px 14px;
+  border: 1px solid var(--accent);
+  background: transparent;
+  color: var(--accent);
+  font-family: inherit;
+  font-size: 0.82rem;
+  cursor: pointer;
+  border-radius: 3px;
+  transition: background 0.12s;
+  white-space: nowrap;
+}
+.drums-import-btn:hover { background: rgba(255,255,255,0.06); }
+
+.drums-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: var(--surface2);
+  font-size: 0.8rem;
+  color: var(--text);
+  white-space: nowrap;
+}
+.drums-chip-icon { color: var(--accent); }
+.drums-chip-label { color: var(--muted); }
+.drums-chip-btn {
+  width: 20px;
+  height: 20px;
+  line-height: 1;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  border-radius: 3px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.78rem;
+}
+.drums-chip-btn:hover { color: var(--text); }
+.drums-chip-btn.on { border-color: #f04040; color: #f04040; }
+
 /* ── Tracks ─────────────────────────────────────────────────────────────── */
 .tracks,
 .daw-tracks {

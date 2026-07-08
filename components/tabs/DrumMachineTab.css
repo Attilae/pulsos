@@ -54,6 +54,7 @@
   padding: 6px 12px;
 }
 .drum-btn--ghost:hover { color: var(--text); }
+.drum-btn--ghost.is-sent { color: var(--accent); border-color: var(--accent); }
 .drum-btn--transport.play { border-color: var(--accent); color: var(--accent); }
 .drum-btn--transport.stop { border-color: #f04040; color: #f04040; }
 

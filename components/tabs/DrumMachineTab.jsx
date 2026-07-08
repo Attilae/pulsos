@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Midi } from '@tonejs/midi'
 import { useRoutes } from '@/lib/shared/useRoutes.js'
+import { useDrumClipboard } from '@/lib/shared/DrumClipboardContext.jsx'
 import {
   DrumEngine, PAD_DEFS, STEPS, SOURCE_STEPS,
   emptyPattern, emptyStops, patternFromRoute,
@@ -19,10 +20,12 @@ const PAD_MIDI_NOTES = {
 export default function DrumMachineTab() {
   const routes    = useRoutes()
   const engineRef = useRef(null)
+  const clipboard = useDrumClipboard()
 
   const [bpm,        setBpm]        = useState(96)
   const [started,    setStarted]    = useState(false)
   const [activeStep, setActiveStep] = useState(-1)
+  const [sent,       setSent]       = useState(false)
 
   const [padRoutes, setPadRoutes] = useState({})                                            // padId → routeId
   const [patterns,  setPatterns]  = useState(() => Object.fromEntries(PAD_DEFS.map(p => [p.id, emptyPattern()])))
@@ -168,6 +171,19 @@ export default function DrumMachineTab() {
     URL.revokeObjectURL(url)
   }, [bpm, patterns, offsets])
 
+  // Push the current pattern into the app-level clipboard so the Map/DAW tab can
+  // pull it in and play it as a rhythmic backing under the transit tracks.
+  const handleSendToMap = useCallback(() => {
+    clipboard.setPattern({
+      patterns: Object.fromEntries(PAD_DEFS.map(p => [p.id, (patterns[p.id] ?? emptyPattern()).slice()])),
+      offsets:  Object.fromEntries(PAD_DEFS.map(p => [p.id, offsets[p.id] ?? 0])),
+      muted:    Object.fromEntries(PAD_DEFS.map(p => [p.id, !!muted[p.id]])),
+      bpm,
+    })
+    setSent(true)
+    setTimeout(() => setSent(false), 1600)
+  }, [clipboard, patterns, offsets, muted, bpm])
+
   // ── Sorted routes for dropdowns ─────────────────────────────────────────
   const sortedRoutes = useMemo(() => {
     if (!routes) return []
@@ -198,6 +214,11 @@ export default function DrumMachineTab() {
 
         <button className="drum-btn drum-btn--ghost" onClick={handleClearAll}>Clear</button>
         <button className="drum-btn drum-btn--ghost" onClick={handleExportMidi}>↓ MIDI</button>
+        <button
+          className={`drum-btn drum-btn--ghost ${sent ? 'is-sent' : ''}`}
+          onClick={handleSendToMap}
+          title="Send this pattern to the Map/DAW tab"
+        >{sent ? '✓ Sent' : 'Send to Map ▶'}</button>
 
         <button
           className={`drum-btn drum-btn--transport ${started ? 'stop' : 'play'}`}
