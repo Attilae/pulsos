@@ -85,7 +85,7 @@ function deriveHubs(allRoutes, n = 6) {
     .map(e => ({ name: e.name, lat: e.lat / e.count, lng: e.lng / e.count }))
 }
 
-export default function MixerTab() {
+export default function MixerTab({ active = true }) {
   const { cityId, cityEntry } = useCitySelection()
   const loadedCityRef    = useRef(null)   // last city whose routes are loaded
   const engineRef        = useRef(null)
@@ -455,6 +455,19 @@ export default function MixerTab() {
       Tone.getDestination().volume.rampTo(masterVolume, 0.5)
     }
   }
+
+  // Stop playback when this tab is hidden (the component stays mounted so all
+  // settings persist, but we don't want a background tab fighting over the
+  // shared global Tone.Transport / destination).
+  useEffect(() => {
+    if (active || !started) return
+    const engine = engineRef.current
+    Tone.getDestination().volume.value = masterVolume  // undo any in-progress fade
+    engine?.stopMock()
+    stoppingRef.current = false
+    setStarted(false)
+    setHasMidiSession(midiRecorderRef.current?.hasData() ?? false)
+  }, [active, started, masterVolume])
 
   // Ableton-style solo: plain click solos only this lane (muting all others);
   // Cmd/Ctrl+click adds it to the soloed set instead of replacing it. Clicking

@@ -17,7 +17,7 @@ const PAD_MIDI_NOTES = {
   clap:  39,
 }
 
-export default function DrumMachineTab() {
+export default function DrumMachineTab({ active = true }) {
   const routes    = useRoutes()
   const engineRef = useRef(null)
   const clipboard = useDrumClipboard()
@@ -69,6 +69,13 @@ export default function DrumMachineTab() {
     if (started) { e.stop(); setStarted(false) }
     else { await e.start(bpm); setStarted(true) }
   }, [started, bpm])
+
+  // Stop playback when this tab is hidden (component stays mounted; state persists).
+  useEffect(() => {
+    if (active || !started) return
+    engineRef.current?.stop()
+    setStarted(false)
+  }, [active, started])
 
   const handleBpm = useCallback((v) => {
     const n = Math.max(40, Math.min(240, Number(v) || 120))

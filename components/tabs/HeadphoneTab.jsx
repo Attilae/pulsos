@@ -5,7 +5,7 @@ import {
 } from '@/lib/engines/phonesEngine.js'
 import './HeadphoneTab.css'
 
-export default function HeadphoneTab() {
+export default function HeadphoneTab({ active = true }) {
   const routes    = useRoutes()
   const engineRef = useRef(null)
 
@@ -46,6 +46,13 @@ export default function HeadphoneTab() {
     if (started) { e.stop(); setStarted(false) }
     else { await e.start(); setStarted(true) }
   }, [started])
+
+  // Stop playback when this tab is hidden (component stays mounted; state persists).
+  useEffect(() => {
+    if (active || !started) return
+    engineRef.current?.stop()
+    setStarted(false)
+  }, [active, started])
 
   const handleBrighter = useCallback(() => {
     setBrighter(b => {

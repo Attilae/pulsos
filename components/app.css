@@ -71,6 +71,14 @@ body { background: var(--bg); color: var(--text); font-family: 'Courier New', mo
   display: flex;
   flex-direction: column;
 }
+/* Each visited tab is kept mounted; the active pane fills tab-body, inactive
+   panes are collapsed via an inline display:none. */
+.tab-pane {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
 
 /* ── City picker (header) ───────────────────────────────────────────────── */
 .city-select {

@@ -9,7 +9,7 @@ import './MotifTab.css'
 
 const MODE_NAMES = Object.keys(SCALE_MODES)
 
-export default function MotifTab() {
+export default function MotifTab({ active = true }) {
   const routes  = useRoutes()
   const playRef = useRef(null)
 
@@ -75,6 +75,14 @@ export default function MotifTab() {
       setPlayStep(-1)
     })
   }, [motif, bpm, playing])
+
+  // Stop preview when this tab is hidden (component stays mounted; state persists).
+  useEffect(() => {
+    if (active || !playing) return
+    playRef.current?.stop()
+    setPlaying(false)
+    setPlayStep(-1)
+  }, [active, playing])
 
   const handleDownload = useCallback(() => {
     if (!motif.notes.length) return

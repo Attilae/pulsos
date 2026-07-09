@@ -26,11 +26,19 @@ const TABS = [
 
 export default function App() {
   const [tabId, setTabId] = useState('mixer')
+  // Keep every tab we've visited mounted so its state + audio engine survive
+  // tab switches (inactive panes are hidden with CSS, not unmounted). Lazily
+  // seeded so we don't boot all engines/Leaflet up front.
+  const [mounted, setMounted] = useState(() => new Set(['mixer']))
   const pendingTourRef = useRef(false)
-  const Active = TABS.find(t => t.id === tabId)?.Comp ?? MixerTab
+
+  function openTab(id) {
+    setMounted(prev => (prev.has(id) ? prev : new Set(prev).add(id)))
+    setTabId(id)
+  }
 
   function startTour() {
-    if (tabId !== 'mixer') { pendingTourRef.current = true; setTabId('mixer') }
+    if (tabId !== 'mixer') { pendingTourRef.current = true; openTab('mixer') }
     else runProductTour()
   }
 
@@ -66,7 +74,7 @@ export default function App() {
               <button
                 key={t.id}
                 className={`tab-btn ${tabId === t.id ? 'active' : ''}`}
-                onClick={() => setTabId(t.id)}
+                onClick={() => openTab(t.id)}
               >
                 {t.label}
               </button>
@@ -77,7 +85,15 @@ export default function App() {
           <TourMenu startTour={startTour} />
         </nav>
         <main className="tab-body">
-          <Active />
+          {TABS.filter(t => mounted.has(t.id)).map(t => (
+            <div
+              key={t.id}
+              className="tab-pane"
+              style={{ display: tabId === t.id ? undefined : 'none' }}
+            >
+              <t.Comp active={tabId === t.id} />
+            </div>
+          ))}
         </main>
         <DialogHost />
       </div>

@@ -14,7 +14,7 @@ import './SongChainerTab.css'
 
 const DEFAULT_BARS = 8
 
-export default function SongChainerTab() {
+export default function SongChainerTab({ active = true }) {
   const routes = useRoutes()
   const city   = useCity()
   const { cityId } = useCitySelection()
@@ -76,6 +76,13 @@ export default function SongChainerTab() {
     playerRef.current?.stop()
     setPlaying(false); setCurrentIndex(-1); setProgress(0)
   }, [cityId])
+
+  // ── Stop playback when this tab is hidden (component stays mounted) ───────
+  useEffect(() => {
+    if (active || !playing) return
+    playerRef.current?.stop()
+    setPlaying(false); setCurrentIndex(-1); setProgress(0)
+  }, [active, playing])
 
   // ── Load the user's presets + compositions when signed in ────────────────
   useEffect(() => {
