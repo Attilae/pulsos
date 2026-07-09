@@ -1,0 +1,25 @@
+# Leið
+
+> Leið (Icelandic for "the way / route") is a browser-based DAW that sonifies live public transport. Each transit line becomes a track and each station arrival triggers a note, so a city "plays itself" as generative music in real time.
+
+Leið is music-first: every data decision serves the sound, and the interface behaves like a digital audio workstation rather than a transit dashboard. It is multi-city, built on the GTFS / GTFS-RT open-data standard.
+
+## Overview
+
+- Concept: live public-transport arrivals are mapped to notes; lines are mapped to instrument voices (metro → lead/bass, tram → percussion, bus → pads, and so on).
+- Cities: Budapest (BKK), Helsinki (HSL), Berlin (VBB), Prague (PID), New York (MTA), Zürich (ZVV), and Warsaw (ZTM), selectable at runtime.
+- Mode: currently runs in mock mode (the city plays itself deterministically); a live GTFS-RT WebSocket path exists and is enabled per city by configuration.
+- Tech: Next.js (App Router) on Vercel, Tone.js audio engine, Leaflet map, plus a separate always-on GTFS-RT feed service.
+
+## Features
+
+- Map/DAW: per-track instruments, scales, ADSR, filters, EQ, arpeggiators, a granular layer, an FX send matrix, and automation lanes.
+- Export: MIDI (per-track and full mix) and WAV stems captured from live audio.
+- AI Composer: describe a mood in prose and get a playable arrangement.
+- Song Chainer: chain saved songs into multi-part compositions.
+- Sharing: publish a saved song to a public read-only link.
+
+## Notes
+
+- Leið is a desktop instrument; touch devices see a gate with an opt-in bypass.
+- Inspired by trainjazz.com.
