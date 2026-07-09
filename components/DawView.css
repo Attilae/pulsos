@@ -413,6 +413,35 @@
 .merge-hint { font-size: 0.62rem; color: var(--muted); }
 .merge-check { flex-shrink: 0; cursor: pointer; accent-color: #a855f7; }
 
+/* Source legend on a merged lane (which lanes are folded in, + their colors) */
+.merge-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px 8px;
+  align-items: center;
+}
+.merge-legend-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.56rem;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.merge-legend-swatch {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+/* Merged-lane note dots: many overlaid dots, so drop the stop-name label and
+   hide the note label until hover/active — otherwise stacked chords overlap. */
+.stop-dot--merged .stop-label { display: none; }
+.stop-dot--merged .stop-note-label { opacity: 0; transition: opacity 0.12s; }
+.stop-dot--merged:hover .stop-note-label,
+.stop-dot--merged.active .stop-note-label { opacity: 1; }
+
 /* ── Synth type selector ────────────────────────────────────────────────── */
 .synth-select {
   flex: 1;

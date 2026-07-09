@@ -542,7 +542,18 @@ function LineTrack({
               {laneCount > 0 ? `+${laneCount}` : '+'}
             </button>
           </div>
-          <span className="line-desc">{route.desc}</span>
+          {isMerged && route.sourceRoutes?.length ? (
+            <div className="merge-legend" title="Lanes folded into this chord lane">
+              {route.sourceRoutes.map(src => (
+                <span key={src.id} className="merge-legend-chip">
+                  <span className="merge-legend-swatch" style={{ background: src.color }} />
+                  {src.name}
+                </span>
+              ))}
+            </div>
+          ) : (
+            <span className="line-desc">{route.desc}</span>
+          )}
         </div>
 
         <div className="lt-mix">
@@ -2065,6 +2076,49 @@ function StopRail({
     })
   })()
 
+  // Merged (PolySynth chord) lane: overlay EVERY source lane's notes on one shared
+  // pitch axis, so simultaneous notes read as vertically-stacked chords at the same x.
+  // Mirrors the engine's _buildMergedRoutePart exactly — every source is re-pitched
+  // through THIS merged lane's scale + octave, then bucketed by grid cell.
+  const isMergedRail = !!route.isMerged && route.sourceRoutes?.length > 0
+  const mergedPoints = (() => {
+    if (!isMergedRail) return null
+    const raw = []
+    route.sourceRoutes.forEach((src, si) => {
+      if (!src?.stops?.length) return
+      const srcTotal = src.totalDist || src.stops[src.stops.length - 1]?.dist || 1
+      const srcPitch = generatePitchMap(src.stops, noteToMidi(`${trackScale.root}3`), scaleIntervals)
+      const srcGrid  = snapStopsToGrid(src.stops, srcTotal, noteTotalCells, noteStepsPerBar)
+      for (const stop of srcGrid) {
+        const noteName = shiftOctaveNote(srcPitch[stop.originalIdx] ?? 'C3', octaveShift)
+        raw.push({
+          key: `${src.id}_${stop.id}_${stop.cellIdx}`, si,
+          x: (stop.cellIdx / noteTotalCells) * 100, cellIdx: stop.cellIdx,
+          midi: noteToMidi(noteName), noteName,
+          color: src.color, srcName: src.name, stopName: stop.name,
+        })
+      }
+    })
+    if (!raw.length) return null
+    const midis = raw.map(p => p.midi)
+    const midiMin = Math.min(...midis), midiMax = Math.max(...midis)
+    const midiRange = Math.max(midiMax - midiMin, 1)
+    for (const p of raw) p.y = (PAD + (1 - (p.midi - midiMin) / midiRange) * (1 - PAD * 2)) * 100
+    return raw
+  })()
+  // Faint contour polyline per source so each lane's melodic shape stays legible.
+  const mergedSourceLines = mergedPoints ? (() => {
+    const bySrc = new Map()
+    for (const p of mergedPoints) {
+      if (!bySrc.has(p.si)) bySrc.set(p.si, { color: p.color, pts: [] })
+      bySrc.get(p.si).pts.push(p)
+    }
+    return [...bySrc.values()].map(({ color, pts }) => ({
+      color,
+      points: pts.slice().sort((a, b) => a.cellIdx - b.cellIdx).map(p => `${p.x},${p.y}`).join(' '),
+    }))
+  })() : null
+
   // Per-track local progress (0..1) inside the loop region — wraps at the
   // shrunken loop length so a 1-bar section completes a cycle in 1 bar.
   const bpm = Tone.Transport.bpm.value || 120
@@ -2081,6 +2135,14 @@ function StopRail({
         .filter(s => s.cellIdx >= startCell && s.cellIdx < endCell)
         .reverse()
         .find(s => ((s.cellIdx - startCell) / regionLen) <= localProgress)?.id
+    : null
+
+  // Merged lane: the cell of the chord currently sounding (highlights every stacked dot there).
+  const mergedActiveCell = (isMergedRail && mergedPoints && mode === 'mock')
+    ? [...new Set(mergedPoints.map(p => p.cellIdx))]
+        .filter(c => c >= startCell && c < endCell)
+        .sort((a, b) => b - a)
+        .find(c => ((c - startCell) / regionLen) <= localProgress) ?? null
     : null
 
   const vehicleMarkers = mode === 'live'
@@ -2148,16 +2210,33 @@ function StopRail({
       ))}
 
       <svg className="stop-rail-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
-        <polyline
-          points={polylinePoints}
-          fill="none"
-          stroke={route.color}
-          strokeWidth="1.5"
-          opacity="0.25"
-        />
+        {mergedSourceLines
+          ? mergedSourceLines.map((ln, i) => (
+              <polyline key={i} points={ln.points} fill="none" stroke={ln.color} strokeWidth="1.5" opacity="0.2" />
+            ))
+          : (
+            <polyline
+              points={polylinePoints}
+              fill="none"
+              stroke={route.color}
+              strokeWidth="1.5"
+              opacity="0.25"
+            />
+          )}
       </svg>
 
-      {stopPoints.map((stop, i) => (
+      {mergedPoints
+        ? mergedPoints.map((p) => (
+            <div
+              key={p.key}
+              className={`stop-dot stop-dot--merged ${p.cellIdx === mergedActiveCell ? 'active' : ''}`}
+              style={{ '--pos': `${p.x}%`, '--y-pos': `${p.y}%`, '--line-color': p.color }}
+              title={`${p.srcName} · ${p.stopName} · ${p.noteName}`}
+            >
+              <span className="stop-note-label">{p.noteName}</span>
+            </div>
+          ))
+        : stopPoints.map((stop, i) => (
         <div
           key={`${stop.id}_${i}`}
           className={[
