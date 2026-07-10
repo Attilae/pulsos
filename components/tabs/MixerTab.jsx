@@ -317,6 +317,11 @@ export default function MixerTab({ active = true }) {
     })
     engine.init()
     engine.setMidiRecorder(recorder)
+    // The weq8 curve editor mutates the EQ runtime directly; mirror each change
+    // back into React state so autosave/persistence stays in sync.
+    engine.setOnRouteEqChange((routeId, spec) => {
+      setTrackEqs(e => ({ ...e, [routeId]: spec }))
+    })
     engineRef.current = engine
     return engine
   }, [flushEvents])
@@ -603,13 +608,9 @@ export default function MixerTab({ active = true }) {
     })
   }, [])
 
-  const handleEq = useCallback((routeId, params) => {
-    setTrackEqs(e => {
-      const next = { ...e, [routeId]: { ...e[routeId], ...params } }
-      engineRef.current?.setRouteEq(routeId, params)
-      return next
-    })
-  }, [])
+  // The per-track EQ is now the weq8 curve editor bound directly to the engine's
+  // WEQ8Runtime; get-or-create it lazily so the editor works even while stopped.
+  const getEqRuntime = useCallback((routeId) => engineRef.current?.getRouteEqRuntime(routeId) ?? null, [])
 
   const handleSoundMode = (routeId, routeShortName, m) => {
     setTrackSoundModes(s => ({ ...s, [routeId]: m }))
@@ -806,7 +807,7 @@ export default function MixerTab({ active = true }) {
     if (pans[sourceId]      != null) engine.setRoutePan(id, pans[sourceId])
     if (trackScales[sourceId])       engine.setScale(id, trackScales[sourceId])
     if (trackFilters[sourceId])      engine.setRouteFilter(id, trackFilters[sourceId])
-    if (trackEqs[sourceId])          engine.setRouteEq(id, trackEqs[sourceId])
+    if (trackEqs[sourceId])          engine.setRouteEqState(id, trackEqs[sourceId])
     if (trackOctaves[sourceId])      engine.setOctaveShift(id, trackOctaves[sourceId])
     if (trackGlides[sourceId] != null) engine.setGlide(id, trackGlides[sourceId])
     if (trackLegatos[sourceId])      engine.setLegato(id, true)
@@ -1339,7 +1340,7 @@ export default function MixerTab({ active = true }) {
         trackSynthTypes={trackSynthTypes}
         trackADSRs={trackADSRs}
         trackFilters={trackFilters}
-        trackEqs={trackEqs}
+        getEqRuntime={getEqRuntime}
         sendMatrix={sendMatrix}
         automationCfg={automationCfg}
         automationSourceIds={automationSourceIds}
@@ -1377,7 +1378,6 @@ export default function MixerTab({ active = true }) {
         onDrumVoice={handleDrumVoice}
         onSamplerUpload={handleSamplerUpload}
         onFilter={handleFilter}
-        onEq={handleEq}
         onSendLevel={handleSendLevel}
         onFxBusWet={handleFxBusWet}
         fxBusMuted={fxBusMuted}

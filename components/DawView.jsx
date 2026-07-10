@@ -48,7 +48,6 @@ const FILTER_ROLLOFFS = [-12, -24, -48, -96]
 const NOISE_TYPES = ['white', 'pink', 'brown']
 
 const DEFAULT_FILTER = { type: 'lowpass', frequency: 20000, Q: 4 }
-const DEFAULT_EQ     = { low: 0, mid: 0, high: 0, lowFrequency: 400, highFrequency: 2500 }
 
 // Find the stop nearest to a vehicle lat/lng, return its rail position (0–100)
 function resolvePlayhead(route, lat, lng) {
@@ -71,13 +70,14 @@ export default function DawView({
   bpm,
   drumPattern, drumsMuted, onToggleDrumStep, onToggleDrumPadMute, onToggleDrumsMute, onClearDrums,
   liveSnapshot, snapshotLoading,
-  trackSoundModes, trackScales, trackSynthTypes, trackADSRs, trackFilters, trackEqs,
+  trackSoundModes, trackScales, trackSynthTypes, trackADSRs, trackFilters,
+  getEqRuntime,
   sendMatrix, automationCfg, automationSourceIds,
   fxBusWet, activeFxTracks, masterVolume, trackOctaves, trackGlides, trackLegatos, trackArps, trackGranulars, trackSpeeds, trackLoopRegions,
   trackGridResolutions,
   trackDroneModes, trackDroneRoots, onDroneMode, onDroneRoot,
   onVolume, onDisable, onPan, onSolo,
-  onSoundMode, onScale, onSynthType, onADSR, onSamplerPreset, onDrumVoice, onSamplerUpload, onFilter, onEq,
+  onSoundMode, onScale, onSynthType, onADSR, onSamplerPreset, onDrumVoice, onSamplerUpload, onFilter,
   onSendLevel, onFxBusWet, fxBusMuted, fxBusSoloed, onFxBusMute, onFxBusSolo,
   fxBusParams, onFxBusParam, onFxBusCustomIR,
   onAddFxTrack, onRemoveFxTrack, onMasterVolume,
@@ -318,9 +318,8 @@ export default function DawView({
                     onDrumVoice={id => onDrumVoice(route.id, route.type, id)}
                     onSamplerUpload={(file, note) => onSamplerUpload(route.id, file, note)}
                     filter={trackFilters?.[route.id] ?? DEFAULT_FILTER}
-                    eq={trackEqs?.[route.id] ?? DEFAULT_EQ}
+                    getEqRuntime={() => getEqRuntime?.(route.id)}
                     onFilter={p => onFilter(route.id, p)}
-                    onEq={p => onEq(route.id, p)}
                     onOctaveShift={shift => onOctaveShift(route.id, shift)}
                     onGlide={s => onGlide(route.id, s)}
                     onLegato={en => onLegato(route.id, en)}
@@ -488,13 +487,13 @@ function DrumLane({ pattern, muted, activeStep, onToggleStep, onTogglePadMute, o
 function LineTrack({
   route, mode, started, progress, volume, disabled, pan, isSoloed,
   vehicles, soundMode, trackScale, synthType, adsr,
-  filter, eq,
+  filter, getEqRuntime,
   droneMode, droneRoot,
   laneCount, autoTargets = {}, activeFxTracks, sendMatrix, octaveShift, glide, legato, arp, granular, speed,
   loopRegion, onLoopRegion, gridResolution, onGridResolution,
   onVolume, onDisable, onPan, onSolo, onSoundMode, onScale, onSynthType, onADSR,
   onSamplerPreset, onDrumVoice, onSamplerUpload,
-  onFilter, onEq,
+  onFilter,
   onSendLevel, onOctaveShift, onGlide, onLegato, onArp, onGranular, onSpeed, onDroneMode, onDroneRoot, onAddLane,
   onExportRouteMidi, onExportRouteAudio, audioExportActive,
   onDuplicate, onRemoveDuplicate, perStopSteps, onStopPitch,
@@ -674,9 +673,9 @@ function LineTrack({
             <FilterPanel filter={filter} onFilter={onFilter} autoTargets={autoTargets} />
           </div>
 
-          <div className="rack-card">
+          <div className="rack-card rack-card-eq">
             <div className="rack-card-head">EQ</div>
-            <EqPanel eq={eq} onEq={onEq} />
+            <EqPanel getRuntime={getEqRuntime} />
           </div>
 
           <div className="rack-card">
@@ -1892,15 +1891,41 @@ function FilterPanel({ filter, onFilter, autoTargets = {} }) {
   )
 }
 
-function EqPanel({ eq, onEq }) {
-  const p = { ...DEFAULT_EQ, ...eq }
+// 8-band parametric EQ via the weq8 <weq8-ui> web component (raw Web Audio),
+// bound to the route's persistent WEQ8Runtime from the engine. The runtime is
+// mutated directly by the curve editor; the engine mirrors changes into React
+// state (setOnRouteEqChange). Mounted only while the rack is open, so at most a
+// few analyser loops run at once.
+function EqPanel({ getRuntime }) {
+  const hostRef  = useRef(null)
+  const boundRef = useRef(null)
+  const [ready, setReady] = useState(false)
+
+  // Register the custom element once (client-only; never during SSR).
+  useEffect(() => {
+    let cancelled = false
+    import('weq8/ui').then(() => { if (!cancelled) setReady(true) })
+      .catch(e => console.warn('weq8/ui failed to load', e))
+    return () => { cancelled = true }
+  }, [])
+
+  // Bind the route's EQ runtime to the element once both exist (guarded so we
+  // don't re-assign the same runtime on every render).
+  useEffect(() => {
+    if (!ready) return
+    const el = hostRef.current
+    const rt = getRuntime?.()
+    if (el && rt && boundRef.current !== rt) {
+      el.runtime = rt
+      boundRef.current = rt
+    }
+  })
+
   return (
-    <div className="sp-panel">
-      <SpSlider label="Low"   min={-24} max={24}   step={0.5} value={p.low}           onChange={v => onEq({ low: v })}  unit="dB" />
-      <SpSlider label="Mid"   min={-24} max={24}   step={0.5} value={p.mid}           onChange={v => onEq({ mid: v })}  unit="dB" />
-      <SpSlider label="High"  min={-24} max={24}   step={0.5} value={p.high}          onChange={v => onEq({ high: v })} unit="dB" />
-      <SpSlider label="LoFq"  min={100} max={1000} step={10}  value={p.lowFrequency}  onChange={v => onEq({ lowFrequency: v })}  unit="Hz" />
-      <SpSlider label="HiFq"  min={1000} max={8000} step={50} value={p.highFrequency} onChange={v => onEq({ highFrequency: v })} unit="Hz" />
+    <div className="sp-panel eq-weq8">
+      {ready
+        ? <weq8-ui ref={hostRef} />
+        : <div className="eq-loading">Loading EQ…</div>}
     </div>
   )
 }

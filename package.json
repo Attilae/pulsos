@@ -38,6 +38,7 @@
     "react-leaflet": "^5.0.0",
     "tone": "^15.1.22",
     "tunajs": "^1.1.3",
+    "weq8": "^0.2.2",
     "ws": "^8.20.1"
   },
   "devDependencies": {

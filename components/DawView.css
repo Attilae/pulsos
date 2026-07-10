@@ -1396,3 +1396,25 @@
   border-color: color-mix(in srgb, #a855f7 60%, transparent);
   color: var(--text);
 }
+
+/* weq8 parametric EQ (per-track curve editor) inside the FX rack EQ card */
+.eq-weq8 {
+  width: 100%;
+  overflow-x: auto;
+  border-radius: 4px;
+}
+.eq-weq8 weq8-ui {
+  /* weq8-ui's response-graph row is flex:1 but its :host is display:block, so
+     the canvas collapses — force a flex column with room for the graph. */
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-width: 300px;
+  height: 360px;
+}
+.eq-loading {
+  color: var(--muted, #8a8a8a);
+  font-size: 0.7rem;
+  padding: 14px 0;
+  text-align: center;
+}
