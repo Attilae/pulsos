@@ -1,6 +1,6 @@
 import * as Tone from 'tone'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { SYNTH_DEFAULTS, availableAutomationTargets, findTargetSpec, SAMPLER_PRESET_LIST, SAMPLER_PRESETS, DRUM_VOICES, DRUM_VOICE_LICENSE, DEFAULT_GRANULAR, ARP_STYLES, ARP_RATES, DEFAULT_ARP } from '@/lib/engine.js'
+import { SYNTH_DEFAULTS, availableAutomationTargets, findTargetSpec, SAMPLER_PRESET_LIST, SAMPLER_PRESETS, DRUM_VOICES, DRUM_VOICE_LICENSE, DEFAULT_GRANULAR, ARP_STYLES, ARP_RATES, DEFAULT_ARP, DRUMS_ROUTE_ID } from '@/lib/engine.js'
 import { FX_BUSES, AUTOMATION_TARGETS, FX_PARAM_SPECS, FX_SYNC_TARGETS } from '@/lib/fxTrack.js'
 import { PAD_DEFS as DRUM_PAD_DEFS, STEPS as DRUM_STEPS, SOURCE_STEPS as DRUM_SOURCE_STEPS, emptyPattern as emptyDrumPattern } from '@/lib/engines/drumEngine.js'
 import { generatePitchMap, shiftOctaveNote, noteToMidi, SCALES, hashStopValue, snapStopsToGrid, GRID_TOTAL_CELLS, GRID_BARS, GRID_STEPS_PER_BAR, GRID_RESOLUTION_STEPS_PER_BAR, DEFAULT_GRID_RESOLUTION, denormalizeToRange, denormalizeExp, transposeNoteInScale, nearestScaleDegreeOffset } from '@/lib/mappings.js'
@@ -69,6 +69,7 @@ export default function DawView({
   volumes, disabled, pans, soloRoutes,
   bpm,
   drumPattern, drumsMuted, onToggleDrumStep, onToggleDrumPadMute, onToggleDrumsMute, onClearDrums,
+  drumVolume, drumFilter, onDrumVolume, onDrumFilter, onDrumSendLevel, getDrumEqRuntime,
   liveSnapshot, snapshotLoading,
   trackSoundModes, trackScales, trackSynthTypes, trackADSRs, trackFilters,
   getEqRuntime,
@@ -385,6 +386,14 @@ export default function DawView({
             onTogglePadMute={onToggleDrumPadMute}
             onToggleMute={onToggleDrumsMute}
             onClear={onClearDrums}
+            volume={drumVolume}
+            filter={drumFilter}
+            onVolume={onDrumVolume}
+            onFilter={onDrumFilter}
+            onSendLevel={onDrumSendLevel}
+            getEqRuntime={getDrumEqRuntime}
+            activeFxTracks={activeFxTracks}
+            sendMatrix={sendMatrix}
           />
         )}
 
@@ -427,9 +436,15 @@ export default function DawView({
 // A mini 6-pad step sequencer pinned to the bottom of the track list. Each pad
 // shows the 16 visible steps (its 64-slot buffer windowed by the pad's offset);
 // clicking a cell toggles it live. Mirrors DrumMachineTab's grid, DAW-scoped.
-function DrumLane({ pattern, muted, activeStep, onToggleStep, onTogglePadMute, onToggleMute, onClear }) {
+function DrumLane({
+  pattern, muted, activeStep, onToggleStep, onTogglePadMute, onToggleMute, onClear,
+  volume = 0, filter, onVolume, onFilter, onSendLevel, getEqRuntime,
+  activeFxTracks = [], sendMatrix = {},
+}) {
+  const [rackOpen, setRackOpen] = useState(false)
+  const vol = Number.isFinite(volume) ? volume : 0
   return (
-    <div className="daw-section drum-section">
+    <div className={`daw-section drum-section ${rackOpen ? 'drum-section--open' : ''}`}>
       <div className="daw-section-label">
         <span>Drums</span>
         <button
@@ -437,12 +452,62 @@ function DrumLane({ pattern, muted, activeStep, onToggleStep, onTogglePadMute, o
           onClick={onToggleMute}
           title={muted ? 'Unmute drums' : 'Mute drums'}
         >{muted ? 'Muted' : 'Mute'}</button>
+        <span className="drum-lane-vol">
+          <span className="drum-lane-vol-label">VOL</span>
+          <input
+            type="range" min="-40" max="6" step="1"
+            value={vol} onChange={e => onVolume?.(Number(e.target.value))}
+            className="volume-slider" title="Drum lane volume"
+          />
+          <span className="volume-val">{vol}dB</span>
+        </span>
+        <button
+          className={`rack-toggle ${rackOpen ? 'active' : ''}`}
+          onClick={() => setRackOpen(o => !o)}
+          title="Mixer: filter, EQ, sends"
+        >FX <span className={`rack-chevron ${rackOpen ? 'up' : ''}`}>▾</span></button>
         <button
           className="drum-lane-master-btn"
           onClick={onClear}
           title="Remove drum lane"
         >× Remove</button>
       </div>
+
+      {rackOpen && (
+        <div className="device-rack drum-rack">
+          <div className="rack-card">
+            <div className="rack-card-head">Filter</div>
+            <FilterPanel filter={filter} onFilter={onFilter} />
+          </div>
+          <div className="rack-card rack-card-eq">
+            <div className="rack-card-head">EQ</div>
+            <EqPanel getRuntime={getEqRuntime} />
+          </div>
+          {activeFxTracks?.length > 0 && (
+            <div className="rack-card">
+              <div className="rack-card-head">Sends</div>
+              <div className="line-sends">
+                {activeFxTracks.map(busId => {
+                  const bus   = FX_BUSES.find(b => b.id === busId)
+                  const level = sendMatrix?.[`${DRUMS_ROUTE_ID}:${busId}`] ?? 0
+                  return (
+                    <div key={busId} className="line-send-row">
+                      <span className="line-send-label">→ {bus?.label ?? busId}</span>
+                      <input
+                        type="range" min="0" max="1" step="0.01"
+                        value={level}
+                        onChange={e => onSendLevel?.(busId, parseFloat(e.target.value))}
+                        className="line-send-slider"
+                      />
+                      <span className="line-send-val">{Math.round(level * 100)}%</span>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       <div className={`drum-lane ${muted ? 'drum-lane--muted' : ''}`}>
         {DRUM_PAD_DEFS.map(pad => {

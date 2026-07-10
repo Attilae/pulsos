@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import * as Tone from 'tone'
-import { TransitEngine, SYNTH_DEFAULTS, availableAutomationTargets, DEFAULT_ARP, DEFAULT_GRANULAR } from '@/lib/engine.js'
+import { TransitEngine, SYNTH_DEFAULTS, availableAutomationTargets, DEFAULT_ARP, DEFAULT_GRANULAR, DRUMS_ROUTE_ID } from '@/lib/engine.js'
 import { FX_BUSES } from '@/lib/fxTrack.js'
 import { randomFromScale, shiftOctaveNote, geoToMidi, routeBounds, midiToNote, noteToMidi, SCALES, MODES, setCityBounds } from '@/lib/mappings.js'
 import { fetchLines } from '@/lib/shared/useRoutes.js'
@@ -1333,6 +1333,12 @@ export default function MixerTab({ active = true }) {
         onToggleDrumPadMute={handleToggleDrumPadMute}
         onToggleDrumsMute={handleToggleDrumsMute}
         onClearDrums={handleClearDrums}
+        drumVolume={volumes[DRUMS_ROUTE_ID] ?? 0}
+        drumFilter={trackFilters[DRUMS_ROUTE_ID]}
+        onDrumVolume={v => handleVolume(DRUMS_ROUTE_ID, v)}
+        onDrumFilter={p => handleFilter(DRUMS_ROUTE_ID, p)}
+        onDrumSendLevel={(bus, lvl) => handleSendLevel(DRUMS_ROUTE_ID, bus, lvl)}
+        getDrumEqRuntime={() => getEqRuntime(DRUMS_ROUTE_ID)}
         liveSnapshot={liveSnapshot}
         snapshotLoading={snapshotLoading}
         trackSoundModes={trackSoundModes}
