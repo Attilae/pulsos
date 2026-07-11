@@ -412,6 +412,9 @@ body { background: var(--bg); color: var(--text); font-family: 'Courier New', mo
 .drum-lane-step:hover { border-color: var(--accent); }
 .drum-lane-step.beat { border-color: #555; }
 .drum-lane-step.on { background: var(--accent); border-color: var(--accent); }
+/* Velocity levels: partial-height fill from the bottom (▁ soft, ▆ norm, █ accent). */
+.drum-lane-step.on.vel-norm { background: linear-gradient(to top, var(--accent) 0 65%, var(--surface2) 65%); }
+.drum-lane-step.on.vel-soft { background: linear-gradient(to top, var(--accent) 0 30%, var(--surface2) 30%); }
 .drum-lane-step.playing { box-shadow: inset 0 0 0 2px #fff; }
 
 /* ── Tracks ─────────────────────────────────────────────────────────────── */

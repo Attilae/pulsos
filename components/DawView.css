@@ -906,12 +906,15 @@
   background: color-mix(in srgb, var(--line-color) 60%, #1a1a1a);
   border: 1.5px solid var(--line-color);
   cursor: default;
-  transition: background 0.15s, transform 0.1s, box-shadow 0.15s;
+  transition: background 0.15s, transform 0.1s, box-shadow 0.15s, opacity 0.15s;
   z-index: 1;
+  /* Authored per-stop velocity (Alt+drag) dims the dot toward 0.2 velocity. */
+  opacity: calc(0.35 + 0.65 * var(--vel, 1));
 }
 .stop-dot:hover {
   transform: translate(-50%, -50%) scale(1.5);
   z-index: 5;
+  opacity: 1;  /* keep the hover tooltip readable on soft stops */
 }
 .stop-dot.active {
   background: var(--line-color);

@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { SYNTH_DEFAULTS, availableAutomationTargets, findTargetSpec, SAMPLER_PRESET_LIST, SAMPLER_PRESETS, DRUM_VOICES, DRUM_VOICE_LICENSE, DEFAULT_GRANULAR, ARP_STYLES, ARP_RATES, DEFAULT_ARP, DRUMS_ROUTE_ID } from '@/lib/engine.js'
 import { FX_BUSES, AUTOMATION_TARGETS, FX_PARAM_SPECS, FX_SYNC_TARGETS } from '@/lib/fxTrack.js'
 import { PAD_DEFS as DRUM_PAD_DEFS, STEPS as DRUM_STEPS, SOURCE_STEPS as DRUM_SOURCE_STEPS, emptyPattern as emptyDrumPattern } from '@/lib/engines/drumEngine.js'
-import { generatePitchMap, shiftOctaveNote, noteToMidi, SCALES, hashStopValue, snapStopsToGrid, GRID_TOTAL_CELLS, GRID_BARS, GRID_STEPS_PER_BAR, GRID_RESOLUTION_STEPS_PER_BAR, DEFAULT_GRID_RESOLUTION, denormalizeToRange, denormalizeExp, transposeNoteInScale, nearestScaleDegreeOffset } from '@/lib/mappings.js'
+import { generatePitchMap, shiftOctaveNote, noteToMidi, SCALES, hashStopValue, snapStopsToGrid, GRID_TOTAL_CELLS, GRID_BARS, GRID_STEPS_PER_BAR, GRID_RESOLUTION_STEPS_PER_BAR, DEFAULT_GRID_RESOLUTION, denormalizeToRange, denormalizeExp, transposeNoteInScale, nearestScaleDegreeOffset, PITCH_CONTOURS, DEFAULT_PITCH_VARIETY } from '@/lib/mappings.js'
 import './DawView.css'
 
 const SYNTH_TYPES = [
@@ -42,6 +42,14 @@ const ARP_RATE_LABELS = {
   '4n': '1/4', '8n': '1/8', '8t': '1/8T', '16n': '1/16', '16t': '1/16T', '32n': '1/32',
 }
 
+// Pitch-contour display labels (values come from PITCH_CONTOURS in mappings)
+const CONTOUR_LABELS = { geographic: 'Geo', randomWalk: 'Walk', arch: 'Arch' }
+const CONTOUR_TITLES = {
+  geographic: 'Geographic — latitude traces the melody (default)',
+  randomWalk: 'Random walk — seeded melodic drift through the scale',
+  arch:       'Arch — rises then falls along the stop sequence',
+}
+
 const OSC_TYPES = ['sine', 'triangle', 'square', 'sawtooth', 'fatsine', 'fattriangle', 'fatsquare', 'fatsawtooth', 'pulse', 'pwm']
 const FILTER_TYPES = ['lowpass', 'highpass', 'bandpass', 'notch']
 const FILTER_ROLLOFFS = [-12, -24, -48, -96]
@@ -76,6 +84,8 @@ export default function DawView({
   sendMatrix, automationCfg, automationSourceIds,
   fxBusWet, activeFxTracks, masterVolume, trackOctaves, trackGlides, trackLegatos, trackArps, trackGranulars, trackSpeeds, trackLoopRegions,
   trackGridResolutions,
+  trackPitchVariety, onPitchVariety,
+  trackStopVelocities, onStopVelocity,
   trackDroneModes, trackDroneRoots, onDroneMode, onDroneRoot,
   onVolume, onDisable, onPan, onSolo,
   onSoundMode, onScale, onSynthType, onADSR, onSamplerPreset, onDrumVoice, onSamplerUpload, onFilter,
@@ -311,6 +321,10 @@ export default function DawView({
                     onLoopRegion={r => onTrackLoopRegion(route.id, r)}
                     gridResolution={trackGridResolutions?.[route.id]}
                     onGridResolution={rt => onGridResolution(route.id, rt)}
+                    pitchVariety={trackPitchVariety?.[route.id]}
+                    onPitchVariety={cfg => onPitchVariety(route.id, cfg)}
+                    stopVelocities={trackStopVelocities?.[route.id]}
+                    onStopVelocity={(stopId, vel) => onStopVelocity?.(route.id, stopId, vel)}
                     onSoundMode={m => onSoundMode(route.id, route.name, m)}
                     onScale={s => onScale(route.id, route.name, s)}
                     onSynthType={st => onSynthType(route.id, route.type, st)}
@@ -524,18 +538,23 @@ function DrumLane({
               >M</button>
               <div className="drum-lane-steps">
                 {Array.from({ length: DRUM_STEPS }).map((_, i) => {
-                  const src = (offset + i) % DRUM_SOURCE_STEPS
-                  const on  = padPat[src]
+                  const src   = (offset + i) % DRUM_SOURCE_STEPS
+                  const vel   = padPat[src]
+                  // Old snapshots store booleans (true → full); numbers are velocities.
+                  const v     = typeof vel === 'number' ? vel : (vel ? 1 : 0)
+                  const level = !v ? '' : v >= 0.85 ? 'vel-accent' : v >= 0.55 ? 'vel-norm' : 'vel-soft'
                   return (
                     <button
                       key={i}
                       className={[
                         'drum-lane-step',
-                        on ? 'on' : '',
+                        v ? 'on' : '',
+                        level,
                         activeStep === i ? 'playing' : '',
                         i % 4 === 0 ? 'beat' : '',
                       ].filter(Boolean).join(' ')}
                       onClick={() => onToggleStep(pad.id, i)}
+                      title={v ? `vel ${Math.round(v * 100)}% — click to cycle` : 'click to cycle velocity'}
                     />
                   )
                 })}
@@ -556,6 +575,8 @@ function LineTrack({
   droneMode, droneRoot,
   laneCount, autoTargets = {}, activeFxTracks, sendMatrix, octaveShift, glide, legato, arp, granular, speed,
   loopRegion, onLoopRegion, gridResolution, onGridResolution,
+  pitchVariety, onPitchVariety,
+  stopVelocities, onStopVelocity,
   onVolume, onDisable, onPan, onSolo, onSoundMode, onScale, onSynthType, onADSR,
   onSamplerPreset, onDrumVoice, onSamplerUpload,
   onFilter,
@@ -702,6 +723,9 @@ function LineTrack({
         loopRegion={loopRegion}
         onLoopRegion={onLoopRegion}
         gridResolution={gridResolution}
+        pitchVariety={pitchVariety}
+        stopVelocities={stopVelocities}
+        onStopVelocity={onStopVelocity}
         editable={isDuplicate}
         perStopSteps={perStopSteps}
         onStopPitch={onStopPitch}
@@ -726,6 +750,41 @@ function LineTrack({
                 ))}
               </select>
             </div>
+            {(() => {
+              const pv = { ...DEFAULT_PITCH_VARIETY, ...pitchVariety }
+              return (
+                <>
+                  <div className="speed-row">
+                    <span className="speed-label">SHAPE</span>
+                    <div className="speed-btns">
+                      {PITCH_CONTOURS.map(c => (
+                        <button
+                          key={c}
+                          className={`speed-btn ${pv.contour === c ? 'active' : ''}`}
+                          style={pv.contour === c ? { borderColor: route.color, color: route.color } : {}}
+                          onClick={() => onPitchVariety({ contour: c })}
+                          title={CONTOUR_TITLES[c]}
+                        >
+                          {CONTOUR_LABELS[c] ?? c}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="glide-row">
+                    <span className="glide-label">VAR</span>
+                    <input
+                      type="range" min="0" max="1" step="0.01"
+                      value={pv.variety}
+                      onChange={e => onPitchVariety({ variety: parseFloat(e.target.value) })}
+                      onDoubleClick={() => onPitchVariety({ variety: 0 })}
+                      className="glide-slider"
+                      title="Pitch variety — 0% is the pure geographic melody; higher adds range, seeded jitter and gap accents"
+                    />
+                    <span className="glide-val">{Math.round(pv.variety * 100)}%</span>
+                  </div>
+                </>
+              )
+            })()}
           </div>
 
           <div className="rack-card">
@@ -2006,11 +2065,15 @@ function StopRail({
   route, progress = 0, speed = 1, started = false, mode = 'mock', vehicles = [],
   trackScale = { root: 'C', scaleType: 'major' }, octaveShift = 0,
   loopRegion, onLoopRegion, gridResolution, automationValues = null,
+  pitchVariety = null,
+  stopVelocities = null, onStopVelocity = null,
   editable = false, perStopSteps = null, onStopPitch = null,
 }) {
   const needleRef = useRef(null)
   const railRef   = useRef(null)
   const canEditPitch = editable && !!onStopPitch && !automationValues
+  // Velocity editing (Alt+drag) works on every normal lane, not just duplicates.
+  const canEditVelocity = !!onStopVelocity && !automationValues
   const noteStepsPerBar = GRID_RESOLUTION_STEPS_PER_BAR[gridResolution ?? DEFAULT_GRID_RESOLUTION] ?? GRID_STEPS_PER_BAR
   const noteTotalCells  = GRID_BARS * noteStepsPerBar
 
@@ -2109,7 +2172,39 @@ function StopRail({
     }
   }, [canEditPitch, onStopPitch, trackScale.root, trackScale.scaleType])
 
+  // ── Per-stop velocity drag (Alt+drag, any lane) ────────────────────────────
+  // Vertical drag maps the rail height onto the 0.2..1 velocity range.
+  const velDragRef = useRef(null)
+  useEffect(() => {
+    if (!canEditVelocity) return
+    const onMove = (e) => {
+      const d = velDragRef.current
+      if (!d) return
+      const rect = railRef.current?.getBoundingClientRect()
+      if (!rect || rect.height === 0) return
+      const vel = Math.max(0.2, Math.min(1, d.startVel + ((d.startY - e.clientY) / rect.height) * 0.8))
+      if (Math.abs(vel - d.lastVel) >= 0.01) {
+        d.lastVel = vel
+        onStopVelocity(d.stopId, vel)
+      }
+    }
+    const onUp = () => { velDragRef.current = null }
+    window.addEventListener('pointermove', onMove)
+    window.addEventListener('pointerup',   onUp)
+    return () => {
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup',   onUp)
+    }
+  }, [canEditVelocity, onStopVelocity])
+
   const handleStopPointerDown = (stop, geoNote, displayMidi) => (e) => {
+    if (e.altKey && canEditVelocity) {
+      e.preventDefault()
+      e.stopPropagation()
+      const startVel = stopVelocities?.[stop.id] ?? 1
+      velDragRef.current = { stopId: stop.id, startY: e.clientY, startVel, lastVel: startVel }
+      return
+    }
     if (!canEditPitch) return
     e.preventDefault()
     e.stopPropagation()
@@ -2136,9 +2231,11 @@ function StopRail({
   const latRange = Math.max(maxLat - minLat, 0.0001)
 
   // Two-axis geographic pitch map — same mapping the engine plays (engine.js):
-  // latitude → scale degree, longitude → octave register, then the per-track
-  // octave shift. The y-axis renders it piano-roll style.
-  const baseMap = generatePitchMap(route.stops, noteToMidi(`${trackScale.root}3`), scaleIntervals)
+  // latitude → scale degree, longitude → octave register, plus the lane's
+  // pitch-variety opts, then the per-track octave shift. The y-axis renders it
+  // piano-roll style.
+  const baseMap = generatePitchMap(route.stops, noteToMidi(`${trackScale.root}3`), scaleIntervals, 3,
+    { ...(pitchVariety ?? {}), routeId: route.id })
   // Apply per-stop diatonic offsets (duplicate lanes) then the per-track octave shift.
   const pitchMap = baseMap.map((n, i) => {
     const off = canEditPitch ? (perStopSteps?.[route.stops[i]?.id] ?? 0) : 0
@@ -2177,7 +2274,8 @@ function StopRail({
     route.sourceRoutes.forEach((src, si) => {
       if (!src?.stops?.length) return
       const srcTotal = src.totalDist || src.stops[src.stops.length - 1]?.dist || 1
-      const srcPitch = generatePitchMap(src.stops, noteToMidi(`${trackScale.root}3`), scaleIntervals)
+      const srcPitch = generatePitchMap(src.stops, noteToMidi(`${trackScale.root}3`), scaleIntervals, 3,
+        { ...(pitchVariety ?? {}), routeId: src.id })
       const srcGrid  = snapStopsToGrid(src.stops, srcTotal, noteTotalCells, noteStepsPerBar)
       for (const stop of srcGrid) {
         const noteName = shiftOctaveNote(srcPitch[stop.originalIdx] ?? 'C3', octaveShift)
@@ -2326,7 +2424,10 @@ function StopRail({
               <span className="stop-note-label">{p.noteName}</span>
             </div>
           ))
-        : stopPoints.map((stop, i) => (
+        : stopPoints.map((stop, i) => {
+        const vel = stopVelocities?.[stop.id]
+        const velSuffix = vel != null ? ` · vel ${Math.round(vel * 100)}%` : ''
+        return (
         <div
           key={`${stop.id}_${i}`}
           className={[
@@ -2339,18 +2440,20 @@ function StopRail({
             '--pos': `${stop.x}%`,
             '--y-pos': `${stop.y}%`,
             '--line-color': route.color,
+            '--vel': vel ?? 1,
           }}
           title={canEditPitch
-            ? `${stop.name} · ${stop.noteName} — drag to re-pitch (snaps to scale)`
-            : `${stop.name} · bar ${stop.bar + 1} beat ${stop.beat + 1} step ${stop.sixteenth + 1}`}
-          onPointerDown={canEditPitch
+            ? `${stop.name} · ${stop.noteName}${velSuffix} — drag to re-pitch (snaps to scale) · Alt+drag = velocity`
+            : `${stop.name} · bar ${stop.bar + 1} beat ${stop.beat + 1} step ${stop.sixteenth + 1}${velSuffix}${canEditVelocity ? ' — Alt+drag = velocity' : ''}`}
+          onPointerDown={(canEditPitch || canEditVelocity)
             ? handleStopPointerDown(stop, geoDisplayMap[stop.originalIdx], noteToMidi(pitchMap[stop.originalIdx]))
             : undefined}
         >
           <span className="stop-label">{stop.name}</span>
           <span className="stop-note-label">{stop.noteName}</span>
         </div>
-      ))}
+        )
+      })}
 
       {vehicleMarkers.map((vm, i) => (
         <div

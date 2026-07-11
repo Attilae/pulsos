@@ -4,7 +4,7 @@ import { useRoutes } from '@/lib/shared/useRoutes.js'
 import { useDrumClipboard } from '@/lib/shared/DrumClipboardContext.jsx'
 import {
   DrumEngine, PAD_DEFS, STEPS, SOURCE_STEPS,
-  emptyPattern, emptyStops, patternFromRoute,
+  emptyPattern, emptyStops, patternFromRoute, cycleStepValue,
 } from '@/lib/engines/drumEngine.js'
 import './DrumMachineTab.css'
 
@@ -89,7 +89,7 @@ export default function DrumMachineTab({ active = true }) {
       const offset = offsets[padId] ?? 0
       const srcIdx = (offset + visibleIdx) % SOURCE_STEPS
       const next = prev[padId].slice()
-      next[srcIdx] = !next[srcIdx]
+      next[srcIdx] = cycleStepValue(next[srcIdx])
       return { ...prev, [padId]: next }
     })
   }, [offsets])
@@ -163,7 +163,7 @@ export default function DrumMachineTab({ active = true }) {
             midi:     PAD_MIDI_NOTES[pad.id] ?? 60,
             time:     i * stepSeconds,
             duration: stepSeconds,
-            velocity: 0.9,
+            velocity: 0.9 * visible[i],  // full step keeps the old flat 0.9
           })
         }
       }
@@ -293,17 +293,18 @@ export default function DrumMachineTab({ active = true }) {
               <div className="drum-steps">
                 {Array.from({ length: STEPS }).map((_, i) => {
                   const srcIdx   = (offset + i) % SOURCE_STEPS
-                  const on       = pattern[srcIdx]
+                  const vel      = pattern[srcIdx]
+                  const level    = !vel ? '' : vel >= 0.85 ? 'vel-accent' : vel >= 0.55 ? 'vel-norm' : 'vel-soft'
                   const stopList = stops[srcIdx] ?? []
-                  const tip      = stopList.length
-                    ? stopList.join(' · ')
-                    : `(empty · slot ${srcIdx})`
+                  const tip      = (stopList.length ? stopList.join(' · ') : `(empty · slot ${srcIdx})`)
+                    + (vel ? ` — vel ${Math.round(vel * 100)}%` : '')
                   return (
                     <button
                       key={i}
                       className={[
                         'drum-step',
-                        on ? 'on' : '',
+                        vel ? 'on' : '',
+                        level,
                         activeStep === i ? 'playing' : '',
                         i % 4 === 0 ? 'beat' : '',
                       ].filter(Boolean).join(' ')}
@@ -321,7 +322,8 @@ export default function DrumMachineTab({ active = true }) {
       <footer className="drum-footer">
         <div className="drum-hint">
           Patterns derived as a 64-step buffer; the 16-cell grid shows a sliding window.
-          Drag the offset slider to shift which slice plays. Hover any cell to see the stop name.
+          Drag the offset slider to shift which slice plays. Click a step to cycle its
+          velocity: full → norm → soft → off. Hover any cell to see the stop name.
         </div>
       </footer>
     </div>

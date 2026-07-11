@@ -168,6 +168,15 @@
   border-color: var(--accent);
   box-shadow: 0 0 6px rgba(200, 240, 64, 0.4);
 }
+/* Velocity levels: partial-height fill from the bottom (▁ soft, ▆ norm, █ accent). */
+.drum-step.on.vel-norm {
+  background: linear-gradient(to top, var(--accent) 0 65%, var(--surface2) 65%);
+  box-shadow: 0 0 4px rgba(200, 240, 64, 0.3);
+}
+.drum-step.on.vel-soft {
+  background: linear-gradient(to top, var(--accent) 0 30%, var(--surface2) 30%);
+  box-shadow: none;
+}
 .drum-step.playing:not(.on) {
   background: #3a3a3a;
   border-color: #777;
