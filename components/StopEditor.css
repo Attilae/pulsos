@@ -1,0 +1,107 @@
+/* Per-stop editor modal. Reuses the .dlg-overlay backdrop from Dialog.css and
+   app.css tokens; the panel is a small labelled-rows form. */
+
+.stop-editor {
+  width: 100%;
+  max-width: 340px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.6);
+  padding: 16px 18px 18px;
+  font-family: inherit;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.stop-editor-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.stop-editor-close {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  font-size: 0.9rem;
+  cursor: pointer;
+  padding: 2px 4px;
+  line-height: 1;
+}
+.stop-editor-close:hover { color: var(--text); }
+
+.stop-editor-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.stop-editor-label {
+  flex: 0 0 58px;
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.stop-editor-control {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.stop-editor-step {
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  color: var(--accent);
+  border-radius: 3px;
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+}
+.stop-editor-step:hover { background: #2a2a2a; border-color: var(--accent); }
+
+.stop-editor-note {
+  min-width: 42px;
+  text-align: center;
+  font-size: 0.95rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+.stop-editor-note--vel { min-width: 40px; text-align: right; }
+
+.stop-editor-slider {
+  flex: 1 1 auto;
+  min-width: 0;
+  accent-color: var(--accent);
+}
+
+.stop-editor-meta {
+  font-size: 0.66rem;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.stop-editor-reset {
+  flex: 0 0 auto;
+  padding: 4px 9px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  border-radius: 3px;
+  font-size: 0.68rem;
+  cursor: pointer;
+  transition: color 0.12s, border-color 0.12s;
+}
+.stop-editor-reset:hover:not(:disabled) { color: var(--text); border-color: var(--muted); }
+.stop-editor-reset:disabled { opacity: 0.35; cursor: default; }

@@ -923,10 +923,9 @@
   z-index: 3;
 }
 .stop-dot--editable {
-  cursor: ns-resize;
+  cursor: pointer;
   width: 10px;
   height: 10px;
-  touch-action: none;
 }
 
 /* Note name label — always visible below dot */

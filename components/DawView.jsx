@@ -3,7 +3,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { SYNTH_DEFAULTS, availableAutomationTargets, findTargetSpec, SAMPLER_PRESET_LIST, SAMPLER_PRESETS, DRUM_VOICES, DRUM_VOICE_LICENSE, DEFAULT_GRANULAR, ARP_STYLES, ARP_RATES, DEFAULT_ARP, DRUMS_ROUTE_ID } from '@/lib/engine.js'
 import { FX_BUSES, AUTOMATION_TARGETS, FX_PARAM_SPECS, FX_SYNC_TARGETS } from '@/lib/fxTrack.js'
 import { PAD_DEFS as DRUM_PAD_DEFS, STEPS as DRUM_STEPS, SOURCE_STEPS as DRUM_SOURCE_STEPS, emptyPattern as emptyDrumPattern } from '@/lib/engines/drumEngine.js'
-import { generatePitchMap, shiftOctaveNote, noteToMidi, SCALES, hashStopValue, snapStopsToGrid, GRID_TOTAL_CELLS, GRID_BARS, GRID_STEPS_PER_BAR, GRID_RESOLUTION_STEPS_PER_BAR, DEFAULT_GRID_RESOLUTION, denormalizeToRange, denormalizeExp, transposeNoteInScale, nearestScaleDegreeOffset, PITCH_CONTOURS, DEFAULT_PITCH_VARIETY } from '@/lib/mappings.js'
+import { generatePitchMap, shiftOctaveNote, noteToMidi, SCALES, hashStopValue, snapStopsToGrid, GRID_TOTAL_CELLS, GRID_BARS, GRID_STEPS_PER_BAR, GRID_RESOLUTION_STEPS_PER_BAR, DEFAULT_GRID_RESOLUTION, denormalizeToRange, denormalizeExp, transposeNoteInScale, PITCH_CONTOURS, DEFAULT_PITCH_VARIETY } from '@/lib/mappings.js'
+import StopEditor from './StopEditor.jsx'
 import './DawView.css'
 
 const SYNTH_TYPES = [
@@ -102,6 +103,8 @@ export default function DawView({
   const lastProgressUpdateRef = useRef(0)
   const [playheadProgress, setPlayheadProgress] = useState(0)
   const [drumStep, setDrumStep] = useState(-1)
+  // Stop-editor modal: the stop currently open for pitch/velocity editing, or null.
+  const [editingStop, setEditingStop] = useState(null)
 
   // Merge mode: tick 2+ base lanes, then fold them into one PolySynth chord lane.
   const [mergeMode, setMergeMode] = useState(false)
@@ -324,7 +327,7 @@ export default function DawView({
                     pitchVariety={trackPitchVariety?.[route.id]}
                     onPitchVariety={cfg => onPitchVariety(route.id, cfg)}
                     stopVelocities={trackStopVelocities?.[route.id]}
-                    onStopVelocity={(stopId, vel) => onStopVelocity?.(route.id, stopId, vel)}
+                    onStopOpen={setEditingStop}
                     onSoundMode={m => onSoundMode(route.id, route.name, m)}
                     onScale={s => onScale(route.id, route.name, s)}
                     onSynthType={st => onSynthType(route.id, route.type, st)}
@@ -350,7 +353,6 @@ export default function DawView({
                     onDuplicate={() => onDuplicateTrack?.(route.id)}
                     onRemoveDuplicate={() => onRemoveDuplicate?.(route.id)}
                     perStopSteps={perStopStepsById?.[route.id]}
-                    onStopPitch={(stopId, degrees) => onStopPitch?.(route.id, stopId, degrees)}
                     mergeMode={mergeMode}
                     mergeChecked={mergeSel.has(route.id)}
                     onMergeToggle={() => toggleMergeSel(route.id)}
@@ -442,6 +444,16 @@ export default function DawView({
         onAddFxTrack={onAddFxTrack}
         onRemoveFxTrack={onRemoveFxTrack}
       />
+
+      {editingStop && (
+        <StopEditor
+          key={`${editingStop.routeId}:${editingStop.stopId}`}
+          editingStop={editingStop}
+          onClose={() => setEditingStop(null)}
+          onPitch={onStopPitch}
+          onVelocity={onStopVelocity}
+        />
+      )}
     </div>
   )
 }
@@ -576,13 +588,13 @@ function LineTrack({
   laneCount, autoTargets = {}, activeFxTracks, sendMatrix, octaveShift, glide, legato, arp, granular, speed,
   loopRegion, onLoopRegion, gridResolution, onGridResolution,
   pitchVariety, onPitchVariety,
-  stopVelocities, onStopVelocity,
+  stopVelocities, onStopOpen,
   onVolume, onDisable, onPan, onSolo, onSoundMode, onScale, onSynthType, onADSR,
   onSamplerPreset, onDrumVoice, onSamplerUpload,
   onFilter,
   onSendLevel, onOctaveShift, onGlide, onLegato, onArp, onGranular, onSpeed, onDroneMode, onDroneRoot, onAddLane,
   onExportRouteMidi, onExportRouteAudio, audioExportActive,
-  onDuplicate, onRemoveDuplicate, perStopSteps, onStopPitch,
+  onDuplicate, onRemoveDuplicate, perStopSteps,
   mergeMode, mergeChecked, onMergeToggle, onUnmerge,
 }) {
   const [rackOpen, setRackOpen] = useState(false)
@@ -725,10 +737,8 @@ function LineTrack({
         gridResolution={gridResolution}
         pitchVariety={pitchVariety}
         stopVelocities={stopVelocities}
-        onStopVelocity={onStopVelocity}
-        editable={isDuplicate}
         perStopSteps={perStopSteps}
-        onStopPitch={onStopPitch}
+        onStopOpen={onStopOpen}
       />
 
       {rackOpen && (
@@ -2066,14 +2076,10 @@ function StopRail({
   trackScale = { root: 'C', scaleType: 'major' }, octaveShift = 0,
   loopRegion, onLoopRegion, gridResolution, automationValues = null,
   pitchVariety = null,
-  stopVelocities = null, onStopVelocity = null,
-  editable = false, perStopSteps = null, onStopPitch = null,
+  stopVelocities = null, perStopSteps = null, onStopOpen = null,
 }) {
   const needleRef = useRef(null)
   const railRef   = useRef(null)
-  const canEditPitch = editable && !!onStopPitch && !automationValues
-  // Velocity editing (Alt+drag) works on every normal lane, not just duplicates.
-  const canEditVelocity = !!onStopVelocity && !automationValues
   const noteStepsPerBar = GRID_RESOLUTION_STEPS_PER_BAR[gridResolution ?? DEFAULT_GRID_RESOLUTION] ?? GRID_STEPS_PER_BAR
   const noteTotalCells  = GRID_BARS * noteStepsPerBar
 
@@ -2143,77 +2149,6 @@ function StopRail({
     dragRef.current = which
   }
 
-  // ── Per-stop pitch drag (duplicate lanes) ──────────────────────────────────
-  // Grab a note dot and drag vertically; the new pitch snaps to the nearest scale
-  // degree (relative to the stop's geographic base note) so it stays in harmony.
-  const PITCH_DRAG_WINDOW = 24  // semitones spanned by the full rail height
-  const pitchDragRef = useRef(null)
-  useEffect(() => {
-    if (!canEditPitch) return
-    const onMove = (e) => {
-      const d = pitchDragRef.current
-      if (!d) return
-      const rect = railRef.current?.getBoundingClientRect()
-      if (!rect || rect.height === 0) return
-      const semis  = ((d.startY - e.clientY) / rect.height) * PITCH_DRAG_WINDOW
-      const target = d.startMidi + semis
-      const degrees = nearestScaleDegreeOffset(d.geoNote, target, trackScale.root, trackScale.scaleType)
-      if (degrees !== d.lastDegrees) {
-        d.lastDegrees = degrees
-        onStopPitch(d.stopId, degrees)
-      }
-    }
-    const onUp = () => { pitchDragRef.current = null }
-    window.addEventListener('pointermove', onMove)
-    window.addEventListener('pointerup',   onUp)
-    return () => {
-      window.removeEventListener('pointermove', onMove)
-      window.removeEventListener('pointerup',   onUp)
-    }
-  }, [canEditPitch, onStopPitch, trackScale.root, trackScale.scaleType])
-
-  // ── Per-stop velocity drag (Alt+drag, any lane) ────────────────────────────
-  // Vertical drag maps the rail height onto the 0.2..1 velocity range.
-  const velDragRef = useRef(null)
-  useEffect(() => {
-    if (!canEditVelocity) return
-    const onMove = (e) => {
-      const d = velDragRef.current
-      if (!d) return
-      const rect = railRef.current?.getBoundingClientRect()
-      if (!rect || rect.height === 0) return
-      const vel = Math.max(0.2, Math.min(1, d.startVel + ((d.startY - e.clientY) / rect.height) * 0.8))
-      if (Math.abs(vel - d.lastVel) >= 0.01) {
-        d.lastVel = vel
-        onStopVelocity(d.stopId, vel)
-      }
-    }
-    const onUp = () => { velDragRef.current = null }
-    window.addEventListener('pointermove', onMove)
-    window.addEventListener('pointerup',   onUp)
-    return () => {
-      window.removeEventListener('pointermove', onMove)
-      window.removeEventListener('pointerup',   onUp)
-    }
-  }, [canEditVelocity, onStopVelocity])
-
-  const handleStopPointerDown = (stop, geoNote, displayMidi) => (e) => {
-    if (e.altKey && canEditVelocity) {
-      e.preventDefault()
-      e.stopPropagation()
-      const startVel = stopVelocities?.[stop.id] ?? 1
-      velDragRef.current = { stopId: stop.id, startY: e.clientY, startVel, lastVel: startVel }
-      return
-    }
-    if (!canEditPitch) return
-    e.preventDefault()
-    e.stopPropagation()
-    pitchDragRef.current = {
-      stopId: stop.id, geoNote, startY: e.clientY, startMidi: displayMidi,
-      lastDegrees: perStopSteps?.[stop.id] ?? 0,
-    }
-  }
-
   if (!route.stops.length) return <div className="stop-rail stop-rail--empty" />
 
   const total = route.totalDist || route.stops[route.stops.length - 1]?.dist || 1
@@ -2236,13 +2171,14 @@ function StopRail({
   // piano-roll style.
   const baseMap = generatePitchMap(route.stops, noteToMidi(`${trackScale.root}3`), scaleIntervals, 3,
     { ...(pitchVariety ?? {}), routeId: route.id })
-  // Apply per-stop diatonic offsets (duplicate lanes) then the per-track octave shift.
+  // Apply per-stop diatonic offsets (any lane) then the per-track octave shift.
   const pitchMap = baseMap.map((n, i) => {
-    const off = canEditPitch ? (perStopSteps?.[route.stops[i]?.id] ?? 0) : 0
+    const off = perStopSteps?.[route.stops[i]?.id] ?? 0
     const tuned = off ? transposeNoteInScale(n, off, trackScale.root, trackScale.scaleType) : n
     return shiftOctaveNote(tuned, octaveShift)
   })
-  // Geographic base note per stop (octave-shifted, offset-free) — drag anchor.
+  // Geographic base note per stop (octave-shifted, offset-free) — the stop editor's
+  // anchor for diatonic stepping.
   const geoDisplayMap = baseMap.map(n => shiftOctaveNote(n, octaveShift))
   const stopPoints = (() => {
     const midis     = pitchMap.map(n => noteToMidi(n))
@@ -2268,6 +2204,9 @@ function StopRail({
   // Mirrors the engine's _buildMergedRoutePart exactly — every source is re-pitched
   // through THIS merged lane's scale + octave, then bucketed by grid cell.
   const isMergedRail = !!route.isMerged && route.sourceRoutes?.length > 0
+  // Clicking a dot opens the stop editor (pitch + velocity). Not on merged rails
+  // (stacked chord sources) or automation-mirror rails.
+  const canEdit = !!onStopOpen && !automationValues && !isMergedRail
   const mergedPoints = (() => {
     if (!isMergedRail) return null
     const raw = []
@@ -2434,7 +2373,7 @@ function StopRail({
             'stop-dot',
             stop.id === activeStopId ? 'active' : '',
             mode === 'live' ? 'stop-dot--ref' : '',
-            canEditPitch ? 'stop-dot--editable' : '',
+            canEdit ? 'stop-dot--editable' : '',
           ].filter(Boolean).join(' ')}
           style={{
             '--pos': `${stop.x}%`,
@@ -2442,11 +2381,20 @@ function StopRail({
             '--line-color': route.color,
             '--vel': vel ?? 1,
           }}
-          title={canEditPitch
-            ? `${stop.name} · ${stop.noteName}${velSuffix} — drag to re-pitch (snaps to scale) · Alt+drag = velocity`
-            : `${stop.name} · bar ${stop.bar + 1} beat ${stop.beat + 1} step ${stop.sixteenth + 1}${velSuffix}${canEditVelocity ? ' — Alt+drag = velocity' : ''}`}
-          onPointerDown={(canEditPitch || canEditVelocity)
-            ? handleStopPointerDown(stop, geoDisplayMap[stop.originalIdx], noteToMidi(pitchMap[stop.originalIdx]))
+          title={canEdit
+            ? `${stop.name} · ${stop.noteName}${velSuffix} — click to edit pitch & velocity`
+            : `${stop.name} · bar ${stop.bar + 1} beat ${stop.beat + 1} step ${stop.sixteenth + 1}${velSuffix}`}
+          onClick={canEdit
+            ? () => onStopOpen({
+                routeId: route.id,
+                stopId: stop.id,
+                stopName: stop.name,
+                geoNote: geoDisplayMap[stop.originalIdx],
+                degrees: perStopSteps?.[stop.id] ?? 0,
+                velocity: vel ?? 1,
+                root: trackScale.root,
+                scaleType: trackScale.scaleType,
+              })
             : undefined}
         >
           <span className="stop-label">{stop.name}</span>

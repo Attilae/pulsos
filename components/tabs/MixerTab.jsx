@@ -161,13 +161,16 @@ export default function MixerTab({ active = true }) {
   const [trackLoopRegions, setTrackLoopRegions] = useState({})
   const [trackGridResolutions, setTrackGridResolutions] = useState({})
   const [trackPitchVariety, setTrackPitchVariety] = useState({})
-  // Per-stop authored velocities: routeId → { stopId: 0.2..1 } (Alt+drag on rail dots).
+  // Per-stop authored velocities: routeId → { stopId: 0.2..1 } (stop-editor modal).
   const [trackStopVelocities, setTrackStopVelocities] = useState({})
+  // Per-stop diatonic pitch offsets: routeId → { stopId: degrees } (stop-editor modal).
+  // Applies to every lane (base + duplicate); engine re-pitches via setPitchOffsets.
+  const [trackPitchOffsets, setTrackPitchOffsets] = useState({})
   const [trackArps,       setTrackArps]       = useState({})
   const [trackGranulars,  setTrackGranulars]  = useState({})
 
-  // Duplicate lanes (chord layers): clones of a base route with a synthetic id and
-  // per-stop diatonic pitch offsets. Descriptors: { id, sourceId, name, perStopSteps }.
+  // Duplicate lanes (chord layers): clones of a base route with a synthetic id.
+  // Descriptors: { id, sourceId, name }. Per-stop pitch lives in trackPitchOffsets.
   const [duplicates, setDuplicates] = useState([])
 
   // Merged lanes: several base lanes folded into one Tone.PolySynth chord lane.
@@ -233,11 +236,6 @@ export default function MixerTab({ active = true }) {
     }
     return out
   }, [routes, duplicates, merges])
-
-  const dupStepsById = useMemo(
-    () => Object.fromEntries(duplicates.map(d => [d.id, d.perStopSteps ?? {}])),
-    [duplicates],
-  )
 
   const [liveSnapshot,    setLiveSnapshot]    = useState(null)
   const [snapshotLoading, setSnapshotLoading] = useState(false)
@@ -785,9 +783,8 @@ export default function MixerTab({ active = true }) {
     // Random suffix so rapid/same-millisecond duplications can't collide on id.
     const id = `${realSourceId}~dup~${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`
     const name = `${baseName}·${n}`
-    const perStopSteps = { ...(duplicates.find(d => d.id === sourceId)?.perStopSteps ?? {}) }
 
-    setDuplicates(prev => [...prev, { id, sourceId: realSourceId, name, perStopSteps }])
+    setDuplicates(prev => [...prev, { id, sourceId: realSourceId, name }])
 
     // Clone every per-track map entry sourceId → id.
     const copy = (setter) => setter(m => (sourceId in m ? { ...m, [id]: m[sourceId] } : m))
@@ -796,7 +793,7 @@ export default function MixerTab({ active = true }) {
     copy(setTrackFilters); copy(setTrackEqs)
     copy(setTrackOctaves); copy(setTrackGlides); copy(setTrackLegatos)
     copy(setTrackDroneModes); copy(setTrackDroneRoots); copy(setTrackSpeeds); copy(setTrackLoopRegions)
-    copy(setTrackGridResolutions); copy(setTrackPitchVariety); copy(setTrackStopVelocities)
+    copy(setTrackGridResolutions); copy(setTrackPitchVariety); copy(setTrackStopVelocities); copy(setTrackPitchOffsets)
     copy(setTrackArps); copy(setTrackGranulars)
     setSendMatrix(m => {
       const next = { ...m }
@@ -831,16 +828,16 @@ export default function MixerTab({ active = true }) {
     if (trackGridResolutions[sourceId]) engine.setGridResolution(id, trackGridResolutions[sourceId])
     if (trackPitchVariety[sourceId]) engine.setPitchVariety(id, trackPitchVariety[sourceId])
     if (trackStopVelocities[sourceId]) engine.setStopVelocities(id, trackStopVelocities[sourceId])
+    if (trackPitchOffsets[sourceId]) engine.setPitchOffsets(id, trackPitchOffsets[sourceId])
     if (trackDroneModes[sourceId])   engine.setDroneMode(id, true, trackDroneRoots[sourceId] ?? 'C3')
     for (const [key, level] of Object.entries(sendMatrix)) {
       const [rid, bus] = key.split(':')
       if (rid === sourceId && level) engine.setSendLevel(id, bus, level)
     }
-    if (Object.keys(perStopSteps).length) engine.setPitchOffsets(id, perStopSteps)
   }, [mergedRoutes, duplicates, volumes, disabledRoutes, pans, trackSoundModes, trackScales,
       trackSynthTypes, trackADSRs, trackFilters, trackEqs, trackOctaves, trackGlides,
       trackLegatos, trackDroneModes, trackDroneRoots, trackSpeeds, trackLoopRegions,
-      trackGridResolutions, trackPitchVariety, trackStopVelocities, trackArps, trackGranulars, sendMatrix])
+      trackGridResolutions, trackPitchVariety, trackStopVelocities, trackPitchOffsets, trackArps, trackGranulars, sendMatrix])
 
   const handleRemoveDuplicate = useCallback((dupId) => {
     setDuplicates(prev => prev.filter(d => d.id !== dupId))
@@ -853,7 +850,7 @@ export default function MixerTab({ active = true }) {
     drop(setTrackFilters); drop(setTrackEqs)
     drop(setTrackOctaves); drop(setTrackGlides); drop(setTrackLegatos)
     drop(setTrackDroneModes); drop(setTrackDroneRoots); drop(setTrackSpeeds); drop(setTrackLoopRegions)
-    drop(setTrackGridResolutions); drop(setTrackPitchVariety); drop(setTrackStopVelocities)
+    drop(setTrackGridResolutions); drop(setTrackPitchVariety); drop(setTrackStopVelocities); drop(setTrackPitchOffsets)
     drop(setTrackArps); drop(setTrackGranulars)
     setSoloRoutes(prev => {
       if (!prev.has(dupId)) return prev
@@ -867,8 +864,8 @@ export default function MixerTab({ active = true }) {
     engineRef.current?.removeRoute(dupId)
   }, [])
 
-  // Set one stop's authored velocity (Alt+drag on a rail dot). Values within a
-  // hair of 1 clear the entry — the stop falls back to the variety-derived map.
+  // Set one stop's authored velocity (stop-editor modal). Values within a hair of
+  // 1 clear the entry — the stop falls back to the variety-derived map.
   const handleStopVelocity = useCallback((routeId, stopId, vel) => {
     setTrackStopVelocities(prev => {
       const map = { ...(prev[routeId] ?? {}) }
@@ -883,16 +880,19 @@ export default function MixerTab({ active = true }) {
     })
   }, [])
 
-  // Re-pitch one stop of a duplicate by a diatonic degree offset (0 = clear).
-  const handleStopPitch = useCallback((dupId, stopId, degrees) => {
-    setDuplicates(prev => prev.map(d => {
-      if (d.id !== dupId) return d
-      const perStopSteps = { ...(d.perStopSteps ?? {}) }
-      if (degrees) perStopSteps[stopId] = degrees
-      else delete perStopSteps[stopId]
-      engineRef.current?.setPitchOffsets(dupId, perStopSteps)
-      return { ...d, perStopSteps }
-    }))
+  // Re-pitch one stop of any lane by a diatonic degree offset (0 = clear). Same
+  // per-route map for base and duplicate lanes; the engine applies it uniformly.
+  const handleStopPitch = useCallback((routeId, stopId, degrees) => {
+    setTrackPitchOffsets(prev => {
+      const map = { ...(prev[routeId] ?? {}) }
+      if (degrees) map[stopId] = degrees
+      else delete map[stopId]
+      engineRef.current?.setPitchOffsets(routeId, map)
+      if (!Object.keys(map).length) {
+        const next = { ...prev }; delete next[routeId]; return next
+      }
+      return { ...prev, [routeId]: map }
+    })
   }, [])
 
   // ── Merged lanes (PolySynth chords) ───────────────────────────────────────
@@ -941,7 +941,7 @@ export default function MixerTab({ active = true }) {
     drop(setTrackFilters); drop(setTrackEqs)
     drop(setTrackOctaves); drop(setTrackGlides); drop(setTrackLegatos)
     drop(setTrackDroneModes); drop(setTrackDroneRoots); drop(setTrackSpeeds); drop(setTrackLoopRegions)
-    drop(setTrackGridResolutions); drop(setTrackPitchVariety); drop(setTrackStopVelocities)
+    drop(setTrackGridResolutions); drop(setTrackPitchVariety); drop(setTrackStopVelocities); drop(setTrackPitchOffsets)
     drop(setTrackArps); drop(setTrackGranulars)
     setSoloRoutes(prev => {
       if (!prev.has(mergeId)) return prev
@@ -1086,12 +1086,12 @@ export default function MixerTab({ active = true }) {
     trackStopVelocities,
     trackDroneModes,
     automationSourceIds,
-    perStopSteps: dupStepsById,
+    perStopSteps: trackPitchOffsets,
     recorder: midiRecorderRef.current,
   }), [
     bpm, disabledRoutes, soloRoutes, trackScales, trackOctaves, trackSoundModes,
     trackLegatos, trackSpeeds, trackLoopRegions, trackGridResolutions, trackPitchVariety, trackStopVelocities, trackDroneModes,
-    automationSourceIds, dupStepsById, hasMidiSession,
+    automationSourceIds, trackPitchOffsets, hasMidiSession,
   ])
 
   const canExportMix = useMemo(() => {
@@ -1145,7 +1145,7 @@ export default function MixerTab({ active = true }) {
     volumes, disabledRoutes, pans, soloRoutes,
     trackSoundModes, trackScales, trackSynthTypes, trackADSRs,
     trackFilters, trackEqs,
-    trackOctaves, trackGlides, trackLegatos, trackDroneModes, trackDroneRoots, trackSpeeds, trackLoopRegions, trackGridResolutions, trackPitchVariety, trackStopVelocities, trackArps, trackGranulars,
+    trackOctaves, trackGlides, trackLegatos, trackDroneModes, trackDroneRoots, trackSpeeds, trackLoopRegions, trackGridResolutions, trackPitchVariety, trackStopVelocities, trackPitchOffsets, trackArps, trackGranulars,
     activeFxTracks, fxBusWet, fxBusMuted, fxBusSoloed, fxBusParams,
     sendMatrix, automationCfg, duplicates, merges, drumPattern,
   }), [
@@ -1153,7 +1153,7 @@ export default function MixerTab({ active = true }) {
     volumes, disabledRoutes, pans, soloRoutes,
     trackSoundModes, trackScales, trackSynthTypes, trackADSRs,
     trackFilters, trackEqs,
-    trackOctaves, trackGlides, trackLegatos, trackDroneModes, trackDroneRoots, trackSpeeds, trackLoopRegions, trackGridResolutions, trackPitchVariety, trackStopVelocities, trackArps, trackGranulars,
+    trackOctaves, trackGlides, trackLegatos, trackDroneModes, trackDroneRoots, trackSpeeds, trackLoopRegions, trackGridResolutions, trackPitchVariety, trackStopVelocities, trackPitchOffsets, trackArps, trackGranulars,
     activeFxTracks, fxBusWet, fxBusMuted, fxBusSoloed, fxBusParams,
     sendMatrix, automationCfg, duplicates, merges, drumPattern,
   ])
@@ -1181,6 +1181,7 @@ export default function MixerTab({ active = true }) {
     setTrackGridResolutions({})
     setTrackPitchVariety({})
     setTrackStopVelocities({})
+    setTrackPitchOffsets({})
     setTrackArps({})
     setTrackGranulars({})
     setActiveFxTracks(DEFAULT_FX_TRACKS)
@@ -1198,7 +1199,7 @@ export default function MixerTab({ active = true }) {
     setVolumes, setDisabledRoutes, setPans, setSoloRoutes,
     setTrackSoundModes, setTrackScales, setTrackSynthTypes, setTrackADSRs,
     setTrackFilters, setTrackEqs,
-    setTrackOctaves, setTrackGlides, setTrackLegatos, setTrackDroneModes, setTrackDroneRoots, setTrackSpeeds, setTrackLoopRegions, setTrackGridResolutions, setTrackPitchVariety, setTrackStopVelocities, setTrackArps, setTrackGranulars,
+    setTrackOctaves, setTrackGlides, setTrackLegatos, setTrackDroneModes, setTrackDroneRoots, setTrackSpeeds, setTrackLoopRegions, setTrackGridResolutions, setTrackPitchVariety, setTrackStopVelocities, setTrackPitchOffsets, setTrackArps, setTrackGranulars,
     setActiveFxTracks, setFxBusWet, setFxBusMuted, setFxBusSoloed, setFxBusParams,
     setSendMatrix, setAutomationCfg, setDuplicates, setMerges, setDrumPattern,
   }), [])
@@ -1353,7 +1354,7 @@ export default function MixerTab({ active = true }) {
         onDuplicateTrack={handleDuplicateTrack}
         onRemoveDuplicate={handleRemoveDuplicate}
         onStopPitch={handleStopPitch}
-        perStopStepsById={dupStepsById}
+        perStopStepsById={trackPitchOffsets}
         onMergeLanes={handleMergeLanes}
         onUnmerge={handleUnmerge}
         mergedConsumedIds={mergedConsumedIds}
