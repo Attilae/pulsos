@@ -163,6 +163,14 @@ Cross-area imports use the `@/` alias (e.g. `@/lib/engine.js`); same-area import
 The header also hosts a **driver.js onboarding tour** (`components/TourMenu.jsx`, steps in
 `lib/tourSteps.js`) that auto-starts once for new visitors and can be replayed.
 
+**Tabs stay mounted once visited**: `App.jsx` keeps a `mounted` `Set` of every tab id opened this
+session (seeded with `'mixer'`); switching tabs toggles a `display: none` pane rather than
+unmounting, so a tab's full local state (loaded routes, mixer config, drum pattern, DAW layout,
+playhead) survives the switch instead of resetting. Every tab component takes an `active` prop and
+is individually responsible for pausing itself when hidden — e.g. `MixerTab` stops `TransitEngine`
+mock playback on `active` going false if it was running, since all tabs share one
+`Tone.Transport`/destination, but leaves state untouched for instant resume.
+
 #### The main DAW (Map/DAW tab)
 
 `components/tabs/MixerTab.jsx` is the heart of the app and by far the largest piece of state. It:
@@ -200,11 +208,18 @@ The header also hosts a **driver.js onboarding tour** (`components/TourMenu.jsx`
   `DawView.jsx`'s `AutomationLane` — picking one as a source would make it vanish from the
   instrument view once music starts.
 - `handleDuplicateTrack(sourceId)` clones a track's full per-track config (including arp/granular
-  configs) into a new synthetic route id (`<sourceId>~dup~<ts><rand>`) for **chord voicing**;
-  `handleStopPitch(dupId, stopId, degrees)` stores a per-stop diatonic scale-degree offset
-  (`duplicates[i].perStopSteps`) applied via `engine.setPitchOffsets` /
-  `transposeNoteInScale` (`lib/mappings.js`), so stacked duplicates harmonize rather than unison.
-  Duplicate lanes are audio-only and hidden from the map.
+  configs) into a new synthetic route id (`<sourceId>~dup~<ts><rand>`) for **chord voicing**, so
+  stacked duplicates harmonize rather than unison. Duplicate lanes are audio-only and hidden from
+  the map. Duplicate descriptors are now just `{ id, sourceId, name }` — per-stop offsets moved to
+  `trackPitchOffsets` (below); `songState.js`'s `_hoistLegacyPitchOffsets` migrates old
+  `duplicates[i].perStopSteps` snapshots into it on load.
+- **Per-stop pitch + velocity editing** is generalized to every lane (base or duplicate), not just
+  duplicates: clicking a stop-rail note dot opens `components/StopEditor.jsx` (a portal-rendered
+  modal — a ±1 diatonic-degree stepper plus a 20–100% velocity slider, both live, no Apply button),
+  replacing the older click-and-drag gesture on the dot itself. `handleStopPitch(routeId, stopId,
+  degrees)` writes into `trackPitchOffsets` (`routeId → { stopId: degrees }`) applied via
+  `engine.setPitchOffsets` / `transposeNoteInScale` (`lib/mappings.js`); `handleStopVelocity`
+  writes into the per-route `_stopVelocities` map (see the arpeggiator/velocity section below).
 - Fresh sessions now start with `DEFAULT_FX_TRACKS = ['reverb', 'delay', 'chorus', 'distortion']`
   pre-activated (was empty), so automation targets like `send.reverb` are available immediately.
 
@@ -227,7 +242,13 @@ Two playback modes, both driven by `TransitEngine`:
 app-level `DrumClipboardContext` (`lib/shared/DrumClipboardContext.jsx`, `DrumClipboardProvider`
 in `App.jsx`, localStorage-persisted). MixerTab pulls it in via `useDrumClipboard()` and mirrors
 it into the engine with `engine.setDrumPattern(...)` (with a session-only `drumsMuted` toggle), so
-the Map/DAW tab plays a drum backing alongside the transit-driven lanes.
+the Map/DAW tab plays a drum backing alongside the transit-driven lanes. In `DawView.jsx` the
+pattern renders as a real lane (`DrumLane`, a 6-pad step grid with its own synced playhead) rather
+than a header chip, with a collapsible FX rack (filter/EQ/sends) — but it's still **one shared
+insert chain for all 6 pads**, not per-voice FX. The drums aren't individually solo-able (no solo
+button on `DrumLane`), so `_applyRouteGain` silences them whenever *any* other lane is soloed
+(`setSolo` refreshes the drum lane's gain on every toggle, since — unlike normal routes, which are
+gated at note-trigger time — the drum `Tone.Sequence` runs independently of that path).
 
 #### TransitEngine (`lib/engine.js`)
 
@@ -235,7 +256,7 @@ The audio graph and the single source of truth for sound. Roughly:
 
 ```
 per-route synth / VehicleVoice / Sampler
-   → per-route insert FX (filter, EQ, pan, volume)
+   → per-route insert FX (filter, weq8 EQ, pan, volume)
    → per-line-type Volume+Panner bus (metro/tram/trolley/bus/hev)
    → AlertLayer (service-alert-driven reverb + scale/mode)
    → Tone.Destination
@@ -245,6 +266,20 @@ NetworkState (drone hum + hub-convergence chords) → AlertLayer input
 
 - Most settings **persist across start/stop** (stored in plain `_xxx` maps on the instance) and
   are re-applied when a synth/part is (re)built.
+- **The drum lane is a reserved pseudo-route**: `DRUMS_ROUTE_ID = '__drums__'` gets one insert
+  chain (`routeGain → filter → weq8 eq → panner → master`, built by `_ensureDrumInsert()` and torn
+  down by `_disposeDrumInsert()`) registered in `_mockSynths` like any real route, so it rides the
+  same generic per-route mixer setters (`setRouteVolume/Filter/EqState/SendLevel`) and the same
+  React state maps (`volumes`, `trackFilters`, `trackEqs`, `sendMatrix`) keyed by that one id — no
+  separate persistence plumbing needed. `_startDrumSeq()` feeds the `DrumSequencer`
+  (`lib/engines/drumEngine.js`) into that chain's `routeGain` instead of straight to master.
+- **EQ is `weq8`** (an 8-band parametric EQ, replacing the old 3-band `Tone.EQ3` tilt EQ) on every
+  route including the drum lane. `_eqRuntimes[routeId]` holds a live `WEQ8Runtime`
+  (`getRouteEqRuntime(routeId)`), persisted across start/stop so the curve editor
+  (`<weq8-ui>` web component in `EqPanel`, `DawView.jsx`) can mutate it directly while stopped;
+  `setOnRouteEqChange(cb)` mirrors runtime edits back into React state for autosave.
+  `lib/eqMigrate.js` (`normalizeEqState`/`eq3ToWeq8`) coerces old saved EQ3 snapshots into weq8
+  specs on load (`songState.js`'s `migrateTrackEqs`).
 - **Synth types** are listed in `SYNTH_TYPES`. Two are sample-backed `Tone.Sampler`s: `Sampler`
   (multi-sample melodic, `SAMPLER_PRESETS` + user uploads) and `Drums` (a single one-shot drum
   voice from `DRUM_VOICES`, fired at a fixed `DRUM_TRIGGER_NOTE` so it never transposes with the
@@ -268,11 +303,25 @@ NetworkState (drone hum + hub-convergence chords) → AlertLayer input
 
 Pure, side-effect-free functions — the place to change *how data becomes music*. Per-stop pitch
 is a single **geographic stop-rail** mapping: `generatePitchMap(stops, rootMidi, modeScale,
-octaveSpan)` builds a line's note sequence from each stop's geography (latitude → scale degree,
-longitude → octave register) via `geoToMidi`/`latToMidi`. (The earlier multi-strategy /
-manual-pitch system was removed.) Also here: `SCALES`/`MODES`, the `normalizeX` family (GTFS
-field → 0..1 for automation), seeded RNG (`hashStringToInt`/`mulberry32`/`makeSalt`), and
-polyline/grid helpers. `mockData.js` holds mock-mode data and a `latToNote` copy.
+octaveSpan, opts)` builds a line's note sequence from each stop's geography (latitude → scale
+degree, longitude → octave register) via `geoToMidi`/`latToMidi`. `opts = { contour, variety,
+routeId }` (`PITCH_CONTOURS = ['geographic','randomWalk','arch']`, `DEFAULT_PITCH_VARIETY =
+{ contour: 'geographic', variety: 0 }`) is an opt-in per-track variety layer on top of the
+geographic mapping — `variety === 0` with `contour: 'geographic'` reproduces the plain mapping
+byte-for-byte, so old saved songs are unaffected. Engine-side: `_pitchVariety[routeId]`
+(`setPitchVariety`). Also here: `SCALES`/`MODES`, the `normalizeX` family (GTFS field → 0..1 for
+automation), seeded RNG (`hashStringToInt`/`mulberry32`/`makeSalt`), and polyline/grid helpers.
+`mockData.js` holds mock-mode data and a `latToNote` copy.
+
+**Per-stop velocity** is a parallel, independently opt-in layer: `generateVelocityMap(stops,
+variety)` derives a 0.6–1.0 velocity per stop from inter-stop gap size (tightly-packed stops
+soften; a stop after a long gap stays full), flat `1.0` at `variety = 0`. At note-trigger time
+(`_triggerSynth`/`_triggerLegatoNote`/`_triggerArp`, all now take a `velocity` param passed through
+to `triggerAttackRelease`), the engine resolves velocity as `_stopVelocities[routeId]?.[stopId] ??
+velocityMap[originalIdx] ?? 1` — an authored per-stop override (via `StopEditor`, see above; stored
+in `setStopVelocities(routeId, map)`) wins over the derived map. MIDI export
+(`midiExport.js`/`buildLoopMidiEvents`) resolves velocity the same way so exported files match
+playback.
 
 The **per-track arpeggiator** also lives here as pure logic: `buildArpSequence(rootNote, cfg,
 scaleType)` expands a single triggered note into a tempo-synced sequence; `ARP_STYLES`,
@@ -280,13 +329,25 @@ scaleType)` expands a single triggered note into a tempo-synced sequence; `ARP_S
 engine stores per-route configs via `setArpeggiator(routeId, cfg)` and consults them at note
 trigger time (mock and live).
 
+**Drum-pad velocity** is a separate, discrete mechanism in `lib/engines/drumEngine.js`: each of
+the 6 pads' 64-step pattern is `number[]` (not `boolean[]`) — `STEP_LEVELS = [0, 1, 0.7, 0.4]`
+(off/full/normal/soft), cycled by click via `cycleStepValue()` (`normalizeStep()` migrates old
+boolean-array patterns). `DrumSequencer._trigger(padId, time, stepVel)` multiplies each voice's
+baked velocity by the step's level, so `1` reproduces pre-velocity playback exactly. Both the Drum
+Machine grid and the DAW's `DrumLane` render the levels via `vel-accent`/`vel-norm`/`vel-soft` CSS
+classes.
+
 ### Persistence & AI
 
 - **Songs/presets**: `lib/persistence.js` (async CRUD → `/api/presets`, Postgres) +
   `lib/songState.js` (`buildSnapshot`/`applySnapshot` serialize the whole MixerTab state) +
   `lib/useSongPersistence.js` (session-gated autosave hook) + `components/SongMenu.jsx`. Adding
   new per-track state means threading it through `buildSnapshot`/`applySnapshot` too, not just
-  MixerTab (e.g. `drumVoice` lives in `trackADSRs` and is replayed via `handleDrumVoice`).
+  MixerTab (e.g. `drumVoice` lives in `trackADSRs` and is replayed via `handleDrumVoice`;
+  `trackPitchOffsets`/`trackPitchVariety`/`trackStopVelocities` are examples of state added this
+  way). `songState.js` is also where cross-version migrations live (`migrateTrackEqs`,
+  `_hoistLegacyPitchOffsets`, stale-`'Granular'`-synth-type coercion) — check there before assuming
+  an old saved song will load cleanly against a changed data shape.
 - **New session**: `SongMenu` → New autosaves the current song (signed-in only; signed-out users
   are warned first) then calls `MixerTab.resetSessionState` (`onReset` on the hook). That disposes
   and rebuilds the `TransitEngine` for a clean audio graph and resets every per-track/FX/global
