@@ -325,6 +325,8 @@ export default function MixerTab({ active = true }) {
       setTrackEqs(e => ({ ...e, [routeId]: spec }))
     })
     engineRef.current = engine
+    // Dev-only handle for inspecting the live audio graph from the console.
+    if (process.env.NODE_ENV !== 'production') window.__leidEngine = engine
     return engine
   }, [flushEvents])
 
