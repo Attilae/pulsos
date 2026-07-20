@@ -5,6 +5,7 @@
 // next/dynamic — on desktop, or after the visitor explicitly opts in.
 // Deliberately does NOT import app.css or anything from the DAW bundle.
 import { useState, useEffect } from 'react'
+import Link from 'next/link'
 import { isMobileDevice } from '@/lib/shared/isMobileDevice.js'
 
 const BYPASS_KEY = 'leid-mobile-bypass'
@@ -65,6 +66,11 @@ export default function MobileGate({ children }) {
         >
           try it anyway →
         </button>
+        <nav aria-label="Legal" style={{ marginTop: 30, fontSize: 10, letterSpacing: '0.1em' }}>
+          <Link style={{ color: '#777', marginRight: 18 }} href="/privacy">privacy</Link>
+          <Link style={{ color: '#777', marginRight: 18 }} href="/terms">terms</Link>
+          <Link style={{ color: '#777' }} href="/licenses">licences</Link>
+        </nav>
       </div>
     </div>
   )

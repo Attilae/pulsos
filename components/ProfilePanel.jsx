@@ -53,7 +53,7 @@ export default function ProfilePanel({ onClose }) {
 
 // ── Account ──────────────────────────────────────────────────────────────────
 
-function AccountSection({ user }) {
+export function AccountSection({ user }) {
   const [name, setName] = useState(user.name ?? '')
   const [busy, setBusy] = useState(false)
   const [msg, setMsg]   = useState('')
@@ -99,7 +99,7 @@ function AccountSection({ user }) {
 
 // ── Presets ──────────────────────────────────────────────────────────────────
 
-function PresetsSection() {
+export function PresetsSection() {
   const [songs, setSongs] = useState(null)   // null = loading
   const [copied, setCopied] = useState(null)
 
@@ -198,7 +198,7 @@ function PresetsSection() {
 
 // ── Security ─────────────────────────────────────────────────────────────────
 
-function SecuritySection() {
+export function SecuritySection() {
   const [current, setCurrent] = useState('')
   const [next, setNext]       = useState('')
   const [confirm, setConfirm] = useState('')

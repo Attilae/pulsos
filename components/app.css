@@ -167,6 +167,13 @@ body { background: var(--bg); color: var(--text); font-family: 'Courier New', mo
 .auth-btn:hover { background: #2a2a2a; }
 .auth-btn--ghost { color: var(--muted); border-color: var(--border); }
 .auth-msg { color: var(--muted); font-size: 0.7rem; }
+.auth-legal {
+  color: var(--muted);
+  font-size: 0.62rem;
+  line-height: 1.5;
+}
+.auth-legal a { color: var(--text); text-underline-offset: 2px; }
+.auth-legal a:hover { color: var(--accent); }
 
 /* ── Tour control (header) ──────────────────────────────────────────────── */
 .tour-control { position: relative; }

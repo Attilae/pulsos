@@ -3,7 +3,7 @@
 .dlg-overlay {
   position: fixed;
   inset: 0;
-  z-index: 1000;            /* above ProfilePanel (200) and every other overlay */
+  z-index: 2000;            /* above ProfilePanel, HeaderMenu, and app overlays */
   background: rgba(0, 0, 0, 0.55);
   backdrop-filter: blur(2px);
   display: flex;

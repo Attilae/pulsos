@@ -6,11 +6,11 @@ import './SongMenu.css'
  * Header dropdown for managing songs.
  *
  * Props mirror the return shape of useSongPersistence():
- *   currentSong, dirty, autosaveOn, setAutosaveOn,
+ *   currentSong, dirty, saving, saveError, autosaveOn, setAutosaveOn,
  *   songs, save, saveAs, rename, open, newSong, deleteSong
  */
 export default function SongMenu({
-  currentSong, dirty, autosaveOn, setAutosaveOn,
+  currentSong, dirty, saving, saveError, autosaveOn, setAutosaveOn,
   songs, save, saveAs, rename, open, newSong, deleteSong,
   share, unshare, shareUrl, signedIn,
 }) {
@@ -39,18 +39,20 @@ export default function SongMenu({
   }, [])
 
   // Keyboard shortcuts: Cmd/Ctrl+S → Save, Cmd/Ctrl+Shift+S → Save As
+  // Failures surface through the save indicator's saveError state, so swallow
+  // the rejection here rather than letting it escape unhandled.
   const handleSave = useCallback(async () => {
-    if (currentSong) save()
+    if (currentSong) save()?.catch(() => {})
     else {
       const name = await promptDialog('Name this song:', 'Untitled', { title: 'Save song', confirmLabel: 'Save' })
-      if (name != null) saveAs(name)
+      if (name != null) saveAs(name)?.catch(() => {})
     }
   }, [currentSong, save, saveAs])
 
   const handleSaveAs = useCallback(async () => {
     const def = currentSong?.name ? `${currentSong.name} copy` : 'Untitled'
     const name = await promptDialog('Save as:', def, { title: 'Save as', confirmLabel: 'Save' })
-    if (name != null) saveAs(name)
+    if (name != null) saveAs(name)?.catch(() => {})
   }, [currentSong, saveAs])
 
   useEffect(() => {
@@ -79,7 +81,7 @@ export default function SongMenu({
   const handleRename = async () => {
     if (!currentSong) return
     const name = await promptDialog('Rename song:', currentSong.name, { title: 'Rename song', confirmLabel: 'Rename' })
-    if (name != null && name.trim()) rename(name)
+    if (name != null && name.trim()) rename(name)?.catch(() => {})
     setMenuOpen(false)
   }
 
@@ -126,9 +128,17 @@ export default function SongMenu({
         title="Song menu (Cmd/Ctrl+S to save)"
       >
         <span className="song-menu-label">{label}</span>
-        {dirty && <span className="song-menu-dirty" title="Unsaved changes">●</span>}
         <span className="song-menu-caret">▾</span>
       </button>
+
+      <SaveIndicator
+        currentSong={currentSong}
+        dirty={dirty}
+        saving={saving}
+        saveError={saveError}
+        autosaveOn={autosaveOn}
+        signedIn={signedIn}
+      />
 
       {menuOpen && (
         <div className="song-menu-pop">
@@ -211,6 +221,59 @@ export default function SongMenu({
         </div>
       )}
     </div>
+  )
+}
+
+/**
+ * Header status pill: answers "is my work saved?" at a glance.
+ * Precedence runs most- to least-urgent — a failure outranks an in-flight
+ * write, which outranks a pending change.
+ */
+function SaveIndicator({ currentSong, dirty, saving, saveError, autosaveOn, signedIn }) {
+  // "Saved 2m ago" has nothing to re-render it while the song sits idle, so
+  // tick it ourselves — only while there is a settled timestamp to age.
+  const idleSaved = !!currentSong && !dirty && !saving && !saveError
+  const [, setTick] = useState(0)
+  useEffect(() => {
+    if (!idleSaved) return
+    const id = setInterval(() => setTick(t => t + 1), 30_000)
+    return () => clearInterval(id)
+  }, [idleSaved])
+
+  let tone = null, dot = null, text = null, title = null
+
+  if (saveError) {
+    tone = 'error'; dot = '▲'; text = 'Save failed'
+    title = saveError.message || 'Could not save. Your changes are still here — try again.'
+  } else if (saving) {
+    tone = 'saving'; dot = '◌'; text = 'Saving…'
+  } else if (dirty && !signedIn) {
+    tone = 'dirty'; dot = '●'; text = 'Unsaved · sign in to save'
+    title = 'Signed-out sessions can\'t be saved. Sign in to keep this work.'
+  } else if (dirty && !currentSong) {
+    tone = 'dirty'; dot = '●'; text = 'Unsaved'
+    title = 'This session isn\'t attached to a song yet — Save As to keep it.'
+  } else if (dirty && !autosaveOn) {
+    tone = 'dirty'; dot = '●'; text = 'Unsaved'
+    title = 'Autosave is off — press ⌘S to save.'
+  } else if (dirty) {
+    tone = 'dirty'; dot = '●'; text = 'Unsaved'
+  } else if (currentSong) {
+    text = `Saved ${formatRelative(currentSong.updatedAt)}`
+  } else {
+    return null
+  }
+
+  return (
+    <span
+      className={`song-save-indicator song-save-indicator--${tone ?? 'saved'}`}
+      role="status"
+      aria-live="polite"
+      title={title ?? undefined}
+    >
+      {dot && <span className="song-save-dot" aria-hidden="true">{dot}</span>}
+      {text}
+    </span>
   )
 }
 

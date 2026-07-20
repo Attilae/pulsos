@@ -28,14 +28,41 @@
   text-overflow: ellipsis;
   max-width: 160px;
 }
-.song-menu-dirty {
-  color: var(--accent);
-  font-size: 0.6rem;
-  line-height: 1;
-}
 .song-menu-caret {
   color: var(--muted);
   font-size: 0.7rem;
+}
+
+/* ── Save indicator ────────────────────────────────────────────────────── */
+.song-save-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: 8px;
+  font-size: 0.66rem;
+  letter-spacing: 0.02em;
+  color: var(--muted);
+  white-space: nowrap;
+  /* With autosave on, this cycles Unsaved → Saving… → Saved on every edit.
+     .daw-header wraps, so reserve the footprint or the neighbours jitter. */
+  min-width: 74px;
+}
+.song-save-indicator--dirty { color: var(--accent); }
+.song-save-indicator--error { color: #f06060; }
+
+.song-save-dot {
+  font-size: 0.6rem;
+  line-height: 1;
+}
+.song-save-indicator--saving .song-save-dot {
+  animation: song-save-pulse 1.2s ease-in-out infinite;
+}
+@keyframes song-save-pulse {
+  0%, 100% { opacity: 0.3; }
+  50%      { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .song-save-indicator--saving .song-save-dot { animation: none; }
 }
 
 /* ── Dropdown ──────────────────────────────────────────────────────────── */

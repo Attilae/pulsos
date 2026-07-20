@@ -5,9 +5,8 @@ import LoopCapturerTab  from './tabs/LoopCapturerTab.jsx'
 import HeadphoneTab     from './tabs/HeadphoneTab.jsx'
 import MotifTab         from './tabs/MotifTab.jsx'
 import SongChainerTab   from './tabs/SongChainerTab.jsx'
-import AuthControl      from './AuthControl.jsx'
 import CitySelect       from './CitySelect.jsx'
-import TourMenu         from './TourMenu.jsx'
+import HeaderMenu       from './HeaderMenu.jsx'
 import { CityProvider } from '@/lib/shared/CityContext.jsx'
 import { DrumClipboardProvider } from '@/lib/shared/DrumClipboardContext.jsx'
 import { DialogHost }   from './Dialog.jsx'
@@ -81,8 +80,7 @@ export default function App() {
             ))}
           </div>
           <CitySelect />
-          <AuthControl />
-          <TourMenu startTour={startTour} />
+          <HeaderMenu startTour={startTour} />
         </nav>
         <main className="tab-body">
           {TABS.filter(t => mounted.has(t.id)).map(t => (

@@ -2,6 +2,7 @@
 // Signed out → a popover with email+password and magic-link.
 // Signed in  → shows the email + a sign-out button.
 import { useState, useRef, useEffect } from 'react'
+import Link from 'next/link'
 import { authClient, useSession, signOut } from '../lib/auth-client.js'
 import ProfilePanel from './ProfilePanel.jsx'
 
@@ -49,7 +50,7 @@ export default function AuthControl() {
   )
 }
 
-function AuthForm({ onDone }) {
+export function AuthForm({ onDone, className = '' }) {
   const [mode, setMode] = useState('signin') // 'signin' | 'signup'
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -64,7 +65,7 @@ function AuthForm({ onDone }) {
   }
 
   return (
-    <div className="auth-pop auth-form">
+    <div className={`auth-pop auth-form ${className}`}>
       <div className="auth-tabs">
         <button className={mode === 'signin' ? 'active' : ''} onClick={() => setMode('signin')}>Sign in</button>
         <button className={mode === 'signup' ? 'active' : ''} onClick={() => setMode('signup')}>Sign up</button>
@@ -79,9 +80,16 @@ function AuthForm({ onDone }) {
           Sign in
         </button>
       ) : (
-        <button className="auth-btn" onClick={() => run(() => authClient.signUp.email({ email, password, name: name || email }), '')}>
-          Create account
-        </button>
+        <>
+          <button className="auth-btn" onClick={() => run(() => authClient.signUp.email({ email, password, name: name || email }), '')}>
+            Create account
+          </button>
+          <p className="auth-legal">
+            By creating an account, you agree to the <Link href="/terms">Terms</Link> and
+            acknowledge the <Link href="/privacy">Privacy Notice</Link>. Users under 16 need a
+            parent or guardian’s authorization.
+          </p>
+        </>
       )}
       <button
         className="auth-btn auth-btn--ghost"
