@@ -1,4 +1,5 @@
 import 'leaflet/dist/leaflet.css'
+import { Analytics } from '@vercel/analytics/next'
 
 const siteUrl =
   process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
@@ -56,7 +57,10 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
-      <body style={{ margin: 0, background: '#0d0d0d' }}>{children}</body>
+      <body style={{ margin: 0, background: '#0d0d0d' }}>
+        {children}
+        <Analytics />
+      </body>
     </html>
   )
 }
