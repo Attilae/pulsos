@@ -2,11 +2,14 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
   FREE_LIMITS,
+  SUPERADMIN_LIMITS,
   countActiveLanes,
+  isOverrideEntitled,
   isSubscriptionEntitled,
   metricLimit,
   normalizeLaneAccess,
   normalizeSnapshotLaneAccess,
+  resolveAccess,
   usagePeriod,
 } from '../lib/billing/plans.js'
 
@@ -19,6 +22,22 @@ test('subscription access follows provider status and cancellation end date', ()
   assert.equal(isSubscriptionEntitled({ status: 'cancelled' }, now), false)
   assert.equal(isSubscriptionEntitled({ status: 'cancelled', endsAt: '2026-07-22T00:00:00Z' }, now), true)
   assert.equal(isSubscriptionEntitled({ status: 'cancelled', endsAt: '2026-07-20T00:00:00Z' }, now), false)
+})
+
+test('access resolution prioritizes superadmins, then overrides, then subscriptions', () => {
+  const now = new Date('2026-07-21T12:00:00Z')
+  const subscription = { status: 'active' }
+  const activeOverride = { plan: 'pro', expiresAt: '2026-08-01T00:00:00Z' }
+
+  assert.equal(isOverrideEntitled(activeOverride, now), true)
+  assert.equal(isOverrideEntitled({ ...activeOverride, expiresAt: '2026-07-01T00:00:00Z' }, now), false)
+  assert.deepEqual(
+    resolveAccess({ role: 'superadmin', override: activeOverride, subscription }, now),
+    { plan: 'pro', accessSource: 'superadmin', limits: SUPERADMIN_LIMITS },
+  )
+  assert.equal(resolveAccess({ role: 'user', override: activeOverride, subscription }, now).accessSource, 'override')
+  assert.equal(resolveAccess({ role: 'user', subscription }, now).accessSource, 'subscription')
+  assert.equal(resolveAccess({ role: 'user' }, now).accessSource, 'free')
 })
 
 test('free lane normalization counts instruments but never the drum pseudo-route', () => {

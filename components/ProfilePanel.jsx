@@ -57,16 +57,25 @@ export default function ProfilePanel({ onClose }) {
 
 export function BillingSection() {
   const {
-    plan, isPro, loading, usage, subscription, billingBusy,
+    plan, isPro, accessSource, loading, usage, subscription, override, billingBusy,
     openUpgrade, openPortal,
   } = useEntitlements()
-  const renewal = subscription?.endsAt || subscription?.renewsAt
+  const renewal = subscription?.entitled
+    ? subscription.endsAt || subscription.renewsAt
+    : null
+  const hasPaidAccess = isPro && subscription?.entitled
+  const internalAccess = accessSource === 'superadmin' || accessSource === 'override'
+  const planLabel = accessSource === 'superadmin'
+    ? 'Pro · Superadmin'
+    : accessSource === 'override'
+      ? 'Pro · Complimentary'
+      : isPro ? 'Pro' : 'Free'
 
   return (
     <section className="profile-section billing-section">
       <div className="billing-heading">
         <h3>Plan</h3>
-        <span className={`billing-plan billing-plan--${plan}`}>{isPro ? 'Pro' : 'Free'}</span>
+        <span className={`billing-plan billing-plan--${plan}`}>{planLabel}</span>
       </div>
       {loading ? <p className="profile-empty">Checking signal…</p> : (
         <>
@@ -79,13 +88,22 @@ export function BillingSection() {
               {subscription.status === 'cancelled' ? 'Access ends' : 'Renews'} {formatDate(renewal)}
             </p>
           ) : null}
-          <button
-            className="profile-btn"
-            disabled={billingBusy}
-            onClick={() => isPro ? openPortal() : openUpgrade('upgrade')}
-          >
-            {billingBusy ? 'Connecting…' : isPro ? 'Manage billing' : 'Upgrade to Pro'}
-          </button>
+          {accessSource === 'superadmin' ? (
+            <p className="billing-renewal">Superadmin access · usage limits bypassed</p>
+          ) : accessSource === 'override' ? (
+            <p className="billing-renewal">
+              Complimentary Pro access{override?.expiresAt ? ` ends ${formatDate(override.expiresAt)}` : ' · no expiry'}
+            </p>
+          ) : null}
+          {hasPaidAccess || !internalAccess ? (
+            <button
+              className="profile-btn"
+              disabled={billingBusy}
+              onClick={() => hasPaidAccess ? openPortal() : openUpgrade('upgrade')}
+            >
+              {billingBusy ? 'Connecting…' : hasPaidAccess ? 'Manage billing' : 'Upgrade to Pro'}
+            </button>
+          ) : null}
         </>
       )}
     </section>

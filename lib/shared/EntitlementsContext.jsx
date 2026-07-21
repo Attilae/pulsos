@@ -8,12 +8,14 @@ import UpgradeModal from '@/components/UpgradeModal.jsx'
 const GUEST_ENTITLEMENTS = {
   plan: 'free',
   isPro: false,
+  accessSource: 'free',
   limits: FREE_LIMITS,
   usage: {
     export: { used: 0, limit: FREE_LIMITS.exports, remaining: FREE_LIMITS.exports, period: 'lifetime' },
     ai: { used: 0, limit: FREE_LIMITS.ai, remaining: FREE_LIMITS.ai, period: 'lifetime' },
   },
   subscription: null,
+  override: null,
 }
 
 const EntitlementsContext = createContext(null)
