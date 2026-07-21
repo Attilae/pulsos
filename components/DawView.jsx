@@ -238,13 +238,12 @@ export default function DawView({
         )}
 
         {/* ── Merge lanes toolbar ── */}
-        {routes && onMergeLanes && (
+        {/* The "Merge lanes" entry button is hidden per request; the merge
+            functionality below stays intact and only renders once merge mode
+            is active (e.g. triggered programmatically). */}
+        {routes && onMergeLanes && mergeMode && (
           <div className="merge-bar">
-            {!mergeMode ? (
-              <button className="merge-toggle" onClick={() => { setMergeMode(true); setMergeSel(new Set()) }}>
-                ⧉ Merge lanes
-              </button>
-            ) : (
+            {(
               <>
                 <span className="merge-hint">Tick 2+ lanes, then fold them into one PolySynth chord lane</span>
                 <button
