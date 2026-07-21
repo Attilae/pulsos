@@ -6,6 +6,7 @@ import { PAD_DEFS as DRUM_PAD_DEFS, STEPS as DRUM_STEPS, SOURCE_STEPS as DRUM_SO
 import { generatePitchMap, shiftOctaveNote, noteToMidi, SCALES, hashStopValue, snapStopsToGrid, GRID_TOTAL_CELLS, GRID_BARS, GRID_STEPS_PER_BAR, GRID_RESOLUTION_STEPS_PER_BAR, DEFAULT_GRID_RESOLUTION, denormalizeToRange, denormalizeExp, transposeNoteInScale, PITCH_CONTOURS, DEFAULT_PITCH_VARIETY } from '@/lib/mappings.js'
 import StopEditor from './StopEditor.jsx'
 import DuplicateLaneDialog from './DuplicateLaneDialog.jsx'
+import LinePicker from './LinePicker.jsx'
 import './DawView.css'
 
 const SYNTH_TYPES = [
@@ -73,7 +74,8 @@ function resolvePlayhead(route, lat, lng) {
 
 export default function DawView({
   className = '',
-  mode, started, events, routes, onRepickType,
+  mode, started, events, routes, allRoutes, onRepickType,
+  onAddLine, onChangeLine, onRemoveLine,
   onDuplicateTrack, onRemoveDuplicate, onStopPitch, perStopStepsById,
   onMergeLanes, onUnmerge, mergedConsumedIds,
   volumes, disabled, pans, soloRoutes,
@@ -108,6 +110,8 @@ export default function DawView({
   const [editingStop, setEditingStop] = useState(null)
   // Duplicate-lane modal: { routeId, routeName } of the lane being duplicated, or null.
   const [dupPrompt, setDupPrompt] = useState(null)
+  // Line picker modal: { mode:'add'|'change', type?, routeId? }, or null.
+  const [linePicker, setLinePicker] = useState(null)
 
   // Merge mode: tick 2+ base lanes, then fold them into one PolySynth chord lane.
   const [mergeMode, setMergeMode] = useState(false)
@@ -213,6 +217,8 @@ export default function DawView({
     for (const r of routes ?? []) map[r.id] = r
     return map
   }, [routes])
+  // Ids already in the mix — the LinePicker greys these out in 'add' mode.
+  const selectedIds = useMemo(() => new Set((routes ?? []).map(r => r.id)), [routes])
 
   return (
     <div className={`daw-body${className ? ` ${className}` : ''}`}>
@@ -269,6 +275,14 @@ export default function DawView({
                   disabled={started}
                   title={`Re-pick ${label} lines`}
                 >↻</button>
+              )}
+              {onAddLine && (
+                <button
+                  className="section-add-btn"
+                  onClick={() => setLinePicker({ mode: 'add', type })}
+                  disabled={started}
+                  title={`Add a ${label} line`}
+                >＋</button>
               )}
             </div>
             {routesByType[type].map(route => {
@@ -354,6 +368,7 @@ export default function DawView({
                     audioExportActive={audioExportActive}
                     onDuplicate={() => setDupPrompt({ routeId: route.id, routeName: route.name })}
                     onRemoveDuplicate={() => onRemoveDuplicate?.(route.id)}
+                    onChangeLine={onChangeLine ? () => setLinePicker({ mode: 'change', type: route.type, routeId: route.id }) : undefined}
                     perStopSteps={perStopStepsById?.[route.id]}
                     mergeMode={mergeMode}
                     mergeChecked={mergeSel.has(route.id)}
@@ -394,6 +409,17 @@ export default function DawView({
             })}
           </div>
         ))}
+
+        {routes && onAddLine && (
+          <div className="daw-add-line-row">
+            <button
+              className="daw-add-line-btn"
+              onClick={() => setLinePicker({ mode: 'add' })}
+              disabled={started}
+              title="Add a transit line as a new lane"
+            >＋ Add line</button>
+          </div>
+        )}
 
         {drumPattern && (
           <DrumLane
@@ -462,6 +488,25 @@ export default function DawView({
           routeName={dupPrompt.routeName}
           onClose={() => setDupPrompt(null)}
           onConfirm={(semitones) => { onDuplicateTrack?.(dupPrompt.routeId, semitones); setDupPrompt(null) }}
+        />
+      )}
+
+      {linePicker && (
+        <LinePicker
+          mode={linePicker.mode}
+          allRoutes={allRoutes ?? []}
+          selectedIds={selectedIds}
+          currentType={linePicker.type ?? null}
+          currentRouteId={linePicker.routeId ?? null}
+          onPick={(picked) => {
+            if (linePicker.mode === 'add') onAddLine?.(picked)
+            else onChangeLine?.(linePicker.routeId, picked)
+            setLinePicker(null)
+          }}
+          onRemove={linePicker.mode === 'change'
+            ? () => { onRemoveLine?.(linePicker.routeId); setLinePicker(null) }
+            : undefined}
+          onClose={() => setLinePicker(null)}
         />
       )}
     </div>
@@ -604,7 +649,7 @@ function LineTrack({
   onFilter,
   onSendLevel, onOctaveShift, onGlide, onLegato, onArp, onGranular, onSpeed, onDroneMode, onDroneRoot, onAddLane,
   onExportRouteMidi, onExportRouteAudio, audioExportActive,
-  onDuplicate, onRemoveDuplicate, perStopSteps,
+  onDuplicate, onRemoveDuplicate, onChangeLine, perStopSteps,
   mergeMode, mergeChecked, onMergeToggle, onUnmerge,
 }) {
   const [rackOpen, setRackOpen] = useState(false)
@@ -698,6 +743,15 @@ function LineTrack({
 
         <div className="lt-spacer" />
 
+        {!isMerged && !isDuplicate && onChangeLine && (
+          <button
+            type="button"
+            className="change-line-btn"
+            onClick={onChangeLine}
+            disabled={started}
+            title="Change this lane's transit line"
+          >⇄</button>
+        )}
         {!isMerged && (
           <button
             type="button"

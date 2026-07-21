@@ -1,0 +1,169 @@
+/* Line picker modal. Reuses the .dlg-overlay backdrop and app.css tokens; a
+   searchable, type-grouped list of transit lines to add or swap into a lane. */
+
+.line-picker {
+  width: 100%;
+  max-width: 460px;
+  max-height: 80vh;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.6);
+  padding: 16px 16px 14px;
+  font-family: inherit;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+}
+
+.line-picker-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.line-picker-close {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  font-size: 0.9rem;
+  cursor: pointer;
+  padding: 2px 4px;
+  line-height: 1;
+}
+.line-picker-close:hover { color: var(--text); }
+
+.line-picker-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.line-picker-search {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  color: var(--text);
+  border-radius: 4px;
+  font-size: 0.85rem;
+}
+.line-picker-search:focus { outline: none; border-color: var(--accent); }
+
+.line-picker-types {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.lp-type-chip {
+  padding: 3px 10px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  border-radius: 999px;
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: color 0.12s, border-color 0.12s, background 0.12s;
+}
+.lp-type-chip:hover { color: var(--text); border-color: var(--muted); }
+.lp-type-chip.active { color: var(--text); border-color: var(--accent); background: var(--surface2); }
+
+.line-picker-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-right: 2px;
+}
+
+.line-picker-empty {
+  color: var(--muted);
+  font-size: 0.8rem;
+  text-align: center;
+  padding: 20px 0;
+}
+
+.line-picker-group { display: flex; flex-direction: column; gap: 3px; }
+
+.line-picker-group-label {
+  font-size: 0.66rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 2px 2px 3px;
+  position: sticky;
+  top: 0;
+  background: var(--surface);
+}
+
+.line-picker-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  padding: 6px 8px;
+  border: 1px solid transparent;
+  background: var(--surface2);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: border-color 0.12s, background 0.12s;
+}
+.line-picker-row:hover:not(:disabled) { border-color: var(--accent); }
+.line-picker-row.is-current { border-color: var(--accent); }
+.line-picker-row.is-added { opacity: 0.5; cursor: default; }
+
+.lp-badge {
+  flex: 0 0 auto;
+  min-width: 30px;
+  text-align: center;
+  padding: 2px 7px;
+  border-radius: 3px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.lp-desc {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 0.76rem;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lp-tag {
+  flex: 0 0 auto;
+  font-size: 0.6rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.lp-tag--current { color: var(--accent); }
+
+.line-picker-foot {
+  display: flex;
+  justify-content: flex-end;
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+}
+
+.line-picker-remove {
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  border-radius: 4px;
+  font-size: 0.72rem;
+  cursor: pointer;
+  transition: color 0.12s, border-color 0.12s;
+}
+.line-picker-remove:hover { color: #e06666; border-color: #e06666; }

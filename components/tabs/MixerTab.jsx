@@ -311,6 +311,144 @@ export default function MixerTab({ active = true }) {
     for (const r of fresh) engineRef.current?.setRouteDisabled(r.id, true)
   }, [started])
 
+  // ── Deliberate lane selection (LinePicker) ────────────────────────────────
+  // Add a specific transit line as a new *active* lane. Stop-only, like re-pick.
+  // Free is capped at limits.activeLanes audible lanes → the 5th add opens the
+  // upgrade modal; Pro is unlimited.
+  const handleAddLine = useCallback((route) => {
+    if (!route || started) return
+    if ((routes ?? []).some(r => r.id === route.id)) return   // already in the mix
+    if (limits.activeLanes != null &&
+        countActiveLanes(visibleInstrumentRoutes, disabledRoutes) >= limits.activeLanes) {
+      openUpgrade('lane_limit')
+      return
+    }
+    setRoutes(prev => [...(prev ?? []), route])
+    setDisabledRoutes(m => ({ ...m, [route.id]: false }))   // added ACTIVE
+    engineRef.current?.setRouteDisabled(route.id, false)
+  }, [routes, started, limits.activeLanes, visibleInstrumentRoutes, disabledRoutes, openUpgrade])
+
+  // Swap the transit line backing an existing lane, *keeping the lane's sound*
+  // (synth, volume, FX, scale, arp, …). The active-lane count is unchanged, so
+  // this is always allowed — the Free-plan escape hatch (stuck at N lanes, but
+  // free to choose which lines). Stop-only. Dependents keyed to the old base id
+  // (duplicates / merges / automation lanes) are dropped rather than left dangling.
+  const handleChangeLine = useCallback((oldId, newRoute) => {
+    if (!oldId || !newRoute || started) return
+    if (newRoute.id === oldId) return
+    if ((routes ?? []).some(r => r.id === newRoute.id)) return   // already present
+
+    // Replace the route object in place (keeps the lane's section/position).
+    setRoutes(prev => (prev ?? []).map(r => r.id === oldId ? newRoute : r))
+
+    // Migrate every per-track setting oldId → newRoute.id so the lane keeps its
+    // sound; the new line's stops/geography drive the notes at Start.
+    const rename = (setter) => setter(m => {
+      if (!(oldId in m)) return m
+      const next = { ...m, [newRoute.id]: m[oldId] }
+      delete next[oldId]
+      return next
+    })
+    rename(setVolumes); rename(setDisabledRoutes); rename(setPans)
+    rename(setTrackSoundModes); rename(setTrackScales); rename(setTrackSynthTypes); rename(setTrackADSRs)
+    rename(setTrackFilters); rename(setTrackEqs)
+    rename(setTrackOctaves); rename(setTrackSemitones); rename(setTrackGlides); rename(setTrackLegatos)
+    rename(setTrackDroneModes); rename(setTrackDroneRoots); rename(setTrackSpeeds); rename(setTrackLoopRegions)
+    rename(setTrackGridResolutions); rename(setTrackPitchVariety); rename(setTrackArps); rename(setTrackGranulars)
+    // Per-stop maps reference the old line's stop ids — they don't apply to the
+    // new line, so drop them.
+    const drop = (setter) => setter(m => {
+      if (!(oldId in m)) return m
+      const next = { ...m }; delete next[oldId]; return next
+    })
+    drop(setTrackStopVelocities); drop(setTrackPitchOffsets)
+    setSoloRoutes(prev => {
+      if (!prev.has(oldId)) return prev
+      const next = new Set(prev); next.delete(oldId); next.add(newRoute.id); return next
+    })
+    setSendMatrix(m => {
+      const next = {}
+      for (const [k, v] of Object.entries(m)) {
+        const [rid, bus] = k.split(':')
+        next[rid === oldId ? `${newRoute.id}:${bus}` : k] = v
+      }
+      return next
+    })
+    // Dependents keyed to the old base id would otherwise dangle.
+    setDuplicates(prev => prev.filter(d => d.sourceId !== oldId))
+    setMerges(prev => prev.filter(mg => !(mg.sourceIds ?? []).includes(oldId)))
+    setAutomationCfg(prev => {
+      if (!(oldId in prev)) return prev
+      const next = { ...prev }; delete next[oldId]; return next
+    })
+
+    // Engine: drop the old base route's synth/maps, then persist the migrated
+    // settings under the new id (mirrors handleDuplicateTrack). Synth type / ADSR /
+    // sound mode / scale are re-applied from React state at Start; the rest live in
+    // the engine's per-route maps, so push them now for a stopped session.
+    const engine = engineRef.current
+    if (!engine) return
+    engine.removeRoute(oldId)
+    engine.setRouteDisabled(newRoute.id, !!disabledRoutes[oldId])
+    if (volumes[oldId]      != null) engine.setRouteVolume(newRoute.id, volumes[oldId])
+    if (pans[oldId]         != null) engine.setRoutePan(newRoute.id, pans[oldId])
+    if (trackScales[oldId])          engine.setScale(newRoute.id, trackScales[oldId])
+    if (trackFilters[oldId])         engine.setRouteFilter(newRoute.id, trackFilters[oldId])
+    if (trackEqs[oldId])             engine.setRouteEqState(newRoute.id, trackEqs[oldId])
+    if (trackOctaves[oldId])         engine.setOctaveShift(newRoute.id, trackOctaves[oldId])
+    if (trackSemitones[oldId])       engine.setSemitoneShift(newRoute.id, trackSemitones[oldId])
+    if (trackGlides[oldId]  != null) engine.setGlide(newRoute.id, trackGlides[oldId])
+    if (trackLegatos[oldId])         engine.setLegato(newRoute.id, true)
+    if (trackArps[oldId])            engine.setArpeggiator(newRoute.id, trackArps[oldId])
+    if (trackGranulars[oldId])       engine.setGranular(newRoute.id, trackGranulars[oldId])
+    if (trackSpeeds[oldId]  != null) engine.setTrackSpeed(newRoute.id, trackSpeeds[oldId])
+    if (trackLoopRegions[oldId])     engine.setTrackLoopRegion(newRoute.id, trackLoopRegions[oldId])
+    if (trackGridResolutions[oldId]) engine.setGridResolution(newRoute.id, trackGridResolutions[oldId])
+    if (trackPitchVariety[oldId])    engine.setPitchVariety(newRoute.id, trackPitchVariety[oldId])
+    if (trackDroneModes[oldId])      engine.setDroneMode(newRoute.id, true, trackDroneRoots[oldId] ?? 'C3')
+    for (const [key, level] of Object.entries(sendMatrix)) {
+      const [rid, bus] = key.split(':')
+      if (rid === oldId && level) engine.setSendLevel(newRoute.id, bus, level)
+    }
+  }, [routes, started, disabledRoutes, volumes, pans, trackScales, trackFilters, trackEqs,
+      trackOctaves, trackSemitones, trackGlides, trackLegatos, trackArps, trackGranulars,
+      trackSpeeds, trackLoopRegions, trackGridResolutions, trackPitchVariety,
+      trackDroneModes, trackDroneRoots, sendMatrix])
+
+  // Remove a base lane entirely (drop its route + all per-track state). Stop-only.
+  const handleRemoveLine = useCallback((routeId) => {
+    if (!routeId || started) return
+    setRoutes(prev => (prev ?? []).filter(r => r.id !== routeId))
+    const drop = (setter) => setter(m => {
+      if (!(routeId in m)) return m
+      const next = { ...m }; delete next[routeId]; return next
+    })
+    drop(setVolumes); drop(setDisabledRoutes); drop(setPans)
+    drop(setTrackSoundModes); drop(setTrackScales); drop(setTrackSynthTypes); drop(setTrackADSRs)
+    drop(setTrackFilters); drop(setTrackEqs)
+    drop(setTrackOctaves); drop(setTrackSemitones); drop(setTrackGlides); drop(setTrackLegatos)
+    drop(setTrackDroneModes); drop(setTrackDroneRoots); drop(setTrackSpeeds); drop(setTrackLoopRegions)
+    drop(setTrackGridResolutions); drop(setTrackPitchVariety); drop(setTrackStopVelocities); drop(setTrackPitchOffsets)
+    drop(setTrackArps); drop(setTrackGranulars)
+    setSoloRoutes(prev => {
+      if (!prev.has(routeId)) return prev
+      const next = new Set(prev); next.delete(routeId); return next
+    })
+    setSendMatrix(m => {
+      const next = {}
+      for (const [k, v] of Object.entries(m)) if (k.split(':')[0] !== routeId) next[k] = v
+      return next
+    })
+    // Any dependents attached to this base lane go with it.
+    setDuplicates(prev => prev.filter(d => d.sourceId !== routeId))
+    setMerges(prev => prev.filter(mg => !(mg.sourceIds ?? []).includes(routeId)))
+    setAutomationCfg(prev => {
+      if (!(routeId in prev)) return prev
+      const next = { ...prev }; delete next[routeId]; return next
+    })
+    engineRef.current?.removeRoute(routeId)
+  }, [started])
+
   // The engine fires onEvent once per note, per track — dozens/sec with several
   // active tracks. Coalesce them into one state update per animation frame so the
   // re-render rate no longer scales with note throughput (was a lag/freeze source).
@@ -1409,7 +1547,11 @@ export default function MixerTab({ active = true }) {
         started={started}
         events={events}
         routes={mergedRoutes}
+        allRoutes={allRoutesRef.current}
         onRepickType={handleRepickType}
+        onAddLine={handleAddLine}
+        onChangeLine={handleChangeLine}
+        onRemoveLine={handleRemoveLine}
         onDuplicateTrack={handleDuplicateTrack}
         onRemoveDuplicate={handleRemoveDuplicate}
         onStopPitch={handleStopPitch}

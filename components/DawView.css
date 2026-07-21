@@ -68,7 +68,7 @@
   margin-bottom: 2px;
 }
 
-.section-repick-btn {
+.section-repick-btn, .section-add-btn {
   font-family: inherit;
   font-size: 0.7rem;
   line-height: 1;
@@ -84,11 +84,35 @@
   cursor: pointer;
   transition: color 0.12s, border-color 0.12s;
 }
-.section-repick-btn:hover:not(:disabled) {
+.section-repick-btn:hover:not(:disabled),
+.section-add-btn:hover:not(:disabled) {
   color: var(--accent);
   border-color: var(--muted);
 }
-.section-repick-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.section-repick-btn:disabled,
+.section-add-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* Global "add line" affordance at the end of the lane list. */
+.daw-add-line-row {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: center;
+  padding: 8px 4px 4px;
+}
+.daw-add-line-btn {
+  font-family: inherit;
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  padding: 6px 16px;
+  border: 1px dashed var(--border);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: color 0.12s, border-color 0.12s;
+}
+.daw-add-line-btn:hover:not(:disabled) { color: var(--accent); border-color: var(--accent); }
+.daw-add-line-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
 .daw-loading {
   display: flex;
@@ -361,7 +385,7 @@
   color: var(--accent);
   flex-shrink: 0;
 }
-.dup-btn, .dup-remove-btn {
+.dup-btn, .dup-remove-btn, .change-line-btn {
   font-size: 0.72rem;
   line-height: 1;
   padding: 2px 5px;
@@ -376,6 +400,8 @@
 }
 .dup-btn:hover { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 60%, transparent); }
 .dup-remove-btn:hover { color: #f87171; border-color: color-mix(in srgb, #ef4444 60%, transparent); }
+.change-line-btn:hover:not(:disabled) { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 60%, transparent); }
+.change-line-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
 /* Merged (PolySynth chord) lane badge — distinct hue from the dup badge */
 .merged-badge {
