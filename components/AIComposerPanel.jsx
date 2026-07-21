@@ -1,11 +1,13 @@
 import { useMemo, useState } from 'react'
 import { requestComposition, validatePlan } from '@/lib/ai/composer.js'
+import { useEntitlements } from '@/lib/shared/EntitlementsContext.jsx'
 import './AIComposerPanel.css'
 
 // Natural-language composer overlay for the Map tab. The user describes the
 // sound they want; we ask the model for a structured plan, show a preview, and
 // only touch the app's controls when they click Apply.
 export default function AIComposerPanel({ className = '', routes, onApply, started }) {
+  const { openUpgrade, refresh, usage } = useEntitlements()
   const [prompt,  setPrompt]  = useState('')
   const [loading, setLoading] = useState(false)
   const [error,   setError]   = useState(null)
@@ -24,7 +26,12 @@ export default function AIComposerPanel({ className = '', routes, onApply, start
     try {
       const raw = await requestComposition(prompt.trim(), routes)
       setResult(validatePlan(raw, routes))
+      await refresh()
     } catch (e) {
+      if (e?.code === 'ai_limit_reached') {
+        await refresh()
+        openUpgrade('ai_limit')
+      }
       setError(e?.message ?? String(e))
     } finally {
       setLoading(false)
@@ -69,6 +76,7 @@ export default function AIComposerPanel({ className = '', routes, onApply, start
               {loading ? 'Composing…' : 'Generate'}
             </button>
             <span className="ai-composer-hint">⌘/Ctrl + ↵</span>
+            {usage.ai.remaining != null ? <span className="ai-composer-hint">{usage.ai.remaining} free</span> : null}
           </div>
 
           {error && <div className="ai-composer-error">⚠ {error}</div>}

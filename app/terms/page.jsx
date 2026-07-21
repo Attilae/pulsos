@@ -81,7 +81,24 @@ export default function TermsPage() {
         </p>
       </LegalSection>
 
-      <LegalSection number={7} title="Acceptable use">
+      <LegalSection number={7} title="Free and Pro plans">
+        <p>
+          Leið may offer a Free plan and paid Pro subscriptions with different limits for active
+          instrument lanes, Song chains, exports, AI Composer, or other features shown before
+          purchase. Prices and included allowances are displayed at checkout. Lemon Squeezy acts
+          as merchant of record and handles checkout, applicable transaction taxes, invoices,
+          payment methods, cancellations, and billing support.
+        </p>
+        <p>
+          Subscriptions renew for the selected monthly or annual period until cancelled. A
+          cancellation takes effect at the end of the paid period unless mandatory law or the
+          checkout terms say otherwise. When Pro access ends, oversized creative work is retained
+          but features or lanes beyond the Free allowance may be locked until the subscription is
+          restored. Statutory cancellation, refund, and consumer rights are unaffected.
+        </p>
+      </LegalSection>
+
+      <LegalSection number={8} title="Acceptable use">
         <p>You may not use Leið to:</p>
         <ul>
           <li>break applicable law or infringe another person’s rights;</li>
@@ -92,7 +109,7 @@ export default function TermsPage() {
         </ul>
       </LegalSection>
 
-      <LegalSection number={8} title="Transit data and service availability">
+      <LegalSection number={9} title="Transit data and service availability">
         <p>
           Leið is a musical instrument, not a journey planner or transport authority. Transit
           feeds may be delayed, incomplete, simulated, or unavailable; live mode may be disabled.
@@ -107,7 +124,7 @@ export default function TermsPage() {
         </p>
       </LegalSection>
 
-      <LegalSection number={9} title="No warranties">
+      <LegalSection number={10} title="No warranties">
         <p>
           To the extent permitted by law, Leið is provided “as is” and “as available,” without
           warranties that it will be error-free, continuously available, fit for a particular
@@ -116,7 +133,7 @@ export default function TermsPage() {
         </p>
       </LegalSection>
 
-      <LegalSection number={10} title="Liability">
+      <LegalSection number={11} title="Liability">
         <p>
           To the extent permitted by law, the operator is not liable for indirect or consequential
           loss, lost data, lost profit, missed transport, or loss caused by third-party services,
@@ -126,7 +143,7 @@ export default function TermsPage() {
         </p>
       </LegalSection>
 
-      <LegalSection number={11} title="Ending use and account deletion">
+      <LegalSection number={12} title="Ending use and account deletion">
         <p>
           You may stop using Leið at any time. To request account deletion, email{' '}
           <a href={`mailto:${LEGAL_DETAILS.contactEmail}`}>{LEGAL_DETAILS.contactEmail}</a> from
@@ -137,7 +154,7 @@ export default function TermsPage() {
         </p>
       </LegalSection>
 
-      <LegalSection number={12} title="Law, disputes, and updates">
+      <LegalSection number={13} title="Law, disputes, and updates">
         <p>
           These terms are governed by the laws of {LEGAL_DETAILS.governingLaw}. Courts in Hungary
           have jurisdiction, except where mandatory consumer law gives you the right to bring a
@@ -155,4 +172,3 @@ export default function TermsPage() {
     </LegalShell>
   )
 }
-

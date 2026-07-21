@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Midi } from '@tonejs/midi'
 import { useRoutes } from '@/lib/shared/useRoutes.js'
 import { useDrumClipboard } from '@/lib/shared/DrumClipboardContext.jsx'
+import { useEntitlements } from '@/lib/shared/EntitlementsContext.jsx'
 import {
   DrumEngine, PAD_DEFS, STEPS, SOURCE_STEPS,
   emptyPattern, emptyStops, patternFromRoute, cycleStepValue,
@@ -21,6 +22,7 @@ export default function DrumMachineTab({ active = true }) {
   const routes    = useRoutes()
   const engineRef = useRef(null)
   const clipboard = useDrumClipboard()
+  const { claim } = useEntitlements()
 
   const [bpm,        setBpm]        = useState(96)
   const [started,    setStarted]    = useState(false)
@@ -141,7 +143,8 @@ export default function DrumMachineTab({ active = true }) {
     setOffsets(prev => ({ ...prev, [padId]: n }))
   }, [])
 
-  const handleExportMidi = useCallback(() => {
+  const handleExportMidi = useCallback(async () => {
+    if (!(await claim('export', 'export_limit'))) return
     const midi = new Midi()
     midi.header.setTempo(bpm)
     midi.header.timeSignatures.push({ ticks: 0, timeSignature: [4, 4] })
@@ -176,7 +179,7 @@ export default function DrumMachineTab({ active = true }) {
     a.download = `transit-drum-pattern-${Date.now()}.mid`
     a.click()
     URL.revokeObjectURL(url)
-  }, [bpm, patterns, offsets])
+  }, [bpm, patterns, offsets, claim])
 
   // Push the current pattern into the app-level clipboard so the Map/DAW tab can
   // pull it in and play it as a rhythmic backing under the transit tracks.

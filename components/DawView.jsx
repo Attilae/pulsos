@@ -5,6 +5,7 @@ import { FX_BUSES, AUTOMATION_TARGETS, FX_PARAM_SPECS, FX_SYNC_TARGETS } from '@
 import { PAD_DEFS as DRUM_PAD_DEFS, STEPS as DRUM_STEPS, SOURCE_STEPS as DRUM_SOURCE_STEPS, emptyPattern as emptyDrumPattern } from '@/lib/engines/drumEngine.js'
 import { generatePitchMap, shiftOctaveNote, noteToMidi, SCALES, hashStopValue, snapStopsToGrid, GRID_TOTAL_CELLS, GRID_BARS, GRID_STEPS_PER_BAR, GRID_RESOLUTION_STEPS_PER_BAR, DEFAULT_GRID_RESOLUTION, denormalizeToRange, denormalizeExp, transposeNoteInScale, PITCH_CONTOURS, DEFAULT_PITCH_VARIETY } from '@/lib/mappings.js'
 import StopEditor from './StopEditor.jsx'
+import DuplicateLaneDialog from './DuplicateLaneDialog.jsx'
 import './DawView.css'
 
 const SYNTH_TYPES = [
@@ -105,6 +106,8 @@ export default function DawView({
   const [drumStep, setDrumStep] = useState(-1)
   // Stop-editor modal: the stop currently open for pitch/velocity editing, or null.
   const [editingStop, setEditingStop] = useState(null)
+  // Duplicate-lane modal: { routeId, routeName } of the lane being duplicated, or null.
+  const [dupPrompt, setDupPrompt] = useState(null)
 
   // Merge mode: tick 2+ base lanes, then fold them into one PolySynth chord lane.
   const [mergeMode, setMergeMode] = useState(false)
@@ -350,7 +353,7 @@ export default function DawView({
                     onExportRouteMidi={onExportRouteMidi}
                     onExportRouteAudio={onExportRouteAudio}
                     audioExportActive={audioExportActive}
-                    onDuplicate={() => onDuplicateTrack?.(route.id)}
+                    onDuplicate={() => setDupPrompt({ routeId: route.id, routeName: route.name })}
                     onRemoveDuplicate={() => onRemoveDuplicate?.(route.id)}
                     perStopSteps={perStopStepsById?.[route.id]}
                     mergeMode={mergeMode}
@@ -452,6 +455,14 @@ export default function DawView({
           onClose={() => setEditingStop(null)}
           onPitch={onStopPitch}
           onVelocity={onStopVelocity}
+        />
+      )}
+
+      {dupPrompt && (
+        <DuplicateLaneDialog
+          routeName={dupPrompt.routeName}
+          onClose={() => setDupPrompt(null)}
+          onConfirm={(semitones) => { onDuplicateTrack?.(dupPrompt.routeId, semitones); setDupPrompt(null) }}
         />
       )}
     </div>

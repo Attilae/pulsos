@@ -4,6 +4,7 @@ import { auth } from '@/lib/auth.js'
 import { db } from '@/lib/db/index.js'
 import { compositions } from '@/lib/db/schema.js'
 import { serialize } from '../route.js'
+import { compositionLimitError, getEntitlements } from '@/lib/billing/server.js'
 
 async function requireUser(req) {
   const session = await auth.api.getSession({ headers: req.headers })
@@ -34,6 +35,9 @@ export async function PUT(req, { params }) {
 
   const body = await req.json().catch(() => null)
   if (!body) return Response.json({ error: 'body required' }, { status: 400 })
+  const items = Array.isArray(body.items) ? body.items : []
+  const limitError = compositionLimitError(await getEntitlements(u.id), items)
+  if (limitError) return Response.json(limitError, { status: 403 })
 
   const now = new Date()
   const [row] = await db
@@ -45,7 +49,7 @@ export async function PUT(req, { params }) {
       schemaVersion: body.schemaVersion ?? 1,
       cityId: body.cityId ?? null,
       bpm: body.bpm ?? 120,
-      items: body.items ?? [],
+      items,
       createdAt: now,
       updatedAt: now,
     })
@@ -56,7 +60,7 @@ export async function PUT(req, { params }) {
         schemaVersion: body.schemaVersion ?? 1,
         cityId: body.cityId ?? null,
         bpm: body.bpm ?? 120,
-        items: body.items ?? [],
+        items,
         updatedAt: now,
       },
       // Don't let a user overwrite another user's row of the same id.

@@ -18,6 +18,7 @@ import {
   shareSong, unshareSong, shareUrl, setLastSongId,
 } from '../lib/persistence.js'
 import { confirmDialog } from './Dialog.jsx'
+import { useEntitlements } from '@/lib/shared/EntitlementsContext.jsx'
 import './ProfilePanel.css'
 
 export default function ProfilePanel({ onClose }) {
@@ -43,10 +44,61 @@ export default function ProfilePanel({ onClose }) {
 
         <div className="profile-scroll">
           <AccountSection user={user} />
+          <BillingSection />
           <PresetsSection />
           <SecuritySection />
         </div>
       </div>
+    </div>
+  )
+}
+
+// ── Billing ─────────────────────────────────────────────────────────────────
+
+export function BillingSection() {
+  const {
+    plan, isPro, loading, usage, subscription, billingBusy,
+    openUpgrade, openPortal,
+  } = useEntitlements()
+  const renewal = subscription?.endsAt || subscription?.renewsAt
+
+  return (
+    <section className="profile-section billing-section">
+      <div className="billing-heading">
+        <h3>Plan</h3>
+        <span className={`billing-plan billing-plan--${plan}`}>{isPro ? 'Pro' : 'Free'}</span>
+      </div>
+      {loading ? <p className="profile-empty">Checking signal…</p> : (
+        <>
+          <div className="billing-meters">
+            <UsageMeter label="Exports" usage={usage.export} suffix="lifetime" />
+            <UsageMeter label="AI Composer" usage={usage.ai} suffix={isPro ? 'this month' : 'lifetime'} />
+          </div>
+          {renewal ? (
+            <p className="billing-renewal">
+              {subscription.status === 'cancelled' ? 'Access ends' : 'Renews'} {formatDate(renewal)}
+            </p>
+          ) : null}
+          <button
+            className="profile-btn"
+            disabled={billingBusy}
+            onClick={() => isPro ? openPortal() : openUpgrade('upgrade')}
+          >
+            {billingBusy ? 'Connecting…' : isPro ? 'Manage billing' : 'Upgrade to Pro'}
+          </button>
+        </>
+      )}
+    </section>
+  )
+}
+
+function UsageMeter({ label, usage, suffix }) {
+  const unlimited = usage?.limit == null
+  const percent = unlimited ? 100 : Math.min(100, ((usage?.used ?? 0) / Math.max(1, usage?.limit ?? 1)) * 100)
+  return (
+    <div className="billing-meter">
+      <div><span>{label}</span><strong>{unlimited ? 'Unlimited' : `${usage.remaining} left · ${suffix}`}</strong></div>
+      <i><b style={{ width: `${percent}%` }} /></i>
     </div>
   )
 }

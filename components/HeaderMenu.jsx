@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { AuthForm } from './AuthControl.jsx'
-import { AccountSection, PresetsSection, SecuritySection } from './ProfilePanel.jsx'
+import { AccountSection, BillingSection, PresetsSection, SecuritySection } from './ProfilePanel.jsx'
+import { useEntitlements } from '@/lib/shared/EntitlementsContext.jsx'
 import { signOut, useSession } from '../lib/auth-client.js'
 import './HeaderMenu.css'
 
@@ -35,11 +36,19 @@ export default function HeaderMenu({ startTour }) {
     return () => document.removeEventListener('keydown', onKeyDown)
   }, [open])
 
+  useEffect(() => {
+    const showAuth = () => { setView('home'); setOpen(true) }
+    window.addEventListener('leid:open-auth', showAuth)
+    return () => window.removeEventListener('leid:open-auth', showAuth)
+  }, [])
+
   const user = session?.user
   const title = view === 'profile'
     ? 'Profile'
     : view === 'presets'
       ? 'My presets'
+      : view === 'billing'
+        ? 'Plan & billing'
       : view === 'security'
         ? 'Change password'
         : 'Menu'
@@ -114,8 +123,10 @@ function GuestMenu({ onDone, onStartTour }) {
 }
 
 function AuthenticatedMenu({ user, view, onNavigate, onClose, onStartTour }) {
+  const { plan } = useEntitlements()
   if (view === 'profile') return <AccountSection user={user} />
   if (view === 'presets') return <PresetsSection />
+  if (view === 'billing') return <BillingSection />
   if (view === 'security') return <SecuritySection />
 
   return (
@@ -131,6 +142,7 @@ function AuthenticatedMenu({ user, view, onNavigate, onClose, onStartTour }) {
       <div className="header-menu-list">
         <MenuButton label="Profile" detail="Account information" onClick={() => onNavigate('profile')} />
         <MenuButton label="My presets" detail="Open, share, or delete saved songs" onClick={() => onNavigate('presets')} />
+        <MenuButton label={`Plan · ${plan === 'pro' ? 'Pro' : 'Free'}`} detail="Usage, exports, and billing" onClick={() => onNavigate('billing')} />
         <MenuButton label="Change password" detail="Update your account security" onClick={() => onNavigate('security')} />
       </div>
 

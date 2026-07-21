@@ -12,6 +12,7 @@ const dataRows = [
   ['Session and security', 'Session token, expiry, IP address, user agent, and security logs.', 'Keep you signed in, prevent abuse, and diagnose failures.'],
   ['Creative work', 'Saved song snapshots, composition names and items, city, BPM, and optional public share ID.', 'Save, reopen, chain, and share your work.'],
   ['AI Composer', 'The prompt you submit and the route/context messages needed to generate a plan.', 'Provide AI Composer when you explicitly use it.'],
+  ['Plan and usage', 'Subscription status, provider identifiers, renewal/end dates, and export or AI allowance counters.', 'Provide paid features and enforce Free and Pro limits.'],
   ['Device preferences', 'Selected city, drum clipboard, tour status, autosave preference, last song ID, and mobile bypass.', 'Remember local instrument choices in your browser.'],
   ['Support', 'Messages and information you send when contacting us.', 'Respond to questions and privacy requests.'],
 ]
@@ -21,6 +22,7 @@ const providers = [
   ['Neon', 'Managed Postgres database for accounts and saved work.', 'https://neon.com/privacy-policy'],
   ['Resend', 'Delivery of magic-link and account emails.', 'https://resend.com/legal/privacy-policy'],
   ['OpenRouter', 'Processes prompts only when a signed-in user invokes AI Composer.', 'https://openrouter.ai/privacy'],
+  ['Lemon Squeezy', 'Processes checkout, subscription, tax, invoice, and billing-support information as merchant of record.', 'https://www.lemonsqueezy.com/privacy'],
   ['CARTO', 'Supplies map tiles; tile requests can include network and browser data.', 'https://carto.com/privacy'],
 ]
 
@@ -51,6 +53,7 @@ export default function PrivacyPage() {
           used to generate music. It is not used to identify passengers. Audio samples and
           impulse responses you open in the instrument are decoded locally and are not included
           in saved song snapshots. MIDI and WAV exports are generated on your device.
+          Leið records only the export allowance used, not the exported file or its contents.
         </p>
       </LegalSection>
 
@@ -161,4 +164,3 @@ export default function PrivacyPage() {
     </LegalShell>
   )
 }
-

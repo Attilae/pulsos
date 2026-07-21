@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Midi } from '@tonejs/midi'
 import { useRoutes } from '@/lib/shared/useRoutes.js'
+import { useEntitlements } from '@/lib/shared/EntitlementsContext.jsx'
 import {
   LoopEngine, BARS, STEPS_PER_BAR, TOTAL_STEPS, SLOT_COUNT, SLOT_IDS, SLOT_COLORS,
   SCALE_ROOTS, SCALE_MODES, notesFromRoute, midiToName,
@@ -12,6 +13,7 @@ const MODE_NAMES = Object.keys(SCALE_MODES)
 export default function LoopCapturerTab({ active = true }) {
   const routes    = useRoutes()
   const engineRef = useRef(null)
+  const { claim } = useEntitlements()
 
   const [bpm,       setBpm]       = useState(96)
   const [started,   setStarted]   = useState(false)
@@ -122,16 +124,18 @@ export default function LoopCapturerTab({ active = true }) {
     })
   }, [])
 
-  const handleExportSlot = useCallback((slotIdx) => {
+  const handleExportSlot = useCallback(async (slotIdx) => {
     const slot = slots[slotIdx]
     if (!slot?.notes?.length) return
+    if (!(await claim('export', 'export_limit'))) return
     exportNotesToMidi(slot.notes, bpm, `loop-${SLOT_IDS[slotIdx]}-${Date.now()}.mid`)
-  }, [slots, bpm])
+  }, [slots, bpm, claim])
 
-  const handleExportLive = useCallback(() => {
+  const handleExportLive = useCallback(async () => {
     if (!liveNotes.length) return
+    if (!(await claim('export', 'export_limit'))) return
     exportNotesToMidi(liveNotes, bpm, `loop-live-${Date.now()}.mid`)
-  }, [liveNotes, bpm])
+  }, [liveNotes, bpm, claim])
 
   if (!routes) return <div className="tab-placeholder">Loading routes…</div>
 

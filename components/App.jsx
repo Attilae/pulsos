@@ -1,14 +1,16 @@
 import { useState, useEffect, useRef } from 'react'
 import MixerTab         from './tabs/MixerTab.jsx'
 import DrumMachineTab   from './tabs/DrumMachineTab.jsx'
-import LoopCapturerTab  from './tabs/LoopCapturerTab.jsx'
-import HeadphoneTab     from './tabs/HeadphoneTab.jsx'
-import MotifTab         from './tabs/MotifTab.jsx'
+// LoopCapturerTab, HeadphoneTab and MotifTab are kept but hidden from the menu (see TABS below).
+// import LoopCapturerTab  from './tabs/LoopCapturerTab.jsx'
+// import HeadphoneTab     from './tabs/HeadphoneTab.jsx'
+// import MotifTab         from './tabs/MotifTab.jsx'
 import SongChainerTab   from './tabs/SongChainerTab.jsx'
 import CitySelect       from './CitySelect.jsx'
 import HeaderMenu       from './HeaderMenu.jsx'
 import { CityProvider } from '@/lib/shared/CityContext.jsx'
 import { DrumClipboardProvider } from '@/lib/shared/DrumClipboardContext.jsx'
+import { EntitlementsProvider } from '@/lib/shared/EntitlementsContext.jsx'
 import { DialogHost }   from './Dialog.jsx'
 import { runProductTour } from '@/lib/tourSteps.js'
 import { getTourStatus }  from '@/lib/tourState.js'
@@ -17,9 +19,11 @@ import './app.css'
 const TABS = [
   { id: 'mixer',  label: 'Map',            Comp: MixerTab },
   { id: 'drums',  label: 'Drum Machine',  Comp: DrumMachineTab },
-  { id: 'loops',  label: 'Loop Capturer', Comp: LoopCapturerTab },
-  { id: 'phones', label: 'Headphone',     Comp: HeadphoneTab },
-  { id: 'motif',  label: 'Motif',         Comp: MotifTab },
+  // Loop Capturer, Headphone and Motif tabs are hidden from the menu but their
+  // components/engines are kept intact — re-add the entries below to restore them.
+  // { id: 'loops',  label: 'Loop Capturer', Comp: LoopCapturerTab },
+  // { id: 'phones', label: 'Headphone',     Comp: HeadphoneTab },
+  // { id: 'motif',  label: 'Motif',         Comp: MotifTab },
   { id: 'chain',  label: 'Song',          Comp: SongChainerTab },
 ]
 
@@ -58,6 +62,7 @@ export default function App() {
   }, [])
 
   return (
+    <EntitlementsProvider>
     <CityProvider>
       <DrumClipboardProvider>
       <div className="app-shell">
@@ -97,5 +102,6 @@ export default function App() {
       </div>
       </DrumClipboardProvider>
     </CityProvider>
+    </EntitlementsProvider>
   )
 }

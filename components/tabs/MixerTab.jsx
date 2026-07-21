@@ -17,6 +17,8 @@ import {
   isRouteExportable, isRouteAudible, buildLoopMidiEvents,
 } from '@/lib/midiExport.js'
 import { exportRouteAudio, exportMixAudio } from '@/lib/audioExport.js'
+import { useEntitlements } from '@/lib/shared/EntitlementsContext.jsx'
+import { countActiveLanes, normalizeLaneAccess } from '@/lib/billing/plans.js'
 
 const MAX_EVENTS = 80
 
@@ -88,6 +90,7 @@ function deriveHubs(allRoutes, n = 6) {
 
 export default function MixerTab({ active = true }) {
   const { cityId, cityEntry } = useCitySelection()
+  const { limits, claim, openUpgrade } = useEntitlements()
   const loadedCityRef    = useRef(null)   // last city whose routes are loaded
   const engineRef        = useRef(null)
   const stoppingRef      = useRef(false)
@@ -153,6 +156,9 @@ export default function MixerTab({ active = true }) {
   const [masterVolume, setMasterVolume] = useState(0)
 
   const [trackOctaves,    setTrackOctaves]    = useState({})
+  // Per-lane chromatic transpose (semitones), set when a lane is duplicated with
+  // a transpose. routeId → integer offset.
+  const [trackSemitones,  setTrackSemitones]  = useState({})
   const [trackGlides,     setTrackGlides]     = useState({})
   const [trackLegatos,    setTrackLegatos]    = useState({})
   const [trackDroneModes, setTrackDroneModes] = useState({})
@@ -236,6 +242,19 @@ export default function MixerTab({ active = true }) {
     }
     return out
   }, [routes, duplicates, merges])
+
+  const visibleInstrumentRoutes = useMemo(() => (mergedRoutes ?? []).filter(route =>
+    !mergedConsumedIds.has(route.id) && !automationSourceIds.has(route.id) && route.id !== DRUMS_ROUTE_ID
+  ), [mergedRoutes, mergedConsumedIds, automationSourceIds])
+
+  // Downgrades and imported/shared Pro songs keep every setting but excess lanes
+  // are deterministically disabled in their saved/visible order.
+  useEffect(() => {
+    const { disabled, lockedIds } = normalizeLaneAccess(visibleInstrumentRoutes, disabledRoutes, limits.activeLanes)
+    if (!lockedIds.length) return
+    setDisabledRoutes(disabled)
+    for (const id of lockedIds) engineRef.current?.setRouteDisabled(id, true)
+  }, [visibleInstrumentRoutes, disabledRoutes, limits.activeLanes])
 
   const [liveSnapshot,    setLiveSnapshot]    = useState(null)
   const [snapshotLoading, setSnapshotLoading] = useState(false)
@@ -776,9 +795,13 @@ export default function MixerTab({ active = true }) {
   // per-track setting. Stacking copies (each re-pitched within harmony) builds a
   // chord. The descriptor's sourceId always points at a *base* route so the clone
   // can be reconstructed on load.
-  const handleDuplicateTrack = useCallback((sourceId) => {
+  const handleDuplicateTrack = useCallback((sourceId, semitones = 0) => {
     const src = mergedRoutes?.find(r => r.id === sourceId)
     if (!src) return
+    if (!disabledRoutes[sourceId] && limits.activeLanes != null && countActiveLanes(visibleInstrumentRoutes, disabledRoutes) >= limits.activeLanes) {
+      openUpgrade('lane_limit')
+      return
+    }
     const realSourceId = src.sourceId ?? src.id
     const baseName = (allRoutesRef.current?.find(r => r.id === realSourceId)?.name) ?? src.name
     const n  = duplicates.filter(d => d.sourceId === realSourceId).length + 2
@@ -821,6 +844,13 @@ export default function MixerTab({ active = true }) {
     if (trackFilters[sourceId])      engine.setRouteFilter(id, trackFilters[sourceId])
     if (trackEqs[sourceId])          engine.setRouteEqState(id, trackEqs[sourceId])
     if (trackOctaves[sourceId])      engine.setOctaveShift(id, trackOctaves[sourceId])
+    // Whole-lane chromatic transpose: the modal's value shifts the new copy
+    // relative to its source (a plain base source contributes 0).
+    const totalSemis = (trackSemitones[sourceId] ?? 0) + (semitones || 0)
+    if (totalSemis) {
+      setTrackSemitones(m => ({ ...m, [id]: totalSemis }))
+      engine.setSemitoneShift(id, totalSemis)
+    }
     if (trackGlides[sourceId] != null) engine.setGlide(id, trackGlides[sourceId])
     if (trackLegatos[sourceId])      engine.setLegato(id, true)
     if (trackArps[sourceId])         engine.setArpeggiator(id, trackArps[sourceId])
@@ -837,9 +867,10 @@ export default function MixerTab({ active = true }) {
       if (rid === sourceId && level) engine.setSendLevel(id, bus, level)
     }
   }, [mergedRoutes, duplicates, volumes, disabledRoutes, pans, trackSoundModes, trackScales,
-      trackSynthTypes, trackADSRs, trackFilters, trackEqs, trackOctaves, trackGlides,
+      trackSynthTypes, trackADSRs, trackFilters, trackEqs, trackOctaves, trackSemitones, trackGlides,
       trackLegatos, trackDroneModes, trackDroneRoots, trackSpeeds, trackLoopRegions,
-      trackGridResolutions, trackPitchVariety, trackStopVelocities, trackPitchOffsets, trackArps, trackGranulars, sendMatrix])
+      trackGridResolutions, trackPitchVariety, trackStopVelocities, trackPitchOffsets, trackArps, trackGranulars, sendMatrix,
+      limits.activeLanes, visibleInstrumentRoutes, openUpgrade])
 
   const handleRemoveDuplicate = useCallback((dupId) => {
     setDuplicates(prev => prev.filter(d => d.id !== dupId))
@@ -850,7 +881,7 @@ export default function MixerTab({ active = true }) {
     drop(setVolumes); drop(setDisabledRoutes); drop(setPans)
     drop(setTrackSoundModes); drop(setTrackScales); drop(setTrackSynthTypes); drop(setTrackADSRs)
     drop(setTrackFilters); drop(setTrackEqs)
-    drop(setTrackOctaves); drop(setTrackGlides); drop(setTrackLegatos)
+    drop(setTrackOctaves); drop(setTrackSemitones); drop(setTrackGlides); drop(setTrackLegatos)
     drop(setTrackDroneModes); drop(setTrackDroneRoots); drop(setTrackSpeeds); drop(setTrackLoopRegions)
     drop(setTrackGridResolutions); drop(setTrackPitchVariety); drop(setTrackStopVelocities); drop(setTrackPitchOffsets)
     drop(setTrackArps); drop(setTrackGranulars)
@@ -907,6 +938,12 @@ export default function MixerTab({ active = true }) {
     const already = new Set(merges.flatMap(m => m.sourceIds ?? []))
     const ids = [...new Set(sourceIds)].filter(id => byId.has(id) && !already.has(id))
     if (ids.length < 2) return
+    const currentActive = countActiveLanes(visibleInstrumentRoutes, disabledRoutes)
+    const activeSources = ids.filter(id => !disabledRoutes[id]).length
+    if (limits.activeLanes != null && currentActive - activeSources + 1 > limits.activeLanes) {
+      openUpgrade('lane_limit')
+      return
+    }
 
     const srcRoutes = ids.map(id => byId.get(id))
     const base  = srcRoutes[0]
@@ -930,9 +967,17 @@ export default function MixerTab({ active = true }) {
     engine.setMerge(id, ids)   // gate sources silent first
     engine.addRoute(mergedRoute, { mode: 'harmonic', scale }, 'PolySynth', adsr)
     engine.setScale(id, scale)
-  }, [routes, merges, trackScales, globalHarmony])
+  }, [routes, merges, trackScales, globalHarmony, visibleInstrumentRoutes, disabledRoutes, limits.activeLanes, openUpgrade])
 
   const handleUnmerge = useCallback((mergeId) => {
+    const merge = merges.find(item => item.id === mergeId)
+    const currentActive = countActiveLanes(visibleInstrumentRoutes, disabledRoutes)
+    const mergeActive = disabledRoutes[mergeId] ? 0 : 1
+    const restoredActive = (merge?.sourceIds ?? []).filter(id => !disabledRoutes[id]).length
+    if (limits.activeLanes != null && currentActive - mergeActive + restoredActive > limits.activeLanes) {
+      openUpgrade('lane_limit')
+      return
+    }
     setMerges(prev => prev.filter(m => m.id !== mergeId))
     const drop = (setter) => setter(m => {
       if (!(mergeId in m)) return m
@@ -941,7 +986,7 @@ export default function MixerTab({ active = true }) {
     drop(setVolumes); drop(setDisabledRoutes); drop(setPans)
     drop(setTrackSoundModes); drop(setTrackScales); drop(setTrackSynthTypes); drop(setTrackADSRs)
     drop(setTrackFilters); drop(setTrackEqs)
-    drop(setTrackOctaves); drop(setTrackGlides); drop(setTrackLegatos)
+    drop(setTrackOctaves); drop(setTrackSemitones); drop(setTrackGlides); drop(setTrackLegatos)
     drop(setTrackDroneModes); drop(setTrackDroneRoots); drop(setTrackSpeeds); drop(setTrackLoopRegions)
     drop(setTrackGridResolutions); drop(setTrackPitchVariety); drop(setTrackStopVelocities); drop(setTrackPitchOffsets)
     drop(setTrackArps); drop(setTrackGranulars)
@@ -958,7 +1003,7 @@ export default function MixerTab({ active = true }) {
     if (!engine) return
     engine.setMerge(mergeId, null)   // un-gate the source lanes (their Parts resume)
     engine.removeRoute(mergeId)
-  }, [])
+  }, [merges, visibleInstrumentRoutes, disabledRoutes, limits.activeLanes, openUpgrade])
 
   const handleAddFxTrack = useCallback((busId) => {
     setActiveFxTracks(prev => prev.includes(busId) ? prev : [...prev, busId])
@@ -1011,13 +1056,15 @@ export default function MixerTab({ active = true }) {
     engineRef.current?.setRouteVolume(routeId, db)
   }
 
-  const handleDisable = (routeId) => {
-    setDisabledRoutes(m => {
-      const next = !m[routeId]
-      engineRef.current?.setRouteDisabled(routeId, next)
-      return { ...m, [routeId]: next }
-    })
-  }
+  const handleDisable = useCallback((routeId) => {
+    const next = !disabledRoutes[routeId]
+    if (!next && limits.activeLanes != null && countActiveLanes(visibleInstrumentRoutes, disabledRoutes) >= limits.activeLanes) {
+      openUpgrade('lane_limit')
+      return
+    }
+    engineRef.current?.setRouteDisabled(routeId, next)
+    setDisabledRoutes(m => ({ ...m, [routeId]: next }))
+  }, [disabledRoutes, limits.activeLanes, visibleInstrumentRoutes, openUpgrade])
 
   const handlePan = (routeId, value) => {
     setPans(p => ({ ...p, [routeId]: value }))
@@ -1109,15 +1156,17 @@ export default function MixerTab({ active = true }) {
     )
   }, [mergedRoutes, midiExportCtx])
 
-  const handleExportRouteMidi = useCallback((routeId) => {
+  const handleExportRouteMidi = useCallback(async (routeId) => {
     const route = mergedRoutes?.find(r => r.id === routeId)
     if (!route) return
+    if (!(await claim('export', 'export_limit'))) return
     exportRouteMidi(route, { ...midiExportCtx, recorder: midiRecorderRef.current })
-  }, [mergedRoutes, midiExportCtx])
+  }, [mergedRoutes, midiExportCtx, claim])
 
-  const handleExportMixMidi = useCallback(() => {
+  const handleExportMixMidi = useCallback(async () => {
+    if (!(await claim('export', 'export_limit'))) return
     exportMixMidi(mergedRoutes ?? [], { ...midiExportCtx, recorder: midiRecorderRef.current })
-  }, [mergedRoutes, midiExportCtx])
+  }, [mergedRoutes, midiExportCtx, claim])
 
   // Real-time WAV capture taps the live engine, so it needs playback running.
   const runAudioExport = useCallback(async (fn) => {
@@ -1132,32 +1181,39 @@ export default function MixerTab({ active = true }) {
     }
   }, [started, audioExporting, midiExportCtx])
 
-  const handleExportRouteAudio = useCallback((routeId) => {
+  const handleExportRouteAudio = useCallback(async (routeId) => {
     const route = mergedRoutes?.find(r => r.id === routeId)
     if (!route) return
+    if (!(await claim('export', 'export_limit'))) return
     runAudioExport((engine, ctx, onProgress) => exportRouteAudio(engine, route, ctx, { onProgress }))
-  }, [mergedRoutes, runAudioExport])
+  }, [mergedRoutes, runAudioExport, claim])
 
-  const handleExportMixAudio = useCallback(() => {
+  const handleExportMixAudio = useCallback(async () => {
+    if (!(await claim('export', 'export_limit'))) return
     runAudioExport((engine, ctx, onProgress) => exportMixAudio(engine, mergedRoutes ?? [], ctx, { onProgress }))
-  }, [mergedRoutes, runAudioExport])
+  }, [mergedRoutes, runAudioExport, claim])
 
   const songState = useMemo(() => ({
     bpm, mode, view, masterVolume, globalHarmony,
     volumes, disabledRoutes, pans, soloRoutes,
     trackSoundModes, trackScales, trackSynthTypes, trackADSRs,
     trackFilters, trackEqs,
-    trackOctaves, trackGlides, trackLegatos, trackDroneModes, trackDroneRoots, trackSpeeds, trackLoopRegions, trackGridResolutions, trackPitchVariety, trackStopVelocities, trackPitchOffsets, trackArps, trackGranulars,
+    trackOctaves, trackSemitones, trackGlides, trackLegatos, trackDroneModes, trackDroneRoots, trackSpeeds, trackLoopRegions, trackGridResolutions, trackPitchVariety, trackStopVelocities, trackPitchOffsets, trackArps, trackGranulars,
     activeFxTracks, fxBusWet, fxBusMuted, fxBusSoloed, fxBusParams,
     sendMatrix, automationCfg, duplicates, merges, drumPattern,
+    laneManifest: visibleInstrumentRoutes.map(route => ({
+      id: route.id,
+      sourceId: route.sourceId ?? null,
+      kind: route.isDuplicate ? 'duplicate' : route.isMerged ? 'merge' : 'base',
+    })),
   }), [
     bpm, mode, view, masterVolume, globalHarmony,
     volumes, disabledRoutes, pans, soloRoutes,
     trackSoundModes, trackScales, trackSynthTypes, trackADSRs,
     trackFilters, trackEqs,
-    trackOctaves, trackGlides, trackLegatos, trackDroneModes, trackDroneRoots, trackSpeeds, trackLoopRegions, trackGridResolutions, trackPitchVariety, trackStopVelocities, trackPitchOffsets, trackArps, trackGranulars,
+    trackOctaves, trackSemitones, trackGlides, trackLegatos, trackDroneModes, trackDroneRoots, trackSpeeds, trackLoopRegions, trackGridResolutions, trackPitchVariety, trackStopVelocities, trackPitchOffsets, trackArps, trackGranulars,
     activeFxTracks, fxBusWet, fxBusMuted, fxBusSoloed, fxBusParams,
-    sendMatrix, automationCfg, duplicates, merges, drumPattern,
+    sendMatrix, automationCfg, duplicates, merges, drumPattern, visibleInstrumentRoutes,
   ])
 
   // Wipe the session to a clean, empty state: stop playback, dispose the audio
@@ -1178,7 +1234,7 @@ export default function MixerTab({ active = true }) {
     for (const r of routes ?? []) engine.setRouteDisabled(r.id, true)
     setTrackSoundModes({}); setTrackScales({}); setTrackSynthTypes({}); setTrackADSRs({})
     setTrackFilters({}); setTrackEqs({})
-    setTrackOctaves({}); setTrackGlides({}); setTrackLegatos({})
+    setTrackOctaves({}); setTrackSemitones({}); setTrackGlides({}); setTrackLegatos({})
     setTrackDroneModes({}); setTrackDroneRoots({}); setTrackSpeeds({}); setTrackLoopRegions({})
     setTrackGridResolutions({})
     setTrackPitchVariety({})
@@ -1201,7 +1257,7 @@ export default function MixerTab({ active = true }) {
     setVolumes, setDisabledRoutes, setPans, setSoloRoutes,
     setTrackSoundModes, setTrackScales, setTrackSynthTypes, setTrackADSRs,
     setTrackFilters, setTrackEqs,
-    setTrackOctaves, setTrackGlides, setTrackLegatos, setTrackDroneModes, setTrackDroneRoots, setTrackSpeeds, setTrackLoopRegions, setTrackGridResolutions, setTrackPitchVariety, setTrackStopVelocities, setTrackPitchOffsets, setTrackArps, setTrackGranulars,
+    setTrackOctaves, setTrackSemitones, setTrackGlides, setTrackLegatos, setTrackDroneModes, setTrackDroneRoots, setTrackSpeeds, setTrackLoopRegions, setTrackGridResolutions, setTrackPitchVariety, setTrackStopVelocities, setTrackPitchOffsets, setTrackArps, setTrackGranulars,
     setActiveFxTracks, setFxBusWet, setFxBusMuted, setFxBusSoloed, setFxBusParams,
     setSendMatrix, setAutomationCfg, setDuplicates, setMerges, setDrumPattern,
   }), [])
@@ -1212,6 +1268,7 @@ export default function MixerTab({ active = true }) {
     engineRef,
     routes,
     onReset: resetSessionState,
+    activeLaneLimit: limits.activeLanes,
   })
 
   return (

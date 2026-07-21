@@ -18,7 +18,8 @@
     "upload:lines": "node scripts/upload-lines.js",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
-    "db:push": "drizzle-kit push"
+    "db:push": "drizzle-kit push",
+    "test": "node --test"
   },
   "dependencies": {
     "@tonejs/midi": "^2.0.28",

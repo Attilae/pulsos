@@ -191,6 +191,8 @@
   overflow: hidden;
 }
 .chain-item.playing { border-color: var(--accent); }
+.chain-item--locked { opacity: .62; border-style: dashed; }
+.chain-pro-lock { padding: 3px 6px; border: 1px solid var(--accent); border-radius: 2px; background: transparent; color: var(--accent); font: .58rem inherit; letter-spacing: .1em; cursor: pointer; }
 .chain-item-idx {
   font-size: 0.72rem;
   color: var(--muted);

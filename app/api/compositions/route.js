@@ -3,6 +3,7 @@ import { eq, desc } from 'drizzle-orm'
 import { auth } from '@/lib/auth.js'
 import { db } from '@/lib/db/index.js'
 import { compositions } from '@/lib/db/schema.js'
+import { compositionLimitError, getEntitlements } from '@/lib/billing/server.js'
 
 async function requireUser(req) {
   const session = await auth.api.getSession({ headers: req.headers })
@@ -44,6 +45,8 @@ export async function POST(req) {
   if (!body?.id || !body?.name || body?.items == null) {
     return Response.json({ error: 'id, name, items required' }, { status: 400 })
   }
+  const limitError = compositionLimitError(await getEntitlements(u.id), body.items)
+  if (limitError) return Response.json(limitError, { status: 403 })
 
   const now = new Date()
   const [row] = await db

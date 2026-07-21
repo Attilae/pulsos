@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Midi } from '@tonejs/midi'
 import { useRoutes } from '@/lib/shared/useRoutes.js'
+import { useEntitlements } from '@/lib/shared/EntitlementsContext.jsx'
 import {
   generateMotif, MotifPreview, midiToName,
   SCALE_ROOTS, SCALE_MODES, LENGTH_OPTIONS, STEPS_PER_BAR,
@@ -12,6 +13,7 @@ const MODE_NAMES = Object.keys(SCALE_MODES)
 export default function MotifTab({ active = true }) {
   const routes  = useRoutes()
   const playRef = useRef(null)
+  const { claim } = useEntitlements()
 
   const [routeId,  setRouteId]  = useState('')
   const [root,     setRoot]     = useState('D')
@@ -84,8 +86,9 @@ export default function MotifTab({ active = true }) {
     setPlayStep(-1)
   }, [active, playing])
 
-  const handleDownload = useCallback(() => {
+  const handleDownload = useCallback(async () => {
     if (!motif.notes.length) return
+    if (!(await claim('export', 'export_limit'))) return
     const midi = new Midi()
     midi.header.setTempo(bpm)
     midi.header.timeSignatures.push({ ticks: 0, timeSignature: [4, 4] })
@@ -107,7 +110,7 @@ export default function MotifTab({ active = true }) {
     a.download = `motif-${root}${mode}-${bars}bar-${Date.now()}.mid`
     a.click()
     URL.revokeObjectURL(url)
-  }, [motif, bpm, routes, routeId, root, mode, bars])
+  }, [motif, bpm, routes, routeId, root, mode, bars, claim])
 
   if (!routes) return <div className="tab-placeholder">Loading routes…</div>
 

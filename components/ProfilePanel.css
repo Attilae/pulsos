@@ -142,6 +142,18 @@
 .profile-msg--err { color: #f06060; }
 .profile-empty { font-size: 0.76rem; color: var(--muted); font-style: italic; }
 
+/* ── Billing signal ─────────────────────────────────────────────────────── */
+.billing-heading { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.billing-heading h3 { margin: 0; }
+.billing-plan { padding: 3px 8px; border: 1px solid var(--border); border-radius: 2px; color: var(--muted); font-size: .64rem; letter-spacing: .12em; text-transform: uppercase; }
+.billing-plan--pro { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 50%, var(--border)); background: color-mix(in srgb, var(--accent) 7%, transparent); }
+.billing-meters { display: grid; gap: 8px; margin-bottom: 11px; }
+.billing-meter > div { display: flex; justify-content: space-between; gap: 14px; margin-bottom: 4px; font-size: .66rem; color: var(--muted); }
+.billing-meter strong { color: var(--text); font-weight: normal; }
+.billing-meter > i { display: block; height: 3px; overflow: hidden; background: var(--bg); }
+.billing-meter > i > b { display: block; height: 100%; background: var(--accent); }
+.billing-renewal { margin: 0 0 10px; color: var(--muted); font-size: .68rem; }
+
 /* ── Preset list ───────────────────────────────────────────────────────── */
 .preset-list { list-style: none; display: flex; flex-direction: column; gap: 6px; }
 .preset-row {

@@ -4,6 +4,7 @@ import { setCityBounds } from '@/lib/mappings.js'
 import { useRoutes, useCity } from '@/lib/shared/useRoutes.js'
 import { useCitySelection } from '@/lib/shared/CityContext.jsx'
 import { useSession } from '@/lib/auth-client.js'
+import { useEntitlements } from '@/lib/shared/EntitlementsContext.jsx'
 import { listSongs, loadSong } from '@/lib/persistence.js'
 import {
   listCompositions, loadComposition, saveComposition, deleteComposition, newCompositionId,
@@ -19,7 +20,9 @@ export default function SongChainerTab({ active = true }) {
   const city   = useCity()
   const { cityId } = useCitySelection()
   const { data: session } = useSession()
+  const { limits, isPro, openUpgrade } = useEntitlements()
   const signedIn = !!session?.user
+  const itemLimit = limits.compositionItems
 
   const engineRef = useRef(null)
   const playerRef = useRef(null)
@@ -71,6 +74,10 @@ export default function SongChainerTab({ active = true }) {
     playerRef.current?.setRoutes(routes ?? [])
   }, [routes, city])
 
+  useEffect(() => {
+    playerRef.current?.setActiveLaneLimit(limits.activeLanes)
+  }, [limits.activeLanes])
+
   // ── Stop playback when the city changes ──────────────────────────────────
   useEffect(() => {
     playerRef.current?.stop()
@@ -97,11 +104,17 @@ export default function SongChainerTab({ active = true }) {
 
   // ── Chain editing ────────────────────────────────────────────────────────
   const addPreset = useCallback((p) => {
-    setItems(prev => [...prev, {
-      presetId: p.id, presetName: p.name,
-      bars: DEFAULT_BARS, transition: 'cut', crossfadeBars: 1,
-    }])
-  }, [])
+    setItems(prev => {
+      if (itemLimit != null && prev.length >= itemLimit) {
+        openUpgrade('composition_limit')
+        return prev
+      }
+      return [...prev, {
+        presetId: p.id, presetName: p.name,
+        bars: DEFAULT_BARS, transition: 'cut', crossfadeBars: 1,
+      }]
+    })
+  }, [itemLimit, openUpgrade])
 
   const updateItem = useCallback((idx, patch) => {
     setItems(prev => prev.map((it, i) => (i === idx ? { ...it, ...patch } : it)))
@@ -129,21 +142,25 @@ export default function SongChainerTab({ active = true }) {
       p.stop(); setPlaying(false); setCurrentIndex(-1); setProgress(0)
       return
     }
-    if (!items.length) return
+    const playableItems = itemLimit == null ? items : items.slice(0, itemLimit)
+    if (!playableItems.length) return
     p.setRoutes(routes ?? [])
-    p.setChain(items, bpm)
+    p.setChain(playableItems, bpm)
     p.setLoop(loop)
     setPlaying(true)
     await p.play()
-  }, [playing, items, bpm, loop, routes])
+  }, [playing, items, itemLimit, bpm, loop, routes])
 
   // Keep a live player in sync while it's running (bpm/loop tweaks apply next section).
-  useEffect(() => { playerRef.current?.setChain(items, bpm) }, [items, bpm])
+  useEffect(() => {
+    playerRef.current?.setChain(itemLimit == null ? items : items.slice(0, itemLimit), bpm)
+  }, [items, itemLimit, bpm])
   useEffect(() => { playerRef.current?.setLoop(loop) }, [loop])
 
   // ── Composition persistence ──────────────────────────────────────────────
   const handleSave = useCallback(async () => {
     if (!signedIn) return
+    if (itemLimit != null && items.length > itemLimit) { openUpgrade('composition_limit'); return }
     const id = currentCompId ?? newCompositionId()
     const saved = await saveComposition({ id, name, cityId, bpm, items })
     if (saved) {
@@ -151,10 +168,11 @@ export default function SongChainerTab({ active = true }) {
       setLoadedCityId(saved.cityId ?? cityId)
       refreshComps()
     }
-  }, [signedIn, currentCompId, name, cityId, bpm, items, refreshComps])
+  }, [signedIn, currentCompId, name, cityId, bpm, items, itemLimit, openUpgrade, refreshComps])
 
   const handleSaveAs = useCallback(async () => {
     if (!signedIn) return
+    if (itemLimit != null && items.length > itemLimit) { openUpgrade('composition_limit'); return }
     const id = newCompositionId()
     const saved = await saveComposition({ id, name: `${name} copy`, cityId, bpm, items })
     if (saved) {
@@ -163,7 +181,7 @@ export default function SongChainerTab({ active = true }) {
       setLoadedCityId(saved.cityId ?? cityId)
       refreshComps()
     }
-  }, [signedIn, name, cityId, bpm, items, refreshComps])
+  }, [signedIn, name, cityId, bpm, items, itemLimit, openUpgrade, refreshComps])
 
   const handleNew = useCallback(() => {
     playerRef.current?.stop()
@@ -292,7 +310,9 @@ export default function SongChainerTab({ active = true }) {
         <section className="chain-list">
           <div className="chain-list-head">
             <h3 className="chain-subhead">Chain</h3>
-            <span className="chain-meta">{items.length} parts · {totalBars} bars</span>
+            <span className="chain-meta">
+              {items.length} parts · {totalBars} bars{!isPro && ` · ${itemLimit} free`}
+            </span>
           </div>
 
           {!items.length && (
@@ -303,10 +323,11 @@ export default function SongChainerTab({ active = true }) {
             {items.map((it, idx) => (
               <li
                 key={`${it.presetId}-${idx}`}
-                className={`chain-item ${currentIndex === idx ? 'playing' : ''}`}
+                className={`chain-item ${currentIndex === idx ? 'playing' : ''} ${itemLimit != null && idx >= itemLimit ? 'chain-item--locked' : ''}`}
               >
                 <span className="chain-item-idx">{idx + 1}</span>
                 <span className="chain-item-name">{it.presetName}</span>
+                {itemLimit != null && idx >= itemLimit ? <button className="chain-pro-lock" onClick={() => openUpgrade('composition_limit')}>PRO</button> : null}
 
                 <label className="chain-item-field">
                   bars
