@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { SYNTH_DEFAULTS, availableAutomationTargets, findTargetSpec, SAMPLER_PRESET_LIST, SAMPLER_PRESETS, DRUM_VOICES, DRUM_VOICE_LICENSE, DEFAULT_GRANULAR, ARP_STYLES, ARP_RATES, DEFAULT_ARP, DRUMS_ROUTE_ID } from '@/lib/engine.js'
 import { FX_BUSES, AUTOMATION_TARGETS, FX_PARAM_SPECS, FX_SYNC_TARGETS } from '@/lib/fxTrack.js'
 import { PAD_DEFS as DRUM_PAD_DEFS, STEPS as DRUM_STEPS, SOURCE_STEPS as DRUM_SOURCE_STEPS, emptyPattern as emptyDrumPattern } from '@/lib/engines/drumEngine.js'
-import { generatePitchMap, shiftOctaveNote, noteToMidi, SCALES, hashStopValue, snapStopsToGrid, GRID_TOTAL_CELLS, GRID_BARS, GRID_STEPS_PER_BAR, GRID_RESOLUTION_STEPS_PER_BAR, DEFAULT_GRID_RESOLUTION, denormalizeToRange, denormalizeExp, transposeNoteInScale, PITCH_CONTOURS, DEFAULT_PITCH_VARIETY } from '@/lib/mappings.js'
+import { generatePitchMap, shiftOctaveNote, shiftSemitones, noteToMidi, SCALES, hashStopValue, snapStopsToGrid, GRID_TOTAL_CELLS, GRID_BARS, GRID_STEPS_PER_BAR, GRID_RESOLUTION_STEPS_PER_BAR, DEFAULT_GRID_RESOLUTION, denormalizeToRange, denormalizeExp, transposeNoteInScale, PITCH_CONTOURS, DEFAULT_PITCH_VARIETY } from '@/lib/mappings.js'
 import StopEditor from './StopEditor.jsx'
 import DuplicateLaneDialog from './DuplicateLaneDialog.jsx'
 import LinePicker from './LinePicker.jsx'
@@ -86,7 +86,7 @@ export default function DawView({
   trackSoundModes, trackScales, trackSynthTypes, trackADSRs, trackFilters,
   getEqRuntime,
   sendMatrix, automationCfg, automationSourceIds,
-  fxBusWet, activeFxTracks, masterVolume, trackOctaves, trackGlides, trackLegatos, trackArps, trackGranulars, trackSpeeds, trackLoopRegions,
+  fxBusWet, activeFxTracks, masterVolume, trackOctaves, trackSemitones, trackGlides, trackLegatos, trackArps, trackGranulars, trackSpeeds, trackLoopRegions,
   trackGridResolutions,
   trackPitchVariety, onPitchVariety,
   trackStopVelocities, onStopVelocity,
@@ -331,6 +331,7 @@ export default function DawView({
                     onPan={v => onPan(route.id, v)}
                     onSolo={e => onSolo(route.id, e.metaKey || e.ctrlKey)}
                     octaveShift={trackOctaves?.[route.id] ?? 0}
+                    semitoneShift={trackSemitones?.[route.id] ?? 0}
                     glide={trackGlides?.[route.id] ?? 0}
                     legato={trackLegatos?.[route.id] ?? false}
                     arp={trackArps?.[route.id]}
@@ -640,7 +641,7 @@ function LineTrack({
   vehicles, soundMode, trackScale, synthType, adsr,
   filter, getEqRuntime,
   droneMode, droneRoot,
-  laneCount, autoTargets = {}, activeFxTracks, sendMatrix, octaveShift, glide, legato, arp, granular, speed,
+  laneCount, autoTargets = {}, activeFxTracks, sendMatrix, octaveShift, semitoneShift, glide, legato, arp, granular, speed,
   loopRegion, onLoopRegion, gridResolution, onGridResolution,
   pitchVariety, onPitchVariety,
   stopVelocities, onStopOpen,
@@ -796,6 +797,7 @@ function LineTrack({
         vehicles={vehicles}
         trackScale={trackScale}
         octaveShift={octaveShift ?? 0}
+        semitoneShift={semitoneShift ?? 0}
         loopRegion={loopRegion}
         onLoopRegion={onLoopRegion}
         gridResolution={gridResolution}
@@ -2137,7 +2139,7 @@ const BAR_LABELS = Array.from({ length: GRID_BARS }, (_, i) => ({
 // ── Stop rail: stops quantized to 4-bar × 16th-note grid (64 cells) ──────────
 function StopRail({
   route, progress = 0, speed = 1, started = false, mode = 'mock', vehicles = [],
-  trackScale = { root: 'C', scaleType: 'major' }, octaveShift = 0,
+  trackScale = { root: 'C', scaleType: 'major' }, octaveShift = 0, semitoneShift = 0,
   loopRegion, onLoopRegion, gridResolution, automationValues = null,
   pitchVariety = null,
   stopVelocities = null, perStopSteps = null, onStopOpen = null,
@@ -2231,18 +2233,19 @@ function StopRail({
 
   // Two-axis geographic pitch map — same mapping the engine plays (engine.js):
   // latitude → scale degree, longitude → octave register, plus the lane's
-  // pitch-variety opts, then the per-track octave shift. The y-axis renders it
-  // piano-roll style.
+  // pitch-variety opts, then the per-track octave and chromatic shifts. The
+  // y-axis renders it piano-roll style.
   const baseMap = generatePitchMap(route.stops, noteToMidi(`${trackScale.root}3`), scaleIntervals, 3,
     { ...(pitchVariety ?? {}), routeId: route.id })
-  // Apply per-stop diatonic offsets (any lane) then the per-track octave shift.
+  // Apply per-stop diatonic offsets (any lane), octave shift, then whole-lane
+  // chromatic transpose — the same order used by TransitEngine.
   const pitchMap = baseMap.map((n, i) => {
     const off = perStopSteps?.[route.stops[i]?.id] ?? 0
     const tuned = off ? transposeNoteInScale(n, off, trackScale.root, trackScale.scaleType) : n
-    return shiftOctaveNote(tuned, octaveShift)
+    return shiftSemitones(shiftOctaveNote(tuned, octaveShift), semitoneShift)
   })
-  // Geographic base note per stop (octave-shifted, offset-free) — the stop editor's
-  // anchor for diatonic stepping.
+  // Geographic base note per stop (octave-shifted, offset-free) — the stop editor
+  // applies diatonic stepping before the lane's chromatic transpose, like the engine.
   const geoDisplayMap = baseMap.map(n => shiftOctaveNote(n, octaveShift))
   const stopPoints = (() => {
     const midis     = pitchMap.map(n => noteToMidi(n))
@@ -2281,7 +2284,10 @@ function StopRail({
         { ...(pitchVariety ?? {}), routeId: src.id })
       const srcGrid  = snapStopsToGrid(src.stops, srcTotal, noteTotalCells, noteStepsPerBar)
       for (const stop of srcGrid) {
-        const noteName = shiftOctaveNote(srcPitch[stop.originalIdx] ?? 'C3', octaveShift)
+        const noteName = shiftSemitones(
+          shiftOctaveNote(srcPitch[stop.originalIdx] ?? 'C3', octaveShift),
+          semitoneShift,
+        )
         raw.push({
           key: `${src.id}_${stop.id}_${stop.cellIdx}`, si,
           x: (stop.cellIdx / noteTotalCells) * 100, cellIdx: stop.cellIdx,
@@ -2458,6 +2464,7 @@ function StopRail({
                 velocity: vel ?? 1,
                 root: trackScale.root,
                 scaleType: trackScale.scaleType,
+                semitoneShift,
               })
             : undefined}
         >

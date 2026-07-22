@@ -1340,6 +1340,7 @@ export default function MixerTab({ active = true }) {
     soloRoutes,
     trackScales,
     trackOctaves,
+    trackSemitones,
     trackSoundModes,
     trackLegatos,
     trackSpeeds,
@@ -1352,7 +1353,7 @@ export default function MixerTab({ active = true }) {
     perStopSteps: trackPitchOffsets,
     recorder: midiRecorderRef.current,
   }), [
-    bpm, disabledRoutes, soloRoutes, trackScales, trackOctaves, trackSoundModes,
+    bpm, disabledRoutes, soloRoutes, trackScales, trackOctaves, trackSemitones, trackSoundModes,
     trackLegatos, trackSpeeds, trackLoopRegions, trackGridResolutions, trackPitchVariety, trackStopVelocities, trackDroneModes,
     automationSourceIds, trackPitchOffsets, hasMidiSession,
   ])
@@ -1668,6 +1669,7 @@ export default function MixerTab({ active = true }) {
         activeFxTracks={activeFxTracks}
         masterVolume={masterVolume}
         trackOctaves={trackOctaves}
+        trackSemitones={trackSemitones}
         trackGlides={trackGlides}
         onGlide={handleGlide}
         trackLegatos={trackLegatos}

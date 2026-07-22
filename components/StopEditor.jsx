@@ -3,20 +3,21 @@
 // live — each control fires its callback immediately, so there is no Apply button.
 //
 // Driven by an `editingStop` payload assembled in DawView's StopRail:
-//   { routeId, stopId, stopName, geoNote, degrees, velocity, root, scaleType }
+//   { routeId, stopId, stopName, geoNote, degrees, velocity, root, scaleType,
+//     semitoneShift }
 // `geoNote` is the octave-shifted, offset-free geographic note; the displayed pitch
-// is `transposeNoteInScale(geoNote, degrees, root, scaleType)`.
+// applies its diatonic edit first, then the lane's chromatic transpose.
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { transposeNoteInScale } from '@/lib/mappings.js'
+import { shiftSemitones, transposeNoteInScale } from '@/lib/mappings.js'
 import './StopEditor.css'
 
 const DEGREE_LIMIT = 14   // ±2 octaves of diatonic steps
 
 export default function StopEditor({ editingStop, onClose, onPitch, onVelocity }) {
-  const { routeId, stopId, stopName, geoNote, root, scaleType } = editingStop
+  const { routeId, stopId, stopName, geoNote, root, scaleType, semitoneShift = 0 } = editingStop
   const [degrees,  setDegrees]  = useState(editingStop.degrees ?? 0)
   const [velocity, setVelocity] = useState(editingStop.velocity ?? 1)
 
@@ -50,7 +51,11 @@ export default function StopEditor({ editingStop, onClose, onPitch, onVelocity }
     onVelocity?.(routeId, stopId, 1)
   }, [routeId, stopId, onVelocity])
 
-  const currentNote = transposeNoteInScale(geoNote, degrees, root, scaleType)
+  const baseNote = shiftSemitones(geoNote, semitoneShift)
+  const currentNote = shiftSemitones(
+    transposeNoteInScale(geoNote, degrees, root, scaleType),
+    semitoneShift,
+  )
   const velPct = Math.round(velocity * 100)
 
   return createPortal(
@@ -68,7 +73,7 @@ export default function StopEditor({ editingStop, onClose, onPitch, onVelocity }
             <span className="stop-editor-note">{currentNote}</span>
             <button className="stop-editor-step" onClick={() => stepPitch(1)} title="Up a scale degree">+</button>
             <span className="stop-editor-meta">
-              {degrees === 0 ? 'geographic' : `${degrees > 0 ? '+' : ''}${degrees} · was ${geoNote}`}
+              {degrees === 0 ? 'geographic' : `${degrees > 0 ? '+' : ''}${degrees} · was ${baseNote}`}
             </span>
           </div>
           <button className="stop-editor-reset" onClick={resetPitch} disabled={degrees === 0}>Reset</button>
