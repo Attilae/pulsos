@@ -57,9 +57,12 @@ npm run upload:lines # upload public/data/lines.json to Vercel Blob (needs BLOB_
 npm run db:generate # drizzle-kit: emit SQL migration from lib/db/schema.js
 npm run db:migrate  # drizzle-kit: apply migrations to DATABASE_URL
 npm run db:push     # drizzle-kit: push schema directly (dev)
+npm test            # node --test — the only tests so far are billing/entitlement logic
 ```
 
-There is **no test runner and no linter configured** — don't assume `npm test` exists.
+`npm test` runs the built-in Node test runner (`node --test`). Coverage is **minimal**: only
+`test/billing-plans.test.js` (pure functions in `lib/billing/plans.js`) — there is **no linter
+configured** and the audio/UI code has no tests. Don't assume broad test coverage exists.
 
 ### Environment
 
@@ -131,6 +134,8 @@ There is **no test runner and no linter configured** — don't assume `npm test`
   copy via Save As).
 - `api/compositions/route.js` + `api/compositions/[id]/route.js` — user-scoped **composition**
   CRUD (Song Chainer's presets-of-presets; see below), mirroring the `api/presets` contract.
+- `api/entitlements/route.js` (+ `api/entitlements/claim`) and `api/billing/{checkout,portal,webhook}`
+  — the **Free/Pro billing** surface (see the Billing section below).
 
 ### `lib/` — auth, DB, persistence, and the audio engine (non-UI logic)
 
@@ -361,6 +366,36 @@ classes.
   in MixerTab applies a plan by **replaying the same handlers a human would click** (order
   matters — see the comment there).
 
+### Billing & entitlements (Free/Pro)
+
+A **Lemon Squeezy**-backed Free/Pro tier gates a few features by usage. The pure resolution logic
+is `lib/billing/plans.js` (the one tested module) — `resolveAccess({role, override, subscription})`
+picks a plan in priority order **superadmin → override → subscription → free**, returning the
+`limits` object. `FREE_LIMITS` caps `activeLanes: 4`, `compositionItems: 3`, `exports: 3`, `ai: 3`
+(lifetime); Pro lifts all but `ai: 50`/month; superadmin is unlimited. `null` in a limit means
+unlimited.
+
+- **Server**: `lib/billing/server.js` resolves + records usage against Postgres; webhooks are the
+  source of truth. `lib/db/schema.js` holds `billingSubscriptions` (one row per LS subscription,
+  kept as history not a `user.plan` flag), a webhook-event dedup table, `entitlementUsage`
+  (per-user/metric/period counters), and `entitlementOverrides` (manual Pro grants, admin-issued —
+  see `docs/admin-access.md`). Routes: `api/billing/checkout` (start a subscription),
+  `api/billing/portal` (manage it), `api/billing/webhook` (LS → DB), `api/entitlements` (current
+  access + usage), `api/entitlements/claim`.
+- **Client**: `lib/shared/EntitlementsContext.jsx` (`EntitlementsProvider` in `App.jsx`,
+  `useEntitlements()`) fetches `/api/entitlements`, exposes `plan`/`isPro`/`limits`/`usage`, and
+  owns the `UpgradeModal` shown when a gate is hit. `components/UpgradeModal.jsx` is the paywall.
+- **Lane gating**: `normalizeLaneAccess`/`normalizeSnapshotLaneAccess` disable audible lanes beyond
+  the plan's `activeLanes` cap **without discarding them** — an oversized saved song loads verbatim
+  with the overflow lanes muted, so upgrading restores them. `countActiveLanes` excludes the drum
+  pseudo-route (`__drums__`).
+
+### Legal & SEO
+
+`app/{privacy,terms,legal,licenses}` are static legal pages; `lib/legal.js` (`LEGAL_DETAILS`)
+centralizes operator/contact/jurisdiction facts they render from. `app/robots.js`,
+`app/opengraph-image.jsx`, `app/twitter-image.jsx`, and `app/icon.jsx` are Next metadata routes.
+
 ### Other tabs
 
 `DrumMachineTab`, `LoopCapturerTab`, `HeadphoneTab`, `MotifTab` are largely self-contained, each
@@ -453,7 +488,8 @@ long sustained pads. Line-type colors live in `LINE_TYPE_COLORS` (`lib/engine.js
 `docs/nextjs-migration-plan.md` (Next/Vercel topology + migration history), `docs/bkk-api.md`
 (GTFS-RT field reference), `docs/multi-city-gtfs.md` (per-city descriptor model, agency feed
 quirks, candidate cities, generalization gotchas), `docs/vst-plugin-plan.md` (planned JUCE VST3/AU
-port), `docs/mobile-app-plan.md` (native-app direction behind the mobile gate), `docs/gtfs-salt.md`.
+port), `docs/mobile-app-plan.md` (native-app direction behind the mobile gate), `docs/gtfs-salt.md`,
+`docs/admin-access.md` (superadmin role + manual Pro entitlement overrides).
 
 ## Planned (not yet wired in)
 

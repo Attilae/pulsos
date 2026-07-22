@@ -1,12 +1,132 @@
 // POST /api/compose — proxy prose → structured plan through OpenRouter, keeping
 // the key server-side. Ported from the standalone Express server. The frontend
-// builds the messages (system + user prompt); we attach key + model and force a
-// JSON object response.
+// builds the messages (system + user prompt); we attach key + model and enforce
+// the exact loop-plan schema.
 
 import { auth } from '@/lib/auth.js'
 import { claimUsage, releaseUsage } from '@/lib/billing/server.js'
 
 const APP_URL = process.env.BETTER_AUTH_URL || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+
+const nullableNumber = { type: ['number', 'null'] }
+const nullableString = { type: ['string', 'null'] }
+const nullableBoolean = { type: ['boolean', 'null'] }
+
+const harmonySchema = {
+  type: ['object', 'null'],
+  additionalProperties: false,
+  properties: { root: { type: 'string' }, scaleType: { type: 'string' } },
+  required: ['root', 'scaleType'],
+}
+
+const COMPOSITION_RESPONSE_FORMAT = {
+  type: 'json_schema',
+  json_schema: {
+    name: 'leid_loop_plan',
+    strict: true,
+    schema: {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        summary: { type: 'string' },
+        bpm: nullableNumber,
+        harmony: harmonySchema,
+        masterVolume: nullableNumber,
+        tracks: {
+          type: 'array',
+          items: {
+            type: 'object',
+            additionalProperties: false,
+            properties: {
+              routeId: { type: 'string' },
+              synthType: nullableString,
+              samplerPreset: nullableString,
+              volume: nullableNumber,
+              pan: nullableNumber,
+              octave: nullableNumber,
+              glide: nullableNumber,
+              legato: nullableBoolean,
+              scale: harmonySchema,
+              drone: {
+                type: ['object', 'null'], additionalProperties: false,
+                properties: { enabled: { type: 'boolean' }, root: nullableString },
+                required: ['enabled', 'root'],
+              },
+              arp: {
+                type: ['object', 'null'], additionalProperties: false,
+                properties: {
+                  enabled: { type: 'boolean' }, style: { type: 'string' }, rate: { type: 'string' },
+                  gate: { type: 'number' }, octaves: { type: 'number' }, steps: { type: 'number' }, distance: { type: 'number' },
+                },
+                required: ['enabled', 'style', 'rate', 'gate', 'octaves', 'steps', 'distance'],
+              },
+              granular: {
+                type: ['object', 'null'], additionalProperties: false,
+                properties: {
+                  enabled: { type: 'boolean' }, mix: { type: 'number' }, grainSize: { type: 'number' },
+                  overlap: { type: 'number' }, playbackRate: { type: 'number' }, loopStart: { type: 'number' },
+                  loopEnd: { type: 'number' }, jitter: { type: 'number' }, reverse: { type: 'boolean' },
+                  attack: { type: 'number' }, release: { type: 'number' },
+                },
+                required: ['enabled', 'mix', 'grainSize', 'overlap', 'playbackRate', 'loopStart', 'loopEnd', 'jitter', 'reverse', 'attack', 'release'],
+              },
+              speed: { type: ['number', 'null'], enum: [0.25, 0.5, 1, 1.5, 2, 3, 4, null] },
+              loopRegion: {
+                type: ['object', 'null'], additionalProperties: false,
+                properties: { startCell: { type: 'integer' }, endCell: { type: 'integer' } },
+                required: ['startCell', 'endCell'],
+              },
+              gridResolution: { type: ['string', 'null'], enum: ['4n', '8n', '8t', '16n', '16t', '32n', null] },
+              pitchVariety: {
+                type: ['object', 'null'], additionalProperties: false,
+                properties: {
+                  contour: { type: 'string', enum: ['geographic', 'randomWalk', 'arch'] },
+                  variety: { type: 'number' },
+                },
+                required: ['contour', 'variety'],
+              },
+            },
+            required: [
+              'routeId', 'synthType', 'samplerPreset', 'volume', 'pan', 'octave', 'glide', 'legato',
+              'scale', 'drone', 'arp', 'granular', 'speed', 'loopRegion', 'gridResolution', 'pitchVariety',
+            ],
+          },
+        },
+        fx: {
+          type: 'array',
+          items: {
+            type: 'object', additionalProperties: false,
+            properties: {
+              busId: { type: 'string' },
+              wet: nullableNumber,
+              params: {
+                type: 'array',
+                items: {
+                  type: 'object', additionalProperties: false,
+                  properties: {
+                    paramId: { type: 'string' },
+                    value: { anyOf: [{ type: 'number' }, { type: 'string' }] },
+                  },
+                  required: ['paramId', 'value'],
+                },
+              },
+              sends: {
+                type: 'array',
+                items: {
+                  type: 'object', additionalProperties: false,
+                  properties: { routeId: { type: 'string' }, level: { type: 'number' } },
+                  required: ['routeId', 'level'],
+                },
+              },
+            },
+            required: ['busId', 'wet', 'params', 'sends'],
+          },
+        },
+      },
+      required: ['summary', 'bpm', 'harmony', 'masterVolume', 'tracks', 'fx'],
+    },
+  },
+}
 
 // Some models wrap JSON in a ```json … ``` markdown fence despite being asked
 // not to (and despite response_format: json_object). Peel it off before parsing.
@@ -47,13 +167,15 @@ export async function POST(req) {
         Authorization: `Bearer ${key}`,
         'Content-Type': 'application/json',
         'HTTP-Referer': APP_URL,
-        'X-Title': 'Transit DAW',
+        'X-Title': 'Leid',
       },
       body: JSON.stringify({
-        model: process.env.OPENROUTER_MODEL || 'anthropic/claude-sonnet-4.5',
+        model: process.env.OPENROUTER_MODEL || 'openai/gpt-5-mini',
         messages,
-        response_format: { type: 'json_object' },
-        temperature: 0.7,
+        response_format: COMPOSITION_RESPONSE_FORMAT,
+        provider: { require_parameters: true },
+        reasoning: { effort: 'low', exclude: true },
+        max_completion_tokens: 3000,
       }),
     })
 

@@ -19,6 +19,7 @@ import {
 import { exportRouteAudio, exportMixAudio } from '@/lib/audioExport.js'
 import { useEntitlements } from '@/lib/shared/EntitlementsContext.jsx'
 import { countActiveLanes, normalizeLaneAccess } from '@/lib/billing/plans.js'
+import { buildReplacementLaneState } from '@/lib/ai/planApply.js'
 
 const MAX_EVENTS = 80
 
@@ -104,6 +105,7 @@ export default function MixerTab({ active = true }) {
   const [view,    setView]    = useState('daw')   // 'map' | 'daw'
   const [mode,    setMode]    = useState('mock')  // 'mock' | 'live'
   const [started, setStarted] = useState(false)
+  const [pendingAiStart, setPendingAiStart] = useState(0)
   const [events,  setEvents]  = useState([])
 
   const [volumes, setVolumes] = useState({})
@@ -622,6 +624,39 @@ export default function MixerTab({ active = true }) {
       Tone.getDestination().volume.rampTo(masterVolume, 0.5)
     }
   }
+
+  // AI Apply batches a large set of React updates. Starting from an effect makes
+  // the engine read the committed BPM, harmony, instruments, and lane state
+  // instead of the pre-Apply values captured by the click handler.
+  useEffect(() => {
+    if (!pendingAiStart) return undefined
+    let cancelled = false
+    const start = async () => {
+      const engine = engineRef.current
+      if (!engine) return
+      try {
+        await engine.start()
+        if (cancelled) return
+        Tone.getDestination().volume.value = -80
+        const smMap = {}
+        for (const [rid, soundMode] of Object.entries(trackSoundModes)) {
+          smMap[rid] = {
+            mode: soundMode,
+            scale: trackScales[rid] ?? { root: 'C', scaleType: 'major' },
+          }
+        }
+        engine.startMock(mergedRoutes ?? [], smMap, bpm, trackSynthTypes, trackADSRs)
+        setStarted(true)
+        Tone.getDestination().volume.rampTo(masterVolume, 0.5)
+      } catch (error) {
+        console.error('AI plan playback failed:', error)
+      } finally {
+        if (!cancelled) setPendingAiStart(0)
+      }
+    }
+    start()
+    return () => { cancelled = true }
+  }, [pendingAiStart]) // intentionally keyed to the post-commit start request
 
   // Stop playback when this tab is hidden (the component stays mounted so all
   // settings persist, but we don't want a background tab fighting over the
@@ -1213,14 +1248,46 @@ export default function MixerTab({ active = true }) {
   // would click. Order matters: harmony before per-track scale, scale before
   // pitch strategy (handleScale rewrites the manual pitch map), FX track added
   // before its wet/params/sends are set.
-  const applyAIPlan = useCallback((plan) => {
-    if (!plan) return
+  const applyAIPlan = useCallback(async (plan) => {
+    if (!plan?.tracks?.length) throw new Error('The generated plan did not contain any playable tracks.')
+
+    const engine = engineRef.current
+    if (started && engine) {
+      if (stoppingRef.current) return { appliedCount: 0 }
+      stoppingRef.current = true
+      Tone.getDestination().volume.rampTo(-80, 0.35)
+      await new Promise(resolve => setTimeout(resolve, 410))
+      engine.stopMock()
+      Tone.getDestination().volume.value = masterVolume
+      setStarted(false)
+      setHasMidiSession(midiRecorderRef.current?.hasData() ?? false)
+      stoppingRef.current = false
+    }
+
+    const replacement = buildReplacementLaneState(
+      visibleInstrumentRoutes,
+      plan.tracks.map(track => track.routeId),
+      disabledRoutes,
+      limits.activeLanes,
+    )
+    const activeIds = new Set(replacement.activeIds)
+
+    for (const id of soloRoutes) engineRef.current?.setSolo(id, false)
+    setSoloRoutes(new Set())
+    setDisabledRoutes(replacement.disabled)
+    for (const route of visibleInstrumentRoutes) {
+      engineRef.current?.setRouteDisabled(route.id, replacement.disabled[route.id])
+    }
+
+    setMode('mock')
+    setView('daw')
 
     if (plan.bpm != null)          setBpm(plan.bpm)
     if (plan.masterVolume != null) handleMasterVolume(plan.masterVolume)
     if (plan.harmony)              handleGlobalHarmony(plan.harmony)
 
     for (const t of plan.tracks ?? []) {
+      if (!activeIds.has(t.routeId)) continue
       const route = routes?.find(r => r.id === t.routeId)
       if (!route) continue
 
@@ -1239,6 +1306,10 @@ export default function MixerTab({ active = true }) {
         if (t.drone.root) handleDroneRoot(t.routeId, t.drone.root)
       }
       if (t.arp) handleArp(t.routeId, t.arp)
+      if (t.speed != null) handleTrackSpeed(t.routeId, t.speed)
+      if (t.loopRegion) handleTrackLoopRegion(t.routeId, t.loopRegion)
+      if (t.gridResolution) handleTrackGridResolution(t.routeId, t.gridResolution)
+      if (t.pitchVariety) handlePitchVariety(t.routeId, t.pitchVariety)
     }
 
     for (const f of plan.fx ?? []) {
@@ -1251,11 +1322,16 @@ export default function MixerTab({ active = true }) {
         handleSendLevel(s.routeId, f.busId, s.level)
       }
     }
+
+    setPendingAiStart(value => value + 1)
+    return { appliedCount: replacement.activeIds.length, skippedCount: replacement.skippedIds.length }
   }, [
-    routes, handleMasterVolume, handleSynthType, handleSamplerPreset, handleDrumVoice, handleGranular,
-    handleOctaveShift, handleGlide, handleLegato, handleArp,
+    routes, started, masterVolume, visibleInstrumentRoutes, disabledRoutes, limits.activeLanes, soloRoutes,
+    handleMasterVolume, handleGlobalHarmony, handleSynthType, handleSamplerPreset, handleDrumVoice, handleGranular,
+    handleVolume, handlePan, handleScale, handleOctaveShift, handleGlide, handleLegato, handleArp,
     handleDroneMode, handleDroneRoot, handleAddFxTrack, handleFxBusWet,
-    handleFxBusParam, handleSendLevel,
+    handleFxBusParam, handleSendLevel, handleTrackSpeed, handleTrackLoopRegion,
+    handleTrackGridResolution, handlePitchVariety,
   ])
 
   const midiExportCtx = useMemo(() => ({
@@ -1538,7 +1614,8 @@ export default function MixerTab({ active = true }) {
       <AIComposerPanel
         className={view !== 'map' && view !== 'daw' ? 'view-hidden' : ''}
         routes={routes}
-        started={started}
+        cityId={cityId}
+        cityName={cityEntry.name}
         onApply={applyAIPlan}
       />
       <DawView

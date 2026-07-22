@@ -1,18 +1,30 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { requestComposition, validatePlan } from '@/lib/ai/composer.js'
 import { useEntitlements } from '@/lib/shared/EntitlementsContext.jsx'
+import { factsForCity } from '@/lib/shared/cityFacts.js'
 import './AIComposerPanel.css'
 
 // Natural-language composer overlay for the Map tab. The user describes the
 // sound they want; we ask the model for a structured plan, show a preview, and
 // only touch the app's controls when they click Apply.
-export default function AIComposerPanel({ className = '', routes, onApply, started }) {
-  const { openUpgrade, refresh, usage } = useEntitlements()
+export default function AIComposerPanel({ className = '', routes, onApply, cityId, cityName }) {
+  const { openUpgrade, refresh, usage, limits } = useEntitlements()
   const [prompt,  setPrompt]  = useState('')
   const [loading, setLoading] = useState(false)
   const [error,   setError]   = useState(null)
   const [result,  setResult]  = useState(null) // { plan, dropped }
   const [open,    setOpen]    = useState(true)
+  const [applied, setApplied] = useState(null)
+  const [applying, setApplying] = useState(false)
+  const [factIndex, setFactIndex] = useState(0)
+
+  const facts = useMemo(() => factsForCity(cityId), [cityId])
+
+  useEffect(() => {
+    if (!loading || facts.length < 2) return undefined
+    const timer = setInterval(() => setFactIndex(index => (index + 1) % facts.length), 7000)
+    return () => clearInterval(timer)
+  }, [loading, facts])
 
   const routeName = useMemo(() => {
     const m = {}
@@ -22,10 +34,12 @@ export default function AIComposerPanel({ className = '', routes, onApply, start
 
   const generate = async () => {
     if (!prompt.trim() || loading) return
-    setLoading(true); setError(null); setResult(null)
+    setFactIndex(Math.floor(Math.random() * facts.length))
+    setLoading(true); setError(null); setResult(null); setApplied(null); setApplying(false)
     try {
-      const raw = await requestComposition(prompt.trim(), routes)
-      setResult(validatePlan(raw, routes))
+      const maxTracks = Math.min(routes?.length ?? 1, limits.activeLanes ?? 8)
+      const raw = await requestComposition(prompt.trim(), routes, { cityId, cityName, maxTracks })
+      setResult(validatePlan(raw, routes, { activeLaneLimit: maxTracks }))
       await refresh()
     } catch (e) {
       if (e?.code === 'ai_limit_reached') {
@@ -38,10 +52,19 @@ export default function AIComposerPanel({ className = '', routes, onApply, start
     }
   }
 
-  const apply = () => {
-    if (!result?.plan) return
-    onApply(result.plan)
-    setResult(null)
+  const apply = async () => {
+    if (!result?.plan || applying) return
+    setApplying(true)
+    setError(null)
+    try {
+      const outcome = await onApply(result.plan)
+      const count = outcome?.appliedCount ?? result.plan.tracks?.length ?? 0
+      setApplied(`Applied ${count} track${count === 1 ? '' : 's'} — playing`)
+    } catch (e) {
+      setError(e?.message ?? String(e))
+    } finally {
+      setApplying(false)
+    }
   }
 
   const onKeyDown = (e) => {
@@ -49,7 +72,23 @@ export default function AIComposerPanel({ className = '', routes, onApply, start
   }
 
   return (
-    <div className={`ai-composer ${className}`}>
+    <>
+      {loading ? (
+        <div className="ai-planning-overlay">
+          <div className="ai-planning-grid" aria-hidden="true" />
+          <div className="ai-planning-card">
+            <div className="ai-planning-signal" aria-hidden="true">
+              <span /><span /><span /><span /><span />
+            </div>
+            <div className="ai-planning-kicker">Leið · {cityName}</div>
+            <h2 role="status" aria-live="polite">Arranging your transit loop…</h2>
+            <p className="ai-planning-fact" aria-hidden="true">{facts[factIndex]}</p>
+            <div className="ai-planning-progress" aria-hidden="true"><span /></div>
+          </div>
+        </div>
+      ) : null}
+
+      <div className={`ai-composer ${className}`}>
       <button className="ai-composer-head" onClick={() => setOpen(o => !o)}>
         <span className="ai-composer-title">✦ AI Composer</span>
         <span className="ai-composer-chevron">{open ? '▾' : '▸'}</span>
@@ -80,23 +119,26 @@ export default function AIComposerPanel({ className = '', routes, onApply, start
           </div>
 
           {error && <div className="ai-composer-error">⚠ {error}</div>}
+          {applied && <div className="ai-composer-success">✓ {applied}</div>}
 
           {result && (
             <PlanPreview
               result={result}
               routeName={routeName}
-              started={started}
+              applied={!!applied}
+              applying={applying}
               onApply={apply}
-              onDiscard={() => setResult(null)}
+              onDiscard={() => { setResult(null); setApplied(null) }}
             />
           )}
         </div>
       )}
-    </div>
+      </div>
+    </>
   )
 }
 
-function PlanPreview({ result, routeName, started, onApply, onDiscard }) {
+function PlanPreview({ result, routeName, applied, applying, onApply, onDiscard }) {
   const { plan, dropped } = result
   const bpmChanges = plan.bpm != null
 
@@ -125,6 +167,10 @@ function PlanPreview({ result, routeName, started, onApply, onDiscard }) {
                     t.octave ? `${t.octave > 0 ? '+' : ''}${t.octave}oct` : null,
                     t.volume != null && `${t.volume}dB`,
                     t.drone?.enabled && 'drone',
+                    t.speed != null && `${t.speed}×`,
+                    t.gridResolution,
+                    t.loopRegion && `cells ${t.loopRegion.startCell}–${t.loopRegion.endCell}`,
+                    t.pitchVariety && `${t.pitchVariety.contour} ${Math.round(t.pitchVariety.variety * 100)}%`,
                   ].filter(Boolean).join(' · ')}
                 </span>
               </li>
@@ -153,17 +199,13 @@ function PlanPreview({ result, routeName, started, onApply, onDiscard }) {
         </div>
       )}
 
-      {started && bpmChanges && (
-        <div className="ai-composer-note">Tempo change applies on next Play.</div>
-      )}
-
       {dropped.length > 0 && (
         <div className="ai-composer-note">Ignored {dropped.length} unsupported value{dropped.length > 1 ? 's' : ''}: {dropped.join(', ')}</div>
       )}
 
       <div className="ai-composer-actions">
-        <button className="ai-composer-apply" onClick={onApply}>Apply</button>
-        <button className="ai-composer-discard" onClick={onDiscard}>Discard</button>
+        <button className="ai-composer-apply" onClick={onApply} disabled={applied || applying}>{applied ? 'Applied' : applying ? 'Applying…' : 'Apply & Play'}</button>
+        <button className="ai-composer-discard" onClick={onDiscard} disabled={applying}>Discard</button>
       </div>
     </div>
   )
