@@ -19,7 +19,7 @@
   max-width: 220px;
   transition: background 0.12s, color 0.12s, border-color 0.12s;
 }
-.song-menu-trigger:hover { background: #2a2a2a; }
+.song-menu-trigger:hover { background: var(--hover-surface); }
 .song-menu-trigger.is-dirty { border-color: color-mix(in srgb, var(--accent) 60%, var(--border)); }
 
 .song-menu-label {
@@ -48,7 +48,7 @@
   min-width: 74px;
 }
 .song-save-indicator--dirty { color: var(--accent); }
-.song-save-indicator--error { color: #f06060; }
+.song-save-indicator--error { color: var(--danger); }
 
 .song-save-dot {
   font-size: 0.6rem;
@@ -103,7 +103,7 @@
 .song-menu-count {
   color: var(--muted);
   font-size: 0.7rem;
-  font-family: 'Courier New', monospace;
+  font-family: var(--font-mono);
 }
 
 .song-menu-sep {
@@ -202,4 +202,4 @@
   cursor: pointer;
   border-radius: 3px;
 }
-.song-menu-row-del:hover { color: #f04040; background: rgba(240, 64, 64, 0.08); }
+.song-menu-row-del:hover { color: var(--danger); background: rgba(240, 64, 64, 0.08); }

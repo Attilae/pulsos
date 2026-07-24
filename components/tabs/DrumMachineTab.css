@@ -46,7 +46,7 @@
   border-radius: 3px;
   transition: background 0.12s, color 0.12s, border-color 0.12s;
 }
-.drum-btn:hover { background: #2a2a2a; }
+.drum-btn:hover { background: var(--hover-surface); }
 .drum-btn--ghost {
   background: transparent;
   color: var(--muted);
@@ -56,7 +56,7 @@
 .drum-btn--ghost:hover { color: var(--text); }
 .drum-btn--ghost.is-sent { color: var(--accent); border-color: var(--accent); }
 .drum-btn--transport.play { border-color: var(--accent); color: var(--accent); }
-.drum-btn--transport.stop { border-color: #f04040; color: #f04040; }
+.drum-btn--transport.stop { border-color: var(--danger); color: var(--danger); }
 
 /* ── Grid ─────────────────────────────────────────────────────────────── */
 .drum-grid {
@@ -103,7 +103,7 @@
   outline: none;
   cursor: pointer;
 }
-.drum-route-pick:hover { border-color: #555; }
+.drum-route-pick:hover { border-color: var(--border-strong); }
 
 .drum-row-controls { display: flex; gap: 4px; }
 .drum-mini-btn {
@@ -117,12 +117,12 @@
   font-size: 0.82rem;
   transition: background 0.1s, color 0.1s, border-color 0.1s;
 }
-.drum-mini-btn:hover { background: #2a2a2a; color: var(--text); }
+.drum-mini-btn:hover { background: var(--hover-surface); color: var(--text); }
 .drum-mini-btn:disabled { opacity: 0.3; cursor: not-allowed; }
 .drum-mini-btn.on {
   background: rgba(240, 64, 64, 0.15);
-  color: #f04040;
-  border-color: #f04040;
+  color: var(--danger);
+  border-color: var(--danger);
 }
 
 /* ── Offset slider ────────────────────────────────────────────────────── */
@@ -161,30 +161,28 @@
   padding: 0;
   transition: background 0.08s, border-color 0.08s, transform 0.04s;
 }
-.drum-step:hover { background: #2e2e2e; }
-.drum-step.beat { border-color: #444; }
+.drum-step:hover { background: var(--border); }
+.drum-step.beat { border-color: var(--border); }
 .drum-step.on {
   background: var(--accent);
   border-color: var(--accent);
-  box-shadow: 0 0 6px rgba(200, 240, 64, 0.4);
 }
 /* Velocity levels: partial-height fill from the bottom (▁ soft, ▆ norm, █ accent). */
 .drum-step.on.vel-norm {
   background: linear-gradient(to top, var(--accent) 0 65%, var(--surface2) 65%);
-  box-shadow: 0 0 4px rgba(200, 240, 64, 0.3);
 }
 .drum-step.on.vel-soft {
   background: linear-gradient(to top, var(--accent) 0 30%, var(--surface2) 30%);
   box-shadow: none;
 }
 .drum-step.playing:not(.on) {
-  background: #3a3a3a;
-  border-color: #777;
+  background: var(--border);
+  border-color: var(--muted);
 }
 .drum-step.playing.on {
-  background: #ffffff;
-  border-color: #ffffff;
-  box-shadow: 0 0 14px rgba(200, 240, 64, 0.9);
+  background: var(--text);
+  border-color: var(--text);
+  box-shadow: inset 0 0 0 2px var(--accent);
 }
 
 /* ── Footer ───────────────────────────────────────────────────────────── */

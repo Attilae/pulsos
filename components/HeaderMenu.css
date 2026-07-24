@@ -14,7 +14,7 @@
   transition: border-color .14s, background .14s;
 }
 .header-menu-trigger:hover,
-.header-menu-trigger:focus-visible { background: #2a2a2a; border-color: var(--accent); outline: none; }
+.header-menu-trigger:focus-visible { background: var(--hover-surface); border-color: var(--accent); outline: none; }
 .header-menu-trigger-lines { width: 14px; display: grid; gap: 3px; }
 .header-menu-trigger-lines i { display: block; height: 1px; background: currentColor; }
 
@@ -25,14 +25,13 @@
      above this layer so confirmations launched from the preset list work. */
   z-index: 1500;
   background: rgba(0, 0, 0, .48);
-  backdrop-filter: blur(2px);
   display: flex;
   justify-content: flex-end;
 }
 .header-menu-drawer {
   width: min(100%, 400px);
   height: 100%;
-  background: #121212;
+  background: var(--surface-sunken);
   border-left: 1px solid var(--border);
   box-shadow: -20px 0 48px rgba(0, 0, 0, .42);
   display: flex;
@@ -81,7 +80,7 @@
   padding: 13px;
   margin-bottom: 14px;
   border: 1px solid color-mix(in srgb, var(--accent) 36%, var(--border));
-  background: linear-gradient(105deg, rgba(200, 240, 64, .09), transparent 66%);
+  background: var(--accent-tint);
 }
 .header-menu-avatar {
   flex: 0 0 auto;
@@ -116,7 +115,7 @@
   cursor: pointer;
   transition: border-color .12s, background .12s;
 }
-.header-menu-item:hover { border-color: var(--accent); background: #282828; }
+.header-menu-item:hover { border-color: var(--accent); background: var(--border); }
 .header-menu-item--detail strong, .header-menu-item--detail small { display: block; }
 .header-menu-item--detail strong { font-size: .78rem; font-weight: 400; }
 .header-menu-item--detail small { color: var(--muted); font-size: .67rem; margin-top: 3px; }
@@ -140,9 +139,9 @@
   width: 100%;
   margin-top: 24px;
   padding: 9px;
-  border: 1px solid #7d3030;
+  border: 1px solid var(--danger);
   background: transparent;
-  color: #ef7777;
+  color: var(--danger);
   border-radius: 3px;
   font-family: inherit;
   font-size: .76rem;

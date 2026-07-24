@@ -5,7 +5,6 @@
   inset: 0;
   z-index: 2000;            /* above ProfilePanel, HeaderMenu, and app overlays */
   background: rgba(0, 0, 0, 0.55);
-  backdrop-filter: blur(2px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -77,18 +76,18 @@
   background: transparent;
   color: var(--muted);
 }
-.dlg-btn--ghost:hover { color: var(--text); border-color: var(--muted); background: #2a2a2a; }
+.dlg-btn--ghost:hover { color: var(--text); border-color: var(--muted); background: var(--hover-surface); }
 
 .dlg-btn--primary {
   background: var(--surface2);
   color: var(--accent);
   border-color: var(--accent);
 }
-.dlg-btn--primary:hover { background: #2a2a2a; }
+.dlg-btn--primary:hover { background: var(--hover-surface); }
 
 .dlg-btn--danger {
-  color: #f06060;
-  border-color: #f06060;
+  color: var(--danger);
+  border-color: var(--danger);
   background: rgba(240, 64, 64, 0.08);
 }
 .dlg-btn--danger:hover { background: rgba(240, 64, 64, 0.16); }

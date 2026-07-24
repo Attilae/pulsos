@@ -67,7 +67,7 @@
   cursor: pointer;
   transition: background 0.12s, border-color 0.12s;
 }
-.stop-editor-step:hover { background: #2a2a2a; border-color: var(--accent); }
+.stop-editor-step:hover { background: var(--hover-surface); border-color: var(--accent); }
 
 .stop-editor-note {
   min-width: 42px;

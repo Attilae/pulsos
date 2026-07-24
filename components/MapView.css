@@ -16,11 +16,11 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #666;
+  color: var(--muted);
   font-size: 0.8rem;
-  font-family: 'Courier New', monospace;
+  font-family: var(--font-mono);
   z-index: 1000;
-  background: #0d0d0d;
+  background: var(--bg);
 }
 
 /* ── Track status overlay ─────────────────────────────────────────────────── */
@@ -29,49 +29,48 @@
   top: 10px;
   left: 10px;
   z-index: 999;
-  background: rgba(13, 13, 13, 0.82);
-  border: 1px solid #333;
+  background: var(--surface-overlay);
+  border: 1px solid var(--border);
   border-radius: 4px;
   padding: 6px 8px;
   display: flex;
   flex-direction: column;
   gap: 4px;
   pointer-events: none;
-  backdrop-filter: blur(4px);
 }
 
 .map-status-row {
   display: flex;
   align-items: center;
   gap: 5px;
-  font-family: 'Courier New', monospace;
+  font-family: var(--font-mono);
   font-size: 0.68rem;
-  color: #e8e8e8;
+  color: var(--text);
   transition: opacity 0.2s;
   padding: 3px 6px;
   border-radius: 3px;
-  border: 1px solid color-mix(in srgb, var(--border, #333) 60%, transparent);
+  border: 1px solid color-mix(in srgb, var(--border, var(--border)) 60%, transparent);
   background-image:
     repeating-linear-gradient(
       to right,
       transparent 0,
       transparent calc(100% / 64 - 1px),
-      color-mix(in srgb, var(--border, #333) 40%, transparent) calc(100% / 64 - 1px),
-      color-mix(in srgb, var(--border, #333) 40%, transparent) calc(100% / 64)
+      var(--grid-line) calc(100% / 64 - 1px),
+      var(--grid-line) calc(100% / 64)
     ),
     repeating-linear-gradient(
       to right,
       transparent 0,
       transparent calc(100% / 16 - 1px),
-      color-mix(in srgb, #e8e8e8 10%, transparent) calc(100% / 16 - 1px),
-      color-mix(in srgb, #e8e8e8 10%, transparent) calc(100% / 16)
+      color-mix(in srgb, var(--text) 10%, transparent) calc(100% / 16 - 1px),
+      color-mix(in srgb, var(--text) 10%, transparent) calc(100% / 16)
     ),
     repeating-linear-gradient(
       to right,
       transparent 0,
       transparent calc(100% / 4 - 1.5px),
-      color-mix(in srgb, var(--accent, #7c3aed) 35%, transparent) calc(100% / 4 - 1.5px),
-      color-mix(in srgb, var(--accent, #7c3aed) 35%, transparent) calc(100% / 4)
+      color-mix(in srgb, var(--text) 26%, transparent) calc(100% / 4 - 1.5px),
+      color-mix(in srgb, var(--text) 26%, transparent) calc(100% / 4)
     );
 }
 
@@ -101,15 +100,15 @@
 }
 
 .map-status-badge--disabled {
-  background: #5a3a00;
-  border: 1px solid #c07000;
-  color: #ffaa00;
+  background: color-mix(in srgb, var(--warning) 18%, transparent);
+  border: 1px solid var(--warning);
+  color: var(--warning);
 }
 
 .map-status-badge--solo {
-  background: #003a5a;
-  border: 1px solid #0080c0;
-  color: #40b8ff;
+  background: color-mix(in srgb, var(--info) 20%, transparent);
+  border: 1px solid var(--info);
+  color: var(--info);
 }
 
 /* ── Playhead markers ─────────────────────────────────────────────────────── */
@@ -134,29 +133,29 @@
 
 /* Style the Leaflet layer control to match the dark theme */
 .leaflet-control-layers {
-  background: #1a1a1a !important;
-  border: 1px solid #333 !important;
+  background: var(--surface) !important;
+  border: 1px solid var(--border) !important;
   border-radius: 4px !important;
-  color: #e8e8e8 !important;
+  color: var(--text) !important;
 }
 
 .leaflet-control-layers label {
-  color: #e8e8e8 !important;
+  color: var(--text) !important;
   font-size: 0.78rem;
 }
 
 .leaflet-control-layers-toggle {
-  background-color: #1a1a1a !important;
+  background-color: var(--surface) !important;
 }
 
 .leaflet-control-zoom a {
-  background: #1a1a1a !important;
-  color: #e8e8e8 !important;
-  border-color: #333 !important;
+  background: var(--surface) !important;
+  color: var(--text) !important;
+  border-color: var(--border) !important;
 }
 
 .leaflet-control-zoom a:hover {
-  background: #242424 !important;
+  background: var(--surface2) !important;
 }
 
 /* ── Active stop markers ─────────────────────────────────────────────────── */
@@ -186,14 +185,13 @@
   bottom: 6px;
   left: 8px;
   z-index: 999;
-  background: rgba(13, 13, 13, 0.82);
-  border: 1px solid #333;
+  background: var(--surface-overlay);
+  border: 1px solid var(--border);
   border-radius: 4px;
   padding: 3px 7px;
-  font-family: 'Courier New', monospace;
+  font-family: var(--font-mono);
   font-size: 0.62rem;
-  color: #9a9a9a;
-  backdrop-filter: blur(4px);
+  color: var(--muted);
 }
-.map-attribution a { color: #c7c7c7; text-decoration: none; }
+.map-attribution a { color: var(--text-subtle); text-decoration: none; }
 .map-attribution a:hover { text-decoration: underline; }

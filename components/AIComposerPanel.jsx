@@ -90,7 +90,7 @@ export default function AIComposerPanel({ className = '', routes, onApply, cityI
 
       <div className={`ai-composer ${className}`}>
       <button className="ai-composer-head" onClick={() => setOpen(o => !o)}>
-        <span className="ai-composer-title">✦ AI Composer</span>
+        <span className="ai-composer-title">AI Composer</span>
         <span className="ai-composer-chevron">{open ? '▾' : '▸'}</span>
       </button>
 

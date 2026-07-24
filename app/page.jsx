@@ -12,7 +12,7 @@ const App = dynamic(() => import('@/components/App.jsx'), {
     <div style={{
       height: '100vh', display: 'grid', placeItems: 'center',
       background: '#0d0d0d', color: '#c8f040',
-      fontFamily: "'Courier New', monospace", letterSpacing: '0.14em',
+      fontFamily: 'var(--font-mono)', letterSpacing: '0.14em',
     }}>
       TRANSIT DAW — loading…
     </div>
