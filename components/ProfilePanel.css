@@ -5,7 +5,6 @@
   inset: 0;
   z-index: 200;
   background: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(2px);
   display: flex;
   align-items: flex-start;
   justify-content: center;
@@ -124,7 +123,7 @@
   white-space: nowrap;
   transition: background 0.12s, opacity 0.12s;
 }
-.profile-btn:hover:not(:disabled) { background: #2a2a2a; }
+.profile-btn:hover:not(:disabled) { background: var(--hover-surface); }
 .profile-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
 .profile-checkbox {
@@ -139,7 +138,7 @@
 .profile-checkbox input { accent-color: var(--accent); cursor: pointer; }
 
 .profile-msg { font-size: 0.72rem; color: var(--muted); margin-top: 8px; }
-.profile-msg--err { color: #f06060; }
+.profile-msg--err { color: var(--danger); }
 .profile-empty { font-size: 0.76rem; color: var(--muted); font-style: italic; }
 
 /* ── Billing signal ─────────────────────────────────────────────────────── */
@@ -204,8 +203,8 @@
   white-space: nowrap;
   transition: color 0.12s, border-color 0.12s, background 0.12s;
 }
-.preset-action:hover { color: var(--text); border-color: var(--muted); background: #2a2a2a; }
-.preset-action--danger:hover { color: #f06060; border-color: #f06060; background: rgba(240, 64, 64, 0.08); }
+.preset-action:hover { color: var(--text); border-color: var(--muted); background: var(--hover-surface); }
+.preset-action--danger:hover { color: var(--danger); border-color: var(--danger); background: rgba(240, 64, 64, 0.08); }
 
 @media (max-width: 520px) {
   .preset-row { flex-direction: column; align-items: stretch; }

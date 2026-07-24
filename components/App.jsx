@@ -8,7 +8,9 @@ import DrumMachineTab   from './tabs/DrumMachineTab.jsx'
 import SongChainerTab   from './tabs/SongChainerTab.jsx'
 import CitySelect       from './CitySelect.jsx'
 import HeaderMenu       from './HeaderMenu.jsx'
+import ThemeToggle      from './ThemeToggle.jsx'
 import { CityProvider } from '@/lib/shared/CityContext.jsx'
+import { ThemeProvider } from '@/lib/shared/ThemeContext.jsx'
 import { DrumClipboardProvider } from '@/lib/shared/DrumClipboardContext.jsx'
 import { EntitlementsProvider } from '@/lib/shared/EntitlementsContext.jsx'
 import { DialogHost }   from './Dialog.jsx'
@@ -62,6 +64,7 @@ export default function App() {
   }, [])
 
   return (
+    <ThemeProvider>
     <EntitlementsProvider>
     <CityProvider>
       <DrumClipboardProvider>
@@ -85,6 +88,7 @@ export default function App() {
             ))}
           </div>
           <CitySelect />
+          <ThemeToggle />
           <HeaderMenu startTour={startTour} />
         </nav>
         <main className="tab-body">
@@ -103,5 +107,6 @@ export default function App() {
       </DrumClipboardProvider>
     </CityProvider>
     </EntitlementsProvider>
+    </ThemeProvider>
   )
 }

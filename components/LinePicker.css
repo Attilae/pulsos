@@ -166,4 +166,4 @@
   cursor: pointer;
   transition: color 0.12s, border-color 0.12s;
 }
-.line-picker-remove:hover { color: #e06666; border-color: #e06666; }
+.line-picker-remove:hover { color: var(--danger); border-color: var(--danger); }

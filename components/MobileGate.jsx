@@ -13,7 +13,7 @@ const BYPASS_KEY = 'leid-mobile-bypass'
 const shell = {
   height: '100vh', display: 'grid', placeItems: 'center',
   background: '#0d0d0d', color: '#c8f040',
-  fontFamily: "'Courier New', monospace", letterSpacing: '0.14em',
+  fontFamily: 'var(--font-mono)', letterSpacing: '0.14em',
   textAlign: 'center', padding: '0 24px',
 }
 

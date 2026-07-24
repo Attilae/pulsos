@@ -2,6 +2,9 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+> **Note:** `AGENTS.md` at the repo root is a near-verbatim copy of this file for Codex. When you
+> change architectural guidance here, mirror the same edit into `AGENTS.md` so the two don't drift.
+
 ## Concept
 
 A web DAW that sonifies live public transport, branded **"Leið"** (Icelandic for "the way/route";
@@ -60,9 +63,11 @@ npm run db:push     # drizzle-kit: push schema directly (dev)
 npm test            # node --test — the only tests so far are billing/entitlement logic
 ```
 
-`npm test` runs the built-in Node test runner (`node --test`). Coverage is **minimal**: only
-`test/billing-plans.test.js` (pure functions in `lib/billing/plans.js`) — there is **no linter
-configured** and the audio/UI code has no tests. Don't assume broad test coverage exists.
+`npm test` runs the built-in Node test runner (`node --test`). Coverage is **minimal** — two
+files, both pure logic: `test/billing-plans.test.js` (`lib/billing/plans.js`) and
+`test/ai-plan-apply.test.js` (`lib/ai/planApply.js` + `lib/shared/cityFacts.js`). There is **no
+linter configured** and the audio/UI code has no tests. Don't assume broad test coverage exists.
+Run a single test file with `node --test test/ai-plan-apply.test.js`.
 
 ### Environment
 

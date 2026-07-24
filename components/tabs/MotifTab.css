@@ -58,7 +58,7 @@
 .motif-roll {
   width: 100%;
   height: clamp(220px, 50vh, 360px);
-  background: #111;
+  background: var(--surface-sunken);
   border: 1px solid var(--border);
   border-radius: 6px;
   overflow: hidden;
@@ -76,7 +76,7 @@
   color: var(--muted);
   letter-spacing: 0.04em;
 }
-.motif-meta-sep { color: #3a3a3a; }
+.motif-meta-sep { color: var(--border); }
 
 .motif-actions {
   display: flex;
@@ -95,7 +95,7 @@
   cursor: pointer;
   transition: background 0.12s, color 0.12s, border-color 0.12s;
 }
-.motif-btn:hover:not(:disabled) { background: #2a2a2a; }
+.motif-btn:hover:not(:disabled) { background: var(--hover-surface); }
 .motif-btn:disabled { opacity: 0.35; cursor: not-allowed; }
 
 .motif-btn--primary {
@@ -104,11 +104,11 @@
   padding: 9px 24px;
 }
 .motif-btn--primary:hover:not(:disabled) {
-  background: rgba(200, 240, 64, 0.1);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
 }
 .motif-btn--primary.on {
-  border-color: #f04040;
-  color: #f04040;
+  border-color: var(--danger);
+  color: var(--danger);
 }
 .motif-btn--primary.on:hover { background: rgba(240, 64, 64, 0.1); }
 

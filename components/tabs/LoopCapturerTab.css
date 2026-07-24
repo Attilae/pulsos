@@ -57,13 +57,13 @@
   border-radius: 3px;
   transition: background 0.12s, color 0.12s, border-color 0.12s;
 }
-.loop-btn:hover { background: #2a2a2a; }
+.loop-btn:hover { background: var(--hover-surface); }
 .loop-btn:disabled { opacity: 0.35; cursor: not-allowed; }
 .loop-btn--transport.play { border-color: var(--accent); color: var(--accent); }
-.loop-btn--transport.stop { border-color: #f04040; color: #f04040; }
+.loop-btn--transport.stop { border-color: var(--danger); color: var(--danger); }
 .loop-btn--cap {
-  border-color: #f04040;
-  color: #f04040;
+  border-color: var(--danger);
+  color: var(--danger);
   padding: 5px 10px;
   font-size: 0.74rem;
 }
@@ -81,15 +81,15 @@
   font-size: 0.78rem;
   transition: background 0.1s, color 0.1s, border-color 0.1s;
 }
-.loop-mini-btn:hover:not(:disabled) { background: #2a2a2a; color: var(--text); }
+.loop-mini-btn:hover:not(:disabled) { background: var(--hover-surface); color: var(--text); }
 .loop-mini-btn:disabled { opacity: 0.3; cursor: not-allowed; }
 .loop-mini-btn.on {
   background: rgba(240, 64, 64, 0.15);
-  color: #f04040;
-  border-color: #f04040;
+  color: var(--danger);
+  border-color: var(--danger);
 }
 .loop-mini-btn.on.solo {
-  background: rgba(200, 240, 64, 0.15);
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
   color: var(--accent);
   border-color: var(--accent);
 }
@@ -136,13 +136,13 @@
 }
 .loop-bar.active {
   background: var(--accent);
-  box-shadow: 0 0 6px rgba(200, 240, 64, 0.5);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--accent) 50%, transparent);
 }
 
 /* ── Piano-roll preview ───────────────────────────────────────────────── */
 .piano-roll {
   width: 100%;
-  background: #111;
+  background: var(--surface-sunken);
   border: 1px solid var(--border);
   border-radius: 4px;
   overflow: hidden;

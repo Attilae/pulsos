@@ -1,18 +1,5 @@
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-:root {
-  --bg: #0d0d0d;
-  --surface: #1a1a1a;
-  --surface2: #242424;
-  --border: #333;
-  --text: #e8e8e8;
-  --muted: #666;
-  --accent: #c8f040;
-  --auto-accent: #5ad1ff;
-  font-size: 14px;
-}
-
-body { background: var(--bg); color: var(--text); font-family: 'Courier New', monospace; }
+/* Component styles for the DAW shell. Global tokens + reset + body live in
+   app/globals.css (imported by app/layout.jsx), shared by every route. */
 
 /* ── App shell (tab router) ─────────────────────────────────────────────── */
 .app-shell {
@@ -25,7 +12,7 @@ body { background: var(--bg); color: var(--text); font-family: 'Courier New', mo
   display: flex;
   align-items: center;
   gap: 16px;
-  background: #0a0a0a;
+  background: var(--surface-sunken);
   border-bottom: 1px solid var(--border);
   padding: 8px 16px;
 }
@@ -59,7 +46,7 @@ body { background: var(--bg); color: var(--text); font-family: 'Courier New', mo
   cursor: pointer;
   transition: color 0.12s, border-color 0.12s, background 0.12s;
 }
-.tab-btn:hover { color: var(--text); background: #161616; }
+.tab-btn:hover { color: var(--text); background: var(--hover-surface); }
 .tab-btn.active {
   color: var(--accent);
   border-bottom-color: var(--accent);
@@ -90,7 +77,7 @@ body { background: var(--bg); color: var(--text); font-family: 'Courier New', mo
 }
 .city-select-icon { font-size: 0.8rem; color: var(--accent); }
 .city-select-input {
-  background: #161616;
+  background: var(--surface2);
   color: var(--text);
   border: 1px solid var(--border);
   border-radius: 4px;
@@ -115,7 +102,7 @@ body { background: var(--bg); color: var(--text); font-family: 'Courier New', mo
   cursor: pointer;
   white-space: nowrap;
 }
-.auth-trigger:hover { background: #2a2a2a; }
+.auth-trigger:hover { background: var(--hover-surface); }
 .auth-pop {
   position: absolute;
   right: 0;
@@ -129,7 +116,7 @@ body { background: var(--bg); color: var(--text); font-family: 'Courier New', mo
   display: flex;
   flex-direction: column;
   gap: 8px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  box-shadow: var(--elevation-overlay);
 }
 .auth-form input {
   padding: 6px 8px;
@@ -164,7 +151,7 @@ body { background: var(--bg); color: var(--text); font-family: 'Courier New', mo
   font-size: 0.78rem;
   cursor: pointer;
 }
-.auth-btn:hover { background: #2a2a2a; }
+.auth-btn:hover { background: var(--hover-surface); }
 .auth-btn--ghost { color: var(--muted); border-color: var(--border); }
 .auth-msg { color: var(--muted); font-size: 0.7rem; }
 .auth-legal {
@@ -188,7 +175,7 @@ body { background: var(--bg); color: var(--text); font-family: 'Courier New', mo
   cursor: pointer;
   white-space: nowrap;
 }
-.tour-trigger:hover { background: #2a2a2a; }
+.tour-trigger:hover { background: var(--hover-surface); }
 .tour-pop {
   position: absolute;
   right: 0;
@@ -202,7 +189,7 @@ body { background: var(--bg); color: var(--text); font-family: 'Courier New', mo
   display: flex;
   flex-direction: column;
   gap: 8px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  box-shadow: var(--elevation-overlay);
 }
 .tour-item {
   padding: 7px;
@@ -214,7 +201,7 @@ body { background: var(--bg); color: var(--text); font-family: 'Courier New', mo
   font-size: 0.78rem;
   cursor: pointer;
 }
-.tour-item:hover { background: #2a2a2a; }
+.tour-item:hover { background: var(--hover-surface); }
 
 .tab-placeholder {
   flex: 1;
@@ -284,13 +271,13 @@ body { background: var(--bg); color: var(--text); font-family: 'Courier New', mo
   transition: background 0.12s, color 0.12s;
 }
 .mode-btn:last-child { border-right: none; }
-.mode-btn.active { background: #2a2a2a; color: var(--accent); }
-.mode-btn:hover:not(.active) { background: #222; color: var(--text); }
+.mode-btn.active { background: var(--hover-surface); color: var(--accent); }
+.mode-btn:hover:not(.active) { background: var(--hover-surface); color: var(--text); }
 
 .ws-status { font-size: 0.72rem; }
-.ws-status--connected    { color: #4caf50; }
-.ws-status--disconnected { color: #ff9800; }
-.ws-status--error        { color: #f44336; }
+.ws-status--connected    { color: var(--success); }
+.ws-status--disconnected { color: var(--warning); }
+.ws-status--error        { color: var(--danger); }
 
 .bpm-control {
   display: flex; align-items: center; gap: 6px; font-size: 0.72rem; color: var(--muted);
@@ -329,8 +316,8 @@ body { background: var(--bg); color: var(--text); font-family: 'Courier New', mo
   margin-left: auto;
 }
 .transport-btn.play { border-color: var(--accent); color: var(--accent); }
-.transport-btn.stop { border-color: #f04040; color: #f04040; }
-.transport-btn:hover { background: #2a2a2a; }
+.transport-btn.stop { border-color: var(--danger); color: var(--danger); }
+.transport-btn:hover { background: var(--hover-surface); }
 
 /* Drum backing imported from the Drum Machine tab */
 .drums-import-btn {
@@ -345,7 +332,7 @@ body { background: var(--bg); color: var(--text); font-family: 'Courier New', mo
   transition: background 0.12s;
   white-space: nowrap;
 }
-.drums-import-btn:hover { background: rgba(255,255,255,0.06); }
+.drums-import-btn:hover { background: var(--hover-bg); }
 
 /* Drums lane in the DAW track list (mini 6-pad step sequencer) */
 .drum-section .daw-section-label { display: flex; align-items: center; gap: 10px; }
@@ -363,7 +350,7 @@ body { background: var(--bg); color: var(--text); font-family: 'Courier New', mo
   font-size: 0.72rem;
 }
 .drum-lane-master-btn:hover { color: var(--text); }
-.drum-lane-master-btn.on { border-color: #f04040; color: #f04040; }
+.drum-lane-master-btn.on { border-color: var(--danger); color: var(--danger); }
 
 .drum-lane {
   display: flex;
@@ -399,7 +386,7 @@ body { background: var(--bg); color: var(--text); font-family: 'Courier New', mo
   font-size: 0.72rem;
 }
 .drum-lane-mute:hover { color: var(--text); }
-.drum-lane-mute.on { border-color: #f04040; color: #f04040; }
+.drum-lane-mute.on { border-color: var(--danger); color: var(--danger); }
 .drum-lane-steps {
   display: grid;
   grid-template-columns: repeat(16, 1fr);
@@ -417,12 +404,12 @@ body { background: var(--bg); color: var(--text); font-family: 'Courier New', mo
   transition: background 0.08s, border-color 0.08s;
 }
 .drum-lane-step:hover { border-color: var(--accent); }
-.drum-lane-step.beat { border-color: #555; }
+.drum-lane-step.beat { border-color: var(--border-strong); }
 .drum-lane-step.on { background: var(--accent); border-color: var(--accent); }
 /* Velocity levels: partial-height fill from the bottom (▁ soft, ▆ norm, █ accent). */
 .drum-lane-step.on.vel-norm { background: linear-gradient(to top, var(--accent) 0 65%, var(--surface2) 65%); }
 .drum-lane-step.on.vel-soft { background: linear-gradient(to top, var(--accent) 0 30%, var(--surface2) 30%); }
-.drum-lane-step.playing { box-shadow: inset 0 0 0 2px #fff; }
+.drum-lane-step.playing { box-shadow: inset 0 0 0 2px var(--text); }
 
 /* ── Tracks ─────────────────────────────────────────────────────────────── */
 .tracks,
@@ -472,7 +459,7 @@ body { background: var(--bg); color: var(--text); font-family: 'Courier New', mo
   border-radius: 3px;
   flex-shrink: 0;
 }
-.mute-btn.active { background: #5a3a00; border-color: #c07000; color: #ffaa00; }
+.mute-btn.active { background: color-mix(in srgb, var(--warning) 16%, transparent); border-color: var(--warning); color: var(--warning); }
 
 .disable-btn {
   width: 26px; height: 26px;
@@ -485,7 +472,7 @@ body { background: var(--bg); color: var(--text); font-family: 'Courier New', mo
   border-radius: 3px;
   flex-shrink: 0;
 }
-.disable-btn.active { background: #5a3a00; border-color: #c07000; color: #ffaa00; }
+.disable-btn.active { background: color-mix(in srgb, var(--warning) 16%, transparent); border-color: var(--warning); color: var(--warning); }
 
 .volume-slider {
   -webkit-appearance: none;
@@ -588,7 +575,7 @@ body { background: var(--bg); color: var(--text); font-family: 'Courier New', mo
   top: 50%;
   transform: translate(-50%, -50%);
   width: 26px; height: 26px;
-  background: #1e1e1e;
+  background: var(--surface-sunken);
   border: 1px solid var(--border);
   border-radius: 3px;
   display: flex;
@@ -632,13 +619,13 @@ body { background: var(--bg); color: var(--text); font-family: 'Courier New', mo
   justify-content: center;
   width: 36px;
   height: 34px;
-  border: 1px solid var(--color, #666);
-  background: color-mix(in srgb, var(--color, #666) 15%, transparent);
+  border: 1px solid var(--color, var(--muted));
+  background: color-mix(in srgb, var(--color, var(--muted)) 15%, transparent);
   border-radius: 3px;
   flex-shrink: 0;
   transition: opacity 0.3s;
 }
-.chip-route { font-size: 0.6rem; color: var(--color, #ccc); font-weight: bold; }
+.chip-route { font-size: 0.6rem; color: var(--color, var(--text)); font-weight: bold; }
 .chip-note  { font-size: 0.58rem; color: var(--muted); }
 
 /* ── Event log ──────────────────────────────────────────────────────────── */
@@ -728,3 +715,21 @@ body { background: var(--bg); color: var(--text); font-family: 'Courier New', mo
   color: var(--accent);
   border-color: color-mix(in srgb, var(--accent) 45%, transparent);
 }
+
+/* ── Theme toggle (header) ──────────────────────────────────────────────── */
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  background: var(--surface2);
+  color: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: color 0.12s, border-color 0.12s, background 0.12s;
+}
+.theme-toggle:hover { color: var(--text); border-color: var(--border-strong); }
+.theme-toggle svg { width: 15px; height: 15px; display: block; }

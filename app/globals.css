@@ -1,0 +1,117 @@
+/* ══════════════════════════════════════════════════════════════════════════
+   Global design tokens + base — imported once by app/layout.jsx so EVERY route
+   (the DAW, legal pages, the mobile gate, loading states) shares one themed
+   token layer. Component styles live in components/*.css.
+
+   Two layers, Atlassian-style:
+   Layer A: primitives (theme-agnostic raw values; never referenced directly).
+   Layer B: semantic aliases (theme-aware; components reference only these).
+   Dark is the default; [data-theme="light"] overrides the semantic layer.
+   ══════════════════════════════════════════════════════════════════════════ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  /* ── Layer A: primitives ────────────────────────────────────────────── */
+  /* Neutral ramp — 0 (white) → 1100 (near-black), subtly cool */
+  --n-0:#ffffff;   --n-10:#f7f8fa;  --n-20:#eef0f3;  --n-30:#e3e6eb;
+  --n-40:#d2d6dd;  --n-50:#bcc1cb;  --n-100:#a4abb6; --n-200:#868d99;
+  --n-300:#6b7280; --n-400:#565c66; --n-500:#434850; --n-600:#34383f;
+  --n-700:#282b30; --n-800:#202226; --n-900:#17181b; --n-1000:#0e0f11;
+  --n-1100:#0a0a0b;
+  /* Accent — desaturated lime; bright reads on dark, deep reads on light */
+  --lime-bright:#b6d94c; --lime-mid:#9dbf3d; --lime-deep:#5c7a1a;
+  /* Status hues — bright variants for dark, deep variants for light */
+  --red-bright:#e5534b;   --red-deep:#c9372c;
+  --amber-bright:#e2a53b; --amber-deep:#b7791f;
+  --green-bright:#4caf7d; --green-deep:#2f8f5b;
+  --blue-bright:#5ab0e6;  --blue-deep:#2f74c0;
+
+  /* Spacing — 8px base, self-documenting (ADS convention) */
+  --space-025:2px; --space-050:4px; --space-075:6px; --space-100:8px;
+  --space-150:12px; --space-200:16px; --space-300:24px; --space-400:32px;
+  --space-600:48px;
+  /* Radius — small/technical, matches the instrument feel */
+  --radius-sm:3px; --radius-md:6px; --radius-lg:8px; --radius-pill:999px;
+  /* Type */
+  --font-sans: var(--font-inter, ui-sans-serif, system-ui, -apple-system, sans-serif);
+  --font-mono: var(--font-jetbrains, ui-monospace, "SF Mono", Menlo, monospace);
+
+  /* ── Layer B: semantic aliases — DARK (default) ─────────────────────── */
+  --bg: var(--n-1000);
+  --surface: var(--n-900);
+  --surface2: var(--n-800);
+  --surface-sunken: var(--n-1100);
+  --surface-overlay: var(--n-800);
+  --border: var(--n-700);
+  --border-strong: var(--n-600);
+  --text: var(--n-20);
+  --text-subtle: var(--n-100);
+  --muted: var(--n-300);
+  --muted-strong: var(--n-100);
+  --hover-surface: var(--n-700);
+  --hover-bg: rgba(255,255,255,0.06);
+
+  --accent: var(--lime-bright);
+  --accent-text: var(--n-1000);
+  --accent-tint: rgba(182,217,76,0.14);
+  --auto-accent: var(--blue-bright);   /* legacy alias kept for back-compat */
+  --automation: var(--amber-bright);   /* automation-lane identity (was amber) */
+  --merge: var(--blue-bright);         /* merge/duplicate lanes (replaces purple) */
+
+  --danger: var(--red-bright);
+  --warning: var(--amber-bright);
+  --success: var(--green-bright);
+  --info: var(--blue-bright);
+
+  --grid-line: rgba(255,255,255,0.05);
+  --elevation-raised: 0 1px 2px rgba(0,0,0,0.5);
+  --elevation-overlay: 0 8px 24px rgba(0,0,0,0.55);
+
+  font-size: 14px;
+  color-scheme: dark;
+}
+
+:root[data-theme="light"] {
+  --bg: var(--n-10);
+  --surface: var(--n-0);
+  --surface2: var(--n-20);
+  --surface-sunken: var(--n-20);
+  --surface-overlay: var(--n-0);
+  --border: var(--n-40);
+  --border-strong: var(--n-50);
+  --text: var(--n-900);
+  --text-subtle: var(--n-400);
+  --muted: var(--n-300);
+  --muted-strong: var(--n-400);
+  --hover-surface: var(--n-20);
+  --hover-bg: rgba(9,15,25,0.05);
+
+  --accent: var(--lime-deep);
+  --accent-text: var(--n-0);
+  --accent-tint: rgba(92,122,26,0.12);
+  --auto-accent: var(--blue-deep);
+  --automation: var(--amber-deep);
+  --merge: var(--blue-deep);
+
+  --danger: var(--red-deep);
+  --warning: var(--amber-deep);
+  --success: var(--green-deep);
+  --info: var(--blue-deep);
+
+  --grid-line: rgba(9,15,25,0.07);
+  --elevation-raised: 0 1px 2px rgba(20,25,35,0.12);
+  --elevation-overlay: 0 8px 24px rgba(20,25,35,0.18);
+
+  color-scheme: light;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  transition: background 0.2s, color 0.2s;
+}
+
+/* Data / numeric readouts stay monospace (BPM, times, IDs, meters) */
+.mono, .bpm-control input, .volume-val, .pan-val, .stop-note,
+.chip-route, .chip-note, .event-log li { font-family: var(--font-mono); }

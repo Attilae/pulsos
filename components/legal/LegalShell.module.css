@@ -1,10 +1,10 @@
 .page {
-  --legal-bg: #0d0d0d;
-  --legal-surface: #171717;
-  --legal-border: #343434;
-  --legal-text: #e8e8e3;
-  --legal-muted: #8b8b84;
-  --legal-accent: #c8f040;
+  --legal-bg: var(--bg);
+  --legal-surface: var(--surface);
+  --legal-border: var(--border-strong);
+  --legal-text: var(--text);
+  --legal-muted: var(--muted);
+  --legal-accent: var(--accent);
   min-height: 100vh;
   background:
     linear-gradient(rgba(255, 255, 255, 0.018) 1px, transparent 1px),
@@ -12,7 +12,7 @@
     var(--legal-bg);
   background-size: 32px 32px;
   color: var(--legal-text);
-  font-family: "Courier New", Courier, monospace;
+  font-family: var(--font-mono);
 }
 
 .page * { box-sizing: border-box; }
@@ -29,7 +29,6 @@
   padding: 10px 28px;
   border-bottom: 1px solid var(--legal-border);
   background: rgba(10, 10, 10, 0.94);
-  backdrop-filter: blur(14px);
 }
 
 .brand,
@@ -62,7 +61,7 @@
   gap: 4px;
   padding: 3px;
   border: 1px solid var(--legal-border);
-  background: #101010;
+  background: var(--surface-sunken);
 }
 
 .nav a {
@@ -104,7 +103,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  color: #555;
+  color: var(--border-strong);
   font-size: 0.62rem;
   letter-spacing: 0.12em;
   writing-mode: vertical-rl;
@@ -160,8 +159,8 @@
 .summary {
   max-width: 720px;
   margin: 32px 0 0;
-  color: #b5b5ae;
-  font-family: Georgia, "Times New Roman", serif;
+  color: var(--text-subtle);
+  font-family: var(--font-sans);
   font-size: clamp(1.05rem, 2vw, 1.35rem);
   line-height: 1.65;
 }
@@ -205,8 +204,8 @@
 }
 
 .sectionBody {
-  color: #c4c4bd;
-  font-family: Georgia, "Times New Roman", serif;
+  color: var(--text-subtle);
+  font-family: var(--font-sans);
   font-size: 1rem;
   line-height: 1.78;
 }
@@ -216,7 +215,7 @@
 .sectionBody li { margin: 0.5em 0; }
 .sectionBody a {
   color: var(--legal-text);
-  text-decoration-color: #657728;
+  text-decoration-color: var(--accent);
   text-underline-offset: 3px;
 }
 .sectionBody a:hover { color: var(--legal-accent); }
@@ -231,7 +230,7 @@
 .tableWrap table {
   width: 100%;
   border-collapse: collapse;
-  font-family: "Courier New", Courier, monospace;
+  font-family: var(--font-mono);
   font-size: 0.72rem;
   line-height: 1.55;
 }
@@ -242,7 +241,7 @@
   vertical-align: top;
 }
 .tableWrap tr:last-child td { border-bottom: 0; }
-.tableWrap th { color: var(--legal-accent); background: #111; }
+.tableWrap th { color: var(--legal-accent); background: var(--surface-sunken); }
 .tableWrap td:first-child { color: var(--legal-text); }
 
 .footer {
