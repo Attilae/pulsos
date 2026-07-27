@@ -205,11 +205,33 @@ export default function MixerTab({ active = true }) {
   // lane's polyphonic voice (engine: setMerge + _buildMergedRoutePart).
   const [merges, setMerges] = useState([])
 
-  // Optional drum backing imported from the Drum Machine tab (via the app-level
-  // clipboard). null = none. Shape: { patterns, offsets, muted, bpm }.
-  const [drumPattern, setDrumPattern] = useState(null)
+  // Optional drum backing linked to the Drum Machine tab through the app-level
+  // pattern channel. null = unlinked. Shape: { patterns, offsets, muted, bpm }.
+  const [drumPattern, setDrumPatternState] = useState(null)
+  const drumPatternRef = useRef(null)
+  const pendingPublishedDrumRef = useRef(null)
   const [drumsMuted,  setDrumsMuted]  = useState(false)   // session-only UI toggle
   const drumClipboard = useDrumClipboard()
+
+  const setLocalDrumPattern = useCallback((next) => {
+    drumPatternRef.current = next
+    setDrumPatternState(next)
+  }, [])
+
+  // Commit a Map-side edit locally and to the shared channel in one direction.
+  // A null value only unlinks the Map lane; it leaves the Drum Machine's pattern.
+  const setSyncedDrumPattern = useCallback((value) => {
+    const previous = drumPatternRef.current
+    const next = typeof value === 'function' ? value(previous) : value
+    setLocalDrumPattern(next)
+    if (next) {
+      const cloned = JSON.parse(JSON.stringify(next))
+      pendingPublishedDrumRef.current = JSON.stringify(cloned)
+      drumClipboard.setPattern(cloned)
+    } else {
+      pendingPublishedDrumRef.current = null
+    }
+  }, [drumClipboard.setPattern, setLocalDrumPattern])
 
   // Base route ids that have been folded into a merged PolySynth lane — hidden
   // from the visible lane list (they play only through the merged lane).
@@ -578,17 +600,38 @@ export default function MixerTab({ active = true }) {
   const canImportDrums = !!clipboardDrums &&
     JSON.stringify(clipboardDrums) !== JSON.stringify(drumPattern)
 
+  // Once linked, adopt edits from the Drum Machine. This inbound path deliberately
+  // updates only local state so it cannot echo or race with outgoing Map edits.
+  useEffect(() => {
+    if (!clipboardDrums || drumPatternRef.current == null) return
+    const incoming = JSON.stringify(clipboardDrums)
+    if (pendingPublishedDrumRef.current) {
+      // A Map edit updates this component before the Provider's new value reaches
+      // it. Ignore the old context render, then clear the guard when our exact
+      // published value arrives.
+      if (incoming === pendingPublishedDrumRef.current) {
+        pendingPublishedDrumRef.current = null
+      } else {
+        return
+      }
+    }
+    if (incoming === JSON.stringify(drumPatternRef.current)) return
+    setLocalDrumPattern(JSON.parse(JSON.stringify(clipboardDrums)))
+  }, [clipboardDrums, setLocalDrumPattern])
+
   const handleImportDrums = useCallback(() => {
     if (!drumClipboard.pattern) return
     // Deep-clone so later edits in the Drum Machine tab don't mutate our copy.
-    setDrumPattern(JSON.parse(JSON.stringify(drumClipboard.pattern)))
+    pendingPublishedDrumRef.current = null
+    setLocalDrumPattern(JSON.parse(JSON.stringify(drumClipboard.pattern)))
     setDrumsMuted(false)
-  }, [drumClipboard.pattern])
+  }, [drumClipboard.pattern, setLocalDrumPattern])
 
   const handleClearDrums = useCallback(() => {
-    setDrumPattern(null)
+    pendingPublishedDrumRef.current = null
+    setLocalDrumPattern(null)
     setDrumsMuted(false)
-  }, [])
+  }, [setLocalDrumPattern])
 
   const handleToggleDrumsMute = useCallback(() => setDrumsMuted(m => !m), [])
 
@@ -597,7 +640,7 @@ export default function MixerTab({ active = true }) {
   // re-pushes into the engine's sequencer, which reads the updated buffer on the
   // next 16th.
   const handleToggleDrumStep = useCallback((padId, visibleIdx) => {
-    setDrumPattern(prev => {
+    setSyncedDrumPattern(prev => {
       if (!prev) return prev
       const SOURCE_STEPS = 64
       const offset = prev.offsets?.[padId] ?? 0
@@ -606,14 +649,14 @@ export default function MixerTab({ active = true }) {
       padPat[src] = cycleStepValue(padPat[src])
       return { ...prev, patterns: { ...prev.patterns, [padId]: padPat } }
     })
-  }, [])
+  }, [setSyncedDrumPattern])
 
   const handleToggleDrumPadMute = useCallback((padId) => {
-    setDrumPattern(prev => {
+    setSyncedDrumPattern(prev => {
       if (!prev) return prev
       return { ...prev, muted: { ...prev.muted, [padId]: !prev.muted?.[padId] } }
     })
-  }, [])
+  }, [setSyncedDrumPattern])
 
   const fetchSnapshot = useCallback(async () => {
     setSnapshotLoading(true)
@@ -1522,10 +1565,11 @@ export default function MixerTab({ active = true }) {
     setFxBusMuted({}); setFxBusSoloed({}); setFxBusParams({})
     setSendMatrix({}); setAutomationCfg({})
     setDuplicates([]); setMerges([])
-    setDrumPattern(null); setDrumsMuted(false)
+    pendingPublishedDrumRef.current = null
+    setLocalDrumPattern(null); setDrumsMuted(false)
     setBpm(120); setMasterVolume(0)
     setGlobalHarmony({ root: 'C', scaleType: 'major' })
-  }, [createEngine, routes])
+  }, [createEngine, routes, setLocalDrumPattern])
 
   const songSetters = useMemo(() => ({
     setBpm, setMode, setView, setMasterVolume, setGlobalHarmony,
@@ -1534,8 +1578,9 @@ export default function MixerTab({ active = true }) {
     setTrackFilters, setTrackEqs,
     setTrackOctaves, setTrackSemitones, setTrackGlides, setTrackLegatos, setTrackDroneModes, setTrackDroneRoots, setTrackSpeeds, setTrackLoopRegions, setTrackGridResolutions, setTrackPitchVariety, setTrackStopVelocities, setTrackPitchOffsets, setTrackArps, setTrackGranulars,
     setActiveFxTracks, setFxBusWet, setFxBusMuted, setFxBusSoloed, setFxBusParams,
-    setSendMatrix, setAutomationCfg, setDuplicates, setMerges, setDrumPattern, setDrumsMuted,
-  }), [])
+    setSendMatrix, setAutomationCfg, setDuplicates, setMerges,
+    setDrumPattern: setSyncedDrumPattern, setDrumsMuted,
+  }), [setSyncedDrumPattern])
 
   // Keep the refs applyPreset reads in sync, so it can stay referentially stable.
   useEffect(() => { cityIdRef.current       = cityId       }, [cityId])

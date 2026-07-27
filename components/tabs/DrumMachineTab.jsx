@@ -19,6 +19,29 @@ const PAD_MIDI_NOTES = {
   clap:  39,
 }
 
+function cloneSharedPattern(value) {
+  const rawBpm = Number(value?.bpm)
+  return {
+    patterns: Object.fromEntries(PAD_DEFS.map(p => [
+      p.id,
+      Array.from(
+        { length: SOURCE_STEPS },
+        (_, i) => value?.patterns?.[p.id]?.[i] ?? 0,
+      ),
+    ])),
+    offsets: Object.fromEntries(PAD_DEFS.map(p => [
+      p.id,
+      ((Math.round(value?.offsets?.[p.id] ?? 0) % SOURCE_STEPS) + SOURCE_STEPS) % SOURCE_STEPS,
+    ])),
+    muted: Object.fromEntries(PAD_DEFS.map(p => [p.id, !!value?.muted?.[p.id]])),
+    bpm: Math.max(40, Math.min(240, Number.isFinite(rawBpm) ? rawBpm : 96)),
+  }
+}
+
+function sameSharedPattern(a, b) {
+  return JSON.stringify(a) === JSON.stringify(b)
+}
+
 export default function DrumMachineTab({ active = true }) {
   const routes    = useRoutes()
   const engineRef = useRef(null)
@@ -35,6 +58,24 @@ export default function DrumMachineTab({ active = true }) {
   const [stepStops, setStepStops] = useState(() => Object.fromEntries(PAD_DEFS.map(p => [p.id, emptyStops()])))
   const [offsets,   setOffsets]   = useState(() => Object.fromEntries(PAD_DEFS.map(p => [p.id, 0])))
   const [muted,     setMuted]     = useState({})
+  const patternsRef = useRef(patterns)
+  const offsetsRef  = useRef(offsets)
+  const mutedRef    = useRef(muted)
+  const bpmRef      = useRef(bpm)
+
+  const sharedSnapshot = useCallback((overrides = {}) => cloneSharedPattern({
+    patterns: overrides.patterns ?? patternsRef.current,
+    offsets:  overrides.offsets  ?? offsetsRef.current,
+    muted:    overrides.muted    ?? mutedRef.current,
+    bpm:      overrides.bpm      ?? bpmRef.current,
+  }), [])
+
+  // Only publish automatic edits after a pattern has been sent at least once.
+  // This keeps a fresh Map session drumless until the user explicitly adds it.
+  const publishIfLinked = useCallback((overrides = {}) => {
+    if (!clipboard.pattern) return
+    clipboard.setPattern(sharedSnapshot(overrides))
+  }, [clipboard.pattern, clipboard.setPattern, sharedSnapshot])
 
   // ── Engine init ─────────────────────────────────────────────────────────
   useEffect(() => {
@@ -57,13 +98,61 @@ export default function DrumMachineTab({ active = true }) {
       const { pattern, stops } = r ? patternFromRoute(r) : { pattern: emptyPattern(), stops: emptyStops() }
       initPatterns[pad.id] = pattern
       initStops[pad.id]    = stops
-      engineRef.current?.setPattern(pad.id, pattern)
       engineRef.current?.setStops(pad.id, stops)
     }
     setPadRoutes(bind)
-    setPatterns(initPatterns)
     setStepStops(initStops)
+
+    // localStorage may restore the shared pattern before route data arrives.
+    // Keep the route bindings/tooltips, but do not overwrite that linked pattern
+    // with freshly generated defaults when the routes finish loading.
+    const linked = clipboard.pattern ? cloneSharedPattern(clipboard.pattern) : null
+    const nextPatterns = linked?.patterns ?? initPatterns
+    patternsRef.current = nextPatterns
+    setPatterns(nextPatterns)
+    for (const pad of PAD_DEFS) {
+      engineRef.current?.setPattern(pad.id, nextPatterns[pad.id])
+    }
+    if (linked) {
+      offsetsRef.current = linked.offsets
+      mutedRef.current = linked.muted
+      bpmRef.current = linked.bpm
+      setOffsets(linked.offsets)
+      setMuted(linked.muted)
+      setBpm(linked.bpm)
+      for (const pad of PAD_DEFS) {
+        engineRef.current?.setOffset(pad.id, linked.offsets[pad.id])
+        engineRef.current?.setPadMute(pad.id, linked.muted[pad.id])
+      }
+      engineRef.current?.setBpm(linked.bpm)
+    }
   }, [routes]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Accept edits made in the Map/DAW tab (and patterns restored by a saved song)
+  // without publishing them back again. Directional handlers below own outgoing
+  // updates, which avoids two mirroring effects racing and overwriting each other.
+  useEffect(() => {
+    if (!clipboard.pattern) return
+    const next = cloneSharedPattern(clipboard.pattern)
+    if (sameSharedPattern(next, sharedSnapshot())) return
+
+    patternsRef.current = next.patterns
+    offsetsRef.current = next.offsets
+    mutedRef.current = next.muted
+    bpmRef.current = next.bpm
+    setPatterns(next.patterns)
+    setOffsets(next.offsets)
+    setMuted(next.muted)
+    setBpm(next.bpm)
+
+    const engine = engineRef.current
+    for (const pad of PAD_DEFS) {
+      engine?.setPattern(pad.id, next.patterns[pad.id])
+      engine?.setOffset(pad.id, next.offsets[pad.id])
+      engine?.setPadMute(pad.id, next.muted[pad.id])
+    }
+    engine?.setBpm(next.bpm)
+  }, [clipboard.pattern, sharedSnapshot])
 
   // ── Controls ────────────────────────────────────────────────────────────
   const handlePlayStop = useCallback(async () => {
@@ -82,40 +171,50 @@ export default function DrumMachineTab({ active = true }) {
 
   const handleBpm = useCallback((v) => {
     const n = Math.max(40, Math.min(240, Number(v) || 120))
+    bpmRef.current = n
     setBpm(n)
     engineRef.current?.setBpm(n)
-  }, [])
+    publishIfLinked({ bpm: n })
+  }, [publishIfLinked])
 
   const handleToggleStep = useCallback((padId, visibleIdx) => {
     engineRef.current?.toggleStep(padId, visibleIdx)
-    setPatterns(prev => {
-      const offset = offsets[padId] ?? 0
-      const srcIdx = (offset + visibleIdx) % SOURCE_STEPS
-      const next = prev[padId].slice()
-      next[srcIdx] = cycleStepValue(next[srcIdx])
-      return { ...prev, [padId]: next }
-    })
-  }, [offsets])
+    const offset = offsetsRef.current[padId] ?? 0
+    const srcIdx = (offset + visibleIdx) % SOURCE_STEPS
+    const padPattern = patternsRef.current[padId].slice()
+    padPattern[srcIdx] = cycleStepValue(padPattern[srcIdx])
+    const next = { ...patternsRef.current, [padId]: padPattern }
+    patternsRef.current = next
+    setPatterns(next)
+    publishIfLinked({ patterns: next })
+  }, [publishIfLinked])
 
   const handleMute = useCallback((padId) => {
-    setMuted(m => {
-      const next = !m[padId]
-      engineRef.current?.setPadMute(padId, next)
-      return { ...m, [padId]: next }
-    })
-  }, [])
+    const padMuted = !mutedRef.current[padId]
+    const next = { ...mutedRef.current, [padId]: padMuted }
+    mutedRef.current = next
+    setMuted(next)
+    engineRef.current?.setPadMute(padId, padMuted)
+    publishIfLinked({ muted: next })
+  }, [publishIfLinked])
 
   const handleClear = useCallback((padId) => {
     engineRef.current?.clear(padId)
-    setPatterns(p => ({ ...p, [padId]: emptyPattern() }))
+    const next = { ...patternsRef.current, [padId]: emptyPattern() }
+    patternsRef.current = next
+    setPatterns(next)
     setStepStops(s => ({ ...s, [padId]: emptyStops() }))
-  }, [])
+    publishIfLinked({ patterns: next })
+  }, [publishIfLinked])
 
   const handleClearAll = useCallback(() => {
     engineRef.current?.clear()
-    setPatterns(Object.fromEntries(PAD_DEFS.map(p => [p.id, emptyPattern()])))
+    const next = Object.fromEntries(PAD_DEFS.map(p => [p.id, emptyPattern()]))
+    patternsRef.current = next
+    setPatterns(next)
     setStepStops(Object.fromEntries(PAD_DEFS.map(p => [p.id, emptyStops()])))
-  }, [])
+    publishIfLinked({ patterns: next })
+  }, [publishIfLinked])
 
   const handlePickRoute = useCallback((padId, routeId) => {
     setPadRoutes(r => ({ ...r, [padId]: routeId }))
@@ -123,9 +222,12 @@ export default function DrumMachineTab({ active = true }) {
     const { pattern, stops } = route ? patternFromRoute(route) : { pattern: emptyPattern(), stops: emptyStops() }
     engineRef.current?.setPattern(padId, pattern)
     engineRef.current?.setStops(padId, stops)
-    setPatterns(prev => ({ ...prev, [padId]: pattern }))
+    const next = { ...patternsRef.current, [padId]: pattern }
+    patternsRef.current = next
+    setPatterns(next)
     setStepStops(prev => ({ ...prev, [padId]: stops }))
-  }, [routes])
+    publishIfLinked({ patterns: next })
+  }, [routes, publishIfLinked])
 
   const handleRegenerate = useCallback((padId) => {
     const routeId = padRoutes[padId]
@@ -134,15 +236,21 @@ export default function DrumMachineTab({ active = true }) {
     const { pattern, stops } = patternFromRoute(route)
     engineRef.current?.setPattern(padId, pattern)
     engineRef.current?.setStops(padId, stops)
-    setPatterns(prev => ({ ...prev, [padId]: pattern }))
+    const next = { ...patternsRef.current, [padId]: pattern }
+    patternsRef.current = next
+    setPatterns(next)
     setStepStops(prev => ({ ...prev, [padId]: stops }))
-  }, [padRoutes, routes])
+    publishIfLinked({ patterns: next })
+  }, [padRoutes, routes, publishIfLinked])
 
   const handleOffset = useCallback((padId, value) => {
     const n = ((Math.round(value) % SOURCE_STEPS) + SOURCE_STEPS) % SOURCE_STEPS
     engineRef.current?.setOffset(padId, n)
-    setOffsets(prev => ({ ...prev, [padId]: n }))
-  }, [])
+    const next = { ...offsetsRef.current, [padId]: n }
+    offsetsRef.current = next
+    setOffsets(next)
+    publishIfLinked({ offsets: next })
+  }, [publishIfLinked])
 
   const handleExportMidi = useCallback(async () => {
     if (!(await claim('export', 'export_limit'))) return
@@ -182,19 +290,13 @@ export default function DrumMachineTab({ active = true }) {
     URL.revokeObjectURL(url)
   }, [bpm, patterns, offsets, claim])
 
-  // Push the current pattern into the app-level clipboard so the Map/DAW tab can
-  // pull it in and play it as a rhythmic backing under the transit tracks.
+  // Push the current pattern into the app-level channel, establishing the link.
   const handleSendToMap = useCallback(() => {
-    clipboard.setPattern({
-      patterns: Object.fromEntries(PAD_DEFS.map(p => [p.id, (patterns[p.id] ?? emptyPattern()).slice()])),
-      offsets:  Object.fromEntries(PAD_DEFS.map(p => [p.id, offsets[p.id] ?? 0])),
-      muted:    Object.fromEntries(PAD_DEFS.map(p => [p.id, !!muted[p.id]])),
-      bpm,
-    })
-    trackProductEvent('drum_pattern_sent', { bpm })
+    clipboard.setPattern(sharedSnapshot())
+    trackProductEvent('drum_pattern_sent', { bpm: bpmRef.current })
     setSent(true)
     setTimeout(() => setSent(false), 1600)
-  }, [clipboard, patterns, offsets, muted, bpm])
+  }, [clipboard.setPattern, sharedSnapshot])
 
   // ── Sorted routes for dropdowns ─────────────────────────────────────────
   const sortedRoutes = useMemo(() => {
