@@ -1,0 +1,1 @@
+ALTER TABLE "presets" ADD COLUMN "city_id" text;

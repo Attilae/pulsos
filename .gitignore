@@ -9,3 +9,4 @@ dist/
 data/*_gtfs/
 .vercel
 .env*
+_videos/*

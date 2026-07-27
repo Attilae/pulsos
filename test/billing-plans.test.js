@@ -82,3 +82,17 @@ test('legacy snapshot normalization only considers base lanes present in saved s
   assert.equal(result.muted.picked3, true)
   assert.equal(result.muted.unpicked1, undefined)
 })
+
+test('snapshot normalization falls back to routeIds order when no manifest was saved', () => {
+  const routes = ['a', 'b', 'c', 'd'].map(id => ({ id }))
+  // routeIds carries the authored order; `muted` key order must not decide which
+  // lanes survive the cap.
+  const snapshot = {
+    routeIds: ['c', 'a', 'b'],
+    muted: { a: false, b: false, c: false },
+  }
+  const result = normalizeSnapshotLaneAccess(snapshot, routes, 2)
+  assert.equal(result.muted.c, false, 'first authored lane stays audible')
+  assert.equal(result.muted.a, false, 'second authored lane stays audible')
+  assert.equal(result.muted.b, true, 'the lane past the cap is disabled')
+})

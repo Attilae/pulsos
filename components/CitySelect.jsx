@@ -1,4 +1,5 @@
 import { useCitySelection } from '@/lib/shared/CityContext.jsx'
+import { trackProductEvent } from '@/lib/productAnalytics.js'
 
 // Compact city picker for the top nav. Switching cities reloads route data and
 // resets the working session (see MixerTab). Live mode availability depends on
@@ -12,7 +13,10 @@ export default function CitySelect() {
       <select
         className="city-select-input"
         value={cityId}
-        onChange={(e) => setCityId(e.target.value)}
+        onChange={(e) => {
+          trackProductEvent('city_selected', { city: e.target.value })
+          setCityId(e.target.value)
+        }}
       >
         {cities.map(c => (
           <option key={c.id} value={c.id}>{c.name}</option>

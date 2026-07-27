@@ -7,6 +7,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { isMobileDevice } from '@/lib/shared/isMobileDevice.js'
+import { trackProductEvent } from '@/lib/productAnalytics.js'
 
 const BYPASS_KEY = 'leid-mobile-bypass'
 
@@ -25,7 +26,12 @@ export default function MobileGate({ children }) {
   useEffect(() => {
     let bypassed = false
     try { bypassed = sessionStorage.getItem(BYPASS_KEY) === '1' } catch {}
-    setStatus(isMobileDevice() && !bypassed ? 'gated' : 'allowed')
+    const mobile = isMobileDevice()
+    const nextStatus = mobile && !bypassed ? 'gated' : 'allowed'
+    setStatus(nextStatus)
+    trackProductEvent(nextStatus === 'allowed' && !mobile ? 'desktop_app_viewed' : 'mobile_gate_viewed', {
+      bypassed,
+    })
   }, [])
 
   if (status === 'allowed') return children
@@ -36,6 +42,7 @@ export default function MobileGate({ children }) {
 
   function tryAnyway() {
     try { sessionStorage.setItem(BYPASS_KEY, '1') } catch {}
+    trackProductEvent('mobile_bypass_used')
     setStatus('allowed')
   }
 

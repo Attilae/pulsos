@@ -5,6 +5,8 @@ import { FX_BUSES } from '@/lib/fxTrack.js'
 import { randomFromScale, shiftOctaveNote, geoToMidi, routeBounds, midiToNote, noteToMidi, SCALES, MODES, setCityBounds } from '@/lib/mappings.js'
 import { fetchLines } from '@/lib/shared/useRoutes.js'
 import { useCitySelection } from '@/lib/shared/CityContext.jsx'
+import { getCityEntry } from '@/lib/shared/cities.js'
+import { resolveSnapshotLanes, clampMode } from '@/lib/songLanes.js'
 import { useDrumClipboard } from '@/lib/shared/DrumClipboardContext.jsx'
 import { cycleStepValue } from '@/lib/engines/drumEngine.js'
 import DawView, { NOTE_ROOTS, SCALE_TYPES } from '../DawView.jsx'
@@ -12,14 +14,16 @@ import MapView from '../MapView.jsx'
 import AIComposerPanel from '../AIComposerPanel.jsx'
 import SongMenu from '../SongMenu.jsx'
 import { useSongPersistence } from '../../lib/useSongPersistence.js'
+import { applySnapshot } from '@/lib/songState.js'
 import {
   MidiSessionRecorder, exportRouteMidi, exportMixMidi,
   isRouteExportable, isRouteAudible, buildLoopMidiEvents,
 } from '@/lib/midiExport.js'
 import { exportRouteAudio, exportMixAudio } from '@/lib/audioExport.js'
 import { useEntitlements } from '@/lib/shared/EntitlementsContext.jsx'
-import { countActiveLanes, normalizeLaneAccess } from '@/lib/billing/plans.js'
+import { countActiveLanes, normalizeLaneAccess, normalizeSnapshotLaneAccess } from '@/lib/billing/plans.js'
 import { buildReplacementLaneState } from '@/lib/ai/planApply.js'
+import { trackProductEvent } from '@/lib/productAnalytics.js'
 
 const MAX_EVENTS = 80
 
@@ -90,11 +94,25 @@ function deriveHubs(allRoutes, n = 6) {
 }
 
 export default function MixerTab({ active = true }) {
-  const { cityId, cityEntry } = useCitySelection()
+  const { cityId, setCityId, cityEntry } = useCitySelection()
   const { limits, claim, openUpgrade } = useEntitlements()
   const loadedCityRef    = useRef(null)   // last city whose routes are loaded
   const engineRef        = useRef(null)
   const stoppingRef      = useRef(false)
+  // A preset load owns the session while it's in flight: `pendingPresetRef` is set
+  // *synchronously* before setCityId so the city effect below can see it and stand
+  // down (it would otherwise reset + randomly re-pick over the loaded song).
+  // `presetTokenRef` supersedes stale applies when loads or switches overlap.
+  const pendingPresetRef = useRef(null)   // { token, cityId } | null
+  const presetTokenRef   = useRef(0)
+  // Latest values for applyPreset to read without becoming a new function on every
+  // change — it must stay referentially stable or useSongPersistence re-hydrates.
+  const cityIdRef        = useRef(cityId)
+  const limitsRef        = useRef(limits)
+  const startedRef       = useRef(false)
+  const resetSessionRef  = useRef(null)
+  const masterVolumeRef  = useRef(0)
+  const citySwitchAwayRef = useRef(null)
   const midiRecorderRef  = useRef(null)
   const pendingEventsRef = useRef([])     // notes buffered between animation frames
   const eventsRafRef     = useRef(null)   // pending rAF flush handle
@@ -260,36 +278,64 @@ export default function MixerTab({ active = true }) {
 
   const [liveSnapshot,    setLiveSnapshot]    = useState(null)
   const [snapshotLoading, setSnapshotLoading] = useState(false)
+  // Lanes a loaded song referenced that this city's route data no longer has.
+  const [presetWarning, setPresetWarning] = useState(null)
+  // Bumped to re-run the city effect after a failed preset load, so the user lands
+  // on a normal randomly-picked session instead of an empty screen.
+  const [cityNonce, setCityNonce] = useState(0)
+
+  // Load one city's route data and make it the active city's data. Shared by the
+  // city effect and applyPreset; fetchLines is promise-cached per URL, so both
+  // calling it produces a single network fetch.
+  const loadCity = useCallback(async (id) => {
+    const entry = getCityEntry(id)
+    const { routes: all, city } = await fetchLines(entry.linesUrl)
+    // Retune the pitch/pan fallbacks to this city before any notes are built.
+    if (city?.bounds) setCityBounds(city.bounds)
+    setCity(city ?? null)
+    allRoutesRef.current = all
+    loadedCityRef.current = id
+    return all
+  }, [])
 
   // Load the active city's route data. On a city *switch* (not first load), wipe
   // the session first so the engine + all per-track/FX state start clean.
   useEffect(() => {
+    // A preset load already owns this switch: it will load the city and install
+    // the song's own lanes. Resetting or re-picking here would wipe that.
+    if (pendingPresetRef.current?.cityId === cityId) return
+    // A manual city switch cancels any preset apply still in flight.
+    presetTokenRef.current++
+    pendingPresetRef.current = null
+
     const isSwitch = loadedCityRef.current !== null && loadedCityRef.current !== cityId
     if (isSwitch) {
-      resetSessionState()
-      if (!cityEntry.liveWsUrl) setMode('mock')  // no feed for this city → mock only
+      // Preserve then detach the open song before wiping (see onCitySwitchAway):
+      // route ids are city-scoped, so the song can't follow us to the new city, and
+      // leaving it attached let autosave overwrite it with the wiped session.
+      citySwitchAwayRef.current?.()
       setSwitching(true)  // show the preloader while the new city's data loads
     }
+    // Not just on a switch: a city with no feed can only run mock, and a restored
+    // 'live' mode would otherwise leave Play calling startLive against nothing.
+    if (!cityEntry.liveWsUrl) setMode('mock')
+
     let cancelled = false
-    fetchLines(cityEntry.linesUrl)
-      .then(({ routes: all, city }) => {
-        if (cancelled) return
-        // Retune the pitch/pan fallbacks to this city before any notes are built.
-        if (city?.bounds) setCityBounds(city.bounds)
-        setCity(city ?? null)
-        allRoutesRef.current = all
+    loadCity(cityId)
+      .then((all) => {
+        // Bail if a preset claimed the session while we were fetching.
+        if (cancelled || pendingPresetRef.current) return
         const picked = pickStartupRoutes(all)
         setRoutes(picked)
         setDisabledRoutes(allDisabledMap(picked))
         for (const r of picked) engineRef.current?.setRouteDisabled(r.id, true)
-        loadedCityRef.current = cityId
         // Clear on the next frame so the overlay actually paints before the (heavy)
         // route/map render commits, rather than being torn down in the same tick.
         requestAnimationFrame(() => { if (!cancelled) setSwitching(false) })
       })
       .catch(() => { if (!cancelled) { setRoutes([]); setCity(null); setSwitching(false) } })
     return () => { cancelled = true }
-  }, [cityId]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [cityId, cityNonce]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Re-roll the random selection for a single line type (tram/trolley/bus),
   // keeping metro and the other types untouched. No-op while playing — the
@@ -620,6 +666,12 @@ export default function MixerTab({ active = true }) {
         engine.startLive(mergedRoutes ?? [], smMap, bpm, trackSynthTypes, trackADSRs)
       }
       setStarted(true)
+      trackProductEvent('playback_started', {
+        city: cityId,
+        mode,
+        view,
+        active_lane_count: Object.values(disabledRoutes).filter(disabled => !disabled).length,
+      })
 
       Tone.getDestination().volume.rampTo(masterVolume, 0.5)
     }
@@ -1409,32 +1461,40 @@ export default function MixerTab({ active = true }) {
   }, [mergedRoutes, runAudioExport, claim])
 
   const songState = useMemo(() => ({
+    // Route ids are city-scoped, so the city and the exact lane list are part of
+    // the song — without them a load can't reproduce which lines were playing.
+    cityId,
+    routeIds: (routes ?? []).map(route => route.id),
     bpm, mode, view, masterVolume, globalHarmony,
     volumes, disabledRoutes, pans, soloRoutes,
     trackSoundModes, trackScales, trackSynthTypes, trackADSRs,
     trackFilters, trackEqs,
     trackOctaves, trackSemitones, trackGlides, trackLegatos, trackDroneModes, trackDroneRoots, trackSpeeds, trackLoopRegions, trackGridResolutions, trackPitchVariety, trackStopVelocities, trackPitchOffsets, trackArps, trackGranulars,
     activeFxTracks, fxBusWet, fxBusMuted, fxBusSoloed, fxBusParams,
-    sendMatrix, automationCfg, duplicates, merges, drumPattern,
+    sendMatrix, automationCfg, duplicates, merges, drumPattern, drumsMuted,
     laneManifest: visibleInstrumentRoutes.map(route => ({
       id: route.id,
       sourceId: route.sourceId ?? null,
       kind: route.isDuplicate ? 'duplicate' : route.isMerged ? 'merge' : 'base',
     })),
   }), [
+    cityId, routes,
     bpm, mode, view, masterVolume, globalHarmony,
     volumes, disabledRoutes, pans, soloRoutes,
     trackSoundModes, trackScales, trackSynthTypes, trackADSRs,
     trackFilters, trackEqs,
     trackOctaves, trackSemitones, trackGlides, trackLegatos, trackDroneModes, trackDroneRoots, trackSpeeds, trackLoopRegions, trackGridResolutions, trackPitchVariety, trackStopVelocities, trackPitchOffsets, trackArps, trackGranulars,
     activeFxTracks, fxBusWet, fxBusMuted, fxBusSoloed, fxBusParams,
-    sendMatrix, automationCfg, duplicates, merges, drumPattern, visibleInstrumentRoutes,
+    sendMatrix, automationCfg, duplicates, merges, drumPattern, drumsMuted, visibleInstrumentRoutes,
   ])
 
   // Wipe the session to a clean, empty state: stop playback, dispose the audio
   // graph and rebuild it fresh, then reset every per-track/FX setting to default.
-  // The set of routes/tracks itself is left in place.
-  const resetSessionState = useCallback(() => {
+  // The set of routes/tracks itself is left in place, unless `routes` is overridden
+  // (a preset load passes [] — it's about to install the song's own lanes, and
+  // writing disable flags for the outgoing city's ids would be pointless).
+  const resetSessionState = useCallback(({ routes: routesOverride } = {}) => {
+    const laneRoutes = routesOverride ?? routes ?? []
     stoppingRef.current = false
     if (eventsRafRef.current != null) cancelAnimationFrame(eventsRafRef.current)
     eventsRafRef.current = null
@@ -1445,8 +1505,8 @@ export default function MixerTab({ active = true }) {
     setStarted(false)
     setEvents([])
 
-    setVolumes({}); setDisabledRoutes(allDisabledMap(routes ?? [])); setPans({}); setSoloRoutes(new Set())
-    for (const r of routes ?? []) engine.setRouteDisabled(r.id, true)
+    setVolumes({}); setDisabledRoutes(allDisabledMap(laneRoutes)); setPans({}); setSoloRoutes(new Set())
+    for (const r of laneRoutes) engine.setRouteDisabled(r.id, true)
     setTrackSoundModes({}); setTrackScales({}); setTrackSynthTypes({}); setTrackADSRs({})
     setTrackFilters({}); setTrackEqs({})
     setTrackOctaves({}); setTrackSemitones({}); setTrackGlides({}); setTrackLegatos({})
@@ -1474,17 +1534,107 @@ export default function MixerTab({ active = true }) {
     setTrackFilters, setTrackEqs,
     setTrackOctaves, setTrackSemitones, setTrackGlides, setTrackLegatos, setTrackDroneModes, setTrackDroneRoots, setTrackSpeeds, setTrackLoopRegions, setTrackGridResolutions, setTrackPitchVariety, setTrackStopVelocities, setTrackPitchOffsets, setTrackArps, setTrackGranulars,
     setActiveFxTracks, setFxBusWet, setFxBusMuted, setFxBusSoloed, setFxBusParams,
-    setSendMatrix, setAutomationCfg, setDuplicates, setMerges, setDrumPattern,
+    setSendMatrix, setAutomationCfg, setDuplicates, setMerges, setDrumPattern, setDrumsMuted,
   }), [])
 
+  // Keep the refs applyPreset reads in sync, so it can stay referentially stable.
+  useEffect(() => { cityIdRef.current       = cityId       }, [cityId])
+  useEffect(() => { limitsRef.current       = limits       }, [limits])
+  useEffect(() => { startedRef.current      = started      }, [started])
+  useEffect(() => { masterVolumeRef.current = masterVolume }, [masterVolume])
+  useEffect(() => { resetSessionRef.current = resetSessionState }, [resetSessionState])
+
+  /**
+   * Apply a saved song: the single entry point for every snapshot (open, autoload,
+   * shared link). A song owns its city and its exact lane list, so this switches
+   * city if needed, waits for that city's route data, wipes the session, installs
+   * the song's own lanes, then replays the snapshot.
+   *
+   * Must stay referentially stable — useSongPersistence keys `open` and its
+   * hydration effect off it, so a churning identity would re-trigger hydration.
+   */
+  const applyPreset = useCallback(async (song) => {
+    const token = ++presetTokenRef.current      // supersede anything already in flight
+    const raw = song?.state ?? song
+    if (!raw) return null
+    const target = raw.cityId ?? song?.cityId ?? cityIdRef.current
+    const targetEntry = getCityEntry(target)
+
+    // Stop playback before the engine is disposed underneath it.
+    if (startedRef.current) {
+      Tone.getDestination().volume.rampTo(-80, 0.1)
+      try { engineRef.current?.stopMock() } catch {}
+      setStarted(false)
+      stoppingRef.current = false
+    }
+
+    // Claim the switch synchronously, *before* setCityId — the city effect reads
+    // this ref and must see it whether it runs before or after the await below.
+    if (targetEntry.id !== cityIdRef.current) {
+      pendingPresetRef.current = { token, cityId: targetEntry.id }
+      setSwitching(true)
+      setCityId(targetEntry.id)
+    }
+
+    try {
+      const all = await loadCity(targetEntry.id)
+      if (presetTokenRef.current !== token) return null   // superseded
+
+      // Full dispose+recreate: nothing else clears the engine's own maps
+      // (_routeDisabled, _soloRoutes, _merges, _granulars, automation lanes), so
+      // this is the only guarantee this song doesn't inherit the last one's graph.
+      resetSessionRef.current?.({ routes: [] })
+
+      const { base, lanes, missingIds } = resolveSnapshotLanes(all, raw)
+      setRoutes(base)
+
+      const clamped = { ...raw, mode: clampMode(raw.mode, targetEntry) }
+      // Gate lanes against the plan using the *target* city's resolved lanes.
+      const normalized = normalizeSnapshotLaneAccess(clamped, lanes, limitsRef.current.activeLanes)
+      // engineRef.current is re-read here on purpose: resetSessionState just
+      // replaced the instance, and configuring the disposed one would be silent.
+      applySnapshot(normalized, songSetters, engineRef.current, base)
+
+      setPresetWarning(missingIds.length ? { name: song?.name ?? null, missingIds } : null)
+      if (missingIds.length) {
+        console.warn('[preset] lanes missing from this city\'s route data:', missingIds)
+      }
+      return { base, missingIds }
+    } catch (e) {
+      console.warn('[preset] load failed', e)
+      if (pendingPresetRef.current?.token === token) {
+        pendingPresetRef.current = null
+        // Fall back to a normal randomly-picked session for this city.
+        setCityNonce(n => n + 1)
+      }
+      return null
+    } finally {
+      if (pendingPresetRef.current?.token === token) pendingPresetRef.current = null
+      requestAnimationFrame(() => { if (presetTokenRef.current === token) setSwitching(false) })
+    }
+  }, [loadCity, songSetters, setCityId])
+
   const song = useSongPersistence({
-    state:   songState,
-    setters: songSetters,
-    engineRef,
+    state: songState,
+    applyPreset,
     routes,
     onReset: resetSessionState,
     activeLaneLimit: limits.activeLanes,
   })
+
+  // The city effect needs to preserve+detach the open song before wiping; expose
+  // newSong (which saves, resets, then detaches) to it via a ref.
+  useEffect(() => { citySwitchAwayRef.current = song.newSong }, [song.newSong])
+
+  // Human-readable names for skipped lanes where the city data still knows the id
+  // (a lane can go missing because the id was dropped, or because it's foreign).
+  const missingLaneLabels = useMemo(() => {
+    const ids = presetWarning?.missingIds ?? []
+    if (!ids.length) return ''
+    const byId = new Map((allRoutesRef.current ?? []).map(r => [r.id, r]))
+    const shown = ids.slice(0, 6).map(id => byId.get(id)?.name ?? id)
+    return shown.join(', ') + (ids.length > shown.length ? `, +${ids.length - shown.length} more` : '')
+  }, [presetWarning])
 
   return (
     <div className={`daw ${view === 'map' ? 'daw--map' : ''}`}>
@@ -1492,6 +1642,24 @@ export default function MixerTab({ active = true }) {
         <div className="city-switch-overlay" role="status" aria-live="polite">
           <div className="city-switch-pulse" />
           <div className="city-switch-label">Loading {cityEntry.name}…</div>
+        </div>
+      )}
+      {presetWarning && (
+        <div className="preset-warning" role="status" aria-live="polite">
+          <span>
+            {presetWarning.missingIds.length}{' '}
+            {presetWarning.missingIds.length === 1 ? 'lane' : 'lanes'}
+            {presetWarning.name ? ` from “${presetWarning.name}”` : ''} {' '}
+            {presetWarning.missingIds.length === 1 ? 'is' : 'are'} not in {cityEntry.name}’s
+            current route data and {presetWarning.missingIds.length === 1 ? 'was' : 'were'} skipped:{' '}
+            {missingLaneLabels}
+          </span>
+          <button
+            type="button"
+            className="preset-warning-close"
+            onClick={() => setPresetWarning(null)}
+            aria-label="Dismiss"
+          >×</button>
         </div>
       )}
       <header className="daw-header">
