@@ -1,7 +1,7 @@
 import { ImageResponse } from 'next/og'
 
 export const runtime = 'edge'
-export const alt = 'Leið — sonify the city: live public transport turned into music'
+export const alt = 'Leið — turn public transport data into music'
 export const size = { width: 1200, height: 630 }
 export const contentType = 'image/png'
 
@@ -73,8 +73,8 @@ export default function OpengraphImage() {
               maxWidth: 900,
             }}
           >
-            Live public transport, turned into music. Each line a part, each
-            arrival a note.
+            Public transport data, turned into music. Every line a track. Every
+            stop a note.
           </div>
         </div>
       </div>

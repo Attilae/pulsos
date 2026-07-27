@@ -7,6 +7,7 @@ import {
   DrumEngine, PAD_DEFS, STEPS, SOURCE_STEPS,
   emptyPattern, emptyStops, patternFromRoute, cycleStepValue,
 } from '@/lib/engines/drumEngine.js'
+import { trackProductEvent } from '@/lib/productAnalytics.js'
 import './DrumMachineTab.css'
 
 const PAD_MIDI_NOTES = {
@@ -190,6 +191,7 @@ export default function DrumMachineTab({ active = true }) {
       muted:    Object.fromEntries(PAD_DEFS.map(p => [p.id, !!muted[p.id]])),
       bpm,
     })
+    trackProductEvent('drum_pattern_sent', { bpm })
     setSent(true)
     setTimeout(() => setSent(false), 1600)
   }, [clipboard, patterns, offsets, muted, bpm])

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { requestComposition, validatePlan } from '@/lib/ai/composer.js'
 import { useEntitlements } from '@/lib/shared/EntitlementsContext.jsx'
 import { factsForCity } from '@/lib/shared/cityFacts.js'
+import { trackProductEvent } from '@/lib/productAnalytics.js'
 import './AIComposerPanel.css'
 
 // Natural-language composer overlay for the Map tab. The user describes the
@@ -40,6 +41,7 @@ export default function AIComposerPanel({ className = '', routes, onApply, cityI
       const maxTracks = Math.min(routes?.length ?? 1, limits.activeLanes ?? 8)
       const raw = await requestComposition(prompt.trim(), routes, { cityId, cityName, maxTracks })
       setResult(validatePlan(raw, routes, { activeLaneLimit: maxTracks }))
+      trackProductEvent('ai_plan_generated', { city: cityId })
       await refresh()
     } catch (e) {
       if (e?.code === 'ai_limit_reached') {
@@ -60,6 +62,7 @@ export default function AIComposerPanel({ className = '', routes, onApply, cityI
       const outcome = await onApply(result.plan)
       const count = outcome?.appliedCount ?? result.plan.tracks?.length ?? 0
       setApplied(`Applied ${count} track${count === 1 ? '' : 's'} — playing`)
+      trackProductEvent('ai_plan_applied', { city: cityId, track_count: count })
     } catch (e) {
       setError(e?.message ?? String(e))
     } finally {

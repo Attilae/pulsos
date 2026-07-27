@@ -17,7 +17,7 @@ const siteUrl =
 
 const title = 'Leið — sonify the city'
 const description =
-  'Leið turns live public transport into music: each line a part, each arrival a note. A browser DAW that plays the city in real time.'
+  'Leið turns public transport data into music: every line becomes a track and every stop becomes a note. A browser DAW for playing seven cities as generative music.'
 
 export const viewport = {
   width: 'device-width',

@@ -14,11 +14,12 @@ const dataRows = [
   ['AI Composer', 'The prompt you submit and the route/context messages needed to generate a plan.', 'Provide AI Composer when you explicitly use it.'],
   ['Plan and usage', 'Subscription status, provider identifiers, renewal/end dates, and export or AI allowance counters.', 'Provide paid features and enforce Free and Pro limits.'],
   ['Device preferences', 'Selected city, drum clipboard, tour status, autosave preference, last song ID, and mobile bypass.', 'Remember local instrument choices in your browser.'],
+  ['Usage analytics', 'Page views and limited product events such as city selection, playback start, AI-plan use, and drum-pattern transfer.', 'Understand whether the instrument works and improve the launch experience.'],
   ['Support', 'Messages and information you send when contacting us.', 'Respond to questions and privacy requests.'],
 ]
 
 const providers = [
-  ['Vercel', 'Application hosting, delivery, and operational logs.', 'https://vercel.com/legal/privacy-policy'],
+  ['Vercel', 'Application hosting, delivery, operational logs, and privacy-preserving web analytics.', 'https://vercel.com/legal/privacy-policy'],
   ['Neon', 'Managed Postgres database for accounts and saved work.', 'https://neon.com/privacy-policy'],
   ['Resend', 'Delivery of magic-link and account emails.', 'https://resend.com/legal/privacy-policy'],
   ['OpenRouter', 'Processes prompts only when a signed-in user invokes AI Composer.', 'https://openrouter.ai/privacy'],
@@ -92,9 +93,10 @@ export default function PrivacyPage() {
           session ends.
         </p>
         <p>
-          As of the date above, Leið does not use advertising cookies, behavioural profiling, or
-          third-party analytics. If that changes, this notice and any required consent controls
-          will be updated before non-essential tracking is enabled.
+          Leið does not use advertising cookies or behavioural profiling. It uses Vercel Web
+          Analytics for page views and a small set of product events such as opening the desktop
+          app, selecting a city, starting playback, applying an AI plan, or sending a drum pattern.
+          These events do not include song content, prompts, exported files, or audio.
         </p>
       </LegalSection>
 

@@ -186,6 +186,16 @@
   min-width: 0;
   flex: 1;
 }
+.song-menu-row-city {
+  padding: 1px 6px;
+  border: 1px solid color-mix(in srgb, var(--muted) 40%, transparent);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 0.65rem;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
 .song-menu-row-date {
   color: var(--muted);
   font-size: 0.7rem;

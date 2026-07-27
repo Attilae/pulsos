@@ -3,7 +3,7 @@ import { and, eq } from 'drizzle-orm'
 import { auth } from '@/lib/auth.js'
 import { db } from '@/lib/db/index.js'
 import { presets } from '@/lib/db/schema.js'
-import { serialize } from '../route.js'
+import { cityIdOf, serialize } from '../route.js'
 
 async function requireUser(req) {
   const session = await auth.api.getSession({ headers: req.headers })
@@ -43,6 +43,7 @@ export async function PUT(req, { params }) {
       userId: u.id,
       name: body.name ?? 'Untitled',
       schemaVersion: body.schemaVersion ?? 1,
+      cityId: cityIdOf(body),
       state: body.state ?? {},
       createdAt: now,
       updatedAt: now,
@@ -52,6 +53,7 @@ export async function PUT(req, { params }) {
       set: {
         name: body.name ?? 'Untitled',
         schemaVersion: body.schemaVersion ?? 1,
+        cityId: cityIdOf(body),
         state: body.state ?? {},
         updatedAt: now,
       },

@@ -355,13 +355,47 @@ classes.
   new per-track state means threading it through `buildSnapshot`/`applySnapshot` too, not just
   MixerTab (e.g. `drumVoice` lives in `trackADSRs` and is replayed via `handleDrumVoice`;
   `trackPitchOffsets`/`trackPitchVariety`/`trackStopVelocities` are examples of state added this
-  way). `songState.js` is also where cross-version migrations live (`migrateTrackEqs`,
-  `_hoistLegacyPitchOffsets`, stale-`'Granular'`-synth-type coercion) — check there before assuming
-  an old saved song will load cleanly against a changed data shape.
+  way).
+- **A song owns its city and its exact lane list** (`SCHEMA_VERSION` 3): the snapshot carries
+  `cityId` and `routeIds` because route ids are **city-scoped**. Before v3 neither was stored, so
+  loading a song re-rolled a random lane selection (`pickStartupRoutes` is random for
+  tram/trolley/bus) and a cross-city song orphaned every lane. `presets.city_id` mirrors
+  `state.cityId`, derived server-side in `app/api/presets/*` (`cityIdOf`) so a stale client can't
+  desync them; it's nullable because pre-v3 rows genuinely don't know their city, and `null` keeps
+  meaning "assume the currently-loaded city".
+- **`lib/songLanes.js` is the single lane resolver** — `snapshotBaseRouteIds` /
+  `resolveSnapshotLanes` / `snapshotLaneDisabledMap` / `clampMode`. It answers "which routes does
+  this snapshot play?" for `songState.applySnapshot`, `snapshotPlayer.mergeDuplicateRoutes`, and
+  `billing/plans.normalizeSnapshotLaneAccess`, which each used to answer it differently (the Mixer
+  and the Song Chainer could disagree about the same snapshot). Pure and dependency-free —
+  `plans.js` is imported by server route handlers, so nothing here may pull in tone/engine.
+  `snapshotLaneDisabledMap` is deliberately **dense over every lane** (absent ids default to
+  disabled): a sparse map left lanes `undefined` in React (rendered active) while the engine kept
+  them at gain 0, i.e. active-looking lanes that made no sound.
+- **Loading a song goes through `MixerTab.applyPreset`** — the one entry point for every snapshot
+  (open, autoload, shared link). It switches city if needed, awaits that city's route data,
+  disposes+recreates the engine, installs the song's own lanes, then replays the snapshot. Two
+  invariants to preserve when touching it: it must stay a **referentially stable** `useCallback`
+  (the hook keys `open` and hydration off it — hence the `cityIdRef`/`limitsRef`/`startedRef`
+  pattern), and `pendingPresetRef` must be set **synchronously before `setCityId`** so MixerTab's
+  city effect stands down instead of resetting and re-picking over the loaded song.
+  `presetTokenRef` supersedes stale applies when loads and manual switches overlap.
+- **Migrations are an ordered pipeline**, not implicit shape-sniffing: `songState.migrateSnapshot`
+  keyed off `schemaVersion` (→2 coerces stale `'Granular'` synth types, normalizes legacy EQ3 via
+  `eqMigrate.normalizeEqState`, hoists `duplicates[].perStopSteps` into `trackPitchOffsets`; →3
+  derives `routeIds`). A *newer* version warns but still applies — a save from a newer client must
+  never become unopenable. Check here before assuming an old song loads against a changed shape.
 - **New session**: `SongMenu` → New autosaves the current song (signed-in only; signed-out users
   are warned first) then calls `MixerTab.resetSessionState` (`onReset` on the hook). That disposes
   and rebuilds the `TransitEngine` for a clean audio graph and resets every per-track/FX/global
-  setter to defaults, leaving the loaded route list in place.
+  setter to defaults, leaving the loaded route list in place (a preset load passes
+  `{ routes: [] }` — it's about to install its own lanes).
+- **A city switch preserves then detaches** the open song: the city effect calls the hook's
+  `newSong` via `onCitySwitchAway`. A song can't follow its ids to another city, and leaving it
+  attached let the debounced autosave write the wiped session over it. Autosave itself compares
+  against a `baselineRef` snapshot rather than treating *any* change as a user edit, so applying a
+  song or resetting the session no longer looks like something worth persisting; `persist` also
+  refuses a write whose `cityId` disagrees with the attached song's.
 - **Sharing**: an owner can publish a saved song via `SongMenu` → `POST /api/presets/:id/share`
   mints a `share_id`; the link `/?shared=<id>` is publicly readable (`/api/shared/:id`) and the
   hook imports it on load as a detached/unsaved song (Save As to keep a copy).

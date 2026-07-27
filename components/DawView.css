@@ -156,6 +156,39 @@
   100% { transform: scale(0.72); opacity: 0.9;  box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 0%, transparent); }
 }
 
+/* Skipped-lane notice after loading a song whose lines this city no longer has. */
+.preset-warning {
+  position: fixed;
+  left: 50%;
+  bottom: 22px;
+  transform: translateX(-50%);
+  z-index: 890;
+  max-width: min(720px, calc(100vw - 40px));
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 10px 12px 10px 14px;
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--bg) 92%, var(--accent));
+  color: var(--text);
+  font-size: 0.78rem;
+  line-height: 1.45;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 35%);
+}
+.preset-warning-close {
+  flex: none;
+  margin-top: -2px;
+  padding: 0 4px;
+  border: 0;
+  background: none;
+  color: var(--text-dim, var(--text));
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.preset-warning-close:hover { color: var(--text); }
+
 /* ── Track group: instrument + its automation lanes ─────────────────────── */
 .track-group {
   display: flex;

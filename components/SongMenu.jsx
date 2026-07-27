@@ -1,6 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { confirmDialog, promptDialog } from './Dialog.jsx'
+import { CITIES } from '@/lib/shared/cities.js'
 import './SongMenu.css'
+
+// Display name for a saved song's city id. Falls back to the raw id rather than
+// getCityEntry(), which resolves unknown ids to Budapest — wrong to show here.
+function cityName(id) {
+  return CITIES.find(c => c.id === id)?.name ?? id
+}
 
 /**
  * Header dropdown for managing songs.
@@ -85,10 +92,11 @@ export default function SongMenu({
     setMenuOpen(false)
   }
 
+  // Close first so the load's city-switch preloader is visible behind the menu.
   const handleOpenSong = (id) => {
-    open(id)
     setPicker(false)
     setMenuOpen(false)
+    open(id)?.catch?.(() => {})
   }
 
   const handleDeleteSong = async (id, name) => {
@@ -209,6 +217,9 @@ export default function SongMenu({
             <div key={s.id} className={`song-menu-row ${currentSong?.id === s.id ? 'is-current' : ''}`}>
               <button className="song-menu-row-open" onClick={() => handleOpenSong(s.id)}>
                 <span className="song-menu-row-name">{s.name}</span>
+                {/* A song's lanes are city-specific, so opening one switches city —
+                    showing it here makes that predictable rather than surprising. */}
+                {s.cityId && <span className="song-menu-row-city">{cityName(s.cityId)}</span>}
                 <span className="song-menu-row-date">{formatRelative(s.updatedAt)}</span>
               </button>
               <button

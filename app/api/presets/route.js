@@ -9,13 +9,17 @@ async function requireUser(req) {
   return session?.user ?? null
 }
 
-// GET → [{ id, name, updatedAt }] — the song index.
+// GET → [{ id, name, cityId, updatedAt }] — the song index. cityId comes from the
+// column rather than `state` so listing never has to read the large state jsonb.
 export async function GET(req) {
   const u = await requireUser(req)
   if (!u) return Response.json({ error: 'unauthorized' }, { status: 401 })
 
   const rows = await db
-    .select({ id: presets.id, name: presets.name, shareId: presets.shareId, updatedAt: presets.updatedAt })
+    .select({
+      id: presets.id, name: presets.name, cityId: presets.cityId,
+      shareId: presets.shareId, updatedAt: presets.updatedAt,
+    })
     .from(presets)
     .where(eq(presets.userId, u.id))
     .orderBy(desc(presets.updatedAt))
@@ -23,6 +27,7 @@ export async function GET(req) {
   return Response.json(rows.map((r) => ({
     id: r.id,
     name: r.name,
+    cityId: r.cityId ?? null,
     shareId: r.shareId,
     updatedAt: r.updatedAt?.getTime?.() ?? r.updatedAt,
   })))
@@ -46,6 +51,7 @@ export async function POST(req) {
       userId: u.id,
       name: body.name,
       schemaVersion: body.schemaVersion ?? 1,
+      cityId: cityIdOf(body),
       state: body.state,
       createdAt: now,
       updatedAt: now,
@@ -55,11 +61,19 @@ export async function POST(req) {
   return Response.json(serialize(row), { status: 201 })
 }
 
+// The city column is derived from the snapshot server-side, so a stale client can
+// never desync the two. `state.cityId` stays authoritative.
+export function cityIdOf(body) {
+  return body?.state?.cityId ?? body?.cityId ?? null
+}
+
 export function serialize(row) {
   return {
     schemaVersion: row.schemaVersion,
     id: row.id,
     name: row.name,
+    // Fall back to the snapshot for rows written before the column existed.
+    cityId: row.cityId ?? row.state?.cityId ?? null,
     state: row.state,
     shareId: row.shareId ?? null,
     createdAt: row.createdAt?.getTime?.() ?? row.createdAt,
