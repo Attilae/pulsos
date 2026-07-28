@@ -127,15 +127,29 @@
 
 /* MapView is a sibling of .mdaw — MixerTab keeps rendering it in both branches
    so switching Map⇄Lanes never remounts Leaflet — so it can't be a grid child
-   of the stage. Position it over the stage area instead: below the 44px top
-   bar, above the thumb bar. */
+   of the stage. Position it over the stage area instead: below the top bar,
+   above the thumb bar. */
 .daw--phone .map-wrapper {
+  /* NOT a no-op. app.css's `.daw--map .map-wrapper { grid-area: map }` fires
+     whenever view === 'map', but this grid has one area named "main", so `map`
+     is unresolvable — and an absolutely-positioned grid child takes its *grid
+     area* as its containing block. Left alone, the insets below get measured
+     against the wrong box and the map covers both bars, which also buries the
+     Map⇄Lanes toggle and traps the user in map view. */
+  grid-area: auto;
   position: absolute;
-  top: 44px;
+  /* MapView.css gives .map-wrapper width/height 100%. On an absolutely
+     positioned box an explicit size over-constrains the inset pair, and the
+     browser drops `bottom` — which let the map run past the thumb bar. Size it
+     purely from the insets instead. */
+  width: auto;
+  height: auto;
+  top: var(--mtopbar-h);
   left: 0;
   right: 0;
   bottom: calc(var(--thumbbar-h) + var(--safe-bottom));
-  z-index: 1;
+  /* Below the bars, which claim z-index 2 — see MobileDaw.css. */
+  z-index: 0;
 }
 }
 
