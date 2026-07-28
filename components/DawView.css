@@ -1475,3 +1475,12 @@
   padding: 14px 0;
   text-align: center;
 }
+
+/* Phone stand-in for the weq8 curve editor (see EqPanel in DawView.jsx): the
+   filtering still runs, only the editor is desktop-only. */
+.eq-weq8--stub { min-height: 0; padding: var(--space-150); }
+.eq-stub-note {
+  font-size: 0.72rem;
+  line-height: 1.5;
+  color: var(--muted);
+}

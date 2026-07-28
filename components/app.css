@@ -5,7 +5,10 @@
 .app-shell {
   display: grid;
   grid-template-rows: auto 1fr;
+  /* dvh tracks mobile Safari's collapsing URL bar; vh is the fallback for
+     browsers without dynamic viewport units (it over-reports and clips). */
   height: 100vh;
+  height: 100dvh;
 }
 
 .tab-bar {
@@ -90,19 +93,6 @@
 
 /* ── Auth control (header) ──────────────────────────────────────────────── */
 .auth-control { position: relative; }
-.auth-control--pending { color: var(--muted); font-size: 0.78rem; }
-.auth-trigger {
-  padding: 6px 12px;
-  background: var(--surface2);
-  color: var(--text);
-  border: 1px solid var(--border);
-  border-radius: 3px;
-  font-family: inherit;
-  font-size: 0.78rem;
-  cursor: pointer;
-  white-space: nowrap;
-}
-.auth-trigger:hover { background: var(--hover-surface); }
 .auth-pop {
   position: absolute;
   right: 0;
@@ -161,47 +151,6 @@
 }
 .auth-legal a { color: var(--text); text-underline-offset: 2px; }
 .auth-legal a:hover { color: var(--accent); }
-
-/* ── Tour control (header) ──────────────────────────────────────────────── */
-.tour-control { position: relative; }
-.tour-trigger {
-  padding: 6px 12px;
-  background: var(--surface2);
-  color: var(--text);
-  border: 1px solid var(--border);
-  border-radius: 3px;
-  font-family: inherit;
-  font-size: 0.78rem;
-  cursor: pointer;
-  white-space: nowrap;
-}
-.tour-trigger:hover { background: var(--hover-surface); }
-.tour-pop {
-  position: absolute;
-  right: 0;
-  top: calc(100% + 6px);
-  z-index: 100;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  padding: 10px;
-  min-width: 160px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  box-shadow: var(--elevation-overlay);
-}
-.tour-item {
-  padding: 7px;
-  background: var(--surface2);
-  color: var(--accent);
-  border: 1px solid var(--accent);
-  border-radius: 3px;
-  font-family: inherit;
-  font-size: 0.78rem;
-  cursor: pointer;
-}
-.tour-item:hover { background: var(--hover-surface); }
 
 .tab-placeholder {
   flex: 1;
@@ -318,6 +267,48 @@
 .transport-btn.play { border-color: var(--accent); color: var(--accent); }
 .transport-btn.stop { border-color: var(--danger); color: var(--danger); }
 .transport-btn:hover { background: var(--hover-surface); }
+
+/* Shown when audio was started outside a user gesture and the browser refused
+   (iOS). Filled, not outlined — it's the only thing standing between the user
+   and sound, so it should not read as a secondary control. */
+.audio-gesture-btn {
+  padding: 7px 16px;
+  min-height: var(--tap-min);
+  background: var(--accent);
+  color: var(--accent-text);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  font-family: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  animation: audio-gesture-pulse 1.6s ease-in-out infinite;
+}
+@keyframes audio-gesture-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 var(--accent-tint); }
+  50%      { box-shadow: 0 0 0 6px transparent; }
+}
+
+/* Playing, but the output bus has measured silence — an invitation, not an
+   error: the cause is usually the phone's own mute switch. */
+.audio-nooutput-chip {
+  padding: 5px 12px;
+  min-height: 32px;
+  background: color-mix(in srgb, var(--warning) 14%, transparent);
+  color: var(--warning);
+  border: 1px solid var(--warning);
+  border-radius: var(--radius-pill);
+  font-family: inherit;
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.audio-nooutput-chip:hover { background: color-mix(in srgb, var(--warning) 24%, transparent); }
+
+@media (prefers-reduced-motion: reduce) {
+  .audio-gesture-btn { animation: none; }
+}
 
 /* Drum backing imported from the Drum Machine tab */
 .drums-import-btn {

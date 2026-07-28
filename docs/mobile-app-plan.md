@@ -1,8 +1,13 @@
 # Mobile app plan — porting Leið to iOS/Android
 
-Status: **plan only** (nothing implemented). The web app currently gates all touch devices
-behind a "mobile app coming soon" screen (`components/MobileGate.jsx` +
-`lib/shared/isMobileDevice.js`, with a session-scoped "try it anyway" bypass).
+Status: **plan only** (nothing implemented) for the *native* app.
+
+Note the web app no longer blocks phones: the old `MobileGate` ("mobile app coming soon")
+and `lib/shared/isMobileDevice.js` were removed in favour of a real, purpose-built phone
+layout (`components/mobile/`), an audio-session layer that works around the iOS issues
+listed below (`lib/audioSession.js`), and a one-time expectation-setting notice
+(`components/FirstRunNotice.jsx`). The constraints below still hold and still argue for a
+native app — the web build mitigates them, it does not remove them.
 
 ## Why not just the mobile web app?
 
@@ -14,7 +19,10 @@ Web Audio/Tone.js does run in mobile Safari/Chrome, but Leið's use of it doesn'
 - `lines.<city>.json` is ~22 MB per city.
 - iOS specifics: the ring/silent switch mutes Web Audio (routed as "ambient"),
   backgrounding suspends the `AudioContext`, and Safari throttles timers, which degrades
-  `Tone.Transport` scheduling.
+  `Tone.Transport` scheduling. `lib/audioSession.js` now mitigates the first two
+  (`navigator.audioSession` where available, a keep-alive media element on older iOS, and
+  a `visibilitychange` resume) — but the mute switch remains undetectable, so the web app
+  can only *tell* the user about it, never fix it.
 - The UI is a dense desktop DAW: hover interactions, side-by-side Leaflet map + track
   lanes, small drag targets.
 

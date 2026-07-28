@@ -37,10 +37,12 @@ export default function SongMenu({
     function onKey(e) {
       if (e.key === 'Escape') { setMenuOpen(false); setPicker(false) }
     }
-    document.addEventListener('mousedown', onDocClick)
+    // pointerdown, not mousedown: synthesized mouse events on touch fire late
+    // and don't survive a scroll, so tapping outside never closed the menu.
+    document.addEventListener('pointerdown', onDocClick)
     document.addEventListener('keydown', onKey)
     return () => {
-      document.removeEventListener('mousedown', onDocClick)
+      document.removeEventListener('pointerdown', onDocClick)
       document.removeEventListener('keydown', onKey)
     }
   }, [])

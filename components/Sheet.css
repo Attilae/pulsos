@@ -1,0 +1,131 @@
+/* Bottom sheet (phone) / centred modal (≥768px). Tokens from app/globals.css. */
+
+.sheet-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1800;              /* above HeaderMenu (1500), below Dialog (2000) */
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: flex-end;      /* bottom-anchored on phones */
+  justify-content: center;
+  animation: sheet-fade 0.16s ease;
+}
+
+.sheet-panel {
+  width: 100%;
+  max-height: 85dvh;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-overlay);
+  border-top: 1px solid var(--border);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  box-shadow: var(--elevation-overlay);
+  outline: none;
+  transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.3, 1);
+  animation: sheet-rise 0.22s cubic-bezier(0.2, 0.8, 0.3, 1);
+  /* The home-indicator strip on modern iPhones sits over the sheet's footer. */
+  padding-bottom: max(var(--space-100), var(--safe-bottom));
+}
+
+/* Grabber — the drag-to-dismiss target. Generous height, hairline visual. */
+.sheet-grabber {
+  flex-shrink: 0;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  cursor: grab;
+  touch-action: none;         /* required: we own the vertical gesture */
+}
+.sheet-grabber:active { cursor: grabbing; }
+.sheet-grabber-bar {
+  width: 36px;
+  height: 4px;
+  border-radius: var(--radius-pill);
+  background: var(--border-strong);
+}
+
+.sheet-head {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-150);
+  padding: 0 var(--space-200) var(--space-100);
+}
+
+.sheet-title {
+  flex: 1;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.sheet-close {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 1.2rem;
+  line-height: 1;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+}
+.sheet-close:hover { color: var(--text); background: var(--hover-bg); }
+
+/* The browser default focus ring is blue, which reads as foreign against the
+   lime accent. Applies to every focusable child of a sheet. */
+.sheet-panel :focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+  border-radius: var(--radius-sm);
+}
+
+.sheet-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;   /* don't chain the scroll to the page */
+  padding: 0 var(--space-200) var(--space-200);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-150);
+}
+
+.sheet-foot {
+  flex-shrink: 0;
+  padding: var(--space-150) var(--space-200) 0;
+  border-top: 1px solid var(--border);
+  display: flex;
+  gap: var(--space-100);
+}
+
+@keyframes sheet-fade { from { opacity: 0 } to { opacity: 1 } }
+@keyframes sheet-rise { from { transform: translateY(100%) } to { transform: none } }
+
+/* ── Tablet and desktop: the same markup, centred ──────────────────────────
+   Breakpoint mirrors TABLET_MIN in lib/shared/breakpoints.js. */
+@media (min-width: 768px) {
+  .sheet-overlay { align-items: center; padding: var(--space-300); }
+  .sheet-panel {
+    max-width: 520px;
+    max-height: 80dvh;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding-bottom: var(--space-100);
+    animation: sheet-fade 0.16s ease;
+  }
+  /* Drag-to-dismiss is a touch idiom; on a pointer device the × is the affordance. */
+  .sheet-grabber { display: none; }
+  .sheet-head { padding-top: var(--space-150); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sheet-overlay, .sheet-panel { animation: none; }
+  .sheet-panel { transition: none; }
+}

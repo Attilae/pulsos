@@ -35,8 +35,8 @@ export default function ProfilePanel({ onClose }) {
   if (!user) return null
 
   return (
-    <div className="profile-overlay" onMouseDown={onClose}>
-      <div className="profile-panel" onMouseDown={e => e.stopPropagation()}>
+    <div className="profile-overlay" onPointerDown={onClose}>
+      <div className="profile-panel" onPointerDown={e => e.stopPropagation()}>
         <header className="profile-header">
           <h2>Profile</h2>
           <button className="profile-close" onClick={onClose} aria-label="Close">✕</button>

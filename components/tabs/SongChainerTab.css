@@ -263,3 +263,39 @@
   color: var(--muted);
   text-align: center;
 }
+
+/* ── Phone ────────────────────────────────────────────────────────────────
+   Breakpoint mirrors lib/shared/breakpoints.js. */
+@media (max-width: 767px) {
+  /* The 240px preset library becomes a sheet-like panel *below* the chain:
+     on a phone the chain is the object of interest, the library is a picker. */
+  .chain-body {
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr auto;
+    overflow-y: auto;
+  }
+  .chain-picker {
+    border-right: none;
+    border-top: 1px solid var(--border);
+    max-height: 40dvh;
+  }
+
+  /* The item row (index · name · 3× 52px fields · progress · ↑↓✕) can't fit on
+     one line, so it wraps into a card. */
+  .chain-item { flex-wrap: wrap; gap: var(--space-075); }
+  .chain-item-name { flex: 1 1 100%; min-width: 0; }
+  .chain-item-field input { width: 64px; min-height: var(--tap-min); }
+  .chain-item-actions { margin-left: auto; }
+  .chain-icon { width: var(--tap-min); height: var(--tap-min); }
+
+  /* New/Save/Save As/Open/Delete scroll sideways rather than stacking into
+     five rows of chrome above the chain itself. */
+  .chain-menu {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scroll-snap-type: x proximity;
+    -webkit-overflow-scrolling: touch;
+  }
+  .chain-menu > * { flex-shrink: 0; scroll-snap-align: start; }
+  .chain-btn { min-height: var(--tap-min); }
+}

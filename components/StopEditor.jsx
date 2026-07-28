@@ -59,8 +59,8 @@ export default function StopEditor({ editingStop, onClose, onPitch, onVelocity }
   const velPct = Math.round(velocity * 100)
 
   return createPortal(
-    <div className="dlg-overlay" onMouseDown={onClose}>
-      <div className="stop-editor" onMouseDown={e => e.stopPropagation()}>
+    <div className="dlg-overlay" onPointerDown={onClose}>
+      <div className="stop-editor" onPointerDown={e => e.stopPropagation()}>
         <div className="stop-editor-head">
           <h2 className="dlg-title">{stopName || 'Stop'}</h2>
           <button className="stop-editor-close" onClick={onClose} title="Close">✕</button>

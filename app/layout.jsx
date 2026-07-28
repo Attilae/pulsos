@@ -22,6 +22,9 @@ const description =
 export const viewport = {
   width: 'device-width',
   initialScale: 1,
+  // Let the page paint under the notch/home indicator; the layout pads itself
+  // back out with the --safe-* tokens in globals.css.
+  viewportFit: 'cover',
   themeColor: [
     { media: '(prefers-color-scheme: dark)', color: '#0a0a0b' },
     { media: '(prefers-color-scheme: light)', color: '#f7f8fa' },

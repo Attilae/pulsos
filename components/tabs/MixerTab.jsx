@@ -5,7 +5,7 @@ import { FX_BUSES } from '@/lib/fxTrack.js'
 import { randomFromScale, shiftOctaveNote, geoToMidi, routeBounds, midiToNote, noteToMidi, SCALES, MODES, setCityBounds } from '@/lib/mappings.js'
 import { fetchLines } from '@/lib/shared/useRoutes.js'
 import { useCitySelection } from '@/lib/shared/CityContext.jsx'
-import { getCityEntry } from '@/lib/shared/cities.js'
+import { getCityEntry, linesUrlFor } from '@/lib/shared/cities.js'
 import { resolveSnapshotLanes, clampMode } from '@/lib/songLanes.js'
 import { useDrumClipboard } from '@/lib/shared/DrumClipboardContext.jsx'
 import { cycleStepValue } from '@/lib/engines/drumEngine.js'
@@ -24,6 +24,11 @@ import { useEntitlements } from '@/lib/shared/EntitlementsContext.jsx'
 import { countActiveLanes, normalizeLaneAccess, normalizeSnapshotLaneAccess } from '@/lib/billing/plans.js'
 import { buildReplacementLaneState } from '@/lib/ai/planApply.js'
 import { trackProductEvent } from '@/lib/productAnalytics.js'
+import { unlockAudio, releaseAudioSession, probeOutputPeak } from '@/lib/audioSession.js'
+import { registerSoundCheck } from '@/lib/shared/soundCheck.js'
+import AudioTroubleshooter from '../AudioTroubleshooter.jsx'
+import MobileDaw from '../mobile/MobileDaw.jsx'
+import { useIsPhone } from '@/lib/shared/useViewport.js'
 
 const MAX_EVENTS = 80
 
@@ -124,6 +129,22 @@ export default function MixerTab({ active = true }) {
   const [mode,    setMode]    = useState('mock')  // 'mock' | 'live'
   const [started, setStarted] = useState(false)
   const [pendingAiStart, setPendingAiStart] = useState(0)
+  // Set when audio was asked to start outside a user gesture and the browser
+  // refused (iOS). The transport then offers an explicit tap instead of
+  // pretending playback began — see the pendingAiStart effect below.
+  const [needsGesture, setNeedsGesture] = useState(false)
+  // The output bus has been measurably silent while playing — offer the check.
+  const [noOutput, setNoOutput] = useState(false)
+  const [soundCheck, setSoundCheck] = useState(null)   // null | 'manual' | 'auto'
+  // The AI panel is a floating 340px card on desktop; on a phone it covers the
+  // whole view, so it starts closed and is launched from the More sheet.
+  const [aiOpen, setAiOpen] = useState(false)
+  const isPhone = useIsPhone()
+  // applyPreset/loadCity must stay referentially stable (the persistence hook
+  // keys off them), so the phone flag is read through a ref there — same
+  // pattern as cityIdRef/limitsRef.
+  const isPhoneRef = useRef(isPhone)
+  useEffect(() => { isPhoneRef.current = isPhone }, [isPhone])
   const [events,  setEvents]  = useState([])
 
   const [volumes, setVolumes] = useState({})
@@ -311,7 +332,7 @@ export default function MixerTab({ active = true }) {
   // calling it produces a single network fetch.
   const loadCity = useCallback(async (id) => {
     const entry = getCityEntry(id)
-    const { routes: all, city } = await fetchLines(entry.linesUrl)
+    const { routes: all, city } = await fetchLines(linesUrlFor(entry, { slim: isPhoneRef.current }))
     // Retune the pitch/pan fallbacks to this city before any notes are built.
     if (city?.bounds) setCityBounds(city.bounds)
     setCity(city ?? null)
@@ -691,9 +712,15 @@ export default function MixerTab({ active = true }) {
         setStarted(false)
         setHasMidiSession(midiRecorderRef.current?.hasData() ?? false)
         stoppingRef.current = false
+        // Stop holding the OS audio session open (iOS lock-screen controls).
+        releaseAudioSession()
       }, FADE_OUT * 1000 + 60)
     } else {
+      // engine.start() → unlockAudio(), which must run before any other await
+      // in this handler so the user gesture is still spendable on iOS.
       await engine.start()
+      setNeedsGesture(false)
+      setNoOutput(false)
 
       // Start silent, fade in after transport starts
       Tone.getDestination().volume.value = -80
@@ -732,6 +759,15 @@ export default function MixerTab({ active = true }) {
       try {
         await engine.start()
         if (cancelled) return
+        // This start comes from an effect, not a click — the gesture that
+        // triggered Generate is long gone. On iOS that means Tone.start()
+        // resolves without actually resuming, so verify rather than assume:
+        // starting the transport into a suspended context looks like playback
+        // and sounds like nothing.
+        if (engine.getAudioContext?.()?.state !== 'running') {
+          setNeedsGesture(true)
+          return
+        }
         Tone.getDestination().volume.value = -80
         const smMap = {}
         for (const [rid, soundMode] of Object.entries(trackSoundModes)) {
@@ -752,6 +788,48 @@ export default function MixerTab({ active = true }) {
     start()
     return () => { cancelled = true }
   }, [pendingAiStart]) // intentionally keyed to the post-commit start request
+
+  // Let the header menu (and the first-run notice) open the sound check, which
+  // lives here because it needs the live mix context to say anything useful.
+  useEffect(() => registerSoundCheck(trigger => setSoundCheck(trigger)), [])
+
+  // Retry path for the case above: this IS a gesture, so the unlock can stick.
+  const handleGestureStart = useCallback(async () => {
+    const ok = await unlockAudio()
+    setNeedsGesture(!ok)
+    if (ok) setPendingAiStart(value => value + 1)
+  }, [])
+
+  // Watch the master bus while playing and surface a hint if it stays silent.
+  // Deliberately starts late: handlePlayPause drops the destination to -80 dB
+  // and ramps back over 0.5s, so probing immediately reports silence on every
+  // single start.
+  useEffect(() => {
+    if (!started || !active) { setNoOutput(false); return undefined }
+    let cancelled = false
+    let silentRuns = 0
+    let intervalId = 0
+
+    const check = async () => {
+      const db = await probeOutputPeak(300)
+      if (cancelled) return
+      if (db != null && db <= -80) silentRuns += 1
+      else { silentRuns = 0; setNoOutput(false) }
+      // Two consecutive silent windows — a rest between notes isn't enough.
+      if (silentRuns >= 2) setNoOutput(true)
+    }
+
+    const startId = setTimeout(() => {
+      check()
+      intervalId = setInterval(check, 1200)
+    }, 1500)
+
+    return () => {
+      cancelled = true
+      clearTimeout(startId)
+      if (intervalId) clearInterval(intervalId)
+    }
+  }, [started, active])
 
   // Stop playback when this tab is hidden (the component stays mounted so all
   // settings persist, but we don't want a background tab fighting over the
@@ -1339,6 +1417,27 @@ export default function MixerTab({ active = true }) {
     engineRef.current?.setRoutePan(routeId, value)
   }
 
+  // Lanes disabled by the plan's active-lane cap rather than by the user, so
+  // the phone strip can badge them PRO instead of looking merely switched off.
+  const lockedLaneIdSet = useMemo(
+    () => new Set(normalizeLaneAccess(visibleInstrumentRoutes, disabledRoutes, limits.activeLanes).lockedIds),
+    [visibleInstrumentRoutes, disabledRoutes, limits.activeLanes],
+  )
+
+  // How many lanes can actually be heard right now — the answer the sound check
+  // needs, and the reason a fresh session is silent (every lane starts off).
+  const activeLaneCount = useMemo(
+    () => countActiveLanes(visibleInstrumentRoutes, disabledRoutes),
+    [visibleInstrumentRoutes, disabledRoutes],
+  )
+
+  // "Enable a lane" from the sound check: turn on the first available one
+  // rather than making the user hunt for a track they haven't seen yet.
+  const handleEnableFirstLane = useCallback(() => {
+    const first = visibleInstrumentRoutes.find(r => disabledRoutes[r.id])
+    if (first) handleDisable(first.id)
+  }, [visibleInstrumentRoutes, disabledRoutes, handleDisable])
+
   // Apply a validated AI Composer plan by replaying the same handlers a human
   // would click. Order matters: harmony before per-track scale, scale before
   // pitch strategy (handleScale rewrites the manual pitch map), FX track added
@@ -1682,7 +1781,7 @@ export default function MixerTab({ active = true }) {
   }, [presetWarning])
 
   return (
-    <div className={`daw ${view === 'map' ? 'daw--map' : ''}`}>
+    <div className={`daw ${view === 'map' ? 'daw--map' : ''} ${isPhone ? 'daw--phone' : ''}`}>
       {switching && (
         <div className="city-switch-overlay" role="status" aria-live="polite">
           <div className="city-switch-pulse" />
@@ -1707,13 +1806,14 @@ export default function MixerTab({ active = true }) {
           >×</button>
         </div>
       )}
+      {!isPhone && (
       <header className="daw-header">
         <h2 className="daw-subtitle">Map</h2>
         <p className="daw-sub">{cityEntry.name} public transport → generative music</p>
 
         <SongMenu {...song} />
 
-        <div className="view-toggle">
+        <div className="view-toggle" data-tour="view">
           <button
             className={`mode-btn ${view === 'map' ? 'active' : ''}`}
             onClick={() => setView('map')}
@@ -1808,11 +1908,29 @@ export default function MixerTab({ active = true }) {
 
         <button
           className={`transport-btn ${started ? 'stop' : 'play'}`}
+          data-tour="transport"
           onClick={handlePlayPause}
         >
           {started ? '⏹ Stop' : '▶ Play'}
         </button>
+
+        {needsGesture && (
+          <button className="audio-gesture-btn" onClick={handleGestureStart}>
+            ▶ Tap to start audio
+          </button>
+        )}
+
+        {noOutput && !needsGesture && (
+          <button
+            className="audio-nooutput-chip"
+            onClick={() => setSoundCheck('auto')}
+            title="Playing, but nothing is reaching the output"
+          >
+            No output?
+          </button>
+        )}
       </header>
+      )}
 
       <MapView
         className={view !== 'map' ? 'view-hidden' : ''}
@@ -1831,7 +1949,9 @@ export default function MixerTab({ active = true }) {
         cityId={cityId}
         cityName={cityEntry.name}
         onApply={applyAIPlan}
+        {...(isPhone ? { open: aiOpen, onOpenChange: setAiOpen } : {})}
       />
+      {!isPhone && (
       <DawView
         className={view !== 'daw' ? 'view-hidden' : ''}
         mode={mode}
@@ -1938,6 +2058,71 @@ export default function MixerTab({ active = true }) {
         onExportRouteMidi={handleExportRouteMidi}
         onExportRouteAudio={handleExportRouteAudio}
         audioExportActive={started && !audioExporting}
+      />
+      )}
+
+      {isPhone && (
+        <MobileDaw
+          controls={{
+            cityName: cityEntry.name,
+            view, onView: setView,
+            started, onPlayPause: handlePlayPause,
+            bpm, onBpm: setBpm,
+            mode, onMode: setMode, liveAvailable: !!cityEntry.liveWsUrl,
+            harmony: harmonyCommon ?? globalHarmony,
+            onHarmony: handleGlobalHarmony,
+            harmonyMixed,
+            onRepick: handleRepickAll,
+            onExportMidi: handleExportMixMidi,
+            onExportWav: handleExportMixAudio,
+            canExport: canExportMix,
+            audioExporting,
+            canImportDrums, hasDrums: !!drumPattern, onImportDrums: handleImportDrums,
+            onOpenAi: () => setAiOpen(true),
+            onSoundCheck: () => setSoundCheck('manual'),
+            needsGesture, onGestureStart: handleGestureStart,
+            noOutput,
+            song,
+          }}
+          lanes={{
+            routes: visibleInstrumentRoutes,
+            mergedConsumedIds,
+            disabled: disabledRoutes,
+            soloRoutes,
+            volumes, pans,
+            lockedIds: lockedLaneIdSet,
+            synthTypes: trackSynthTypes,
+            scales: trackScales,
+            octaves: trackOctaves,
+            semitones: trackSemitones,
+            pitchVariety: trackPitchVariety,
+            pitchOffsets: trackPitchOffsets,
+            stopVelocities: trackStopVelocities,
+            sendMatrix,
+            activeFxTracks,
+            onDisable: handleDisable,
+            onSolo: handleSolo,
+            onVolume: handleVolume,
+            onPan: handlePan,
+            onSynthType: handleSynthType,
+            onScale: handleScale,
+            onOctaveShift: handleOctaveShift,
+            onSendLevel: handleSendLevel,
+            onStopPitch: handleStopPitch,
+            onStopVelocity: handleStopVelocity,
+          }}
+        />
+      )}
+
+      <AudioTroubleshooter
+        open={soundCheck != null}
+        onClose={() => setSoundCheck(null)}
+        started={started}
+        masterVolume={masterVolume}
+        onMasterVolume={handleMasterVolume}
+        activeLaneCount={activeLaneCount}
+        onEnableLanes={handleEnableFirstLane}
+        trigger={soundCheck ?? 'manual'}
       />
     </div>
   )

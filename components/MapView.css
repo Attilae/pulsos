@@ -195,3 +195,25 @@
 }
 .map-attribution a { color: var(--text-subtle); text-decoration: none; }
 .map-attribution a:hover { text-decoration: underline; }
+
+/* ── Phone ────────────────────────────────────────────────────────────────
+   The per-route status overlay is one row per lane pinned to the top-left; on
+   a 390px screen with 20 lanes it covers the map it's annotating. Collapse it
+   to a strip along the top, scrollable, so it annotates without obscuring.
+   Breakpoint mirrors lib/shared/breakpoints.js. */
+@media (max-width: 767px) {
+  .map-track-status {
+    top: 0;
+    left: 0;
+    right: 0;
+    border-radius: 0;
+    border-width: 0 0 1px 0;
+    flex-direction: row;
+    gap: var(--space-150);
+    overflow-x: auto;
+    padding: var(--space-075) var(--space-100);
+    -webkit-overflow-scrolling: touch;
+    pointer-events: auto;   /* it scrolls now, so it needs to receive touches */
+  }
+  .map-status-row { flex-shrink: 0; }
+}

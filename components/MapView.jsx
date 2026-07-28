@@ -2,6 +2,7 @@ import * as Tone from 'tone'
 import { memo, useEffect, useMemo, useRef, useState } from 'react'
 import { MapContainer, TileLayer, Polyline, CircleMarker, Tooltip, LayersControl, useMap } from 'react-leaflet'
 import L from 'leaflet'
+import { useIsPhone } from '@/lib/shared/useViewport.js'
 import './MapView.css'
 
 delete L.Icon.Default.prototype._getIconUrl
@@ -39,15 +40,43 @@ function routeStyle(route, disabled, soloRoutes) {
   }
 }
 
-// Calls map.invalidateSize() when the map becomes visible after being hidden
+// Calls map.invalidateSize() when the map becomes visible after being hidden,
+// and whenever the viewport itself changes shape.
+//
+// The `active` timeout alone was enough on desktop, where the window rarely
+// resizes. On a phone, rotating the device or the URL bar collapsing leaves
+// Leaflet sized to the old viewport — a grey half-map that never recovers.
+// visualViewport is the one that actually fires for the URL bar; plain
+// `resize` doesn't reliably.
 function MapResizer({ active }) {
   const map = useMap()
+
   useEffect(() => {
     if (active) {
       const id = setTimeout(() => map.invalidateSize(), 60)
       return () => clearTimeout(id)
     }
+    return undefined
   }, [active, map])
+
+  useEffect(() => {
+    if (!active) return undefined
+    let raf = 0
+    const refresh = () => {
+      cancelAnimationFrame(raf)
+      raf = requestAnimationFrame(() => map.invalidateSize())
+    }
+    window.addEventListener('resize', refresh)
+    window.addEventListener('orientationchange', refresh)
+    window.visualViewport?.addEventListener('resize', refresh)
+    return () => {
+      cancelAnimationFrame(raf)
+      window.removeEventListener('resize', refresh)
+      window.removeEventListener('orientationchange', refresh)
+      window.visualViewport?.removeEventListener('resize', refresh)
+    }
+  }, [active, map])
+
   return null
 }
 
@@ -120,6 +149,9 @@ function MapView({
   soloRoutes = new Set(),
   liveSnapshot = null,
 }) {
+  // Drives the phone-only map concessions: canvas rendering, no zoom control,
+  // and no per-stop CircleMarkers.
+  const isPhone = useIsPhone()
   const [playheadPositions, setPlayheadPositions] = useState({})
   const rafRef       = useRef(null)
   const disabledRef  = useRef(disabled)
@@ -213,7 +245,10 @@ function MapView({
       {LAYERS.map(({ type, label }) => {
         const layerRoutes = routesByType[type]
         if (!layerRoutes.length) return null
-        const showStops = type === 'metro'
+        // Metro stop markers are up to ~780 CircleMarkers for NYC-scale
+        // cities. That already froze desktop once (see the memo note above);
+        // a phone GPU has no chance, and the dots are unreadable at that size.
+        const showStops = type === 'metro' && !isPhone
         return (
           <LayersControl.Overlay key={type} checked name={label}>
             <>
@@ -259,7 +294,7 @@ function MapView({
         )
       })}
     </LayersControl>
-  ), [routesByType, disabled, soloRoutes]) // eslint-disable-line react-hooks/exhaustive-deps
+  ), [routesByType, disabled, soloRoutes, isPhone]) // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className={`map-wrapper${className ? ` ${className}` : ''}`}>
@@ -288,7 +323,12 @@ function MapView({
         center={[47.4979, 19.0402]}
         zoom={12}
         className="map-container"
-        zoomControl={true}
+        // Thousands of SVG paths is the main source of map jank; canvas draws
+        // them in one pass. Phones only — the SVG renderer keeps per-path
+        // hover/tooltip behaviour that desktop relies on.
+        preferCanvas={isPhone}
+        // Pinch-zoom works; the +/− control is a 26px tap target over the map.
+        zoomControl={!isPhone}
       >
         <MapResizer active={active} />
         <PlayheadPaneSetup paneRef={playheadPane} />

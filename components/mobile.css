@@ -1,0 +1,185 @@
+/* ══════════════════════════════════════════════════════════════════════════
+   Responsive layer. Imported by App.jsx *after* app.css so it wins on equal
+   specificity.
+
+   Breakpoints mirror lib/shared/breakpoints.js — CSS can't read the constants,
+   so the literals are repeated here and nowhere else:
+     ≤767px   phone  — the compact layout (components/mobile/)
+     768–1023 tablet — the desktop layout with finger-sized targets
+     ≥1024    desktop — untouched
+
+   Anything that only changes size/stacking belongs here. Anything that changes
+   the component *tree* is a useIsPhone() branch in JSX instead.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Phone ────────────────────────────────────────────────────────────────── */
+@media (max-width: 767px) {
+
+  /* The instrument must never scroll the page sideways; individual dense
+     surfaces opt back in with their own overflow-x. */
+  html, body { overflow-x: hidden; }
+
+  .app-shell {
+    padding-top: var(--safe-top);
+    padding-left: var(--safe-left);
+    padding-right: var(--safe-right);
+  }
+
+  /* ── Header ──────────────────────────────────────────────────────────────
+     Was: title + 3 tabs + city picker + theme toggle + menu on one 16px-gap
+     row, which overflows ~120px at 390px. Now: title, a flexible segmented
+     tab control, and the menu. City and theme move into the drawer (App.jsx). */
+  .tab-bar {
+    gap: var(--space-100);
+    padding: var(--space-075) var(--space-100);
+  }
+  .app-title { font-size: 0.82rem; margin-right: 0; letter-spacing: 0.1em; }
+  .app-title-say { display: none; }   /* the pronunciation gloss is a desktop grace note */
+
+  .tab-bar-tabs {
+    flex: 1;
+    min-width: 0;
+    gap: 0;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+  }
+  .tab-btn {
+    flex: 1;
+    min-width: 0;
+    min-height: var(--tap-min);
+    padding: 0 var(--space-050);
+    font-size: 0.72rem;
+    border-bottom: none;
+    border-right: 1px solid var(--border);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .tab-btn:last-child { border-right: none; }
+  .tab-btn.active { background: var(--accent-tint); color: var(--accent); }
+
+  .header-menu-trigger { min-width: var(--tap-min); min-height: var(--tap-min); }
+
+  /* ── Touch-target floor ──────────────────────────────────────────────────
+     Scoped deliberately. A blanket `button { min-height: 44px }` would blow up
+     the absolutely-positioned rail elements (.stop-dot, .auto-dot,
+     .loop-handle) and the 16-step drum grids, which are sized by their own
+     geometry and are documented exceptions. */
+  .m-tap,
+  button:not(.stop-dot):not(.auto-dot):not(.loop-handle):not(.drum-lane-step):not(.drum-step):not(.sheet-close):not(.tab-btn),
+  select,
+  input[type="text"],
+  input[type="number"] {
+    min-height: var(--tap-min);
+  }
+
+  /* Range inputs need explicit thumb sizing — min-height grows the element but
+     NOT the draggable thumb, which is the part a finger has to hit. The track
+     keeps its 3px hairline so the instrument still looks like an instrument. */
+  input[type="range"] {
+    height: var(--tap-min);
+    background: transparent;
+    -webkit-appearance: none;
+    appearance: none;
+  }
+  input[type="range"]::-webkit-slider-runnable-track {
+    height: 3px;
+    border-radius: var(--radius-pill);
+    background: var(--border-strong);
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 20px; height: 20px;
+    margin-top: -8.5px;
+    border-radius: var(--radius-pill);
+    background: var(--accent);
+    border: none;
+  }
+  input[type="range"]::-moz-range-track {
+    height: 3px; border-radius: var(--radius-pill); background: var(--border-strong);
+  }
+  input[type="range"]::-moz-range-thumb {
+    width: 20px; height: 20px; border: none;
+    border-radius: var(--radius-pill); background: var(--accent);
+  }
+
+  /* Native controls should use the theme's own colours, and 16px prevents iOS
+     from zooming the viewport when a field takes focus. */
+  select, input[type="text"], input[type="number"] { font-size: 16px; }
+
+/* ── The .daw host grid on a phone ────────────────────────────────────────
+   Lives here rather than in components/mobile/MobileDaw.css because CSS
+   import order follows the module graph: MobileDaw.css is pulled in via
+   MixerTab, which App.jsx imports *before* app.css, so rules there lose to
+   app.css at equal specificity. mobile.css is App.jsx's last import and wins.
+
+   .daw is normally three rows × two columns (the second column is the 260px
+   event log). On a phone it collapses to one cell that MobileDaw fills. */
+.daw--phone {
+  position: relative;
+  grid-template-columns: 1fr;
+  grid-template-rows: 1fr;
+  grid-template-areas: "main";
+}
+.daw--phone .mdaw { grid-area: main; }
+.daw--phone .event-log { display: none; }
+
+/* MapView is a sibling of .mdaw — MixerTab keeps rendering it in both branches
+   so switching Map⇄Lanes never remounts Leaflet — so it can't be a grid child
+   of the stage. Position it over the stage area instead: below the 44px top
+   bar, above the thumb bar. */
+.daw--phone .map-wrapper {
+  position: absolute;
+  top: 44px;
+  left: 0;
+  right: 0;
+  bottom: calc(var(--thumbbar-h) + var(--safe-bottom));
+  z-index: 1;
+}
+}
+
+/* ── Hover-only reveals ───────────────────────────────────────────────────
+   Not a blanket rewrite of every :hover rule — a stuck background tint after a
+   tap is harmless. These are the rules that *reveal information* or *persist
+   state*, which on touch either never fire or fire and never clear. Each is
+   replaced by a visible affordance in the compact layout. */
+@media (hover: none) {
+  /* Stop names/notes were hover-only, i.e. unreachable on touch. The phone
+     layout lists them as text in the lane sheet instead. */
+  .stop-dot:hover .stop-label { opacity: 0; }
+  .stop-dot:hover { transform: none; }
+  .loop-handle:hover::before { width: 1px; }
+  .tab-btn:hover { background: transparent; color: var(--muted); }
+  .tab-btn.active:hover { color: var(--accent); }
+  .chain-preset:hover { background: var(--surface2); }
+  .rack-toggle:hover { background: var(--surface2); }
+}
+
+/* ── Tablet: the desktop instrument, sized for fingers ───────────────────── */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .solo-btn, .disable-btn, .mute-btn,
+  .lt-mix .midi-export-btn, .chain-icon, .stop-editor-step { min-width: 36px; min-height: 36px; }
+  .octave-btn { min-width: 32px; min-height: 32px; }
+  .sp-slider::-webkit-slider-thumb { width: 18px; height: 18px; margin-top: -7.5px; }
+  .sp-slider::-moz-range-thumb { width: 18px; height: 18px; }
+}
+
+/* Enlarged hit areas for the precision rail controls, at any width where the
+   pointer is a finger. The *visual* size is unchanged — the loop handle's line
+   is a ::before, and the automation dot grows an invisible ::after — so the
+   desktop look survives on a touchscreen laptop. */
+@media (pointer: coarse) {
+  .loop-handle { width: 24px; }
+  .auto-dot::after {
+    content: '';
+    position: absolute;
+    inset: -12px;
+  }
+}
+
+/* driver.js anchors its popover to the highlighted element, which overflows a
+   390px viewport whenever the anchor is near an edge. */
+.leid-tour--mobile {
+  max-width: calc(100vw - 24px) !important;
+}

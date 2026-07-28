@@ -109,8 +109,8 @@ function Dialog({ dialog, onDismiss }) {
   const defaultTitle   = isPrompt ? 'Enter a value' : isConfirm ? 'Are you sure?' : 'Notice'
 
   return createPortal(
-    <div className="dlg-overlay" onMouseDown={isAlert || isConfirm || isPrompt ? cancel : undefined}>
-      <form className="dlg-panel" onMouseDown={e => e.stopPropagation()} onSubmit={onSubmit}>
+    <div className="dlg-overlay" onPointerDown={isAlert || isConfirm || isPrompt ? cancel : undefined}>
+      <form className="dlg-panel" onPointerDown={e => e.stopPropagation()} onSubmit={onSubmit}>
         <h2 className="dlg-title">{title ?? defaultTitle}</h2>
         {message && <p className="dlg-message">{message}</p>}
 

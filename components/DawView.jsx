@@ -4,14 +4,27 @@ import { SYNTH_DEFAULTS, availableAutomationTargets, findTargetSpec, SAMPLER_PRE
 import { FX_BUSES, AUTOMATION_TARGETS, FX_PARAM_SPECS, FX_SYNC_TARGETS } from '@/lib/fxTrack.js'
 import { PAD_DEFS as DRUM_PAD_DEFS, STEPS as DRUM_STEPS, SOURCE_STEPS as DRUM_SOURCE_STEPS, emptyPattern as emptyDrumPattern } from '@/lib/engines/drumEngine.js'
 import { generatePitchMap, shiftOctaveNote, shiftSemitones, noteToMidi, SCALES, hashStopValue, snapStopsToGrid, GRID_TOTAL_CELLS, GRID_BARS, GRID_STEPS_PER_BAR, GRID_RESOLUTION_STEPS_PER_BAR, DEFAULT_GRID_RESOLUTION, denormalizeToRange, denormalizeExp, transposeNoteInScale, PITCH_CONTOURS, DEFAULT_PITCH_VARIETY } from '@/lib/mappings.js'
+import { buildLanePitchMaps } from '@/lib/laneNotes.js'
+import { useResetGesture } from '@/lib/shared/useResetGesture.js'
+import { useIsPhone } from '@/lib/shared/useViewport.js'
 import StopEditor from './StopEditor.jsx'
 import DuplicateLaneDialog from './DuplicateLaneDialog.jsx'
 import LinePicker from './LinePicker.jsx'
 import './DawView.css'
 
-const SYNTH_TYPES = [
+// Exported so the phone lane sheet offers exactly the same instruments.
+export const SYNTH_TYPES = [
   'Synth', 'FMSynth', 'NoiseSynth', 'PolySynth',
   'Sampler', 'Drums',
+]
+
+// Lane groupings, in render order. Exported so the phone lane list
+// (components/mobile/MobileLaneList.jsx) groups tracks identically.
+export const SECTIONS = [
+  { type: 'metro',   label: 'Metro' },
+  { type: 'tram',    label: 'Tram' },
+  { type: 'trolley', label: 'Trolley' },
+  { type: 'bus',     label: 'Bus' },
 ]
 
 export const NOTE_ROOTS = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
@@ -198,12 +211,6 @@ export default function DawView({
     return () => cancelAnimationFrame(animRef.current)
   }, [started, mode, routes, liveSnapshot, vehiclesByRoute, onVehicleCrossed])
 
-  const SECTIONS = [
-    { type: 'metro',   label: 'Metro' },
-    { type: 'tram',    label: 'Tram' },
-    { type: 'trolley', label: 'Trolley' },
-    { type: 'bus',     label: 'Bus' },
-  ]
   // Automation-source lanes now stay visible/audible in their own section (they can
   // both play and drive automation). Only lanes folded into a merged PolySynth lane
   // are hidden — they still play through the merged lane.
@@ -669,7 +676,7 @@ function LineTrack({
   const gliDisp = aGli.display != null ? aGli.display : (glide ?? 0)
 
   return (
-    <div className={`line-track ${disabled ? 'line-track--disabled' : ''} ${rackOpen ? 'line-track--open' : ''}`}>
+    <div className={`line-track ${disabled ? 'line-track--disabled' : ''} ${rackOpen ? 'line-track--open' : ''}`} data-tour="lane">
       <div className="lt-top">
         <div className="line-label" style={{ borderColor: route.color }}>
           <div className="line-label-top">
@@ -710,8 +717,8 @@ function LineTrack({
         </div>
 
         <div className="lt-mix">
-          <button className={`disable-btn ${disabled ? 'active' : ''}`} onClick={onDisable} title={disabled ? 'Enable track' : 'Disable track'}>⏻</button>
-          <button className={`solo-btn ${isSoloed ? 'active' : ''}`} onClick={onSolo} title="Solo">S</button>
+          <button className={`disable-btn ${disabled ? 'active' : ''}`} onClick={onDisable} aria-pressed={!disabled} aria-label={disabled ? `Enable ${route.name}` : `Disable ${route.name}`} title={disabled ? 'Enable track' : 'Disable track'}>⏻</button>
+          <button className={`solo-btn ${isSoloed ? 'active' : ''}`} onClick={onSolo} aria-pressed={isSoloed} aria-label={`Solo ${route.name}`} title="Solo (Cmd/Ctrl-click to add)">S</button>
           <input type="range" min="-40" max="6" step="1"
             value={volDisp} onChange={e => onVolume(Number(e.target.value))}
             disabled={aVol.disabled} className="volume-slider" />
@@ -720,7 +727,7 @@ function LineTrack({
           <span className="pan-label">PAN</span>
           <input type="range" min="-1" max="1" step="0.01"
             value={panDisp} onChange={e => onPan(parseFloat(e.target.value))}
-            onDoubleClick={() => !aPan.disabled && onPan(0)}
+            {...useResetGesture(() => { if (!aPan.disabled) onPan(0) })}
             disabled={aPan.disabled} className="pan-slider" />
           <span className="pan-val">
             {panDisp === 0 ? 'C' : panDisp < 0 ? `L${Math.round(-panDisp * 100)}` : `R${Math.round(panDisp * 100)}`}
@@ -852,7 +859,7 @@ function LineTrack({
                       type="range" min="0" max="1" step="0.01"
                       value={pv.variety}
                       onChange={e => onPitchVariety({ variety: parseFloat(e.target.value) })}
-                      onDoubleClick={() => onPitchVariety({ variety: 0 })}
+                      {...useResetGesture(() => onPitchVariety({ variety: 0 }))}
                       className="glide-slider"
                       title="Pitch variety — 0% is the pure geographic melody; higher adds range, seeded jitter and gap accents"
                     />
@@ -892,7 +899,7 @@ function LineTrack({
                 type="range" min="0" max="1" step="0.01"
                 value={gliDisp}
                 onChange={e => onGlide(parseFloat(e.target.value))}
-                onDoubleClick={() => !aGli.disabled && onGlide(0)}
+                {...useResetGesture(() => { if (!aGli.disabled) onGlide(0) })}
                 disabled={aGli.disabled}
                 className="glide-slider"
               />
@@ -1008,7 +1015,7 @@ function LineTrack({
                     type="range" min="0.05" max="2" step="0.05"
                     value={ag.gate}
                     onChange={e => onArp({ gate: parseFloat(e.target.value) })}
-                    onDoubleClick={() => onArp({ gate: 0.5 })}
+                    {...useResetGesture(() => onArp({ gate: 0.5 }))}
                     className="glide-slider"
                   />
                   <span className="glide-val">{Math.round(ag.gate * 100)}%</span>
@@ -1232,7 +1239,7 @@ function AutomationLane({ laneId, instRoute, laneCfg, allRoutes, activeFxTracks,
             type="range" min="0" max="1" step="0.01"
             value={glide}
             onChange={e => onUpdate({ glide: parseFloat(e.target.value) })}
-            onDoubleClick={() => onUpdate({ glide: 0 })}
+            {...useResetGesture(() => onUpdate({ glide: 0 }))}
             className="glide-slider"
             style={{ accentColor: instRoute.color }}
           />
@@ -1416,7 +1423,15 @@ function AutoCurveRail({ route, laneId, points, spec, started = false, speed = 1
     dragRef.current = which
   }
   // Double-click a handle clears the per-lane override → inherit the source region.
-  const handleReset = (e) => { e.preventDefault(); e.stopPropagation(); onLoopRegion?.(null) }
+  const handleReset = (e) => { e?.preventDefault?.(); e?.stopPropagation?.(); onLoopRegion?.(null) }
+  // Loop handles are drag targets *and* reset targets, so both the drag start
+  // and the long-press detector have to see pointerdown — spreading the gesture
+  // props alone would silently replace the drag handler.
+  const resetGesture = useResetGesture(handleReset)
+  const handleProps = (edge) => ({
+    ...resetGesture,
+    onPointerDown: (e) => { resetGesture.onPointerDown(e); handlePointerDown(edge)(e) },
+  })
 
   const stopPoints = useMemo(() => {
     if (!route?.stops?.length) return []
@@ -1493,16 +1508,14 @@ function AutoCurveRail({ route, laneId, points, spec, started = false, speed = 1
           <div
             className="loop-handle loop-handle--start"
             style={{ left: `${startPct}%`, '--line-color': route.color }}
-            onPointerDown={handlePointerDown('start')}
-            onDoubleClick={handleReset}
-            title={`Loop start · cell ${startCell}/${GRID_TOTAL_CELLS} (double-click to reset)`}
+            {...handleProps('start')}
+            title={`Loop start · cell ${startCell}/${GRID_TOTAL_CELLS} — drag to move, double-click or long-press to reset`}
           />
           <div
             className="loop-handle loop-handle--end"
             style={{ left: `${endPct}%`, '--line-color': route.color }}
-            onPointerDown={handlePointerDown('end')}
-            onDoubleClick={handleReset}
-            title={`Loop end · cell ${endCell}/${GRID_TOTAL_CELLS} (double-click to reset)`}
+            {...handleProps('end')}
+            title={`Loop end · cell ${endCell}/${GRID_TOTAL_CELLS} — drag to move, double-click or long-press to reset`}
           />
         </>
       )}
@@ -1541,7 +1554,7 @@ function DawFooter({
   onAddFxTrack, onRemoveFxTrack,
 }) {
   return (
-    <footer className="daw-footer">
+    <footer className="daw-footer" data-tour="footer">
       <div className="daw-footer-inner">
         <MasterStrip volume={masterVolume} onVolume={onMasterVolume} />
         {activeFxTracks.map(busId => {
@@ -1598,7 +1611,7 @@ function FxTrackCard({ bus, wet, muted, soloed, params, onWet, onMute, onSolo, o
       <div className="fx-track-card-header">
         <span className="fx-track-name">{bus.label}</span>
         <button className={`mute-btn ${muted ? 'active' : ''}`} onClick={onMute} title="Mute">M</button>
-        <button className={`solo-btn ${soloed ? 'active' : ''}`} onClick={onSolo} title="Solo">S</button>
+        <button className={`solo-btn ${soloed ? 'active' : ''}`} onClick={onSolo} aria-pressed={soloed} aria-label="Solo this FX bus" title="Solo">S</button>
         <input
           type="range" min="0" max="1" step="0.01"
           value={wet}
@@ -2100,14 +2113,23 @@ function EqPanel({ getRuntime }) {
   const hostRef  = useRef(null)
   const boundRef = useRef(null)
   const [ready, setReady] = useState(false)
+  // <weq8-ui> is a 300×360px drag-to-place curve editor from a third-party
+  // package — precision pointer work we don't control the internals of. Below
+  // 768px we don't load or mount it at all.
+  //
+  // The EQ *runtime* is unaffected: it lives on the engine and is created by
+  // MixerTab's getEqRuntime, so a song saved with EQ on desktop still filters
+  // audio here — only the curve editor is missing.
+  const isPhone = useIsPhone()
 
   // Register the custom element once (client-only; never during SSR).
   useEffect(() => {
+    if (isPhone) return undefined
     let cancelled = false
     import('weq8/ui').then(() => { if (!cancelled) setReady(true) })
       .catch(e => console.warn('weq8/ui failed to load', e))
     return () => { cancelled = true }
-  }, [])
+  }, [isPhone])
 
   // Bind the route's EQ runtime to the element once both exist (guarded so we
   // don't re-assign the same runtime on every render).
@@ -2120,6 +2142,17 @@ function EqPanel({ getRuntime }) {
       boundRef.current = rt
     }
   })
+
+  if (isPhone) {
+    return (
+      <div className="sp-panel eq-weq8 eq-weq8--stub">
+        <p className="eq-stub-note">
+          This lane&rsquo;s EQ is still applied. Editing the curve needs a
+          pointer — open Leið on a desktop browser.
+        </p>
+      </div>
+    )
+  }
 
   return (
     <div className="sp-panel eq-weq8">
@@ -2235,18 +2268,11 @@ function StopRail({
   // latitude → scale degree, longitude → octave register, plus the lane's
   // pitch-variety opts, then the per-track octave and chromatic shifts. The
   // y-axis renders it piano-roll style.
-  const baseMap = generatePitchMap(route.stops, noteToMidi(`${trackScale.root}3`), scaleIntervals, 3,
-    { ...(pitchVariety ?? {}), routeId: route.id })
-  // Apply per-stop diatonic offsets (any lane), octave shift, then whole-lane
-  // chromatic transpose — the same order used by TransitEngine.
-  const pitchMap = baseMap.map((n, i) => {
-    const off = perStopSteps?.[route.stops[i]?.id] ?? 0
-    const tuned = off ? transposeNoteInScale(n, off, trackScale.root, trackScale.scaleType) : n
-    return shiftSemitones(shiftOctaveNote(tuned, octaveShift), semitoneShift)
+  // Shared with the phone lane sheet via lib/laneNotes.js, so both views resolve
+  // notes in the same order the engine does (offset → octave → transpose).
+  const { pitchMap, geoDisplayMap } = buildLanePitchMaps(route, {
+    scale: trackScale, pitchVariety, perStopSteps, octaveShift, semitoneShift,
   })
-  // Geographic base note per stop (octave-shifted, offset-free) — the stop editor
-  // applies diatonic stepping before the lane's chromatic transpose, like the engine.
-  const geoDisplayMap = baseMap.map(n => shiftOctaveNote(n, octaveShift))
   const stopPoints = (() => {
     const midis     = pitchMap.map(n => noteToMidi(n))
     const midiMin   = Math.min(...midis)

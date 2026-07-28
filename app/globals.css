@@ -32,6 +32,15 @@
   --space-600:48px;
   /* Radius — small/technical, matches the instrument feel */
   --radius-sm:3px; --radius-md:6px; --radius-lg:8px; --radius-pill:999px;
+  /* Safe areas — non-zero only on notched devices (needs viewportFit:'cover',
+     set in app/layout.jsx). Any bottom-anchored bar must pad by --safe-bottom. */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  /* Touch — the iOS/Material minimum, and the phone transport bar's height */
+  --tap-min: 44px;
+  --thumbbar-h: 56px;
   /* Type */
   --font-sans: var(--font-inter, ui-sans-serif, system-ui, -apple-system, sans-serif);
   --font-mono: var(--font-jetbrains, ui-monospace, "SF Mono", Menlo, monospace);
@@ -110,6 +119,13 @@ body {
   color: var(--text);
   font-family: var(--font-sans);
   transition: background 0.2s, color 0.2s;
+}
+
+/* Touch defaults: kill the 300ms tap delay and the grey flash WebKit paints
+   over every tapped control — both read as lag on an instrument. */
+button, [role="button"], .tab-btn, select {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
 /* Data / numeric readouts stay monospace (BPM, times, IDs, meters) */
