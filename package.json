@@ -19,7 +19,9 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
-    "test": "node --test"
+    "test": "node --test",
+    "slim:lines": "node scripts/slim_lines.js",
+    "slim:all": "for c in budapest helsinki berlin prague newyork zurich warsaw; do node scripts/slim_lines.js --city $c; done"
   },
   "dependencies": {
     "@tonejs/midi": "^2.0.28",

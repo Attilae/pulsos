@@ -1,0 +1,142 @@
+/* Sound-check panel. Rendered inside <Sheet>, so no overlay styling here. */
+
+.audio-check-verdict {
+  font-size: 0.78rem;
+  line-height: 1.5;
+  padding: var(--space-100) var(--space-150);
+  border-radius: var(--radius-sm);
+  border-left: 2px solid;
+}
+.audio-check-verdict strong { color: var(--text); }
+.audio-check-verdict--external {
+  border-color: var(--accent);
+  background: var(--accent-tint);
+  color: var(--text-subtle);
+}
+.audio-check-verdict--bug {
+  border-color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 10%, transparent);
+  color: var(--text-subtle);
+}
+
+.audio-check-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-050);
+}
+/* The undetectable device checks, shown de-emphasised until they're the likely
+   culprit (i.e. until the app has proven it's producing signal). */
+.audio-check-list--device.is-muted { opacity: 0.72; }
+
+.audio-check-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-150);
+  padding: var(--space-150) 0;
+  border-bottom: 1px solid var(--border);
+}
+.audio-check-row:last-child { border-bottom: none; }
+
+.audio-check-dot {
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  margin-top: 6px;
+  border-radius: var(--radius-pill);
+}
+.audio-check-dot--ok      { background: var(--success); }
+.audio-check-dot--bad     { background: var(--danger); }
+/* Not "unknown" as in broken — as in "we can't see this from here". */
+.audio-check-dot--unknown { background: none; border: 1px solid var(--muted); }
+
+.audio-check-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-050);
+}
+
+.audio-check-label {
+  font-size: 0.66rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted-strong);
+}
+
+.audio-check-detail {
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: var(--text);
+}
+.audio-check-detail em { color: var(--accent); font-style: normal; }
+
+.audio-check-fix {
+  flex-shrink: 0;
+  align-self: center;
+  min-height: var(--tap-min);
+  padding: var(--space-075) var(--space-150);
+  background: var(--surface2);
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  font-family: inherit;
+  font-size: 0.74rem;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.audio-check-fix:disabled { opacity: 0.5; cursor: default; }
+
+/* Full-width so it's draggable with a thumb; the track keeps the hairline look. */
+.audio-check-slider {
+  width: 100%;
+  height: var(--tap-min);
+  background: transparent;
+  -webkit-appearance: none;
+  appearance: none;
+  cursor: pointer;
+}
+.audio-check-slider::-webkit-slider-runnable-track {
+  height: 3px;
+  background: var(--border-strong);
+  border-radius: var(--radius-pill);
+}
+.audio-check-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 20px; height: 20px;
+  margin-top: -8.5px;
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+}
+.audio-check-slider::-moz-range-track {
+  height: 3px; background: var(--border-strong); border-radius: var(--radius-pill);
+}
+.audio-check-slider::-moz-range-thumb {
+  width: 20px; height: 20px; border: none;
+  border-radius: var(--radius-pill); background: var(--accent);
+}
+
+.audio-check-meter {
+  height: 6px;
+  background: var(--surface-sunken);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+}
+.audio-check-meter-fill {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  transition: width 0.12s linear;
+}
+
+.audio-check-foot {
+  font-size: 0.7rem;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .audio-check-meter-fill { transition: none; }
+}

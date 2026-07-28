@@ -78,8 +78,10 @@ signed-in session.
 The application now records privacy-preserving product events:
 
 - `desktop_app_viewed`
-- `mobile_gate_viewed`
-- `mobile_bypass_used`
+- `mobile_app_viewed` (replaced `mobile_gate_viewed` when the mobile gate was removed;
+  `mobile_bypass_used` is retired — there is nothing left to bypass)
+- `mobile_intro_shown` / `mobile_intro_dismissed`
+- `audio_troubleshooter_opened`
 - `city_selected`
 - `playback_started`
 - `ai_plan_generated`

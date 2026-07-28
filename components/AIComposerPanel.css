@@ -265,3 +265,31 @@
   .ai-planning-progress span,
   .ai-planning-fact { animation: none; }
 }
+
+/* ── Phone ────────────────────────────────────────────────────────────────
+   The floating 340px card covers most of a 390px viewport and sits on top of
+   the thumb bar. Below 767px it becomes a bottom sheet instead, and MixerTab
+   controls its open state (it's launched from the More sheet), so the
+   collapsed header bar has nothing left to do.
+   Breakpoint mirrors lib/shared/breakpoints.js. */
+@media (max-width: 767px) {
+  .ai-composer {
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: auto;
+    max-width: none;
+    z-index: 1800;
+    border: none;
+    border-top: 1px solid var(--border);
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    max-height: 80dvh;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding-bottom: max(var(--space-100), var(--safe-bottom));
+  }
+  /* Hidden entirely when closed — no floating stub over the transport. */
+  .ai-composer:not(:has(.ai-composer-body)) { display: none; }
+  .ai-composer-head { min-height: var(--tap-min); }
+  .ai-composer-generate { min-height: var(--tap-min); }
+}

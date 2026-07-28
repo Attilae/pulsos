@@ -24,8 +24,8 @@ export default function UpgradeModal({ reason, signedIn, busy, onClose, onChecko
   }, [onClose])
 
   return (
-    <div className="upgrade-overlay" onMouseDown={onClose} role="presentation">
-      <section className="upgrade-panel" role="dialog" aria-modal="true" aria-labelledby="upgrade-title" onMouseDown={event => event.stopPropagation()}>
+    <div className="upgrade-overlay" onPointerDown={onClose} role="presentation">
+      <section className="upgrade-panel" role="dialog" aria-modal="true" aria-labelledby="upgrade-title" onPointerDown={event => event.stopPropagation()}>
         <div className="upgrade-signal" aria-hidden="true"><i /><i /><i /><i /><i /><i /></div>
         <button className="upgrade-close" onClick={onClose} aria-label="Close">×</button>
         <p className="upgrade-kicker">Leið Pro · full signal</p>

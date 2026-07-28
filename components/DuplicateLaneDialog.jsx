@@ -35,8 +35,8 @@ export default function DuplicateLaneDialog({ routeName, onConfirm, onClose }) {
     : `${semitones > 0 ? '+' : ''}${semitones} semitone${Math.abs(semitones) === 1 ? '' : 's'}`
 
   return createPortal(
-    <div className="dlg-overlay" onMouseDown={onClose}>
-      <div className="dlg-panel" onMouseDown={e => e.stopPropagation()}>
+    <div className="dlg-overlay" onPointerDown={onClose}>
+      <div className="dlg-panel" onPointerDown={e => e.stopPropagation()}>
         <div className="dlg-title">Duplicate lane</div>
         <div className="dlg-message">
           Copy “{routeName}” into a new lane{semitones === 0 ? '.' : ', transposing the whole lane.'}

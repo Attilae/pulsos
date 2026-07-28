@@ -3,28 +3,25 @@
 // The DAW is a fully interactive, browser-only app (Tone.js + Leaflet + Web
 // Audio). We load the whole shell client-side with ssr:false so none of that
 // code is evaluated on the server.
+//
+// This used to be wrapped in a MobileGate that refused to render on touch
+// devices. Phones now load the real app; components/FirstRunNotice.jsx sets
+// expectations once instead of blocking.
 import dynamic from 'next/dynamic'
-import MobileGate from '@/components/MobileGate.jsx'
 
 const App = dynamic(() => import('@/components/App.jsx'), {
   ssr: false,
   loading: () => (
     <div style={{
-      height: '100vh', display: 'grid', placeItems: 'center',
-      background: '#0d0d0d', color: '#c8f040',
+      height: '100dvh', display: 'grid', placeItems: 'center',
+      background: 'var(--bg)', color: 'var(--accent)',
       fontFamily: 'var(--font-mono)', letterSpacing: '0.14em',
     }}>
-      TRANSIT DAW — loading…
+      LEIÐ — loading…
     </div>
   ),
 })
 
 export default function Page() {
-  // MobileGate renders children only on desktop (or after an explicit
-  // opt-in), so next/dynamic never even fetches the DAW chunk on phones.
-  return (
-    <MobileGate>
-      <App />
-    </MobileGate>
-  )
+  return <App />
 }

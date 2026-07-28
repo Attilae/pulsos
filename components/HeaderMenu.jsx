@@ -3,6 +3,9 @@
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { AuthForm } from './AuthControl.jsx'
+import CitySelect from './CitySelect.jsx'
+import ThemeToggle from './ThemeToggle.jsx'
+import { openSoundCheck, hasSoundCheck } from '@/lib/shared/soundCheck.js'
 import { AccountSection, BillingSection, PresetsSection, SecuritySection } from './ProfilePanel.jsx'
 import { useEntitlements } from '@/lib/shared/EntitlementsContext.jsx'
 import { signOut, useSession } from '../lib/auth-client.js'
@@ -15,7 +18,7 @@ const LEGAL_ITEMS = [
   { href: '/licenses', label: 'Licences & credits' },
 ]
 
-export default function HeaderMenu({ startTour }) {
+export default function HeaderMenu({ startTour, showSessionControls = false }) {
   const { data: session, isPending } = useSession()
   const [open, setOpen] = useState(false)
   const [view, setView] = useState('home')
@@ -54,7 +57,7 @@ export default function HeaderMenu({ startTour }) {
         : 'Menu'
 
   return (
-    <div className="header-menu auth-control">
+    <div className="header-menu auth-control" data-tour="menu">
       <button
         ref={triggerRef}
         type="button"
@@ -71,12 +74,12 @@ export default function HeaderMenu({ startTour }) {
       </button>
 
       {open && (
-        <div className="header-menu-layer" onMouseDown={close}>
+        <div className="header-menu-layer" onPointerDown={close}>
           <aside
             id="app-menu-drawer"
             className="header-menu-drawer"
             aria-label="Application menu"
-            onMouseDown={event => event.stopPropagation()}
+            onPointerDown={event => event.stopPropagation()}
           >
             <header className="header-menu-drawer-header">
               {view !== 'home' ? (
@@ -89,6 +92,12 @@ export default function HeaderMenu({ startTour }) {
 
             <div className="header-menu-scroll">
               <h2>{title}</h2>
+              {showSessionControls && view === 'home' && (
+                <section className="header-menu-session" aria-label="Session">
+                  <CitySelect />
+                  <ThemeToggle />
+                </section>
+              )}
               {isPending ? <p className="header-menu-loading">Loading account…</p> : user ? (
                 <AuthenticatedMenu
                   user={user}
@@ -117,6 +126,7 @@ function GuestMenu({ onDone, onStartTour }) {
       <button type="button" className="header-menu-item" onClick={onStartTour}>
         <span>Take the tour</span><span aria-hidden="true">↗</span>
       </button>
+      <SoundCheckItem onDone={onDone} />
       <LegalItems />
     </>
   )
@@ -150,12 +160,28 @@ function AuthenticatedMenu({ user, view, onNavigate, onClose, onStartTour }) {
       <button type="button" className="header-menu-item" onClick={onStartTour}>
         <span>Take the tour</span><span aria-hidden="true">↗</span>
       </button>
+      <SoundCheckItem onDone={onClose} />
       <LegalItems />
 
       <button type="button" className="header-menu-signout" onClick={() => { signOut(); onClose() }}>
         Sign out
       </button>
     </>
+  )
+}
+
+// Only offered once the Map tab has mounted and registered the panel — it
+// needs the live mix to diagnose anything.
+function SoundCheckItem({ onDone }) {
+  if (!hasSoundCheck()) return null
+  return (
+    <button
+      type="button"
+      className="header-menu-item"
+      onClick={() => { onDone?.(); openSoundCheck('manual') }}
+    >
+      <span>Sound problems?</span><span aria-hidden="true">↗</span>
+    </button>
   )
 }
 

@@ -8,7 +8,7 @@ export default function CitySelect() {
   const { cityId, setCityId, cities } = useCitySelection()
 
   return (
-    <label className="city-select" title="Choose city">
+    <label className="city-select" data-tour="city" title="Choose city">
       <span className="city-select-icon" aria-hidden="true">◎</span>
       <select
         className="city-select-input"

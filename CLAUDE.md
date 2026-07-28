@@ -122,12 +122,9 @@ Run a single test file with `node --test test/ai-plan-apply.test.js`.
 ### `app/` — Next.js routes
 
 - `page.jsx` — `'use client'`; loads the whole DAW (`components/App.jsx`) via `next/dynamic` with
-  `ssr: false`, so the browser-only audio/map code never executes on the server. Wraps it in
-  `components/MobileGate.jsx`, which renders children (and thus triggers the dynamic import of the
-  heavy DAW bundle) **only on desktop** or after an explicit opt-in — touch devices (phones *and*
-  tablets, detected by `lib/shared/isMobileDevice.js`) see a gate instead, with a
-  `leid-mobile-bypass` localStorage escape hatch. The DAW is a desktop instrument; the native-app
-  direction is in `docs/mobile-app-plan.md`.
+  `ssr: false`, so the browser-only audio/map code never executes on the server. **Phones load the
+  real app** — the old `MobileGate`/`isMobileDevice.js` block is gone; see **Mobile** below. The
+  native-app direction is still in `docs/mobile-app-plan.md`.
 - `layout.jsx` — root layout; imports `leaflet/dist/leaflet.css`.
 - `api/auth/[...all]/route.js` — all Better Auth endpoints.
 - `api/compose/route.js` — proxies prose → JSON plan through OpenRouter (key stays server-side).
@@ -434,6 +431,75 @@ unlimited.
 `app/{privacy,terms,legal,licenses}` are static legal pages; `lib/legal.js` (`LEGAL_DETAILS`)
 centralizes operator/contact/jurisdiction facts they render from. `app/robots.js`,
 `app/opengraph-image.jsx`, `app/twitter-image.jsx`, and `app/icon.jsx` are Next metadata routes.
+
+### Mobile (phones, tablets, and audio reliability)
+
+The app used to refuse to run on touch devices. It now ships a purpose-built phone layout plus an
+audio-session layer; the native-app plan in `docs/mobile-app-plan.md` is still the long-term
+direction, but the web build is genuinely usable on a phone.
+
+**Breakpoints** — `lib/shared/breakpoints.js` is the single source (`PHONE_MAX` 767, `TABLET_MIN`
+768). CSS can't read it, so every media query repeats the literal and comments back to that file.
+`lib/shared/useViewport.js` exposes `useIsPhone()`/`useIsTablet()`/`useIsCoarse()` over
+`useSyncExternalStore` — **not** `useState`+`useEffect`, which renders the desktop tree for one
+frame and horizontally scrolls a phone.
+
+**The rule for where a change goes**: sizing/stacking/hiding → a media query in
+`components/mobile.css` (imported by `App.jsx` *after* `app.css`, which is what makes it win at
+equal specificity — a rule placed in `components/mobile/*.css` loses, because those load earlier
+via the module graph). A different component *tree* → a `useIsPhone()` branch in JSX. There are
+only five such branches: the MixerTab layout swap, `<weq8-ui>` mounting, `MobileLaneList`
+mounting, MapView's `preferCanvas`/`zoomControl`/`showStops`, and which tour step list runs.
+
+**The phone Map/DAW** (`components/mobile/`) — `MobileDaw` replaces `.daw-header` + `DawView`
+below 768px, but **MixerTab still owns every piece of state**: the branch lives inside MixerTab's
+own return and passes `controls`/`lanes` prop bundles built from the same handlers the desktop
+view uses. Branching in `App.jsx` instead would unmount MixerTab on rotation and destroy the song.
+`MapView` keeps rendering in both branches (positioned over the stage by `.daw--phone
+.map-wrapper`) so Leaflet never remounts. Pieces: `MobileTopBar` (city · song · ⋯),
+`MobileLaneList`/`MobileLaneStrip` (⏻ · S · volume · ⋯ per lane), `LaneSheet` (Sound/Mix/Notes),
+`MobileTransportBar` (play, BPM, Map⇄Lanes, and the *one* shared playhead — desktop runs one rAF
+per lane, which a phone can't afford), `MoreSheet` (the other eight header controls).
+
+**Per-stop editing on a phone** is a list, not the stop rail: dots are 8px and 10–20px apart, so
+44px hit areas would overlap neighbours. `lib/laneNotes.js` (`buildLanePitchMaps` /
+`buildLaneNoteRows`) is the shared note resolver — **DawView's stop rail and the phone lane sheet
+both go through it**, so the piano roll and the list can't disagree about what a stop plays.
+
+**`components/Sheet.jsx`** is the one bottom-sheet primitive (portal, Esc, scroll lock,
+drag-to-dismiss; a centred modal ≥768px). Deliberately *not* routed through `Dialog.jsx`'s
+`DialogHost`, which is a promise-based alert/confirm queue.
+
+**Audio reliability** — `lib/audioSession.js` is the layer every engine's `start()` goes through
+(`unlockAudio()` replaced the five bare `Tone.start()` calls). It escapes iOS's muted "ambient"
+audio session (`navigator.audioSession` on Safari 16.4+, a near-inaudible keep-alive
+`HTMLAudioElement` on older iOS — **non-zero** samples, since some WebKit builds ignore digital
+silence), resumes the context on `visibilitychange`, and exposes `probeOutputPeak()`.
+`unlockAudio()` **must be called synchronously from a user gesture, before any other await**.
+
+`components/AudioTroubleshooter.jsx` is the "I pressed play and hear nothing" panel. **The iOS
+ring/silent switch is not detectable from JS and the panel never claims otherwise** — it verifies
+what is knowable (context state, master fader, audible lane count, measured output peak) and uses
+the combination to point outward: healthy graph + real signal ⇒ the problem is the hardware
+switch or device volume. Openable from anywhere via `lib/shared/soundCheck.js` (same
+module-level-registration shape as `Dialog.jsx`'s imperative API).
+
+`components/FirstRunNotice.jsx` shows once below 768px (`localStorage['leid-intro-seen']`) and
+sets expectations; its **"Got it" also calls `unlockAudio()`** — the first guaranteed gesture of
+the session, and the best moment to promote the audio session before the user finds Play.
+
+**Phone route payloads** — `scripts/slim_lines.js` (`npm run slim:all`) writes
+`lines.<city>.slim.json` with Douglas–Peucker-simplified **polylines only**; `stops` are copied
+verbatim because their coordinates drive `geoToMidi`/`routeBounds`/MIDI export, so thinning one
+would change the music. Berlin 65 MB → 4.7 MB. `cities.js` gains `linesUrlSlim` +
+`linesUrlFor(entry, {slim})`; `useRoutes.js` picks by `useIsPhone()`.
+
+**Touch conventions**: 44px floor in `mobile.css`, scoped with `:not()` exclusions (a blanket
+`button { min-height }` breaks the rail elements and the 16-step drum grids, which are documented
+exceptions). Range inputs need explicit `::-webkit-slider-thumb` sizing — `min-height` grows the
+element but not the thumb. Every `onDoubleClick` reset also takes a long-press via
+`lib/shared/useResetGesture.js` **and** has a visible control in a sheet. Modal scrims use
+`onPointerDown`, always changed in pairs (overlay handler + panel `stopPropagation`).
 
 ### Other tabs
 

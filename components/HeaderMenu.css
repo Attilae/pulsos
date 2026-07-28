@@ -162,3 +162,17 @@
 @media (prefers-reduced-motion: reduce) {
   .header-menu-drawer { animation: none; }
 }
+
+/* Phone-only: the city picker and theme toggle live here because they don't
+   fit beside the tabs at 390px (App.jsx passes showSessionControls). */
+.header-menu-session {
+  display: flex;
+  align-items: center;
+  gap: var(--space-150);
+  padding-bottom: var(--space-150);
+  margin-bottom: var(--space-050);
+  border-bottom: 1px solid var(--border);
+}
+.header-menu-session .city-select { margin-left: 0; flex: 1; min-width: 0; }
+.header-menu-session .city-select-input { width: 100%; min-height: var(--tap-min); }
+.header-menu-session .theme-toggle { flex-shrink: 0; }

@@ -3,18 +3,30 @@ import { requestComposition, validatePlan } from '@/lib/ai/composer.js'
 import { useEntitlements } from '@/lib/shared/EntitlementsContext.jsx'
 import { factsForCity } from '@/lib/shared/cityFacts.js'
 import { trackProductEvent } from '@/lib/productAnalytics.js'
+import { unlockAudio } from '@/lib/audioSession.js'
 import './AIComposerPanel.css'
 
 // Natural-language composer overlay for the Map tab. The user describes the
 // sound they want; we ask the model for a structured plan, show a preview, and
 // only touch the app's controls when they click Apply.
-export default function AIComposerPanel({ className = '', routes, onApply, cityId, cityName }) {
+export default function AIComposerPanel({
+  className = '', routes, onApply, cityId, cityName,
+  // Optionally controlled: the phone launches this from the More sheet rather
+  // than leaving a 340px floating panel over the map.
+  open: openProp, onOpenChange,
+}) {
   const { openUpgrade, refresh, usage, limits } = useEntitlements()
   const [prompt,  setPrompt]  = useState('')
   const [loading, setLoading] = useState(false)
   const [error,   setError]   = useState(null)
   const [result,  setResult]  = useState(null) // { plan, dropped }
-  const [open,    setOpen]    = useState(true)
+  const [openState, setOpenState] = useState(true)
+  const open = openProp ?? openState
+  const setOpen = (next) => {
+    const value = typeof next === 'function' ? next(open) : next
+    if (onOpenChange) onOpenChange(value)
+    else setOpenState(value)
+  }
   const [applied, setApplied] = useState(null)
   const [applying, setApplying] = useState(false)
   const [factIndex, setFactIndex] = useState(0)
@@ -35,6 +47,11 @@ export default function AIComposerPanel({ className = '', routes, onApply, cityI
 
   const generate = async () => {
     if (!prompt.trim() || loading) return
+    // Spend this click on the audio unlock, before the fetch. Generation takes
+    // seconds and "Apply & Play" starts audio from an effect afterwards, by
+    // which point iOS has long since withdrawn the user activation — so this
+    // is the last gesture we can actually use.
+    unlockAudio()
     setFactIndex(Math.floor(Math.random() * facts.length))
     setLoading(true); setError(null); setResult(null); setApplied(null); setApplying(false)
     try {

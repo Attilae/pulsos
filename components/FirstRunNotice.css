@@ -1,0 +1,45 @@
+/* First-run notice. Rendered inside <Sheet>; no overlay styling here. */
+
+.intro-lead {
+  font-size: 0.92rem;
+  line-height: 1.5;
+  color: var(--text);
+}
+
+.intro-note {
+  font-size: 0.8rem;
+  line-height: 1.55;
+  color: var(--muted-strong);
+}
+
+/* The one thing a user genuinely cannot work out for themselves. */
+.intro-warn {
+  font-size: 0.8rem;
+  line-height: 1.55;
+  color: var(--text-subtle);
+  padding: var(--space-150);
+  border-left: 2px solid var(--warning);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--warning) 10%, transparent);
+}
+.intro-warn strong { color: var(--warning); }
+
+.intro-btn {
+  flex: 1;
+  min-height: var(--tap-min);
+  padding: var(--space-100) var(--space-150);
+  background: var(--surface2);
+  color: var(--muted-strong);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-family: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+.intro-btn--primary {
+  flex: 2;
+  background: var(--accent);
+  color: var(--accent-text);
+  border-color: var(--accent);
+  font-weight: 600;
+}

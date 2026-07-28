@@ -1,54 +1,12 @@
-// Compact sign-in / account control for the app header.
-// Signed out → a popover with email+password and magic-link.
-// Signed in  → shows the email + a sign-out button.
-import { useState, useRef, useEffect } from 'react'
+// The sign-in / sign-up form, rendered inside the HeaderMenu drawer.
+//
+// This file used to also default-export an `AuthControl` header popover. That
+// was superseded by HeaderMenu and had no importers left, so it was removed
+// along with its document-level `mousedown` outside-click closer (which never
+// worked on touch).
+import { useState } from 'react'
 import Link from 'next/link'
-import { authClient, useSession, signOut } from '../lib/auth-client.js'
-import ProfilePanel from './ProfilePanel.jsx'
-
-export default function AuthControl() {
-  const { data: session, isPending } = useSession()
-  const [open, setOpen] = useState(false)
-  const [profileOpen, setProfileOpen] = useState(false)
-  const rootRef = useRef(null)
-
-  useEffect(() => {
-    function onDocClick(e) { if (!rootRef.current?.contains(e.target)) setOpen(false) }
-    document.addEventListener('mousedown', onDocClick)
-    return () => document.removeEventListener('mousedown', onDocClick)
-  }, [])
-
-  if (isPending) return <span className="auth-control auth-control--pending">…</span>
-
-  if (session) {
-    const name = session.user.name || session.user.email
-    return (
-      <div className="auth-control" ref={rootRef}>
-        <button className="auth-trigger" onClick={() => setOpen(o => !o)}>
-          {name} ▾
-        </button>
-        {open && (
-          <div className="auth-pop">
-            <button className="auth-btn auth-btn--ghost" onClick={() => { setProfileOpen(true); setOpen(false) }}>
-              Profile
-            </button>
-            <button className="auth-btn" onClick={() => { signOut(); setOpen(false) }}>
-              Sign out
-            </button>
-          </div>
-        )}
-        {profileOpen && <ProfilePanel onClose={() => setProfileOpen(false)} />}
-      </div>
-    )
-  }
-
-  return (
-    <div className="auth-control" ref={rootRef}>
-      <button className="auth-trigger" onClick={() => setOpen(o => !o)}>Sign in</button>
-      {open && <AuthForm onDone={() => setOpen(false)} />}
-    </div>
-  )
-}
+import { authClient } from '../lib/auth-client.js'
 
 export function AuthForm({ onDone, className = '' }) {
   const [mode, setMode] = useState('signin') // 'signin' | 'signup'

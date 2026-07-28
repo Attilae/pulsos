@@ -196,3 +196,53 @@
   color: var(--muted);
   text-align: center;
 }
+
+/* ── Phone ────────────────────────────────────────────────────────────────
+   The desktop row is `220px 110px 130px 1fr` — 460px of fixed columns before
+   the step grid even starts, on a 390px screen. The four children are already
+   in the right document order, so this is purely a re-flow into three rows.
+   Breakpoint mirrors lib/shared/breakpoints.js. */
+@media (max-width: 767px) {
+  .drum-grid { padding: var(--space-100); gap: var(--space-100); }
+
+  /* Title + BPM + Clear + MIDI + Send don't fit on one 390px row; scroll them
+     sideways rather than stacking five rows of chrome above the pads. */
+  .drum-header {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    gap: var(--space-100);
+    padding: var(--space-100);
+  }
+  .drum-header > * { flex-shrink: 0; }
+
+  .drum-row {
+    /* minmax(0, 1fr), not 1fr: a grid track's base size is min-content, so the
+       route <select> (option text like "Nyugati pályaudvar M / Örs vezér tere
+       M+H") would widen the whole row past the viewport and clip the steps. */
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "label controls"
+      "offset offset"
+      "steps  steps";
+    gap: var(--space-075);
+    padding: var(--space-100);
+  }
+  .drum-row-label    { grid-area: label; min-width: 0; }
+  .drum-row-controls { grid-area: controls; }
+  .drum-offset       { grid-area: offset; }
+  .drum-steps        { grid-area: steps; }
+
+  .drum-route-pick { width: 100%; min-width: 0; max-width: 100%; }
+  .drum-steps, .drum-offset { min-width: 0; }
+
+  /* 16 steps across ~374px of usable width, with a wider gap every 4 to keep
+     the bar readable, lands at ~22px each. That's under the 44px tap floor and
+     a deliberate exception — every mobile step sequencer makes it, because
+     splitting or scrolling the bar destroys the whole-pattern read. The 40px
+     height keeps the vertical target generous. */
+  .drum-steps { gap: 2px; }
+  .drum-steps > :nth-child(4n+1) { margin-left: 4px; }
+  .drum-steps > :first-child { margin-left: 0; }
+  .drum-step { height: 40px; }
+}

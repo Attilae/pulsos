@@ -67,8 +67,8 @@ export default function LinePicker({
   const title = mode === 'change' ? 'Change line' : 'Add line'
 
   return createPortal(
-    <div className="dlg-overlay" onMouseDown={onClose}>
-      <div className="line-picker" onMouseDown={e => e.stopPropagation()}>
+    <div className="dlg-overlay" onPointerDown={onClose}>
+      <div className="line-picker" onPointerDown={e => e.stopPropagation()}>
         <div className="line-picker-head">
           <h2 className="dlg-title">{title}</h2>
           <button className="line-picker-close" onClick={onClose} title="Close">✕</button>
