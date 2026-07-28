@@ -38,8 +38,12 @@
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --safe-left: env(safe-area-inset-left, 0px);
   --safe-right: env(safe-area-inset-right, 0px);
-  /* Touch — the iOS/Material minimum, and the phone transport bar's height */
+  /* Touch — the iOS/Material minimum, and the phone chrome heights. The two bar
+     heights are tokens because the phone map is positioned by insetting from
+     them; a magic number in one place and not the other lets the map creep over
+     a bar. */
   --tap-min: 44px;
+  --mtopbar-h: 44px;
   --thumbbar-h: 56px;
   /* Type */
   --font-sans: var(--font-inter, ui-sans-serif, system-ui, -apple-system, sans-serif);

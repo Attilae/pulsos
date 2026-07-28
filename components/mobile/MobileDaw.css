@@ -17,10 +17,15 @@
 
 /* ── Top bar ──────────────────────────────────────────────────────────────── */
 .mtopbar {
+  /* Positioned + stacked so the absolutely-positioned map can never paint over
+     it, whatever the inset arithmetic does (--safe-* differ between the
+     emulator and a real notched device). Same reasoning on .mtransport. */
+  position: relative;
+  z-index: 2;
   display: flex;
   align-items: center;
   gap: var(--space-100);
-  height: 44px;
+  height: var(--mtopbar-h);
   padding: 0 var(--space-100);
   background: var(--surface);
   border-bottom: 1px solid var(--border);
@@ -204,7 +209,8 @@
    In the grid, never fixed: .daw-header is sticky and on iOS a fixed bottom
    bar overlaps it whenever the URL bar collapses. */
 .mtransport {
-  position: relative;
+  position: relative;   /* also the playhead's positioning context */
+  z-index: 2;           /* keep the map from ever covering the transport */
   display: flex;
   align-items: center;
   gap: var(--space-100);
