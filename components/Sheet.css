@@ -85,6 +85,13 @@
   border-radius: var(--radius-sm);
 }
 
+/* Pinned under the header: never scrolls, so tabs stay reachable no matter how
+   long the body gets. */
+.sheet-toolbar {
+  flex-shrink: 0;
+  padding: 0 var(--space-200) var(--space-150);
+}
+
 .sheet-body {
   flex: 1;
   min-height: 0;

@@ -23,6 +23,10 @@ export default function Sheet({
   title,
   onClose,
   children,
+  // Pinned directly under the header, outside the scrolling body — for controls
+  // that must stay reachable however long the content is (e.g. LaneSheet's
+  // Sound/Mix/Notes tabs above a 60-stop list).
+  toolbar = null,
   footer = null,
   className = '',
   labelledBy,
@@ -136,6 +140,8 @@ export default function Sheet({
           {title && <h2 className="sheet-title">{title}</h2>}
           <button type="button" className="sheet-close" onClick={close} aria-label="Close">×</button>
         </header>
+
+        {toolbar && <div className="sheet-toolbar">{toolbar}</div>}
 
         <div className="sheet-body">{children}</div>
 

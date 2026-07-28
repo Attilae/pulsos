@@ -63,24 +63,40 @@ export default function LaneSheet({
   if (!route) return null
 
   return (
-    <Sheet open={open} onClose={onClose} title={route.name ?? route.id} className="lane-sheet">
-      <div className="lsheet-segments" role="tablist">
-        {SEGMENTS.map(s => (
-          <button
-            key={s.id}
-            type="button"
-            role="tab"
-            aria-selected={segment === s.id}
-            className={`lsheet-segment ${segment === s.id ? 'is-active' : ''}`}
-            onClick={() => setSegment(s.id)}
-          >{s.label}</button>
-        ))}
-      </div>
-
+    <Sheet
+      open={open}
+      onClose={onClose}
+      title={route.name ?? route.id}
+      className="lane-sheet"
+      // In the sheet's toolbar, not its body: the Notes list runs to 60+ rows
+      // on a bus route, and inside the scrolling body these tabs scrolled out
+      // of reach — leaving no way back to Sound or Mix.
+      toolbar={
+        <div className="lsheet-segments" role="tablist">
+          {SEGMENTS.map(s => (
+            <button
+              key={s.id}
+              type="button"
+              role="tab"
+              aria-selected={segment === s.id}
+              className={`lsheet-segment ${segment === s.id ? 'is-active' : ''}`}
+              onClick={() => setSegment(s.id)}
+            >{s.label}</button>
+          ))}
+        </div>
+      }
+    >
       {segment === 'sound' && (
         <div className="lsheet-body">
+          {/* Both of these take three arguments, matching the desktop rack's
+              `onSynthType(route.id, route.type, st)` / `onScale(route.id,
+              route.name, s)`. The engine needs the line type to wire the right
+              per-line-type bus, and the short name to update the sound mode. */}
           <Field label="Instrument">
-            <select value={synthType ?? 'Synth'} onChange={e => onSynthType(route.id, e.target.value)}>
+            <select
+              value={synthType ?? 'Synth'}
+              onChange={e => onSynthType(route.id, route.type, e.target.value)}
+            >
               {SYNTH_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
             </select>
           </Field>
@@ -89,14 +105,14 @@ export default function LaneSheet({
             <div className="lsheet-pair">
               <select
                 value={trackScale.root}
-                onChange={e => onScale(route.id, { ...trackScale, root: e.target.value })}
+                onChange={e => onScale(route.id, route.name, { ...trackScale, root: e.target.value })}
                 aria-label="Root note"
               >
                 {NOTE_ROOTS.map(r => <option key={r} value={r}>{r}</option>)}
               </select>
               <select
                 value={trackScale.scaleType}
-                onChange={e => onScale(route.id, { ...trackScale, scaleType: e.target.value })}
+                onChange={e => onScale(route.id, route.name, { ...trackScale, scaleType: e.target.value })}
                 aria-label="Scale"
               >
                 {SCALE_TYPES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
