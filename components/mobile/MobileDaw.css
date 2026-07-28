@@ -318,6 +318,13 @@
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   overflow: hidden;
+  /* Never let a flex parent compress this. It used to sit in the sheet's
+     scrolling body, where the tall Notes list squashed it to ~0 — and with
+     overflow:hidden the labels vanished, leaving a hairline and no way back to
+     Sound or Mix. It now lives in the sheet toolbar, but the control should be
+     safe to drop anywhere. */
+  flex-shrink: 0;
+  min-height: var(--tap-min);
 }
 .lsheet-segment {
   flex: 1;
