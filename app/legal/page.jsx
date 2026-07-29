@@ -34,8 +34,9 @@ export default function LegalPage() {
           Leið does not use advertising trackers or behavioural profiling. Privacy-preserving
           analytics record page views and a limited set of product events so the instrument can
           be improved. Browser storage is used for essential sessions and to remember instrument
-          preferences. Local audio uploads and exported files stay on your device unless you
-          choose to put them somewhere else.
+          preferences, including the theme, city, drum clipboard, tour state, autosave choice,
+          and last opened song. Local audio uploads and exported files stay on your device unless
+          you choose to put them somewhere else.
         </p>
       </LegalSection>
       <LegalSection number={3} title="Contact">
