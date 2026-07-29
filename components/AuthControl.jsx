@@ -44,8 +44,8 @@ export function AuthForm({ onDone, className = '' }) {
           </button>
           <p className="auth-legal">
             By creating an account, you agree to the <Link href="/terms">Terms</Link> and
-            acknowledge the <Link href="/privacy">Privacy Notice</Link>. Users under 16 need a
-            parent or guardian’s authorization.
+            acknowledge the <Link href="/privacy">Privacy Notice</Link>. You must be at least 13;
+            users under 16 need a parent or guardian’s authorization.
           </p>
         </>
       )}

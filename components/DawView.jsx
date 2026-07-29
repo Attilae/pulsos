@@ -675,6 +675,14 @@ function LineTrack({
   const panDisp = aPan.display != null ? aPan.display : pan
   const gliDisp = aGli.display != null ? aGli.display : (glide ?? 0)
 
+  // All reset gestures are created here, unconditionally: three of these controls live inside
+  // the collapsible device rack, and calling the hook down there made the hook count jump when
+  // the rack opened (React error #310 — "rendered more hooks than during the previous render").
+  const panReset     = useResetGesture(() => { if (!aPan.disabled) onPan(0) })
+  const varietyReset = useResetGesture(() => onPitchVariety({ variety: 0 }))
+  const glideReset   = useResetGesture(() => { if (!aGli.disabled) onGlide(0) })
+  const arpGateReset = useResetGesture(() => onArp({ gate: 0.5 }))
+
   return (
     <div className={`line-track ${disabled ? 'line-track--disabled' : ''} ${rackOpen ? 'line-track--open' : ''}`} data-tour="lane">
       <div className="lt-top">
@@ -727,7 +735,7 @@ function LineTrack({
           <span className="pan-label">PAN</span>
           <input type="range" min="-1" max="1" step="0.01"
             value={panDisp} onChange={e => onPan(parseFloat(e.target.value))}
-            {...useResetGesture(() => { if (!aPan.disabled) onPan(0) })}
+            {...panReset}
             disabled={aPan.disabled} className="pan-slider" />
           <span className="pan-val">
             {panDisp === 0 ? 'C' : panDisp < 0 ? `L${Math.round(-panDisp * 100)}` : `R${Math.round(panDisp * 100)}`}
@@ -859,7 +867,7 @@ function LineTrack({
                       type="range" min="0" max="1" step="0.01"
                       value={pv.variety}
                       onChange={e => onPitchVariety({ variety: parseFloat(e.target.value) })}
-                      {...useResetGesture(() => onPitchVariety({ variety: 0 }))}
+                      {...varietyReset}
                       className="glide-slider"
                       title="Pitch variety — 0% is the pure geographic melody; higher adds range, seeded jitter and gap accents"
                     />
@@ -899,7 +907,7 @@ function LineTrack({
                 type="range" min="0" max="1" step="0.01"
                 value={gliDisp}
                 onChange={e => onGlide(parseFloat(e.target.value))}
-                {...useResetGesture(() => { if (!aGli.disabled) onGlide(0) })}
+                {...glideReset}
                 disabled={aGli.disabled}
                 className="glide-slider"
               />
@@ -1015,7 +1023,7 @@ function LineTrack({
                     type="range" min="0.05" max="2" step="0.05"
                     value={ag.gate}
                     onChange={e => onArp({ gate: parseFloat(e.target.value) })}
-                    {...useResetGesture(() => onArp({ gate: 0.5 }))}
+                    {...arpGateReset}
                     className="glide-slider"
                   />
                   <span className="glide-val">{Math.round(ag.gate * 100)}%</span>

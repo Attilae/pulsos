@@ -63,11 +63,17 @@ export default function TermsPage() {
 
       <LegalSection number={5} title="Shared links">
         <p>
-          When you enable sharing, anyone with the link can view the saved song state and import a
-          copy. You are responsible for what you choose to publish. We may disable shared content
-          or links that infringe rights, expose personal data, break these terms, or create legal
-          or security risk. Unpublishing prevents future access through that share ID but cannot
-          recall copies others already imported or saved.
+          When you enable sharing, the URL acts as a bearer link: anyone who has it can retrieve
+          the song name, city, and complete saved creative state without signing in, and can
+          import a copy. You are responsible for what you choose to publish. We may disable shared
+          content or links that infringe rights, expose personal data, break these terms, or create
+          legal or security risk. Unpublishing prevents future access through that share ID but
+          cannot recall copies others already imported or saved.
+        </p>
+        <p>
+          To report a shared link that you believe is unlawful or infringes your rights, email{' '}
+          <a href={`mailto:${LEGAL_DETAILS.contactEmail}`}>{LEGAL_DETAILS.contactEmail}</a> with
+          the URL, the reason for the report, and enough information for us to assess it.
         </p>
       </LegalSection>
 
@@ -78,6 +84,11 @@ export default function TermsPage() {
           information. Generated plans may be inaccurate, repetitive, unsuitable, or similar to
           other output. Review them before use. We do not promise that AI output is unique,
           copyrightable, or free of third-party claims.
+        </p>
+        <p>
+          The model provider may retain or use input and output under the provider settings and
+          policies applicable to the configured model. AI Composer is an optional creative aid,
+          not professional advice or an automated decision about you.
         </p>
       </LegalSection>
 
@@ -90,11 +101,24 @@ export default function TermsPage() {
           payment methods, cancellations, and billing support.
         </p>
         <p>
-          Subscriptions renew for the selected monthly or annual period until cancelled. A
+          The checkout shows the currency, total price, billing interval, and renewal terms before
+          purchase. Subscriptions renew for the selected monthly or annual period until cancelled
+          through the billing portal or another method offered by Lemon Squeezy. An ordinary
           cancellation takes effect at the end of the paid period unless mandatory law or the
-          checkout terms say otherwise. When Pro access ends, oversized creative work is retained
-          but features or lanes beyond the Free allowance may be locked until the subscription is
-          restored. Statutory cancellation, refund, and consumer rights are unaffected.
+          checkout terms say otherwise.
+        </p>
+        <p>
+          If you are an EU or EEA consumer, you generally have a statutory right to withdraw from
+          an online service contract within 14 days of concluding it, subject to applicable
+          exceptions and any proportionate charge permitted when you requested immediate
+          performance. Follow the instructions in the checkout or receipt, use the billing portal,
+          or contact us for help exercising that right. This is separate from cancelling future
+          renewal. Statutory refund, conformity, remedy, and other consumer rights remain
+          unaffected.
+        </p>
+        <p>
+          When Pro access ends, oversized creative work is retained but features or lanes beyond
+          the Free allowance may be locked until the subscription is restored.
         </p>
       </LegalSection>
 
