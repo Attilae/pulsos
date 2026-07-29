@@ -13,7 +13,7 @@ const dataRows = [
   ['Creative work', 'Saved song snapshots, composition names and items, city, BPM, and optional public share ID.', 'Save, reopen, chain, and share your work.'],
   ['AI Composer', 'The prompt you submit and the route/context messages needed to generate a plan.', 'Provide AI Composer when you explicitly use it.'],
   ['Plan and usage', 'Subscription status, provider identifiers, renewal/end dates, and export or AI allowance counters.', 'Provide paid features and enforce Free and Pro limits.'],
-  ['Device preferences', 'Selected city, drum clipboard, tour status, autosave preference, last song ID, and mobile bypass.', 'Remember local instrument choices in your browser.'],
+  ['Device preferences', 'Selected city, drum clipboard, tour status, mobile-intro status, autosave preference, and last song ID.', 'Remember local instrument choices in your browser.'],
   ['Usage analytics', 'Page views and limited product events such as city selection, playback start, AI-plan use, and drum-pattern transfer.', 'Understand whether the instrument works and improve the launch experience.'],
   ['Support', 'Messages and information you send when contacting us.', 'Respond to questions and privacy requests.'],
 ]
@@ -88,14 +88,13 @@ export default function PrivacyPage() {
       <LegalSection number={5} title="Cookies and browser storage">
         <p>
           Leið uses essential authentication cookies to keep signed-in accounts secure. Local
-          storage remembers the active city, drum clipboard, product-tour state, autosave choice,
-          and last opened song. Session storage remembers a mobile-gate bypass until the browser
-          session ends.
+          storage remembers the active city, drum clipboard, product-tour and mobile-intro state,
+          autosave choice, and last opened song.
         </p>
         <p>
           Leið does not use advertising cookies or behavioural profiling. It uses Vercel Web
-          Analytics for page views and a small set of product events such as opening the desktop
-          app, selecting a city, starting playback, applying an AI plan, or sending a drum pattern.
+          Analytics for page views and a small set of product events such as opening the app,
+          selecting a city, starting playback, applying an AI plan, or sending a drum pattern.
           These events do not include song content, prompts, exported files, or audio.
         </p>
       </LegalSection>

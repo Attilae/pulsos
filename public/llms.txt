@@ -21,5 +21,6 @@ Leið is music-first: every data decision serves the sound, and the interface be
 
 ## Notes
 
-- Leið is a desktop instrument; touch devices see a gate with an opt-in bypass.
+- Leið runs in phone, tablet, and desktop browsers. Phones use a purpose-built
+  compact interface; larger screens expose the full precision editing surface.
 - Inspired by trainjazz.com.

@@ -2,7 +2,8 @@
 
 ## Campaign
 
-The four-week launch drives music-tech creators to try Leið on desktop.
+The four-week launch drives music-tech creators to play Leið in their browser,
+on phones, tablets, and desktops.
 Positioning:
 
 > Turn a city into a song. Every transit line becomes a track. Every stop
@@ -20,7 +21,7 @@ transport data” or “city network,” not “live transit.”
 
 | Week | Post | Feature | Primary interaction |
 |---|---:|---|---|
-| 1 | 01 | Product reveal | Try Leið on desktop |
+| 1 | 01 | Product reveal | Play your city |
 | 1 | 02 | Budapest sound | Comment the next city |
 | 1 | 03 | Stop-to-note mapping | Save and play a route |
 | 2 | 04 | AI Composer | Suggest the next prompt |
@@ -28,7 +29,7 @@ transport data” or “city network,” not “live transit.”
 | 2 | 06 | Chord voicing | Build a city chord |
 | 3 | 07 | Route-derived drums | Suggest a route |
 | 3 | 08 | Polyrhythm | Headphone listening |
-| 3 | 09 | MIDI/WAV export | Producer desktop trial |
+| 3 | 09 | MIDI/WAV export | Producer browser trial |
 | 4 | 10 | Budapest vs Berlin | Vote |
 | 4 | 11 | Geographic mapping | Follow the build |
 | 4 | 12 | Seven-city montage | Nominate city eight |
@@ -49,7 +50,7 @@ For each post:
 6. Add the platform-specific UTM:
    `?utm_source={platform}&utm_medium=organic_social&utm_campaign=launch&utm_content={post-id}`.
 7. Upload natively with the copy stored for that platform.
-8. Reply to early questions about pronunciation, cities, desktop access,
+8. Reply to early questions about pronunciation, cities, device support,
    pricing, and data sources.
 
 Use a short, clean cover line such as `WHAT DOES BERLIN SOUND LIKE?`; do not
@@ -88,11 +89,11 @@ The application now records privacy-preserving product events:
 - `ai_plan_applied`
 - `drum_pattern_sent`
 
-Use `playback_started` as the activation event. Compare activated desktop
-sessions per 1,000 views, then evaluate completion, saves, shares, comments,
-profile visits, and account creation.
+Use `playback_started` as the activation event. Compare activated phone,
+tablet, and desktop sessions per 1,000 views, then evaluate completion, saves,
+shares, comments, profile visits, and account creation.
 
 After post 06, retain the two strongest hook structures and reuse them with
 new cities. If reach is strong but playback activation is weak, make the
-desktop CTA more explicit. If retention drops during the UI demonstration,
+play-now CTA more explicit. If retention drops during the UI demonstration,
 crop closer and show one control change rather than the whole interface.
