@@ -108,6 +108,13 @@
      from zooming the viewport when a field takes focus. */
   select, input[type="text"], input[type="number"] { font-size: 16px; }
 
+  /* Lane-label swatches (LaneTagEditor.css, shared with the desktop modal).
+     The touch-target floor above grows their height but not their width, which
+     would turn 22px circles into ovals — so square them up instead. The colour
+     input isn't in that rule at all and needs its own sizing. */
+  .lane-tag-swatch { width: var(--tap-min); height: var(--tap-min); }
+  .lane-tag-color-input { width: var(--tap-min); height: var(--tap-min); }
+
 /* ── The .daw host grid on a phone ────────────────────────────────────────
    Lives here rather than in components/mobile/MobileDaw.css because CSS
    import order follows the module graph: MobileDaw.css is pulled in via

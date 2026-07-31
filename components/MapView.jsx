@@ -3,6 +3,7 @@ import { memo, useEffect, useMemo, useRef, useState } from 'react'
 import { MapContainer, TileLayer, Polyline, CircleMarker, Tooltip, LayersControl, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import { useIsPhone } from '@/lib/shared/useViewport.js'
+import { normalizeLaneTag } from '@/lib/laneTags.js'
 import './MapView.css'
 
 delete L.Icon.Default.prototype._getIconUrl
@@ -147,6 +148,7 @@ function MapView({
   mode = 'mock',
   disabled = {},
   soloRoutes = new Set(),
+  trackLabels = {},
   liveSnapshot = null,
 }) {
   // Drives the phone-only map concessions: canvas rendering, no zoom control,
@@ -307,10 +309,19 @@ function MapView({
             const active     = isRouteActive(route, disabled, soloRoutes)
             const isDisabled = disabled[route.id]
             const isSoloed   = soloRoutes.has(route.id)
+            // Role label set in the DAW lane header — the overlay is the map's
+            // lane list, so "which one is the bass" should be answerable here too.
+            const tag = normalizeLaneTag(trackLabels[route.id])
             return (
               <div key={route.id} className={`map-status-row${active ? '' : ' map-status-row--dim'}`}>
                 <span className="map-status-dot" style={{ background: route.color }} />
                 <span className="map-status-name">{route.name}</span>
+                {tag.text && (
+                  <span
+                    className={`map-status-tag${tag.color ? ' is-colored' : ''}`}
+                    style={tag.color ? { '--lane-tag-color': tag.color } : undefined}
+                  >{tag.text}</span>
+                )}
                 {isDisabled && <span className="map-status-badge map-status-badge--disabled">OFF</span>}
                 {isSoloed   && <span className="map-status-badge map-status-badge--solo">S</span>}
               </div>

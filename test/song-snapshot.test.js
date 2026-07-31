@@ -223,3 +223,56 @@ test('a pre-sidechain song loads clean', () => {
   assert.deepEqual(setters.first('setTrackSidechains').args[0], {})
   assert.equal(engine.of('setSidechain').length, 0)
 })
+
+// ── Lane labels ─────────────────────────────────────────────────────────────
+
+test('a lane label round-trips and never reaches the engine', () => {
+  const tag = { text: 'Bass', color: '#8b5cf6' }
+  const snapshot = buildSnapshot({ ...baseState(), trackLabels: { '4': tag } })
+  assert.deepEqual(snapshot.trackLabels, { '4': tag })
+
+  const setters = recorder(), engine = recorder()
+  applySnapshot(snapshot, setters.target, engine.target, CITY)
+  assert.deepEqual(setters.first('setTrackLabels').args[0], { '4': tag })
+  // Labels are annotation. If one ever starts driving an engine call, the sound
+  // of a song would depend on what the user named its lanes.
+  assert.equal(engine.calls.some(c => /label|tag/i.test(c.name)), false)
+})
+
+// The colour lands in an inline style and a snapshot can arrive from a shared
+// link, so anything that isn't a plain hex is dropped rather than rendered.
+test('a lane label is sanitized on the way in and on the way out', () => {
+  const snapshot = buildSnapshot({
+    ...baseState(),
+    trackLabels: {
+      '4':  { text: '  Lead', color: 'url(javascript:alert(1))' },
+      '47': { text: 'x'.repeat(40), color: '#ABCDEF' },
+      '9':  { text: '   ', color: '' },       // whitespace-only counts as empty
+      M1:   'not an object',
+    },
+  })
+  assert.deepEqual(snapshot.trackLabels, {
+    '4':  { text: 'Lead', color: '' },
+    '47': { text: 'x'.repeat(18), color: '#abcdef' },
+  })
+
+  const setters = recorder()
+  applySnapshot(snapshot, setters.target, null, CITY)
+  assert.deepEqual(setters.first('setTrackLabels').args[0], snapshot.trackLabels)
+})
+
+test('a pre-label song loads clean', () => {
+  const snapshot = buildSnapshot(baseState())
+  delete snapshot.trackLabels
+
+  const setters = recorder()
+  applySnapshot(snapshot, setters.target, null, CITY)
+  assert.deepEqual(setters.first('setTrackLabels').args[0], {})
+})
+
+// A trailing space must survive normalization, or the label input eats the space
+// between two words the instant it's typed and "Sub Bass" is unreachable.
+test('a lane label keeps the space you are typing between words', () => {
+  const snapshot = buildSnapshot({ ...baseState(), trackLabels: { '4': { text: 'Sub ', color: '' } } })
+  assert.deepEqual(snapshot.trackLabels, { '4': { text: 'Sub ', color: '' } })
+})

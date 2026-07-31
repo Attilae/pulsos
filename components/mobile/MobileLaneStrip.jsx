@@ -13,6 +13,7 @@
 'use client'
 
 import { memo } from 'react'
+import { normalizeLaneTag } from '@/lib/laneTags.js'
 
 function MobileLaneStrip({
   route,
@@ -21,11 +22,13 @@ function MobileLaneStrip({
   anySoloed,
   volume = 0,
   locked = false,
+  tag,
   onDisable,
   onSolo,
   onVolume,
   onOpen,
 }) {
+  const laneTag = normalizeLaneTag(tag)
   // Silent because something *else* is soloed. Worth showing separately from
   // "disabled": the lane looks enabled but makes no sound, which is otherwise
   // the single most confusing state in the mixer.
@@ -39,7 +42,9 @@ function MobileLaneStrip({
         disabled ? 'mlane--off' : '',
         gatedBySolo ? 'mlane--gated' : '',
         locked ? 'mlane--locked' : '',
+        laneTag.color ? 'mlane--tagged' : '',
       ].filter(Boolean).join(' ')}
+      style={laneTag.color ? { '--lane-tag-color': laneTag.color } : undefined}
     >
       <button type="button" className="mlane-id" onClick={() => onOpen(route.id)}>
         <span className="mlane-color" style={{ background: route.color }} aria-hidden="true" />
@@ -48,6 +53,9 @@ function MobileLaneStrip({
         <span className="mlane-badge" style={{ background: route.color, color: route.textColor }}>
           {route.name}
         </span>
+        {laneTag.text && (
+          <span className={`mlane-tag${laneTag.color ? ' is-colored' : ''}`}>{laneTag.text}</span>
+        )}
         <span className="mlane-name">{route.desc}</span>
         {gatedBySolo && <span className="mlane-flag">soloed elsewhere</span>}
         {locked && <span className="mlane-flag mlane-flag--pro">PRO</span>}

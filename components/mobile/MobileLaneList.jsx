@@ -12,6 +12,7 @@ export default function MobileLaneList({
   soloRoutes,
   volumes,
   lockedIds,
+  labels,
   mergedConsumedIds,
   onDisable,
   onSolo,
@@ -46,6 +47,7 @@ export default function MobileLaneList({
                 anySoloed={anySoloed}
                 volume={volumes?.[route.id] ?? 0}
                 locked={!!lockedIds?.has(route.id)}
+                tag={labels?.[route.id]}
                 onDisable={onDisable}
                 onSolo={onSolo}
                 onVolume={onVolume}

@@ -222,6 +222,13 @@
 }
 .line-track > .stop-rail { flex: 0 0 auto; width: 100%; }
 .line-track--disabled { opacity: 0.3; }
+/* A labelled lane wears its label colour as a thick left edge. The left padding
+   drops by the 3px the border gains so tagging a lane doesn't nudge its
+   contents sideways. */
+.line-track--tagged {
+  border-left: 4px solid var(--lane-tag-color);
+  padding-left: 9px;
+}
 .line-track--auto-source {
   background: color-mix(in srgb, var(--automation) 6%, transparent);
   border-top: 1px dashed color-mix(in srgb, var(--automation) 30%, transparent);
@@ -381,6 +388,43 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* ── Lane role label chip ("Bass", "Lead", "Pad") ────────────────────────── */
+.lane-tag-chip {
+  font-size: 0.55rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 700;
+  padding: 2px 5px;
+  border: 1px dashed var(--border);
+  border-radius: 3px;
+  background: transparent;
+  color: var(--muted);
+  font-family: inherit;
+  cursor: pointer;
+  flex-shrink: 0;
+  opacity: 0.45;
+  transition: opacity 0.12s, color 0.12s, border-color 0.12s, background 0.12s;
+}
+.lane-tag-chip:hover { opacity: 1; color: var(--text); border-color: var(--muted); }
+/* Once it says something it stops being a hint and becomes part of the header. */
+.lane-tag-chip.has-text {
+  opacity: 1;
+  border-style: solid;
+  color: var(--text);
+}
+.lane-tag-chip.is-colored {
+  opacity: 1;
+  border-style: solid;
+  color: var(--lane-tag-color);
+  border-color: color-mix(in srgb, var(--lane-tag-color) 50%, transparent);
+  background: color-mix(in srgb, var(--lane-tag-color) 14%, transparent);
+}
+.lane-tag-chip.is-colored:hover {
+  color: var(--lane-tag-color);
+  border-color: var(--lane-tag-color);
+  background: color-mix(in srgb, var(--lane-tag-color) 26%, transparent);
 }
 
 /* Add automation lane button */

@@ -49,6 +49,7 @@ export default function MobileDaw({ controls, lanes }) {
             soloRoutes={lanes.soloRoutes}
             volumes={lanes.volumes}
             lockedIds={lanes.lockedIds}
+            labels={lanes.labels}
             mergedConsumedIds={lanes.mergedConsumedIds}
             onDisable={lanes.onDisable}
             onSolo={lanes.onSolo}
@@ -90,6 +91,7 @@ export default function MobileDaw({ controls, lanes }) {
         activeFxTracks={lanes.activeFxTracks}
         sidechain={lanes.sidechains?.[openLaneId]}
         sidechainSources={lanes.sidechainSources}
+        tag={lanes.labels?.[openLaneId]}
         onVolume={lanes.onVolume}
         onPan={lanes.onPan}
         onDisable={lanes.onDisable}
@@ -101,6 +103,7 @@ export default function MobileDaw({ controls, lanes }) {
         onSidechain={lanes.onSidechain}
         onStopPitch={lanes.onStopPitch}
         onStopVelocity={lanes.onStopVelocity}
+        onLaneTag={lanes.onLaneTag}
       />
 
       <MoreSheet
