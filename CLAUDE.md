@@ -159,7 +159,8 @@ Run a single test file with `node --test test/ai-plan-apply.test.js`.
   `fxTrack.js`, `automationTrack.js`, `networkState.js`, `alertLayer.js`, `liveClient.js`,
   `engines/` (the four secondary-tab engines), `ai/composer.js`, `shared/useRoutes.js`,
   `audioExport.js` (WAV recording of live output — see below), `snapshotPlayer.js` +
-  `songChainPlayer.js` (Song Chainer's standalone playback — see below).
+  `songChainPlayer.js` (Song Chainer's standalone playback — see below), `sampleCache.js`
+  (decoded-sample cache shared by every `Tone.Sampler` — see below).
 
 ### `components/` — React UI (client-only)
 
@@ -553,6 +554,28 @@ sequence (`applySnapshot` in engine-only mode → rebuild duplicate-lane routes 
 `stopMock()` → `Tone.Transport.cancel()`, which would drop transport-scheduled callbacks.
 Transitions are either a quick declick fade (`'cut'`) or a volume dip-and-return around the
 swap (`'crossfade'`), not a true overlapping crossfade.
+
+**Item boundaries are preloaded, and the audible half of that is samples, not JSON.** Every
+boundary rebuilds the whole audio graph, and a `Tone.Sampler` built from URL strings reports
+`loaded === false` until its entire zone map is fetched + decoded — while it does, the engine
+*silently drops every note handed to it* (`_triggerSynth`/`_triggerLegatoNote`). A sampler lane
+therefore used to open its section mute for as long as its samples took to arrive; some presets
+are 30+ mp3s off a third-party host. `SongChainPlayer.preload(presetId)` warms both layers (the
+snapshot JSON via the caller's cache, then `prefetchSnapshotSamples` in `snapshotPlayer.js`);
+`_scheduleBoundary` warms the *next* item during the current section, and `preloadChain()` —
+called from the tab whenever the chain is edited, not on play — warms the whole chain so the
+**first** section is covered too (`play()` enters item 0 immediately, so there is no time to
+preload it then).
+
+**`lib/sampleCache.js`** is the layer that makes that pay off: a process-wide `url → AudioBuffer`
+map. `resolveSamplerUrls(urls, baseUrl)` (used by `buildSynthOpts` for `Sampler`/`Drums`) swaps
+every already-decoded zone for its `AudioBuffer` and leaves the rest as absolute URL strings —
+hence the paired `baseUrl: ''`. A Sampler handed buffers is `loaded` synchronously. Two
+properties this relies on: disposing a Sampler disposes its `ToneAudioBuffer` *wrappers* but not
+the raw `AudioBuffer` underneath, so one cached buffer safely outlives any number of samplers;
+and `resolveSamplerUrls` **never starts a download of its own** — warming is always explicit
+(`warmSamples`/`prefetchSnapshotSamples`), so nothing is ever fetched twice. The granular layer's
+render-source fetch shares the same cache.
 
 ### `feed/` — always-on feed service
 
