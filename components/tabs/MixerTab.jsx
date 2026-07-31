@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import * as Tone from 'tone'
-import { TransitEngine, SYNTH_DEFAULTS, availableAutomationTargets, DEFAULT_ARP, DEFAULT_GRANULAR, DEFAULT_PITCH_VARIETY, DRUMS_ROUTE_ID } from '@/lib/engine.js'
+import { TransitEngine, SYNTH_DEFAULTS, availableAutomationTargets, DEFAULT_ARP, DEFAULT_GRANULAR, DEFAULT_SIDECHAIN, SIDECHAIN_ANY_DRUM, SIDECHAIN_PAD_SOURCES, DEFAULT_PITCH_VARIETY, DRUMS_ROUTE_ID } from '@/lib/engine.js'
 import { FX_BUSES } from '@/lib/fxTrack.js'
 import { randomFromScale, shiftOctaveNote, geoToMidi, routeBounds, midiToNote, noteToMidi, SCALES, MODES, setCityBounds } from '@/lib/mappings.js'
 import { fetchLines } from '@/lib/shared/useRoutes.js'
@@ -75,6 +75,32 @@ function pickStartupRoutes(allRoutes) {
 // by enabling lanes one at a time rather than hearing the whole city at once.
 function allDisabledMap(routes) {
   return Object.fromEntries(routes.map(r => [r.id, true]))
+}
+
+// Changing a lane's line mints a new synthetic route id. A sidechain map is keyed
+// by *destination* but also stores a *source* id, so both sides have to move —
+// otherwise every lane ducking off the changed line silently stops pumping.
+function remapSidechainSource(map, oldId, newId) {
+  const entries = Object.entries(map ?? {})
+  if (!entries.some(([rid, cfg]) => rid === oldId || cfg?.source === oldId)) return map
+  const next = {}
+  for (const [rid, cfg] of entries) {
+    next[rid === oldId ? newId : rid] = cfg?.source === oldId ? { ...cfg, source: newId } : cfg
+  }
+  return next
+}
+
+// Drop a removed lane from a sidechain map: its own cfg goes, and anyone ducking
+// off it loses the trigger rather than pointing at a route that will never fire.
+function dropSidechainSource(map, routeId) {
+  const entries = Object.entries(map ?? {})
+  if (!entries.some(([rid, cfg]) => rid === routeId || cfg?.source === routeId)) return map
+  const next = {}
+  for (const [rid, cfg] of entries) {
+    if (rid === routeId) continue
+    next[rid] = cfg?.source === routeId ? { ...cfg, source: '', enabled: false } : cfg
+  }
+  return next
 }
 
 // Derive interchange "hubs" for the network-convergence chords from the route
@@ -215,6 +241,7 @@ export default function MixerTab({ active = true }) {
   const [trackPitchOffsets, setTrackPitchOffsets] = useState({})
   const [trackArps,       setTrackArps]       = useState({})
   const [trackGranulars,  setTrackGranulars]  = useState({})
+  const [trackSidechains, setTrackSidechains] = useState({})
 
   // Duplicate lanes (chord layers): clones of a base route with a synthetic id.
   // Descriptors: { id, sourceId, name }. Per-stop pitch lives in trackPitchOffsets.
@@ -309,6 +336,21 @@ export default function MixerTab({ active = true }) {
   const visibleInstrumentRoutes = useMemo(() => (mergedRoutes ?? []).filter(route =>
     !mergedConsumedIds.has(route.id) && !automationSourceIds.has(route.id) && route.id !== DRUMS_ROUTE_ID
   ), [mergedRoutes, mergedConsumedIds, automationSourceIds])
+
+  // Pickable sidechain trigger sources, grouped for the source <select>. Drum
+  // entries only appear once a pattern is imported — there is nothing to duck off
+  // otherwise. A lane can't be its own trigger; the picker filters that per-lane.
+  const sidechainSources = useMemo(() => {
+    const out = []
+    if (drumPattern) {
+      out.push({ value: SIDECHAIN_ANY_DRUM, label: 'Any pad', group: 'Drums' })
+      for (const pad of SIDECHAIN_PAD_SOURCES) out.push({ ...pad, group: 'Drums' })
+    }
+    for (const route of visibleInstrumentRoutes) {
+      out.push({ value: route.id, label: route.name, group: 'Lanes' })
+    }
+    return out
+  }, [drumPattern, visibleInstrumentRoutes])
 
   // Downgrades and imported/shared Pro songs keep every setting but excess lanes
   // are deterministically disabled in their saved/visible order.
@@ -446,6 +488,9 @@ export default function MixerTab({ active = true }) {
     rename(setTrackOctaves); rename(setTrackSemitones); rename(setTrackGlides); rename(setTrackLegatos)
     rename(setTrackDroneModes); rename(setTrackDroneRoots); rename(setTrackSpeeds); rename(setTrackLoopRegions)
     rename(setTrackGridResolutions); rename(setTrackPitchVariety); rename(setTrackArps); rename(setTrackGranulars)
+    // Sidechain needs more than a key rename: lanes ducking *off* the old id would
+    // be left pointing at a source that no longer fires.
+    setTrackSidechains(m => remapSidechainSource(m, oldId, newRoute.id))
     // Per-stop maps reference the old line's stop ids — they don't apply to the
     // new line, so drop them.
     const drop = (setter) => setter(m => {
@@ -492,6 +537,11 @@ export default function MixerTab({ active = true }) {
     if (trackLegatos[oldId])         engine.setLegato(newRoute.id, true)
     if (trackArps[oldId])            engine.setArpeggiator(newRoute.id, trackArps[oldId])
     if (trackGranulars[oldId])       engine.setGranular(newRoute.id, trackGranulars[oldId])
+    // removeRoute above cleared every cfg sourced from oldId, so re-push the
+    // remapped set: the moved lane's own cfg plus anyone that ducked off it.
+    for (const [rid, cfg] of Object.entries(remapSidechainSource(trackSidechains, oldId, newRoute.id))) {
+      engine.setSidechain(rid, cfg)
+    }
     if (trackSpeeds[oldId]  != null) engine.setTrackSpeed(newRoute.id, trackSpeeds[oldId])
     if (trackLoopRegions[oldId])     engine.setTrackLoopRegion(newRoute.id, trackLoopRegions[oldId])
     if (trackGridResolutions[oldId]) engine.setGridResolution(newRoute.id, trackGridResolutions[oldId])
@@ -503,7 +553,7 @@ export default function MixerTab({ active = true }) {
     }
   }, [routes, started, disabledRoutes, volumes, pans, trackScales, trackFilters, trackEqs,
       trackOctaves, trackSemitones, trackGlides, trackLegatos, trackArps, trackGranulars,
-      trackSpeeds, trackLoopRegions, trackGridResolutions, trackPitchVariety,
+      trackSidechains, trackSpeeds, trackLoopRegions, trackGridResolutions, trackPitchVariety,
       trackDroneModes, trackDroneRoots, sendMatrix])
 
   // Remove a base lane entirely (drop its route + all per-track state). Stop-only.
@@ -521,6 +571,7 @@ export default function MixerTab({ active = true }) {
     drop(setTrackDroneModes); drop(setTrackDroneRoots); drop(setTrackSpeeds); drop(setTrackLoopRegions)
     drop(setTrackGridResolutions); drop(setTrackPitchVariety); drop(setTrackStopVelocities); drop(setTrackPitchOffsets)
     drop(setTrackArps); drop(setTrackGranulars)
+    setTrackSidechains(m => dropSidechainSource(m, routeId))
     setSoloRoutes(prev => {
       if (!prev.has(routeId)) return prev
       const next = new Set(prev); next.delete(routeId); return next
@@ -1099,6 +1150,14 @@ export default function MixerTab({ active = true }) {
     })
   }, [])
 
+  const handleSidechain = useCallback((routeId, params) => {
+    setTrackSidechains(s => {
+      const next = { ...s, [routeId]: { ...DEFAULT_SIDECHAIN, ...s[routeId], ...params } }
+      engineRef.current?.setSidechain(routeId, next[routeId])
+      return next
+    })
+  }, [])
+
   const handleDroneMode = useCallback((routeId, enabled) => {
     setTrackDroneModes(m => ({ ...m, [routeId]: enabled }))
     setTrackDroneRoots(r => {
@@ -1165,7 +1224,7 @@ export default function MixerTab({ active = true }) {
     copy(setTrackOctaves); copy(setTrackGlides); copy(setTrackLegatos)
     copy(setTrackDroneModes); copy(setTrackDroneRoots); copy(setTrackSpeeds); copy(setTrackLoopRegions)
     copy(setTrackGridResolutions); copy(setTrackPitchVariety); copy(setTrackStopVelocities); copy(setTrackPitchOffsets)
-    copy(setTrackArps); copy(setTrackGranulars)
+    copy(setTrackArps); copy(setTrackGranulars); copy(setTrackSidechains)
     setSendMatrix(m => {
       const next = { ...m }
       for (const [key, level] of Object.entries(m)) {
@@ -1201,6 +1260,7 @@ export default function MixerTab({ active = true }) {
     if (trackLegatos[sourceId])      engine.setLegato(id, true)
     if (trackArps[sourceId])         engine.setArpeggiator(id, trackArps[sourceId])
     if (trackGranulars[sourceId])    engine.setGranular(id, trackGranulars[sourceId])
+    if (trackSidechains[sourceId])   engine.setSidechain(id, trackSidechains[sourceId])
     if (trackSpeeds[sourceId] != null) engine.setTrackSpeed(id, trackSpeeds[sourceId])
     if (trackLoopRegions[sourceId])  engine.setTrackLoopRegion(id, trackLoopRegions[sourceId])
     if (trackGridResolutions[sourceId]) engine.setGridResolution(id, trackGridResolutions[sourceId])
@@ -1215,7 +1275,7 @@ export default function MixerTab({ active = true }) {
   }, [mergedRoutes, duplicates, volumes, disabledRoutes, pans, trackSoundModes, trackScales,
       trackSynthTypes, trackADSRs, trackFilters, trackEqs, trackOctaves, trackSemitones, trackGlides,
       trackLegatos, trackDroneModes, trackDroneRoots, trackSpeeds, trackLoopRegions,
-      trackGridResolutions, trackPitchVariety, trackStopVelocities, trackPitchOffsets, trackArps, trackGranulars, sendMatrix,
+      trackGridResolutions, trackPitchVariety, trackStopVelocities, trackPitchOffsets, trackArps, trackGranulars, trackSidechains, sendMatrix,
       limits.activeLanes, visibleInstrumentRoutes, openUpgrade])
 
   const handleRemoveDuplicate = useCallback((dupId) => {
@@ -1231,6 +1291,7 @@ export default function MixerTab({ active = true }) {
     drop(setTrackDroneModes); drop(setTrackDroneRoots); drop(setTrackSpeeds); drop(setTrackLoopRegions)
     drop(setTrackGridResolutions); drop(setTrackPitchVariety); drop(setTrackStopVelocities); drop(setTrackPitchOffsets)
     drop(setTrackArps); drop(setTrackGranulars)
+    setTrackSidechains(m => dropSidechainSource(m, dupId))
     setSoloRoutes(prev => {
       if (!prev.has(dupId)) return prev
       const next = new Set(prev); next.delete(dupId); return next
@@ -1336,6 +1397,7 @@ export default function MixerTab({ active = true }) {
     drop(setTrackDroneModes); drop(setTrackDroneRoots); drop(setTrackSpeeds); drop(setTrackLoopRegions)
     drop(setTrackGridResolutions); drop(setTrackPitchVariety); drop(setTrackStopVelocities); drop(setTrackPitchOffsets)
     drop(setTrackArps); drop(setTrackGranulars)
+    setTrackSidechains(m => dropSidechainSource(m, mergeId))
     setSoloRoutes(prev => {
       if (!prev.has(mergeId)) return prev
       const next = new Set(prev); next.delete(mergeId); return next
@@ -1611,7 +1673,7 @@ export default function MixerTab({ active = true }) {
     volumes, disabledRoutes, pans, soloRoutes,
     trackSoundModes, trackScales, trackSynthTypes, trackADSRs,
     trackFilters, trackEqs,
-    trackOctaves, trackSemitones, trackGlides, trackLegatos, trackDroneModes, trackDroneRoots, trackSpeeds, trackLoopRegions, trackGridResolutions, trackPitchVariety, trackStopVelocities, trackPitchOffsets, trackArps, trackGranulars,
+    trackOctaves, trackSemitones, trackGlides, trackLegatos, trackDroneModes, trackDroneRoots, trackSpeeds, trackLoopRegions, trackGridResolutions, trackPitchVariety, trackStopVelocities, trackPitchOffsets, trackArps, trackGranulars, trackSidechains,
     activeFxTracks, fxBusWet, fxBusMuted, fxBusSoloed, fxBusParams,
     sendMatrix, automationCfg, duplicates, merges, drumPattern, drumsMuted,
     laneManifest: visibleInstrumentRoutes.map(route => ({
@@ -1625,7 +1687,7 @@ export default function MixerTab({ active = true }) {
     volumes, disabledRoutes, pans, soloRoutes,
     trackSoundModes, trackScales, trackSynthTypes, trackADSRs,
     trackFilters, trackEqs,
-    trackOctaves, trackSemitones, trackGlides, trackLegatos, trackDroneModes, trackDroneRoots, trackSpeeds, trackLoopRegions, trackGridResolutions, trackPitchVariety, trackStopVelocities, trackPitchOffsets, trackArps, trackGranulars,
+    trackOctaves, trackSemitones, trackGlides, trackLegatos, trackDroneModes, trackDroneRoots, trackSpeeds, trackLoopRegions, trackGridResolutions, trackPitchVariety, trackStopVelocities, trackPitchOffsets, trackArps, trackGranulars, trackSidechains,
     activeFxTracks, fxBusWet, fxBusMuted, fxBusSoloed, fxBusParams,
     sendMatrix, automationCfg, duplicates, merges, drumPattern, drumsMuted, visibleInstrumentRoutes,
   ])
@@ -1659,6 +1721,7 @@ export default function MixerTab({ active = true }) {
     setTrackPitchOffsets({})
     setTrackArps({})
     setTrackGranulars({})
+    setTrackSidechains({})
     setActiveFxTracks(DEFAULT_FX_TRACKS)
     setFxBusWet(Object.fromEntries(FX_BUSES.map(b => [b.id, b.defaults?.wet ?? 1.0])))
     setFxBusMuted({}); setFxBusSoloed({}); setFxBusParams({})
@@ -1675,7 +1738,7 @@ export default function MixerTab({ active = true }) {
     setVolumes, setDisabledRoutes, setPans, setSoloRoutes,
     setTrackSoundModes, setTrackScales, setTrackSynthTypes, setTrackADSRs,
     setTrackFilters, setTrackEqs,
-    setTrackOctaves, setTrackSemitones, setTrackGlides, setTrackLegatos, setTrackDroneModes, setTrackDroneRoots, setTrackSpeeds, setTrackLoopRegions, setTrackGridResolutions, setTrackPitchVariety, setTrackStopVelocities, setTrackPitchOffsets, setTrackArps, setTrackGranulars,
+    setTrackOctaves, setTrackSemitones, setTrackGlides, setTrackLegatos, setTrackDroneModes, setTrackDroneRoots, setTrackSpeeds, setTrackLoopRegions, setTrackGridResolutions, setTrackPitchVariety, setTrackStopVelocities, setTrackPitchOffsets, setTrackArps, setTrackGranulars, setTrackSidechains,
     setActiveFxTracks, setFxBusWet, setFxBusMuted, setFxBusSoloed, setFxBusParams,
     setSendMatrix, setAutomationCfg, setDuplicates, setMerges,
     setDrumPattern: setSyncedDrumPattern, setDrumsMuted,
@@ -2011,6 +2074,9 @@ export default function MixerTab({ active = true }) {
         onArp={handleArp}
         trackGranulars={trackGranulars}
         onGranular={handleGranular}
+        trackSidechains={trackSidechains}
+        onSidechain={handleSidechain}
+        sidechainSources={sidechainSources}
         trackSpeeds={trackSpeeds}
         onTrackSpeed={handleTrackSpeed}
         trackLoopRegions={trackLoopRegions}
@@ -2098,6 +2164,8 @@ export default function MixerTab({ active = true }) {
             pitchVariety: trackPitchVariety,
             pitchOffsets: trackPitchOffsets,
             stopVelocities: trackStopVelocities,
+            sidechains: trackSidechains,
+            sidechainSources,
             sendMatrix,
             activeFxTracks,
             onDisable: handleDisable,
@@ -2108,6 +2176,7 @@ export default function MixerTab({ active = true }) {
             onScale: handleScale,
             onOctaveShift: handleOctaveShift,
             onSendLevel: handleSendLevel,
+            onSidechain: handleSidechain,
             onStopPitch: handleStopPitch,
             onStopVelocity: handleStopVelocity,
           }}

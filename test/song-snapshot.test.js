@@ -35,7 +35,7 @@ const baseState = () => ({
   trackADSRs: { M1: { attack: 0.1, samplerPreset: 'piano' } },
   trackEqs: {}, trackFilters: {}, trackScales: { M1: { root: 'D', scaleType: 'minor' } },
   trackSemitones: {}, trackOctaves: {}, trackGlides: {}, trackLegatos: {},
-  trackArps: {}, trackGranulars: {}, trackSpeeds: {}, trackDroneModes: {}, trackDroneRoots: {},
+  trackArps: {}, trackGranulars: {}, trackSidechains: {}, trackSpeeds: {}, trackDroneModes: {}, trackDroneRoots: {},
   trackLoopRegions: {}, trackGridResolutions: {}, trackPitchVariety: {},
   trackStopVelocities: {}, trackPitchOffsets: {},
   activeFxTracks: ['reverb'], fxBusWet: { reverb: 0.4 }, fxBusMuted: {}, fxBusSoloed: {},
@@ -199,4 +199,27 @@ test('applySnapshot tolerates a missing engine and a bare (unwrapped) snapshot',
   applySnapshot({ state: buildSnapshot(baseState()) }, setters.target, null, CITY)
   assert.equal(setters.first('setBpm').args[0], 128, 'a wrapped row is unwrapped')
   assert.doesNotThrow(() => applySnapshot(null, setters.target, null, CITY))
+})
+
+test('a sidechain round-trips and reaches the engine', () => {
+  const cfg = { enabled: true, source: '__drums__:kick', amountDb: -12, attack: 0.004, release: 0.25 }
+  const snapshot = buildSnapshot({ ...baseState(), trackSidechains: { '4': cfg } })
+  assert.deepEqual(snapshot.trackSidechains, { '4': cfg })
+
+  const setters = recorder(), engine = recorder()
+  applySnapshot(snapshot, setters.target, engine.target, CITY)
+  assert.deepEqual(setters.first('setTrackSidechains').args[0], { '4': cfg })
+  assert.deepEqual(engine.of('setSidechain').map(c => c.args), [['4', cfg]])
+})
+
+// A song saved before the feature existed has no such key. It must load with an
+// empty map and touch the engine not at all, so old songs sound identical.
+test('a pre-sidechain song loads clean', () => {
+  const snapshot = buildSnapshot(baseState())
+  delete snapshot.trackSidechains
+
+  const setters = recorder(), engine = recorder()
+  applySnapshot(snapshot, setters.target, engine.target, CITY)
+  assert.deepEqual(setters.first('setTrackSidechains').args[0], {})
+  assert.equal(engine.of('setSidechain').length, 0)
 })

@@ -427,6 +427,16 @@
   font-size: 0.7rem; color: var(--muted-strong);
 }
 .lsheet-send input { flex: 1; min-width: 0; }
+/* Sidechain rows carry a value in the label ("Release · 180 ms"), which doesn't
+   fit the send column. */
+.lsheet-send--wide .lsheet-send-name { width: 118px; }
+
+/* A lone toggle inside a field, rather than one of an equal-width row. */
+.lsheet-toggle--inline {
+  flex: 0 0 auto;
+  align-self: flex-start;
+  padding: 0 var(--space-150);
+}
 
 .lsheet-notes { list-style: none; display: flex; flex-direction: column; }
 .lsheet-noterow {

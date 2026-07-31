@@ -46,9 +46,11 @@ export default function SongChainerTab({ active = true }) {
   const loadSnapshot = useCallback(async (presetId) => {
     const cache = snapCacheRef.current
     if (cache.has(presetId)) return cache.get(presetId)
-    const song = await loadSong(presetId)
-    cache.set(presetId, song)
-    return song
+    // Cache the in-flight promise, not the resolved song: the chain preloader and
+    // the section-boundary loader routinely ask for the same preset at once.
+    const pending = loadSong(presetId).catch((err) => { cache.delete(presetId); throw err })
+    cache.set(presetId, pending)
+    return pending
   }, [])
 
   // ── Engine + player lifecycle ────────────────────────────────────────────
@@ -152,8 +154,12 @@ export default function SongChainerTab({ active = true }) {
   }, [playing, items, itemLimit, bpm, loop, routes])
 
   // Keep a live player in sync while it's running (bpm/loop tweaks apply next section).
+  // Editing the chain is also the idle moment to warm it: preloadChain fetches each
+  // item's snapshot and, more importantly, its samples, so the first section starts
+  // audible instead of dropping notes while its Samplers download.
   useEffect(() => {
     playerRef.current?.setChain(itemLimit == null ? items : items.slice(0, itemLimit), bpm)
+    playerRef.current?.preloadChain()
   }, [items, itemLimit, bpm])
   useEffect(() => { playerRef.current?.setLoop(loop) }, [loop])
 

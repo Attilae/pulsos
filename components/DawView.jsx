@@ -1,6 +1,6 @@
 import * as Tone from 'tone'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { SYNTH_DEFAULTS, availableAutomationTargets, findTargetSpec, SAMPLER_PRESET_LIST, SAMPLER_PRESETS, DRUM_VOICES, DRUM_VOICE_LICENSE, DEFAULT_GRANULAR, ARP_STYLES, ARP_RATES, DEFAULT_ARP, DRUMS_ROUTE_ID } from '@/lib/engine.js'
+import { SYNTH_DEFAULTS, availableAutomationTargets, findTargetSpec, SAMPLER_PRESET_LIST, SAMPLER_PRESETS, DRUM_VOICES, DRUM_VOICE_LICENSE, DEFAULT_GRANULAR, DEFAULT_SIDECHAIN, ARP_STYLES, ARP_RATES, DEFAULT_ARP, DRUMS_ROUTE_ID } from '@/lib/engine.js'
 import { FX_BUSES, AUTOMATION_TARGETS, FX_PARAM_SPECS, FX_SYNC_TARGETS } from '@/lib/fxTrack.js'
 import { PAD_DEFS as DRUM_PAD_DEFS, STEPS as DRUM_STEPS, SOURCE_STEPS as DRUM_SOURCE_STEPS, emptyPattern as emptyDrumPattern } from '@/lib/engines/drumEngine.js'
 import { generatePitchMap, shiftOctaveNote, shiftSemitones, noteToMidi, SCALES, hashStopValue, snapStopsToGrid, GRID_TOTAL_CELLS, GRID_BARS, GRID_STEPS_PER_BAR, GRID_RESOLUTION_STEPS_PER_BAR, DEFAULT_GRID_RESOLUTION, denormalizeToRange, denormalizeExp, transposeNoteInScale, PITCH_CONTOURS, DEFAULT_PITCH_VARIETY } from '@/lib/mappings.js'
@@ -28,6 +28,29 @@ export const SECTIONS = [
 ]
 
 export const NOTE_ROOTS = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
+
+// Grouped <option> list for a sidechain source picker. Exported so the phone lane
+// sheet offers exactly the same sources as the desktop rack — MixerTab builds the
+// list once and both surfaces render it identically.
+export function SidechainSourceOptions({ sources = [], excludeId }) {
+  const groups = []
+  for (const src of sources) {
+    if (src.value === excludeId) continue   // a lane ducking off itself is never useful
+    let group = groups.find(g => g.label === src.group)
+    if (!group) { group = { label: src.group, items: [] }; groups.push(group) }
+    group.items.push(src)
+  }
+  return (
+    <>
+      <option value="">None</option>
+      {groups.map(group => (
+        <optgroup key={group.label} label={group.label}>
+          {group.items.map(src => <option key={src.value} value={src.value}>{src.label}</option>)}
+        </optgroup>
+      ))}
+    </>
+  )
+}
 export const SCALE_TYPES = [
   ['major',           'Major'],
   ['minor',           'Minor'],
@@ -99,7 +122,7 @@ export default function DawView({
   trackSoundModes, trackScales, trackSynthTypes, trackADSRs, trackFilters,
   getEqRuntime,
   sendMatrix, automationCfg, automationSourceIds,
-  fxBusWet, activeFxTracks, masterVolume, trackOctaves, trackSemitones, trackGlides, trackLegatos, trackArps, trackGranulars, trackSpeeds, trackLoopRegions,
+  fxBusWet, activeFxTracks, masterVolume, trackOctaves, trackSemitones, trackGlides, trackLegatos, trackArps, trackGranulars, trackSidechains, sidechainSources, trackSpeeds, trackLoopRegions,
   trackGridResolutions,
   trackPitchVariety, onPitchVariety,
   trackStopVelocities, onStopVelocity,
@@ -109,7 +132,7 @@ export default function DawView({
   onSendLevel, onFxBusWet, fxBusMuted, fxBusSoloed, onFxBusMute, onFxBusSolo,
   fxBusParams, onFxBusParam, onFxBusCustomIR,
   onAddFxTrack, onRemoveFxTrack, onMasterVolume,
-  onOctaveShift, onGlide, onLegato, onArp, onGranular, onTrackSpeed, onTrackLoopRegion, onGridResolution,
+  onOctaveShift, onGlide, onLegato, onArp, onGranular, onSidechain, onTrackSpeed, onTrackLoopRegion, onGridResolution,
   onAddAutomationLane, onRemoveAutomationLane, onUpdateAutomationLane,
   onRefetch, onVehicleCrossed, onExportRouteMidi, onExportRouteAudio, audioExportActive,
 }) {
@@ -343,6 +366,8 @@ export default function DawView({
                     legato={trackLegatos?.[route.id] ?? false}
                     arp={trackArps?.[route.id]}
                     granular={trackGranulars?.[route.id]}
+                    sidechain={trackSidechains?.[route.id]}
+                    sidechainSources={sidechainSources}
                     speed={trackSpeeds?.[route.id] ?? 1}
                     loopRegion={trackLoopRegions?.[route.id]}
                     onLoopRegion={r => onTrackLoopRegion(route.id, r)}
@@ -367,6 +392,7 @@ export default function DawView({
                     onLegato={en => onLegato(route.id, en)}
                     onArp={params => onArp(route.id, params)}
                     onGranular={params => onGranular(route.id, params)}
+                    onSidechain={params => onSidechain(route.id, params)}
                     onSpeed={m => onTrackSpeed(route.id, m)}
                     onDroneMode={en => onDroneMode(route.id, en)}
                     onDroneRoot={n => onDroneRoot(route.id, n)}
@@ -648,14 +674,14 @@ function LineTrack({
   vehicles, soundMode, trackScale, synthType, adsr,
   filter, getEqRuntime,
   droneMode, droneRoot,
-  laneCount, autoTargets = {}, activeFxTracks, sendMatrix, octaveShift, semitoneShift, glide, legato, arp, granular, speed,
+  laneCount, autoTargets = {}, activeFxTracks, sendMatrix, octaveShift, semitoneShift, glide, legato, arp, granular, sidechain, sidechainSources, speed,
   loopRegion, onLoopRegion, gridResolution, onGridResolution,
   pitchVariety, onPitchVariety,
   stopVelocities, onStopOpen,
   onVolume, onDisable, onPan, onSolo, onSoundMode, onScale, onSynthType, onADSR,
   onSamplerPreset, onDrumVoice, onSamplerUpload,
   onFilter,
-  onSendLevel, onOctaveShift, onGlide, onLegato, onArp, onGranular, onSpeed, onDroneMode, onDroneRoot, onAddLane,
+  onSendLevel, onOctaveShift, onGlide, onLegato, onArp, onGranular, onSidechain, onSpeed, onDroneMode, onDroneRoot, onAddLane,
   onExportRouteMidi, onExportRouteAudio, audioExportActive,
   onDuplicate, onRemoveDuplicate, onChangeLine, perStopSteps,
   mergeMode, mergeChecked, onMergeToggle, onUnmerge,
@@ -1115,6 +1141,64 @@ function LineTrack({
                   />
                   <span className="glide-val">{Number(gg.release).toFixed(2)}s</span>
                 </div>
+              </div>
+            )
+          })()}
+
+          {(() => {
+            const sc = { ...DEFAULT_SIDECHAIN, ...sidechain }
+            // Without a source there is nothing to duck off, so the toggle stays
+            // inert until one is picked — no silently-on-but-doing-nothing state.
+            const scOn = !!sc.enabled && !!sc.source
+            const dim = scOn ? {} : { opacity: 0.4, pointerEvents: 'none' }
+            const scRow = (label, key, min, max, step, fmt) => (
+              <div className="glide-row" style={dim}>
+                <span className="glide-label">{label}</span>
+                <input
+                  type="range" min={min} max={max} step={step}
+                  value={sc[key]}
+                  onChange={e => onSidechain({ [key]: parseFloat(e.target.value) })}
+                  className="glide-slider"
+                />
+                <span className="glide-val">{fmt(sc[key])}</span>
+              </div>
+            )
+            const ms = v => `${Math.round(v * 1000)}ms`
+            return (
+              <div className="rack-card">
+                <div className="rack-card-head">
+                  Sidechain
+                  <button
+                    className={`legato-btn ${scOn ? 'active' : ''}`}
+                    onClick={() => onSidechain({ enabled: !sc.enabled })}
+                    disabled={!sc.source}
+                    title={sc.source
+                      ? (scOn ? 'Ducking on — click to disable' : 'Duck this lane when the trigger fires')
+                      : 'Pick a trigger source first'}
+                    style={{ marginLeft: 'auto', ...(scOn ? { borderColor: route.color, color: route.color } : {}) }}
+                  >SC</button>
+                </div>
+
+                <div className="glide-row">
+                  <span className="glide-label">FROM</span>
+                  <select
+                    className="auto-select"
+                    value={sc.source}
+                    onChange={e => {
+                      const source = e.target.value
+                      // Clearing the source turns ducking off rather than leaving
+                      // an enabled sidechain with nothing to trigger it.
+                      onSidechain(source ? { source } : { source: '', enabled: false })
+                    }}
+                    title="What this lane ducks away from"
+                  >
+                    <SidechainSourceOptions sources={sidechainSources} excludeId={route.id} />
+                  </select>
+                </div>
+
+                {scRow('AMT', 'amountDb', -40, 0,    1,     v => `${Math.round(v)}dB`)}
+                {scRow('ATK', 'attack',     0, 0.2,  0.001, ms)}
+                {scRow('REL', 'release',  0.02, 1.5, 0.01,  ms)}
               </div>
             )
           })()}

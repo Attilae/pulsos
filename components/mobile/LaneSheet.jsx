@@ -3,7 +3,7 @@
 // Desktop shows this as a multi-column "device rack" of dense cards. Here it's
 // three segments in a bottom sheet:
 //   Sound — instrument and harmony
-//   Mix   — level, stereo position, FX sends
+//   Mix   — level, stereo position, FX sends, sidechain ducking
 //   Notes — the touch replacement for the stop rail (see below)
 //
 // The stop rail can't be made tappable at this size: dots are 8px and sit
@@ -15,7 +15,8 @@
 
 import { useMemo, useState } from 'react'
 import Sheet from '../Sheet.jsx'
-import { NOTE_ROOTS, SCALE_TYPES, SYNTH_TYPES } from '../DawView.jsx'
+import { NOTE_ROOTS, SCALE_TYPES, SYNTH_TYPES, SidechainSourceOptions } from '../DawView.jsx'
+import { DEFAULT_SIDECHAIN } from '@/lib/engine.js'
 import { FX_BUSES } from '@/lib/fxTrack.js'
 import { buildLanePitchMaps, buildLaneNoteRows } from '@/lib/laneNotes.js'
 
@@ -43,9 +44,11 @@ export default function LaneSheet({
   stopVelocities,
   sendMatrix,
   activeFxTracks = [],
+  sidechain,
+  sidechainSources = [],
   // handlers — the same ones the desktop rack calls
   onVolume, onPan, onDisable, onSolo, onSynthType, onScale, onOctaveShift,
-  onSendLevel, onStopPitch, onStopVelocity,
+  onSendLevel, onSidechain, onStopPitch, onStopVelocity,
 }) {
   const [segment, setSegment] = useState('sound')
 
@@ -186,7 +189,7 @@ export default function LaneSheet({
                     <span className="lsheet-send-name">{label}</span>
                     <input
                       type="range" min={0} max={1} step={0.01}
-                      value={sendMatrix?.[route.id]?.[bus] ?? 0}
+                      value={sendMatrix?.[`${route.id}:${bus}`] ?? 0}
                       onChange={e => onSendLevel(route.id, bus, Number(e.target.value))}
                       aria-label={`${label} send`}
                     />
@@ -195,6 +198,64 @@ export default function LaneSheet({
               })}
             </Field>
           )}
+
+          {(() => {
+            const sc = { ...DEFAULT_SIDECHAIN, ...sidechain }
+            const scOn = !!sc.enabled && !!sc.source
+            const ms = v => `${Math.round(v * 1000)} ms`
+            return (
+              <Field
+                label="Sidechain"
+                hint="Dips this lane every time the trigger fires — pick a drum pad to make it pump."
+              >
+                <select
+                  value={sc.source}
+                  onChange={e => {
+                    const source = e.target.value
+                    onSidechain(route.id, source ? { source } : { source: '', enabled: false })
+                  }}
+                  aria-label="Sidechain trigger"
+                >
+                  <SidechainSourceOptions sources={sidechainSources} excludeId={route.id} />
+                </select>
+
+                {sc.source && (
+                  <>
+                    <button
+                      type="button"
+                      className={`lsheet-toggle lsheet-toggle--inline ${scOn ? 'is-on' : ''}`}
+                      onClick={() => onSidechain(route.id, { enabled: !sc.enabled })}
+                    >{scOn ? 'Ducking' : 'Off'}</button>
+
+                    <div className="lsheet-send lsheet-send--wide">
+                      <span className="lsheet-send-name">Amount · {Math.round(sc.amountDb)} dB</span>
+                      <input
+                        type="range" min={-40} max={0} step={1} value={sc.amountDb}
+                        onChange={e => onSidechain(route.id, { amountDb: Number(e.target.value) })}
+                        aria-label="Sidechain amount"
+                      />
+                    </div>
+                    <div className="lsheet-send lsheet-send--wide">
+                      <span className="lsheet-send-name">Attack · {ms(sc.attack)}</span>
+                      <input
+                        type="range" min={0} max={0.2} step={0.001} value={sc.attack}
+                        onChange={e => onSidechain(route.id, { attack: Number(e.target.value) })}
+                        aria-label="Sidechain attack"
+                      />
+                    </div>
+                    <div className="lsheet-send lsheet-send--wide">
+                      <span className="lsheet-send-name">Release · {ms(sc.release)}</span>
+                      <input
+                        type="range" min={0.02} max={1.5} step={0.01} value={sc.release}
+                        onChange={e => onSidechain(route.id, { release: Number(e.target.value) })}
+                        aria-label="Sidechain release"
+                      />
+                    </div>
+                  </>
+                )}
+              </Field>
+            )
+          })()}
         </div>
       )}
 
