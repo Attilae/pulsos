@@ -253,7 +253,7 @@ The audio graph and the single source of truth for sound. Roughly:
 
 ```
 per-route synth / VehicleVoice / Sampler
-   → per-route insert FX (filter, weq8 EQ, pan, volume)
+   → per-route insert FX (filter, weq8 EQ, sidechain duck, pan, volume)
    → per-line-type Volume+Panner bus (metro/tram/trolley/bus/hev)
    → AlertLayer (service-alert-driven reverb + scale/mode)
    → Tone.Destination
@@ -290,6 +290,27 @@ NetworkState (drone hum + hub-convergence chords) → AlertLayer input
   (`FX_BUSES`, `FX_PARAM_SPECS`, `AUTOMATION_TARGETS`, `FxTrack`), `automationTrack.js`
   (`AutomationTrack`, `AUTOMATION_SOURCES`), `networkState.js` (`NetworkState`), `alertLayer.js`
   (`AlertLayer`).
+- **Per-track sidechain ducking**: opt-in per route (`DEFAULT_SIDECHAIN`, configs in
+  `engine._sidechains`, set via `setSidechain(routeId, cfg)`). A lane's `duckGain` — a
+  `Tone.Gain` spliced **between the weq8 EQ and the panner** — dips whenever a trigger source
+  fires. Web Audio has no key input on `DynamicsCompressorNode`, so this is not a compressor
+  listening to a signal: it's a gain envelope *scheduled ahead of the audio clock*, which works
+  because every trigger site already carries an exact `time` and `velocity`. `cfg.source` is
+  `'__drums__'` (any pad), `'__drums__:<padId>'` (one pad), or another lane's `routeId`;
+  `_sidechainIndex` is the reverse `source → Set(dest)` map so the note hot path costs one
+  size check when nothing is configured. Three things are easy to get wrong here:
+  - **Not `routeGain`.** That param already has three writers (manual volume, solo/disable,
+    `volume` automation); a fourth scheduling ramps on it would fight all three.
+  - **Pre-panner, deliberately.** FX sends branch off `routePanner`, so reverb tails pump with
+    the lane, and `getRouteOutputNode` keeps returning the true lane output for WAV stems.
+  - **Disabling must release the duck** (`_releaseDuck`) — same reason
+    `_restoreParamToManual` exists; a node left mid-envelope stays quiet forever.
+
+  Lanes are hooked **once per stop event** (the mock `Tone.Part` callback, the merged-chord
+  Part, and `triggerLiveNote`), not in `_triggerSynth` — that runs per arp step and would
+  machine-gun the envelope. Drums are hooked via `DrumSequencer.setOnTrigger(cb)`, which is
+  new and distinct from `setOnStep`: the latter is `Tone.Draw`-deferred (frame rate, no pad
+  id) and unusable for audio. Muted pads don't fire it, so a silenced drum lane stops ducking.
 - **Per-track granular layer**: opt-in per route (`DEFAULT_GRANULAR`, configs in
   `engine._granulars`, set via `setGranular(routeId, cfg)`). When enabled it exposes extra
   automation targets (`grain.*`, see `GRAIN_PARAM_TARGETS` / `availableAutomationTargets`). Note:
@@ -341,8 +362,11 @@ classes.
   `lib/useSongPersistence.js` (session-gated autosave hook) + `components/SongMenu.jsx`. Adding
   new per-track state means threading it through `buildSnapshot`/`applySnapshot` too, not just
   MixerTab (e.g. `drumVoice` lives in `trackADSRs` and is replayed via `handleDrumVoice`;
-  `trackPitchOffsets`/`trackPitchVariety`/`trackStopVelocities` are examples of state added this
-  way).
+  `trackPitchOffsets`/`trackPitchVariety`/`trackStopVelocities`/`trackSidechains` are examples of
+  state added this way). A map that stores *another lane's id* (as `trackSidechains` does for its
+  trigger source) has two sides to keep alive across the lane lifecycle, not one — see
+  `remapSidechainSource`/`dropSidechainSource` in MixerTab, which move or clear the source when a
+  lane changes line or is removed.
 - **A song owns its city and its exact lane list** (`SCHEMA_VERSION` 3): the snapshot carries
   `cityId` and `routeIds` because route ids are **city-scoped**. Before v3 neither was stored, so
   loading a song re-rolled a random lane selection (`pickStartupRoutes` is random for
@@ -420,6 +444,10 @@ view uses. Branching in `App.jsx` instead would unmount MixerTab on rotation and
 `MobileLaneList`/`MobileLaneStrip` (⏻ · S · volume · ⋯ per lane), `LaneSheet` (Sound/Mix/Notes),
 `MobileTransportBar` (play, BPM, Map⇄Lanes, and the *one* shared playhead — desktop runs one rAF
 per lane, which a phone can't afford), `MoreSheet` (the other eight header controls).
+
+The lane sheet's Mix segment also carries **sidechain ducking** — source picker plus
+amount/attack/release. It reuses `SidechainSourceOptions`, exported from `DawView.jsx` (the same
+`SYNTH_TYPES` trick), so the phone and the desktop rack can't drift on what's pickable.
 
 **Per-stop editing on a phone** is a list, not the stop rail: dots are 8px and 10–20px apart, so
 44px hit areas would overlap neighbours. `lib/laneNotes.js` (`buildLanePitchMaps` /

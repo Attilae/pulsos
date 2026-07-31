@@ -88,6 +88,8 @@ export default function MobileDaw({ controls, lanes }) {
         stopVelocities={lanes.stopVelocities?.[openLaneId]}
         sendMatrix={lanes.sendMatrix}
         activeFxTracks={lanes.activeFxTracks}
+        sidechain={lanes.sidechains?.[openLaneId]}
+        sidechainSources={lanes.sidechainSources}
         onVolume={lanes.onVolume}
         onPan={lanes.onPan}
         onDisable={lanes.onDisable}
@@ -96,6 +98,7 @@ export default function MobileDaw({ controls, lanes }) {
         onScale={lanes.onScale}
         onOctaveShift={lanes.onOctaveShift}
         onSendLevel={lanes.onSendLevel}
+        onSidechain={lanes.onSidechain}
         onStopPitch={lanes.onStopPitch}
         onStopVelocity={lanes.onStopVelocity}
       />
