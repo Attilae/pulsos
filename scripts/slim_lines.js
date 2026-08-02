@@ -73,7 +73,12 @@ function simplify(points, tolerance) {
 // unsuffixed lines.json that lib/shared/cities.js falls back to. Mirror the
 // same naming here.
 const named = path.join('public', 'data', `lines.${city}.json`)
-const src = fs.existsSync(named) ? named : path.join('public', 'data', 'lines.json')
+// The browser's default-city URLs are deliberately unsuffixed. The full
+// preprocessor also writes lines.budapest.json for Blob upload, but using that
+// file here would leave /data/lines.slim.json stale after every slim:all run.
+const src = city === 'budapest'
+  ? path.join('public', 'data', 'lines.json')
+  : named
 if (!fs.existsSync(src)) {
   console.error(`No such file: ${named} — run npm run preprocess:${city} first.`)
   process.exit(1)

@@ -84,9 +84,10 @@ const ARP_RATE_LABELS = {
 }
 
 // Pitch-contour display labels (values come from PITCH_CONTOURS in mappings)
-const CONTOUR_LABELS = { geographic: 'Geo', randomWalk: 'Walk', arch: 'Arch' }
+const CONTOUR_LABELS = { geographic: 'Geo', demand: 'Demand', randomWalk: 'Walk', arch: 'Arch' }
 const CONTOUR_TITLES = {
   geographic: 'Geographic — latitude traces the melody (default)',
+  demand:     'Demand — more service or riders produces a higher note',
   randomWalk: 'Random walk — seeded melodic drift through the scale',
   arch:       'Arch — rises then falls along the stop sequence',
 }
@@ -936,7 +937,7 @@ function LineTrack({
                       onChange={e => onPitchVariety({ variety: parseFloat(e.target.value) })}
                       {...varietyReset}
                       className="glide-slider"
-                      title="Pitch variety — 0% is the pure geographic melody; higher adds range, seeded jitter and gap accents"
+                      title="Pitch variety — 0% keeps the selected contour pure; higher adds seeded jitter and gap accents"
                     />
                     <span className="glide-val">{Math.round(pv.variety * 100)}%</span>
                   </div>
