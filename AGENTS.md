@@ -218,6 +218,16 @@ mock playback on `active` going false if it was running, since all tabs share on
   degrees)` writes into `trackPitchOffsets` (`routeId → { stopId: degrees }`) applied via
   `engine.setPitchOffsets` / `transposeNoteInScale` (`lib/mappings.js`); `handleStopVelocity`
   writes into the per-route `_stopVelocities` map (see the arpeggiator/velocity section below).
+- **Lane role labels** — a lane can be named by what it plays ("Bass", "Lead", "Pad") and given a
+  colour, which the lane box paints as a 4px left border (`.line-track--tagged`, fed a
+  `--lane-tag-color` custom property so the chip and the box edge can't disagree). State is
+  `trackLabels` (`routeId → { text, color }`), **annotation only — it never touches the engine**;
+  `lib/laneTags.js` holds the presets, swatches and `normalizeLaneTag`, which validates the colour
+  because it lands in an inline style and a snapshot can arrive from a shared link. It deliberately
+  does *not* trim trailing whitespace: it runs on every keystroke of the label input, and trimming
+  there makes the space between two words untypable. `components/LaneTagEditor.jsx` exports both the
+  desktop modal and `LaneTagFields`, which the phone lane sheet reuses (same trick as
+  `SidechainSourceOptions`). The label also renders in MapView's track-status overlay.
 - Fresh sessions now start with `DEFAULT_FX_TRACKS = ['reverb', 'delay', 'chorus', 'distortion']`
   pre-activated (was empty), so automation targets like `send.reverb` are available immediately.
 
@@ -363,7 +373,8 @@ classes.
   `lib/useSongPersistence.js` (session-gated autosave hook) + `components/SongMenu.jsx`. Adding
   new per-track state means threading it through `buildSnapshot`/`applySnapshot` too, not just
   MixerTab (e.g. `drumVoice` lives in `trackADSRs` and is replayed via `handleDrumVoice`;
-  `trackPitchOffsets`/`trackPitchVariety`/`trackStopVelocities`/`trackSidechains` are examples of
+  `trackPitchOffsets`/`trackPitchVariety`/`trackStopVelocities`/`trackSidechains`/`trackLabels` are
+  examples of
   state added this way). A map that stores *another lane's id* (as `trackSidechains` does for its
   trigger source) has two sides to keep alive across the lane lifecycle, not one — see
   `remapSidechainSource`/`dropSidechainSource` in MixerTab, which move or clear the source when a
@@ -504,28 +515,53 @@ composition using it. Data model (`lib/compositions.js`, `compositions` table): 
 `[{presetId, presetName, bars, transition: 'cut'|'crossfade', crossfadeBars?}]`, plus `bpm` and
 `cityId` (compositions are implicitly single-city).
 
-Playback does **not** reuse MixerTab's engine — `SongChainerTab` instantiates its own standalone
-`TransitEngine` + `SongChainPlayer` (`lib/songChainPlayer.js`). For each item, `SongChainPlayer`
-loads the referenced preset's snapshot and starts it via `lib/snapshotPlayer.js`'s
-`playSnapshotOnEngine(engine, snapshot, routes, {bpm})`, which mirrors MixerTab's own Start
-sequence (`applySnapshot` in engine-only mode → rebuild duplicate-lane routes via
-`mergeDuplicateRoutes` → `engine.startMock(...)`). Item boundaries are driven by wall-clock
-`setTimeout`s rather than `Tone.Transport.schedule`, because switching items calls
-`stopMock()` → `Tone.Transport.cancel()`, which would drop transport-scheduled callbacks.
-Transitions are either a quick declick fade (`'cut'`) or a volume dip-and-return around the
-swap (`'crossfade'`), not a true overlapping crossfade.
+Playback does **not** reuse MixerTab's engine — `SongChainerTab` instantiates **two** standalone
+`TransitEngine`s plus a `SongChainPlayer` (`lib/songChainPlayer.js`). Each item is configured via
+`lib/snapshotPlayer.js`'s `playSnapshotOnEngine(engine, snapshot, routes, {bpm, startAt})`, which
+mirrors MixerTab's own Start sequence (`applySnapshot` in engine-only mode → rebuild
+duplicate-lane routes via `mergeDuplicateRoutes` → `engine.startMock(...)`).
 
-**Item boundaries are preloaded, and the audible half of that is samples, not JSON.** Every
-boundary rebuilds the whole audio graph, and a `Tone.Sampler` built from URL strings reports
+**Two engines, one Transport — this is what makes an item swap gapless.** A section costs ~120 ms
+of blocking work to build (measured: ~55 ms FX buses, ~25 ms synths, ~11 ms Parts, plus teardown).
+A single engine has to tear its graph down before it can build the next one, so that cost lands
+*at* the boundary as dead air. Instead each section is built on the idle engine
+`PREPARE_LEAD_SEC` (1.5 s) ahead of its boundary with its Parts anchored to the boundary's
+Transport time, so they are already scheduled and simply begin sounding when the transport
+arrives; the outgoing engine is retired *after* the boundary, under the incoming one, so its tail
+rings out instead of being cut. Nothing blocking happens at the boundary at all.
+
+Three engine seams make that possible, all opt-in so MixerTab is byte-identical:
+- `startMock(..., {startAt})` — the Transport time every Part is anchored to (`_partStartAt`,
+  threaded into all three `part.start()` sites and `DrumSequencer.schedule(startAt)`). Parts loop
+  from that anchor, so a section still starts at its own loop origin wherever the shared transport
+  happens to be. `startMock` also no longer restarts an already-running Transport.
+- `stopMock({keepTransport:true})` — tear down only this engine's nodes. **A plain `stopMock()`
+  calls `Tone.Transport.cancel()`, which clears every callback on the transport, including the
+  other engine's already-built Parts** (verified: it takes the transport from 404 scheduled events
+  to 0). Safe to skip because everything an engine schedules is owned by an object it disposes —
+  Parts unschedule themselves and `DrumSequencer.clearSchedule()` clears its own repeat id.
+- A per-engine master `Tone.Gain` (`init`, `getMasterGain()`), which `AlertLayer` now takes as its
+  output instead of hardcoding the Destination. Fading the shared Destination would fade *both*
+  sections; the retiring engine needs its own fader.
+
+Boundaries are still driven by wall-clock `setTimeout` rather than `Tone.Transport.schedule`, but
+they now only sequence bookkeeping (prepare the next engine, retire the old one) — never anything
+that has to be sample-accurate, since the audio is anchored on the transport itself. Transitions:
+`'cut'` declicks the outgoing engine out under the incoming one; `'crossfade'` fades it over the
+incoming item's window while that one plays through — a real overlapping crossfade, replacing the
+master dip this used to do.
+
+**Item boundaries are preloaded, and the audible half of that is samples, not JSON.** Each section
+is built ahead of its boundary, and a `Tone.Sampler` built from URL strings reports
 `loaded === false` until its entire zone map is fetched + decoded — while it does, the engine
 *silently drops every note handed to it* (`_triggerSynth`/`_triggerLegatoNote`). A sampler lane
 therefore used to open its section mute for as long as its samples took to arrive; some presets
 are 30+ mp3s off a third-party host. `SongChainPlayer.preload(presetId)` warms both layers (the
-snapshot JSON via the caller's cache, then `prefetchSnapshotSamples` in `snapshotPlayer.js`);
-`_scheduleBoundary` warms the *next* item during the current section, and `preloadChain()` —
-called from the tab whenever the chain is edited, not on play — warms the whole chain so the
-**first** section is covered too (`play()` enters item 0 immediately, so there is no time to
-preload it then).
+snapshot JSON via the caller's cache, then `prefetchSnapshotSamples` in `snapshotPlayer.js`), and
+`_enter` awaits it before building — samples have to be decoded before the Samplers are
+constructed, or the section comes up empty. `preloadChain()` is called from the tab whenever the
+chain is edited (the idle moment), so the **first** section is covered too — `play()` enters item
+0 with only `FIRST_SECTION_LEAD_SEC` of runway.
 
 **`lib/sampleCache.js`** is the layer that makes that pay off: a process-wide `url → AudioBuffer`
 map. `resolveSamplerUrls(urls, baseUrl)` (used by `buildSynthOpts` for `Sampler`/`Drums`) swaps

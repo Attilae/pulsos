@@ -16,6 +16,7 @@
 import { useMemo, useState } from 'react'
 import Sheet from '../Sheet.jsx'
 import { NOTE_ROOTS, SCALE_TYPES, SYNTH_TYPES, SidechainSourceOptions } from '../DawView.jsx'
+import { LaneTagFields } from '../LaneTagEditor.jsx'
 import { DEFAULT_SIDECHAIN } from '@/lib/engine.js'
 import { FX_BUSES } from '@/lib/fxTrack.js'
 import { buildLanePitchMaps, buildLaneNoteRows } from '@/lib/laneNotes.js'
@@ -46,9 +47,10 @@ export default function LaneSheet({
   activeFxTracks = [],
   sidechain,
   sidechainSources = [],
+  tag,
   // handlers — the same ones the desktop rack calls
   onVolume, onPan, onDisable, onSolo, onSynthType, onScale, onOctaveShift,
-  onSendLevel, onSidechain, onStopPitch, onStopVelocity,
+  onSendLevel, onSidechain, onStopPitch, onStopVelocity, onLaneTag,
 }) {
   const [segment, setSegment] = useState('sound')
 
@@ -91,6 +93,12 @@ export default function LaneSheet({
     >
       {segment === 'sound' && (
         <div className="lsheet-body">
+          {/* Same controls as the desktop label modal, imported rather than
+              re-implemented, so the two can't drift on presets or swatches. */}
+          <Field label="Label" hint="Name this lane by what it plays. The colour marks the lane.">
+            <LaneTagFields tag={tag} onChange={patch => onLaneTag(route.id, patch)} />
+          </Field>
+
           {/* Both of these take three arguments, matching the desktop rack's
               `onSynthType(route.id, route.type, st)` / `onScale(route.id,
               route.name, s)`. The engine needs the line type to wire the right

@@ -90,6 +90,24 @@
   letter-spacing: 0.04em;
 }
 
+/* Role label ("Bass", "Pad") mirrored from the DAW lane header. */
+.map-status-tag {
+  flex-shrink: 0;
+  font-size: 0.56rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 1px 4px;
+  border-radius: 2px;
+  border: 1px solid var(--border);
+  color: var(--muted);
+}
+.map-status-tag.is-colored {
+  color: var(--lane-tag-color);
+  border-color: color-mix(in srgb, var(--lane-tag-color) 50%, transparent);
+  background: color-mix(in srgb, var(--lane-tag-color) 16%, transparent);
+}
+
 .map-status-badge {
   font-size: 0.58rem;
   font-weight: bold;

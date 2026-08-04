@@ -122,6 +122,9 @@
    in the mixer, so it gets its own treatment rather than looking enabled. */
 .mlane--gated { border-color: color-mix(in srgb, var(--accent) 40%, var(--border)); }
 .mlane--locked { opacity: 0.5; }
+/* Same 4px label edge as the desktop lane box. `overflow: hidden` above already
+   keeps the rounded corner, so no radius fix is needed. */
+.mlane--tagged { border-left: 4px solid var(--lane-tag-color); }
 
 .mlane-id {
   display: flex;
@@ -145,6 +148,23 @@
   font-size: 0.68rem;
   font-weight: 600;
   letter-spacing: 0.04em;
+}
+
+.mlane-tag {
+  flex-shrink: 0;
+  padding: 1px var(--space-050);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 0.56rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+.mlane-tag.is-colored {
+  color: var(--lane-tag-color);
+  border-color: color-mix(in srgb, var(--lane-tag-color) 50%, transparent);
+  background: color-mix(in srgb, var(--lane-tag-color) 16%, transparent);
 }
 
 .mlane-name {

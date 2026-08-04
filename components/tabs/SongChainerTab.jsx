@@ -24,8 +24,8 @@ export default function SongChainerTab({ active = true }) {
   const signedIn = !!session?.user
   const itemLimit = limits.compositionItems
 
-  const engineRef = useRef(null)
-  const playerRef = useRef(null)
+  const enginesRef = useRef(null)
+  const playerRef  = useRef(null)
   const snapCacheRef = useRef(new Map())   // presetId → loaded song snapshot
 
   const [presets, setPresets] = useState([])     // user's saved presets (picker)
@@ -54,12 +54,16 @@ export default function SongChainerTab({ active = true }) {
   }, [])
 
   // ── Engine + player lifecycle ────────────────────────────────────────────
+  // Two engines, not one: SongChainPlayer builds each section on the idle engine
+  // ahead of its boundary and hands off between them, which is what makes an item
+  // swap gapless (a single engine has to tear its graph down before it can build
+  // the next section, and that teardown+rebuild is the audible ~120ms hole).
   useEffect(() => {
-    const engine = new TransitEngine(() => {})
-    engine.init()
-    engineRef.current = engine
+    const engines = [new TransitEngine(() => {}), new TransitEngine(() => {})]
+    for (const e of engines) e.init()
+    enginesRef.current = engines
 
-    const player = new SongChainPlayer(engine, null, loadSnapshot)
+    const player = new SongChainPlayer(engines, null, loadSnapshot)
     player.onAdvance = (idx) => {
       setCurrentIndex(idx)
       if (idx === -1) { setPlaying(false); setProgress(0) }
@@ -67,7 +71,12 @@ export default function SongChainerTab({ active = true }) {
     player.onProgress = setProgress
     playerRef.current = player
 
-    return () => { player.stop(); engine.dispose(); engineRef.current = null; playerRef.current = null }
+    return () => {
+      player.stop()
+      for (const e of engines) e.dispose()
+      enginesRef.current = null
+      playerRef.current = null
+    }
   }, [loadSnapshot])
 
   // ── Push city bounds + routes into the engine/player ─────────────────────

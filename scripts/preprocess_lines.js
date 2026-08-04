@@ -11,13 +11,17 @@
  * Defaults: --city budapest, --gtfs data/<city>_gtfs.
  */
 
-import { createReadStream, mkdirSync, writeFileSync } from 'fs'
+import { createReadStream, existsSync, mkdirSync, writeFileSync } from 'fs'
 import { createInterface } from 'readline'
 import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
 import { routeTypeToLineType } from '../lib/routeTypes.js'
 import { hashStringToInt, mulberry32 } from '../lib/mappings.js'
 import { getCity } from '../feed/cities/index.js'
+import {
+  buildFrequencyMultipliers, buildServiceWeights, canonicalStopId, createStopSignalAccumulator,
+} from './lib/stopSignals.js'
+import { loadRidership } from './ridership/index.js'
 
 const __dir = dirname(fileURLToPath(import.meta.url))
 
@@ -62,8 +66,12 @@ async function readCsv(file, filterFn, mapFn) {
     const line = raw.replace(/^﻿/, '').trimEnd()
     if (!line) continue
     if (!headers) { headers = parseRow(line); continue }
-    const row = Object.fromEntries(headers.map((h, i) => [h, parseRow(line)[i] ?? '']))
-    if (!filterFn || filterFn(row)) results.push(mapFn ? mapFn(row) : row)
+    const values = parseRow(line)
+    const row = Object.fromEntries(headers.map((h, i) => [h, values[i] ?? '']))
+    if (!filterFn || filterFn(row)) {
+      const mapped = mapFn ? mapFn(row) : row
+      if (mapped !== null && mapped !== undefined) results.push(mapped)
+    }
   }
   return results
 }
@@ -132,14 +140,32 @@ const routeIds = new Set(routes.map(r => r.id))
 const typeCounts = routes.reduce((a, r) => ({ ...a, [r.type]: (a[r.type] ?? 0) + 1 }), {})
 console.log(`  ${routes.length} routes`, typeCounts)
 
-// ── 2. Trips — one canonical trip per (route_id, direction_id) ───────────────
+// ── 2. Stops lookup — loaded early so signals can aggregate child platforms ─
+
+console.log('Loading stops…')
+const stopMeta = {}
+await readCsv('stops.txt', null, r => {
+  stopMeta[r.stop_id] = {
+    name: r.stop_name,
+    lat: parseFloat(r.stop_lat),
+    lon: parseFloat(r.stop_lon),
+    parentStation: r.parent_station || null,
+    locationType: r.location_type === '' ? 0 : Number(r.location_type),
+  }
+  return null
+})
+console.log(`  ${Object.keys(stopMeta).length} stops loaded`)
+
+// ── 3. Trips — one canonical trip per (route_id, direction_id) ───────────────
 
 console.log('Loading trips…')
 const canonicalTrip = {}  // `${routeId}_${dir}` → { tripId, shapeId }
 const tripToRoute   = {}  // tripId → routeId (all trips, for stop_times)
+const tripToService = {}  // tripId → serviceId (for average-day weighting)
 
 await readCsv('trips.txt', r => routeIds.has(r.route_id), r => {
   tripToRoute[r.trip_id] = r.route_id
+  tripToService[r.trip_id] = r.service_id
   const key = `${r.route_id}_${r.direction_id}`
   if (!canonicalTrip[key]) {
     canonicalTrip[key] = { tripId: r.trip_id, shapeId: r.shape_id, dir: Number(r.direction_id) }
@@ -151,15 +177,33 @@ const neededTrips  = new Set(Object.values(canonicalTrip).map(t => t.tripId))
 const neededShapes = new Set(Object.values(canonicalTrip).map(t => t.shapeId).filter(Boolean))
 console.log(`  ${neededTrips.size} canonical trips, ${neededShapes.size} shapes`)
 
-// ── 3. Stop times — only for canonical trips, direction 0 ────────────────────
+// Calendar and frequencies turn raw stop_time rows into average daily service.
+const calendarRows = existsSync(join(GTFS, 'calendar.txt'))
+  ? await readCsv('calendar.txt')
+  : []
+const calendarDateRows = existsSync(join(GTFS, 'calendar_dates.txt'))
+  ? await readCsv('calendar_dates.txt')
+  : []
+const frequencyRows = existsSync(join(GTFS, 'frequencies.txt'))
+  ? await readCsv('frequencies.txt', r => !!tripToRoute[r.trip_id])
+  : []
+const serviceWeights = buildServiceWeights(calendarRows, calendarDateRows)
+const frequencyMultipliers = buildFrequencyMultipliers(frequencyRows)
+
+// ── 4. Stop times — canonical geometry + all-trip service signal ─────────────
 
 console.log('Loading stop_times (filtering on-the-fly, this may take a moment)…')
 const dir0Trips = new Set(
   Object.values(canonicalTrip).filter(t => t.dir === 0).map(t => t.tripId)
 )
 const stopsByTrip = {}  // tripId → [{stopId, seq, dist}]
+const stopSignalAccumulator = createStopSignalAccumulator({
+  stopMeta, tripToRoute, tripToService, serviceWeights, frequencyMultipliers,
+})
 
-await readCsv('stop_times.txt', r => dir0Trips.has(r.trip_id), r => {
+await readCsv('stop_times.txt', r => !!tripToRoute[r.trip_id], r => {
+  stopSignalAccumulator.addStopTime(r)
+  if (!dir0Trips.has(r.trip_id)) return null
   if (!stopsByTrip[r.trip_id]) stopsByTrip[r.trip_id] = []
   stopsByTrip[r.trip_id].push({
     stopId: r.stop_id,
@@ -171,15 +215,13 @@ await readCsv('stop_times.txt', r => dir0Trips.has(r.trip_id), r => {
 for (const arr of Object.values(stopsByTrip)) arr.sort((a, b) => a.seq - b.seq)
 console.log(`  ${Object.keys(stopsByTrip).length} trips with stop data`)
 
-// ── 4. Stops lookup — id → {name, lat, lon} ──────────────────────────────────
-
-console.log('Loading stops…')
-const stopMeta = {}
-await readCsv('stops.txt', null, r => {
-  stopMeta[r.stop_id] = { name: r.stop_name, lat: parseFloat(r.stop_lat), lon: parseFloat(r.stop_lon) }
-  return null
-})
-console.log(`  ${Object.keys(stopMeta).length} stops loaded`)
+const ridership = await loadRidership(CITY, join(__dir, '../data'), stopMeta)
+if (ridership.rows) console.log(`  ${ridership.rows} ridership rows loaded (${ridership.source})`)
+else if (['newyork', 'zurich', 'helsinki'].includes(CITY)) {
+  console.log(`  no optional data/${CITY}_ridership export — using schedule demand`)
+}
+const stopSignals = stopSignalAccumulator.finalize(ridership.values)
+console.log(`  ${stopSignals.size} stops with schedule/demand signals`)
 
 // ── 5. Shapes — only needed shape_ids ────────────────────────────────────────
 
@@ -224,7 +266,11 @@ const output = routes.map(route => {
     .map(s => {
       const meta = stopMeta[s.stopId]
       if (!meta) return null
-      return { id: s.stopId, name: meta.name, lat: meta.lat, lon: meta.lon, seq: s.seq, dist: s.dist }
+      const signals = stopSignals.get(canonicalStopId(s.stopId, stopMeta))
+      return {
+        id: s.stopId, name: meta.name, lat: meta.lat, lon: meta.lon, seq: s.seq, dist: s.dist,
+        ...(signals ? { signals } : {}),
+      }
     })
     .filter(Boolean)
 
@@ -272,6 +318,12 @@ const city = {
   center,
   bounds: bounds ? { ...bounds, centerLng: center[1] } : null,
   attribution: cityCfg.attribution ?? null,
+  stopSignals: {
+    version: 1,
+    schedule: 'average-service-day',
+    ridershipSource: ridership.source,
+    ridershipStops: [...stopSignals.values()].filter(s => s.source === 'ridership').length,
+  },
 }
 
 // ── 7. Write ──────────────────────────────────────────────────────────────────

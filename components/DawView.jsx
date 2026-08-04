@@ -7,7 +7,9 @@ import { generatePitchMap, shiftOctaveNote, shiftSemitones, noteToMidi, SCALES, 
 import { buildLanePitchMaps } from '@/lib/laneNotes.js'
 import { useResetGesture } from '@/lib/shared/useResetGesture.js'
 import { useIsPhone } from '@/lib/shared/useViewport.js'
+import { normalizeLaneTag } from '@/lib/laneTags.js'
 import StopEditor from './StopEditor.jsx'
+import LaneTagEditor from './LaneTagEditor.jsx'
 import DuplicateLaneDialog from './DuplicateLaneDialog.jsx'
 import LinePicker from './LinePicker.jsx'
 import './DawView.css'
@@ -82,9 +84,10 @@ const ARP_RATE_LABELS = {
 }
 
 // Pitch-contour display labels (values come from PITCH_CONTOURS in mappings)
-const CONTOUR_LABELS = { geographic: 'Geo', randomWalk: 'Walk', arch: 'Arch' }
+const CONTOUR_LABELS = { geographic: 'Geo', demand: 'Demand', randomWalk: 'Walk', arch: 'Arch' }
 const CONTOUR_TITLES = {
   geographic: 'Geographic — latitude traces the melody (default)',
+  demand:     'Demand — more service or riders produces a higher note',
   randomWalk: 'Random walk — seeded melodic drift through the scale',
   arch:       'Arch — rises then falls along the stop sequence',
 }
@@ -126,6 +129,7 @@ export default function DawView({
   trackGridResolutions,
   trackPitchVariety, onPitchVariety,
   trackStopVelocities, onStopVelocity,
+  trackLabels, onLaneTag,
   trackDroneModes, trackDroneRoots, onDroneMode, onDroneRoot,
   onVolume, onDisable, onPan, onSolo,
   onSoundMode, onScale, onSynthType, onADSR, onSamplerPreset, onDrumVoice, onSamplerUpload, onFilter,
@@ -146,6 +150,8 @@ export default function DawView({
   const [editingStop, setEditingStop] = useState(null)
   // Duplicate-lane modal: { routeId, routeName } of the lane being duplicated, or null.
   const [dupPrompt, setDupPrompt] = useState(null)
+  // Lane-label modal: { routeId, routeName } of the lane being labelled, or null.
+  const [tagPrompt, setTagPrompt] = useState(null)
   // Line picker modal: { mode:'add'|'change', type?, routeId? }, or null.
   const [linePicker, setLinePicker] = useState(null)
 
@@ -400,6 +406,8 @@ export default function DawView({
                     onExportRouteMidi={onExportRouteMidi}
                     onExportRouteAudio={onExportRouteAudio}
                     audioExportActive={audioExportActive}
+                    tag={trackLabels?.[route.id]}
+                    onOpenTag={() => setTagPrompt({ routeId: route.id, routeName: route.name })}
                     onDuplicate={() => setDupPrompt({ routeId: route.id, routeName: route.name })}
                     onRemoveDuplicate={() => onRemoveDuplicate?.(route.id)}
                     onChangeLine={onChangeLine ? () => setLinePicker({ mode: 'change', type: route.type, routeId: route.id }) : undefined}
@@ -514,6 +522,16 @@ export default function DawView({
           onClose={() => setEditingStop(null)}
           onPitch={onStopPitch}
           onVelocity={onStopVelocity}
+        />
+      )}
+
+      {tagPrompt && (
+        <LaneTagEditor
+          key={tagPrompt.routeId}
+          routeName={tagPrompt.routeName}
+          tag={trackLabels?.[tagPrompt.routeId]}
+          onChange={patch => onLaneTag?.(tagPrompt.routeId, patch)}
+          onClose={() => setTagPrompt(null)}
         />
       )}
 
@@ -685,7 +703,9 @@ function LineTrack({
   onExportRouteMidi, onExportRouteAudio, audioExportActive,
   onDuplicate, onRemoveDuplicate, onChangeLine, perStopSteps,
   mergeMode, mergeChecked, onMergeToggle, onUnmerge,
+  tag, onOpenTag,
 }) {
+  const laneTag = normalizeLaneTag(tag)
   const [rackOpen, setRackOpen] = useState(false)
   const isDuplicate = !!route.isDuplicate
   const isMerged    = !!route.isMerged
@@ -710,7 +730,19 @@ function LineTrack({
   const arpGateReset = useResetGesture(() => onArp({ gate: 0.5 }))
 
   return (
-    <div className={`line-track ${disabled ? 'line-track--disabled' : ''} ${rackOpen ? 'line-track--open' : ''}`} data-tour="lane">
+    <div
+      className={[
+        'line-track',
+        disabled ? 'line-track--disabled' : '',
+        rackOpen ? 'line-track--open' : '',
+        laneTag.color ? 'line-track--tagged' : '',
+      ].filter(Boolean).join(' ')}
+      // The colour rides in as a custom property rather than a resolved border
+      // shorthand, so the chip below and the box edge can't disagree, and CSS
+      // still owns the width.
+      style={laneTag.color ? { '--lane-tag-color': laneTag.color } : undefined}
+      data-tour="lane"
+    >
       <div className="lt-top">
         <div className="line-label" style={{ borderColor: route.color }}>
           <div className="line-label-top">
@@ -728,6 +760,16 @@ function LineTrack({
             </span>
             {isDuplicate && <span className="dup-badge" title="Chord copy — re-pitched within harmony">copy</span>}
             {isMerged && <span className="dup-badge merged-badge" title="Merged PolySynth chord lane">merged</span>}
+            {/* Role label. Untagged lanes keep a faint placeholder rather than
+                nothing at all — otherwise the feature is undiscoverable. */}
+            <button
+              className={`lane-tag-chip ${laneTag.text ? 'has-text' : ''} ${laneTag.color ? 'is-colored' : ''}`}
+              style={laneTag.color ? { '--lane-tag-color': laneTag.color } : undefined}
+              onClick={onOpenTag}
+              title="Label this lane (bass, lead, pad…)"
+            >
+              {laneTag.text || 'label'}
+            </button>
             <button
               className={`add-lane-btn ${laneCount > 0 ? 'has-lanes' : ''}`}
               onClick={onAddLane}
@@ -895,7 +937,7 @@ function LineTrack({
                       onChange={e => onPitchVariety({ variety: parseFloat(e.target.value) })}
                       {...varietyReset}
                       className="glide-slider"
-                      title="Pitch variety — 0% is the pure geographic melody; higher adds range, seeded jitter and gap accents"
+                      title="Pitch variety — 0% keeps the selected contour pure; higher adds seeded jitter and gap accents"
                     />
                     <span className="glide-val">{Math.round(pv.variety * 100)}%</span>
                   </div>

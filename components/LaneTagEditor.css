@@ -1,0 +1,133 @@
+/* Lane label editor. The modal shell mirrors StopEditor (same .dlg-overlay
+   backdrop from Dialog.css); .lane-tag-fields is shared with the phone lane
+   sheet, so it must stay layout-agnostic — it fills whatever width it's in. */
+
+.lane-tag-editor {
+  width: 100%;
+  max-width: 340px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.6);
+  padding: 16px 18px 18px;
+  font-family: inherit;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.lane-tag-editor-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.lane-tag-editor-close {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  font-size: 0.9rem;
+  cursor: pointer;
+  padding: 2px 4px;
+  line-height: 1;
+}
+.lane-tag-editor-close:hover { color: var(--text); }
+
+.lane-tag-editor-hint {
+  margin: 0;
+  font-size: 0.68rem;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+/* ── Shared controls (desktop modal + phone lane sheet) ───────────────────── */
+
+.lane-tag-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.lane-tag-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.lane-tag-preset {
+  padding: 4px 9px;
+  border-radius: 3px;
+  border: 1px solid color-mix(in srgb, var(--lane-tag-color) 45%, transparent);
+  background: color-mix(in srgb, var(--lane-tag-color) 12%, transparent);
+  color: var(--lane-tag-color);
+  font-family: inherit;
+  font-size: 0.7rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.12s, box-shadow 0.12s;
+}
+.lane-tag-preset:hover { background: color-mix(in srgb, var(--lane-tag-color) 24%, transparent); }
+.lane-tag-preset.is-active {
+  background: color-mix(in srgb, var(--lane-tag-color) 30%, transparent);
+  box-shadow: inset 0 0 0 1px var(--lane-tag-color);
+}
+
+.lane-tag-input {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: var(--surface2);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 0.8rem;
+}
+.lane-tag-input:focus { outline: none; border-color: var(--accent); }
+
+.lane-tag-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.lane-tag-swatch {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--lane-tag-color);
+  cursor: pointer;
+  transition: box-shadow 0.12s, transform 0.12s;
+}
+.lane-tag-swatch:hover { transform: scale(1.1); }
+.lane-tag-swatch.is-active {
+  box-shadow: 0 0 0 2px var(--surface), 0 0 0 3px var(--lane-tag-color);
+}
+
+.lane-tag-color-input {
+  width: 26px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.lane-tag-clear {
+  align-self: flex-start;
+  padding: 4px 9px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: transparent;
+  color: var(--muted);
+  font-family: inherit;
+  font-size: 0.68rem;
+  cursor: pointer;
+  transition: color 0.12s, border-color 0.12s;
+}
+.lane-tag-clear:hover:not(:disabled) { color: var(--text); border-color: var(--muted); }
+.lane-tag-clear:disabled { opacity: 0.35; cursor: default; }

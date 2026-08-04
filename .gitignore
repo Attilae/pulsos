@@ -7,6 +7,11 @@ dist/
 .next/
 .DS_Store
 data/*_gtfs/
+data/*_ridership/
+# Budapest's preprocessor keeps named Blob-upload copies in addition to the
+# tracked default-city lines.json / lines.slim.json browser fallbacks.
+public/data/lines.budapest.json
+public/data/lines.budapest.slim.json
 .vercel
 .env*
 _videos/*
