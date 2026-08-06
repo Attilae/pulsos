@@ -1562,6 +1562,23 @@ export default function MixerTab({ active = true }) {
     if (plan.masterVolume != null) handleMasterVolume(plan.masterVolume)
     if (plan.harmony)              handleGlobalHarmony(plan.harmony)
 
+    if (plan.drums) {
+      if (!plan.drums.enabled) {
+        handleClearDrums()
+      } else {
+        const padIds = Object.keys(plan.drums.patterns ?? {})
+        setSyncedDrumPattern({
+          patterns: plan.drums.patterns,
+          offsets: Object.fromEntries(padIds.map(id => [id, 0])),
+          muted: Object.fromEntries(padIds.map(id => [id, false])),
+          bpm: plan.bpm ?? bpm,
+        })
+        setDrumsMuted(false)
+        if (plan.drums.volume != null) handleVolume(DRUMS_ROUTE_ID, plan.drums.volume)
+        if (plan.drums.filter) handleFilter(DRUMS_ROUTE_ID, plan.drums.filter)
+      }
+    }
+
     for (const t of plan.tracks ?? []) {
       if (!activeIds.has(t.routeId)) continue
       const route = routes?.find(r => r.id === t.routeId)
@@ -1570,6 +1587,8 @@ export default function MixerTab({ active = true }) {
       if (t.synthType)    handleSynthType(t.routeId, route.type, t.synthType)
       if (t.samplerPreset) handleSamplerPreset(t.routeId, route.type, t.samplerPreset)
       if (t.drumVoice)    handleDrumVoice(t.routeId, route.type, t.drumVoice)
+      if (t.envelope)     handleADSR(t.routeId, t.envelope)
+      if (t.filter)       handleFilter(t.routeId, t.filter)
       if (t.granular)     handleGranular(t.routeId, t.granular)
       if (t.volume != null) handleVolume(t.routeId, t.volume)
       if (t.pan != null)    handlePan(t.routeId, t.pan)
@@ -1586,6 +1605,8 @@ export default function MixerTab({ active = true }) {
       if (t.loopRegion) handleTrackLoopRegion(t.routeId, t.loopRegion)
       if (t.gridResolution) handleTrackGridResolution(t.routeId, t.gridResolution)
       if (t.pitchVariety) handlePitchVariety(t.routeId, t.pitchVariety)
+      if (t.label) handleLaneTag(t.routeId, t.label)
+      if (t.sidechain) handleSidechain(t.routeId, t.sidechain)
     }
 
     for (const f of plan.fx ?? []) {
@@ -1602,9 +1623,10 @@ export default function MixerTab({ active = true }) {
     setPendingAiStart(value => value + 1)
     return { appliedCount: replacement.activeIds.length, skippedCount: replacement.skippedIds.length }
   }, [
-    routes, started, masterVolume, visibleInstrumentRoutes, disabledRoutes, limits.activeLanes, soloRoutes,
+    routes, started, masterVolume, bpm, visibleInstrumentRoutes, disabledRoutes, limits.activeLanes, soloRoutes,
     handleMasterVolume, handleGlobalHarmony, handleSynthType, handleSamplerPreset, handleDrumVoice, handleGranular,
-    handleVolume, handlePan, handleScale, handleOctaveShift, handleGlide, handleLegato, handleArp,
+    handleADSR, handleFilter, handleVolume, handlePan, handleScale, handleOctaveShift, handleGlide, handleLegato, handleArp,
+    handleSidechain, handleLaneTag, handleClearDrums, setSyncedDrumPattern,
     handleDroneMode, handleDroneRoot, handleAddFxTrack, handleFxBusWet,
     handleFxBusParam, handleSendLevel, handleTrackSpeed, handleTrackLoopRegion,
     handleTrackGridResolution, handlePitchVariety,

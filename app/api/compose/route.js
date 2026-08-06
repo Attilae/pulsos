@@ -19,6 +19,17 @@ const harmonySchema = {
   required: ['root', 'scaleType'],
 }
 
+const filterSchema = {
+  type: ['object', 'null'],
+  additionalProperties: false,
+  properties: {
+    type: { type: 'string', enum: ['lowpass', 'highpass', 'bandpass', 'notch'] },
+    frequency: { type: 'number' },
+    Q: { type: 'number' },
+  },
+  required: ['type', 'frequency', 'Q'],
+}
+
 const COMPOSITION_RESPONSE_FORMAT = {
   type: 'json_schema',
   json_schema: {
@@ -41,11 +52,21 @@ const COMPOSITION_RESPONSE_FORMAT = {
               routeId: { type: 'string' },
               synthType: nullableString,
               samplerPreset: nullableString,
+              drumVoice: nullableString,
               volume: nullableNumber,
               pan: nullableNumber,
               octave: nullableNumber,
               glide: nullableNumber,
               legato: nullableBoolean,
+              envelope: {
+                type: ['object', 'null'], additionalProperties: false,
+                properties: {
+                  attack: { type: 'number' }, decay: { type: 'number' },
+                  sustain: { type: 'number' }, release: { type: 'number' },
+                },
+                required: ['attack', 'decay', 'sustain', 'release'],
+              },
+              filter: filterSchema,
               scale: harmonySchema,
               drone: {
                 type: ['object', 'null'], additionalProperties: false,
@@ -80,17 +101,53 @@ const COMPOSITION_RESPONSE_FORMAT = {
               pitchVariety: {
                 type: ['object', 'null'], additionalProperties: false,
                 properties: {
-                  contour: { type: 'string', enum: ['geographic', 'randomWalk', 'arch'] },
+                  contour: { type: 'string', enum: ['geographic', 'demand', 'randomWalk', 'arch'] },
                   variety: { type: 'number' },
                 },
                 required: ['contour', 'variety'],
               },
+              label: {
+                type: ['string', 'null'],
+                enum: ['Lead', 'Bass', 'Pad', 'Chords', 'Arp', 'Perc', 'Texture', 'FX', null],
+              },
+              sidechain: {
+                type: ['object', 'null'], additionalProperties: false,
+                properties: {
+                  enabled: { type: 'boolean' }, source: { type: 'string' },
+                  amountDb: { type: 'number' }, attack: { type: 'number' }, release: { type: 'number' },
+                },
+                required: ['enabled', 'source', 'amountDb', 'attack', 'release'],
+              },
             },
             required: [
-              'routeId', 'synthType', 'samplerPreset', 'volume', 'pan', 'octave', 'glide', 'legato',
-              'scale', 'drone', 'arp', 'granular', 'speed', 'loopRegion', 'gridResolution', 'pitchVariety',
+              'routeId', 'synthType', 'samplerPreset', 'drumVoice', 'volume', 'pan', 'octave', 'glide', 'legato',
+              'envelope', 'filter', 'scale', 'drone', 'arp', 'granular', 'speed', 'loopRegion',
+              'gridResolution', 'pitchVariety', 'label', 'sidechain',
             ],
           },
+        },
+        drums: {
+          type: ['object', 'null'], additionalProperties: false,
+          properties: {
+            enabled: { type: 'boolean' },
+            volume: nullableNumber,
+            filter: filterSchema,
+            patterns: {
+              type: 'array',
+              items: {
+                type: 'object', additionalProperties: false,
+                properties: {
+                  padId: { type: 'string', enum: ['kick', 'snare', 'hat', 'rim', 'ride', 'clap'] },
+                  steps: {
+                    type: 'array',
+                    items: { type: 'number', enum: [0, 0.4, 0.7, 1] },
+                  },
+                },
+                required: ['padId', 'steps'],
+              },
+            },
+          },
+          required: ['enabled', 'volume', 'filter', 'patterns'],
         },
         fx: {
           type: 'array',
@@ -123,7 +180,7 @@ const COMPOSITION_RESPONSE_FORMAT = {
           },
         },
       },
-      required: ['summary', 'bpm', 'harmony', 'masterVolume', 'tracks', 'fx'],
+      required: ['summary', 'bpm', 'harmony', 'masterVolume', 'tracks', 'drums', 'fx'],
     },
   },
 }
