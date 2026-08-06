@@ -118,7 +118,7 @@ export default function AIComposerPanel({
         <div className="ai-composer-body">
           <textarea
             className="ai-composer-input"
-            placeholder="Describe what you want to hear — e.g. “slow dubby ambient at 80 bpm in A dorian; metro on warm FM Rhodes drenched in cave reverb, trams as quiet metallic ticks panned wide.”"
+            placeholder="Describe what you want to hear — e.g. “dusty 92 BPM dub in A dorian; program a kick-and-hat beat, duck the warm metro pad from the kick, and send both to cave reverb.”"
             value={prompt}
             onChange={e => setPrompt(e.target.value)}
             onKeyDown={onKeyDown}
@@ -183,10 +183,20 @@ function PlanPreview({ result, routeName, applied, applying, onApply, onDiscard 
                   {[
                     t.synthType,
                     t.samplerPreset,
+                    t.drumVoice,
+                    t.label?.text,
                     t.scale && `${t.scale.root} ${t.scale.scaleType}`,
                     t.octave ? `${t.octave > 0 ? '+' : ''}${t.octave}oct` : null,
                     t.volume != null && `${t.volume}dB`,
+                    t.pan != null && `pan ${t.pan > 0 ? '+' : ''}${t.pan}`,
+                    t.glide != null && `glide ${t.glide}s`,
+                    t.legato && 'legato',
+                    t.envelope && `env ${t.envelope.attack}/${t.envelope.decay}/${t.envelope.sustain}/${t.envelope.release}`,
+                    t.filter && `${t.filter.type} ${Math.round(t.filter.frequency)}Hz`,
                     t.drone?.enabled && 'drone',
+                    t.arp?.enabled && `arp ${t.arp.style} ${t.arp.rate}`,
+                    t.granular?.enabled && `grain ${Math.round((t.granular.mix ?? 0) * 100)}%`,
+                    t.sidechain?.enabled && `duck ← ${t.sidechain.source.replace('__drums__', 'drums')}`,
                     t.speed != null && `${t.speed}×`,
                     t.gridResolution,
                     t.loopRegion && `cells ${t.loopRegion.startCell}–${t.loopRegion.endCell}`,
@@ -196,6 +206,19 @@ function PlanPreview({ result, routeName, applied, applying, onApply, onDiscard 
               </li>
             ))}
           </ul>
+        </div>
+      )}
+
+      {plan.drums && (
+        <div className="ai-preview-section">
+          <div className="ai-preview-label">Drums</div>
+          <div className="ai-preview-detail">
+            {plan.drums.enabled ? [
+              `${Object.values(plan.drums.patterns ?? {}).filter(pattern => pattern.some(Boolean)).length} active pads`,
+              plan.drums.volume != null && `${plan.drums.volume}dB`,
+              plan.drums.filter && `${plan.drums.filter.type} ${Math.round(plan.drums.filter.frequency)}Hz`,
+            ].filter(Boolean).join(' · ') : 'Clear drum backing'}
+          </div>
         </div>
       )}
 
@@ -210,7 +233,9 @@ function PlanPreview({ result, routeName, applied, applying, onApply, onDiscard 
                   {[
                     f.wet != null && `wet ${Math.round(f.wet * 100)}%`,
                     ...Object.entries(f.params ?? {}).map(([k, v]) => `${k} ${v}`),
-                    f.sends?.length && `→ ${f.sends.length} send${f.sends.length > 1 ? 's' : ''}`,
+                    ...(f.sends ?? []).map(s =>
+                      `${routeName[s.routeId] ?? (s.routeId === '__drums__' ? 'Drums' : s.routeId)} → ${Math.round(s.level * 100)}%`
+                    ),
                   ].filter(Boolean).join(' · ')}
                 </span>
               </li>
