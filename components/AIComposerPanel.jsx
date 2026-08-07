@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { requestComposition, validatePlan } from '@/lib/ai/composer.js'
 import { useEntitlements } from '@/lib/shared/EntitlementsContext.jsx'
-import { factsForCity } from '@/lib/shared/cityFacts.js'
+import { shuffledFactsForCity } from '@/lib/shared/cityFacts.js'
 import { trackProductEvent } from '@/lib/productAnalytics.js'
 import { unlockAudio } from '@/lib/audioSession.js'
 import './AIComposerPanel.css'
@@ -30,8 +30,19 @@ export default function AIComposerPanel({
   const [applied, setApplied] = useState(null)
   const [applying, setApplying] = useState(false)
   const [factIndex, setFactIndex] = useState(0)
+  // Reshuffled at the start of every generation, so two waits in a row don't
+  // walk the same facts in the same order. lastFactRef carries the previously
+  // shown line across runs so the next shuffle can avoid repeating it.
+  const [facts, setFacts] = useState(() => shuffledFactsForCity(cityId))
+  const lastFactRef = useRef(null)
 
-  const facts = useMemo(() => factsForCity(cityId), [cityId])
+  // A city switch invalidates the current pool outright.
+  useEffect(() => {
+    setFacts(shuffledFactsForCity(cityId))
+    setFactIndex(0)
+  }, [cityId])
+
+  useEffect(() => { lastFactRef.current = facts[factIndex] ?? null }, [facts, factIndex])
 
   useEffect(() => {
     if (!loading || facts.length < 2) return undefined
@@ -52,7 +63,8 @@ export default function AIComposerPanel({
     // which point iOS has long since withdrawn the user activation — so this
     // is the last gesture we can actually use.
     unlockAudio()
-    setFactIndex(Math.floor(Math.random() * facts.length))
+    setFacts(shuffledFactsForCity(cityId, lastFactRef.current))
+    setFactIndex(0)
     setLoading(true); setError(null); setResult(null); setApplied(null); setApplying(false)
     try {
       const maxTracks = Math.min(routes?.length ?? 1, limits.activeLanes ?? 8)
