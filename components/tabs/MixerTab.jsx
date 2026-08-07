@@ -1565,14 +1565,21 @@ export default function MixerTab({ active = true }) {
     if (plan.drums) {
       if (!plan.drums.enabled) {
         handleClearDrums()
+        engine?.setDrumPattern(null)
       } else {
         const padIds = Object.keys(plan.drums.patterns ?? {})
-        setSyncedDrumPattern({
+        const nextDrumPattern = {
           patterns: plan.drums.patterns,
           offsets: Object.fromEntries(padIds.map(id => [id, 0])),
           muted: Object.fromEntries(padIds.map(id => [id, false])),
           bpm: plan.bpm ?? bpm,
-        })
+        }
+        setSyncedDrumPattern(nextDrumPattern)
+        // Apply directly as well as through the React mirror effect. AI Apply
+        // starts playback from another effect in this same commit; making the
+        // engine write synchronous guarantees startMock sees the new backing.
+        engine?.setDrumPattern(nextDrumPattern)
+        engine?.setRouteDisabled(DRUMS_ROUTE_ID, false)
         setDrumsMuted(false)
         if (plan.drums.volume != null) handleVolume(DRUMS_ROUTE_ID, plan.drums.volume)
         if (plan.drums.filter) handleFilter(DRUMS_ROUTE_ID, plan.drums.filter)
