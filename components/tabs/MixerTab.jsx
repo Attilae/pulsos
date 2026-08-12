@@ -211,6 +211,12 @@ export default function MixerTab({ active = true }) {
   // never signals the wait — this drives the switch preloader overlay.
   const [switching, setSwitching] = useState(false)
   const allRoutesRef = useRef(null)   // full lines.json route list, for re-picking
+  // The live lane list, for resetSessionState: it can be invoked from an async
+  // caller (newSong awaits a save first), and disabling a closed-over, by then
+  // outgoing set of route ids would leave the current lanes with no entry in the
+  // disable map at all — i.e. reading as enabled.
+  const routesRef = useRef(null)
+  useEffect(() => { routesRef.current = routes }, [routes])
 
   const [soloRoutes, setSoloRoutes] = useState(() => new Set())
 
@@ -398,11 +404,19 @@ export default function MixerTab({ active = true }) {
     pendingPresetRef.current = null
 
     const isSwitch = loadedCityRef.current !== null && loadedCityRef.current !== cityId
+    // Preserve then detach the open song before wiping (see onCitySwitchAway):
+    // route ids are city-scoped, so the song can't follow us to the new city, and
+    // leaving it attached let autosave overwrite it with the wiped session.
+    //
+    // It is **async** — it awaits the preserving save before calling onReset — so the
+    // new city's lanes must not be installed until it has settled. Otherwise the
+    // reset lands *after* them and wipes the disable map with one keyed by the
+    // outgoing city's ids: every fresh lane reads as enabled (undefined = not
+    // disabled) and the map draws all of them at full weight, with stop markers
+    // (~780 for NYC) — which is what froze the tab.
+    let detached = Promise.resolve()
     if (isSwitch) {
-      // Preserve then detach the open song before wiping (see onCitySwitchAway):
-      // route ids are city-scoped, so the song can't follow us to the new city, and
-      // leaving it attached let autosave overwrite it with the wiped session.
-      citySwitchAwayRef.current?.()
+      detached = Promise.resolve(citySwitchAwayRef.current?.()).catch(() => {})
       setSwitching(true)  // show the preloader while the new city's data loads
     }
     // Not just on a switch: a city with no feed can only run mock, and a restored
@@ -410,8 +424,9 @@ export default function MixerTab({ active = true }) {
     if (!cityEntry.liveWsUrl) setMode('mock')
 
     let cancelled = false
-    loadCity(cityId)
-      .then((all) => {
+    // The fetch runs in parallel with the detach; only the *picks* wait for both.
+    Promise.all([loadCity(cityId), detached])
+      .then(([all]) => {
         // Bail if a preset claimed the session while we were fetching.
         if (cancelled || pendingPresetRef.current) return
         const picked = pickStartupRoutes(all)
@@ -1747,7 +1762,7 @@ export default function MixerTab({ active = true }) {
   // (a preset load passes [] — it's about to install the song's own lanes, and
   // writing disable flags for the outgoing city's ids would be pointless).
   const resetSessionState = useCallback(({ routes: routesOverride } = {}) => {
-    const laneRoutes = routesOverride ?? routes ?? []
+    const laneRoutes = routesOverride ?? routesRef.current ?? []
     stoppingRef.current = false
     if (eventsRafRef.current != null) cancelAnimationFrame(eventsRafRef.current)
     eventsRafRef.current = null
@@ -1781,7 +1796,7 @@ export default function MixerTab({ active = true }) {
     setLocalDrumPattern(null); setDrumsMuted(false)
     setBpm(120); setMasterVolume(0)
     setGlobalHarmony({ root: 'C', scaleType: 'major' })
-  }, [createEngine, routes, setLocalDrumPattern])
+  }, [createEngine, setLocalDrumPattern])
 
   const songSetters = useMemo(() => ({
     setBpm, setMode, setView, setMasterVolume, setGlobalHarmony,
