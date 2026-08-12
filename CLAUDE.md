@@ -59,9 +59,9 @@ npm run preprocess:warsaw    # regenerate public/data/lines.warsaw.json
 npm run slim:lines -- --city <id>  # write public/data/lines.<id>.slim.json (phone payload)
 npm run slim:all     # slim every city (run after any preprocess — the slim file is not automatic)
 npm run upload:lines # upload public/data/lines.json to Vercel Blob (needs BLOB_READ_WRITE_TOKEN)
-npm run db:generate # drizzle-kit: emit SQL migration from lib/db/schema.js
+npm run db:generate # drizzle-kit: emit SQL migration into drizzle/ (commit it — see lib/db below)
 npm run db:migrate  # drizzle-kit: apply migrations to DATABASE_URL
-npm run db:push     # drizzle-kit: push schema directly (dev)
+npm run db:push     # drizzle-kit: push schema directly (dev only, writes no migration file)
 npm test            # node --test — pure-logic tests only (no audio/UI coverage)
 ```
 
@@ -72,6 +72,12 @@ logic** — nothing boots Tone.js, React, or the DB: `billing-plans` (`lib/billi
 (`scripts/lib/stopSignals.js`), `ridership-adapters` (`scripts/ridership/`). There is **no linter
 configured** and the audio/UI code has no tests. Run a single file with
 `node --test test/ai-plan-apply.test.js`.
+
+**Verifying a change**: there is no lint and no typecheck, and `npm test` only covers the seven
+pure-logic modules above — so for anything in `components/`, `app/`, or the audio engine,
+`npm run build` is the only automated check that exists. Run it before calling such a change done.
+Actual audio behaviour can only be confirmed by playing it (`npm run dev`); don't report a sound
+change as verified on a green build alone.
 
 ### Environment
 
@@ -165,7 +171,11 @@ configured** and the audio/UI code has no tests. Run a single file with
 - `db/schema.js` — Drizzle schema: `user`/`session`/`account`/`verification` (Better Auth) +
   `presets` (`state jsonb`, plus a nullable `share_id` for public share links) + `compositions`
   (`items jsonb` — an ordered list of `{presetId, bars, transition}`; see Song Chainer below).
-  `db/index.js` — pooled `pg` client.
+  `db/index.js` — pooled `pg` client. **Migrations are committed** — `drizzle/` holds the
+  generated SQL (`0000_*` onward) plus its `meta/` journal, so a `schema.js` change is only half
+  done until `npm run db:generate` has emitted a migration and it's committed alongside.
+  `db:push` is a dev-only shortcut that skips that file and will leave deployed environments
+  behind.
 - `persistence.js` — song CRUD against `/api/presets` (async; same export names as the old
   localStorage module) + share helpers (`shareSong`/`unshareSong`/`loadShared`).
   `songState.js` — `buildSnapshot`/`applySnapshot`. `useSongPersistence.js` — autosave hook,
@@ -466,7 +476,15 @@ classes.
   validates the model's JSON plan; `app/api/compose` proxies the call same-origin (**gated to
   signed-in users** — it spends the OpenRouter key); `applyAIPlan`
   in MixerTab applies a plan by **replaying the same handlers a human would click** (order
-  matters — see the comment there).
+  matters — see the comment there). Two pieces of it live outside those files:
+  `lib/ai/planApply.js` (`buildReplacementLaneState`) is the pure lane-selection step —
+  plan order is authoritative, unknown/duplicate/over-the-plan-limit ids are reported back as
+  `skippedIds`, and it returns a **dense** disable map for the same reason `songLanes.js` does;
+  `lib/shared/cityFacts.js` (`CITY_FACTS`/`shuffledFactsForCity`) is the per-city trivia
+  `AIComposerPanel` shows during the wait, reshuffled per generation and told which line was
+  shown last so it can't repeat back-to-back. Both are pure and covered by
+  `test/ai-plan-apply.test.js` — keep new composer logic testable the same way rather than
+  growing MixerTab.
 
 ### Billing & entitlements (Free/Pro)
 
@@ -510,6 +528,13 @@ direction, but the web build is genuinely usable on a phone.
 `useSyncExternalStore` — **not** `useState`+`useEffect`, which renders the desktop tree for one
 frame and horizontally scrolls a phone.
 
+**Device detection is deliberately not viewport detection.** `lib/shared/platform.js` is what
+replaced the deleted `isMobileDevice.js` gate, and it is scoped to the two questions a media query
+genuinely cannot answer: `isIOS()` (which changes how audio has to be unlocked) and `formFactor()`
+(analytics only). Anything about *layout* — sizing, stacking, which tree renders — goes through
+`useViewport.js`/`breakpoints.js` instead. Reaching for a user-agent check to decide a layout is
+the mistake this split exists to prevent.
+
 **The rule for where a change goes**: sizing/stacking/hiding → a media query in
 `components/mobile.css` (imported by `App.jsx` *after* `app.css`, which is what makes it win at
 equal specificity — a rule placed in `components/mobile/*.css` loses, because those load earlier
@@ -546,6 +571,9 @@ audio session (`navigator.audioSession` on Safari 16.4+, a near-inaudible keep-a
 `HTMLAudioElement` on older iOS — **non-zero** samples, since some WebKit builds ignore digital
 silence), resumes the context on `visibilitychange`, and exposes `probeOutputPeak()`.
 `unlockAudio()` **must be called synchronously from a user gesture, before any other await**.
+The module itself is framework-free so the engines can use it; `lib/shared/useAudioSession.js`
+(`useAudioStatus`) is the React view of it, and is what UI should subscribe to rather than polling
+the session directly.
 
 `components/AudioTroubleshooter.jsx` is the "I pressed play and hear nothing" panel. **The iOS
 ring/silent switch is not detectable from JS and the panel never claims otherwise** — it verifies
