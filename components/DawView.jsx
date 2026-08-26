@@ -64,7 +64,7 @@ export const SCALE_TYPES = [
   ['mixolydian',      'Mixolyd.'],
 ]
 
-const SPEED_OPTIONS = [
+export const SPEED_OPTIONS = [
   { value: 0.25, label: '÷4',   title: '0.25× speed — one pass every 4 loops' },
   { value: 0.5,  label: '÷2',   title: '0.5× speed — one pass every 2 loops' },
   { value: 1,    label: '1×',   title: 'Normal speed' },
@@ -75,17 +75,17 @@ const SPEED_OPTIONS = [
 ]
 
 // Arpeggiator display labels (values come from ARP_STYLES / ARP_RATES in engine/mappings)
-const ARP_STYLE_LABELS = {
+export const ARP_STYLE_LABELS = {
   up: 'Up', down: 'Dn', updown: 'Up/Dn', downup: 'Dn/Up',
   converge: 'Conv', diverge: 'Div', random: 'Rnd',
 }
-const ARP_RATE_LABELS = {
+export const ARP_RATE_LABELS = {
   '4n': '1/4', '8n': '1/8', '8t': '1/8T', '16n': '1/16', '16t': '1/16T', '32n': '1/32',
 }
 
 // Pitch-contour display labels (values come from PITCH_CONTOURS in mappings)
-const CONTOUR_LABELS = { geographic: 'Geo', demand: 'Demand', randomWalk: 'Walk', arch: 'Arch' }
-const CONTOUR_TITLES = {
+export const CONTOUR_LABELS = { geographic: 'Geo', demand: 'Demand', randomWalk: 'Walk', arch: 'Arch' }
+export const CONTOUR_TITLES = {
   geographic: 'Geographic — latitude traces the melody (default)',
   demand:     'Demand — more service or riders produces a higher note',
   randomWalk: 'Random walk — seeded melodic drift through the scale',
@@ -771,9 +771,10 @@ function LineTrack({
               {laneTag.text || 'label'}
             </button>
             <button
-              className={`add-lane-btn ${laneCount > 0 ? 'has-lanes' : ''}`}
+              className={`add-lane-btn lane-icon-btn ${laneCount > 0 ? 'has-lanes' : ''}`}
               onClick={onAddLane}
-              title="Add automation lane"
+              aria-label="Add automation lane"
+              data-tooltip="Add automation lane"
             >
               {laneCount > 0 ? `+${laneCount}` : '+'}
             </button>
@@ -793,8 +794,8 @@ function LineTrack({
         </div>
 
         <div className="lt-mix">
-          <button className={`disable-btn ${disabled ? 'active' : ''}`} onClick={onDisable} aria-pressed={!disabled} aria-label={disabled ? `Enable ${route.name}` : `Disable ${route.name}`} title={disabled ? 'Enable track' : 'Disable track'}>⏻</button>
-          <button className={`solo-btn ${isSoloed ? 'active' : ''}`} onClick={onSolo} aria-pressed={isSoloed} aria-label={`Solo ${route.name}`} title="Solo (Cmd/Ctrl-click to add)">S</button>
+          <button className={`disable-btn lane-icon-btn ${disabled ? 'active' : ''}`} onClick={onDisable} aria-pressed={!disabled} aria-label={disabled ? `Enable ${route.name}` : `Disable ${route.name}`} data-tooltip={disabled ? 'Enable track' : 'Disable track'}>⏻</button>
+          <button className={`solo-btn lane-icon-btn ${isSoloed ? 'active' : ''}`} onClick={onSolo} aria-pressed={isSoloed} aria-label={`Solo ${route.name}`} data-tooltip="Solo · Cmd/Ctrl-click to add">S</button>
           <input type="range" min="-40" max="6" step="1"
             value={volDisp} onChange={e => onVolume(Number(e.target.value))}
             disabled={aVol.disabled} className="volume-slider" />
@@ -811,18 +812,20 @@ function LineTrack({
           <span className="lt-mix-sep" />
           <button
             type="button"
-            className="midi-export-btn"
+            className="midi-export-btn lane-icon-btn lane-export-btn"
             onClick={() => onExportRouteMidi?.(route.id)}
             disabled={!route.stops?.length}
-            title="Download MIDI for this line (session if recorded, else 4-bar loop)"
-          >↓</button>
+            aria-label={`Download ${route.name} as MIDI`}
+            data-tooltip="Download MIDI"
+          >MIDI</button>
           <button
             type="button"
-            className="midi-export-btn wav-export-btn"
+            className="midi-export-btn wav-export-btn lane-icon-btn lane-export-btn"
             onClick={() => onExportRouteAudio?.(route.id)}
             disabled={!route.stops?.length || !audioExportActive}
-            title="Record this line to WAV (real-time — play first)"
-          >♪</button>
+            aria-label={`Record ${route.name} as WAV`}
+            data-tooltip="Record WAV · play first"
+          >WAV</button>
         </div>
 
         <div className="lt-spacer" />
@@ -830,34 +833,38 @@ function LineTrack({
         {!isMerged && !isDuplicate && onChangeLine && (
           <button
             type="button"
-            className="change-line-btn"
+            className="change-line-btn lane-icon-btn"
             onClick={onChangeLine}
             disabled={started}
-            title="Change this lane's transit line"
+            aria-label={`Change ${route.name} transit line`}
+            data-tooltip="Change transit line"
           >⇄</button>
         )}
         {!isMerged && (
           <button
             type="button"
-            className="dup-btn"
+            className="dup-btn lane-icon-btn"
             onClick={onDuplicate}
-            title="Duplicate this lane (stack copies to build a chord)"
+            aria-label={`Duplicate ${route.name}`}
+            data-tooltip="Duplicate lane · stack a chord"
           >⎘</button>
         )}
         {isDuplicate && (
           <button
             type="button"
-            className="dup-remove-btn"
+            className="dup-remove-btn lane-icon-btn"
             onClick={onRemoveDuplicate}
-            title="Remove this copy"
+            aria-label={`Remove ${route.name} copy`}
+            data-tooltip="Remove this copy"
           >×</button>
         )}
         {isMerged && (
           <button
             type="button"
-            className="dup-remove-btn"
+            className="dup-remove-btn lane-icon-btn"
             onClick={onUnmerge}
-            title="Un-merge — restore the original lanes"
+            aria-label={`Un-merge ${route.name}`}
+            data-tooltip="Un-merge · restore original lanes"
           >×</button>
         )}
 
@@ -891,19 +898,44 @@ function LineTrack({
       />
 
       {rackOpen && (
-        <div className="device-rack">
-          <div className="rack-card">
+        <>
+          <div className="rack-domain-key" aria-label="Device groups">
+            <span className="rack-domain-key-item rack-domain-key-item--sound">
+              <span className="rack-domain-key-dot" aria-hidden="true" />
+              <strong>Tone &amp; pitch</strong>
+              <small>what the lane sounds like</small>
+            </span>
+            <span className="rack-domain-key-item rack-domain-key-item--rhythm">
+              <span className="rack-domain-key-dot" aria-hidden="true" />
+              <strong>Rhythm &amp; movement</strong>
+              <small>when and how notes move</small>
+            </span>
+          </div>
+
+          <div className="device-rack">
+          <div className="rack-card rack-card--sound">
             <div className="rack-card-head">Instrument</div>
-            <select className="synth-select" value={synthType} onChange={e => onSynthType(e.target.value)}>
+            <select
+              className="synth-select"
+              value={synthType}
+              onChange={e => onSynthType(e.target.value)}
+              aria-label="Instrument type"
+            >
               {SYNTH_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
             </select>
+          </div>
+
+          <div className="rack-card rack-card--sound">
+            <div className="rack-card-head">Pitch map</div>
             <div className="sound-mode-row">
               <select className="scale-root-select" value={trackScale.root}
-                onChange={e => onScale({ ...trackScale, root: e.target.value })}>
+                onChange={e => onScale({ ...trackScale, root: e.target.value })}
+                aria-label="Root note">
                 {NOTE_ROOTS.map(n => <option key={n} value={n}>{n}</option>)}
               </select>
               <select className="scale-type-select" value={trackScale.scaleType}
-                onChange={e => onScale({ ...trackScale, scaleType: e.target.value })}>
+                onChange={e => onScale({ ...trackScale, scaleType: e.target.value })}
+                aria-label="Scale">
                 {SCALE_TYPES.map(([key, label]) => (
                   <option key={key} value={key}>{label}</option>
                 ))}
@@ -946,23 +978,23 @@ function LineTrack({
             })()}
           </div>
 
-          <div className="rack-card">
+          <div className="rack-card rack-card--sound">
             <div className="rack-card-head">{synthType}</div>
             <EnvPanel synthType={synthType} adsr={adsr} onADSR={onADSR} onSamplerPreset={onSamplerPreset} onDrumVoice={onDrumVoice} onSamplerUpload={onSamplerUpload} autoTargets={autoTargets} />
           </div>
 
-          <div className="rack-card">
+          <div className="rack-card rack-card--sound">
             <div className="rack-card-head">Filter</div>
             <FilterPanel filter={filter} onFilter={onFilter} autoTargets={autoTargets} />
           </div>
 
-          <div className="rack-card rack-card-eq">
+          <div className="rack-card rack-card-eq rack-card--sound">
             <div className="rack-card-head">EQ</div>
             <EqPanel getRuntime={getEqRuntime} />
           </div>
 
-          <div className="rack-card">
-            <div className="rack-card-head">Motion</div>
+          <div className="rack-card rack-card--sound">
+            <div className="rack-card-head">Expression</div>
             <div className="octave-row">
               <span className="octave-label">OCT</span>
               <button className="octave-btn" onClick={() => onOctaveShift(Math.max(-2, octaveShift - 1))}>−</button>
@@ -987,6 +1019,10 @@ function LineTrack({
                 style={legato ? { borderColor: route.color, color: route.color } : {}}
               >LEG</button>
             </div>
+          </div>
+
+          <div className="rack-card rack-card--rhythm">
+            <div className="rack-card-head">Timing</div>
             <div className="speed-row">
               <span className="speed-label">SPEED</span>
               <div className="speed-btns">
@@ -1026,7 +1062,7 @@ function LineTrack({
             const arpOn = !!ag.enabled
             const dim = arpOn ? {} : { opacity: 0.4, pointerEvents: 'none' }
             return (
-              <div className="rack-card">
+              <div className="rack-card rack-card--rhythm">
                 <div className="rack-card-head">
                   Arpeggiator
                   <button
@@ -1126,7 +1162,7 @@ function LineTrack({
             const pct = v => `${Math.round(v * 100)}%`
             const ms  = v => `${Math.round(v * 1000)}ms`
             return (
-              <div className="rack-card">
+              <div className="rack-card rack-card--sound">
                 <div className="rack-card-head">
                   Granular
                   <button
@@ -1207,7 +1243,7 @@ function LineTrack({
             )
             const ms = v => `${Math.round(v * 1000)}ms`
             return (
-              <div className="rack-card">
+              <div className="rack-card rack-card--rhythm">
                 <div className="rack-card-head">
                   Sidechain
                   <button
@@ -1246,7 +1282,7 @@ function LineTrack({
           })()}
 
           {activeFxTracks?.length > 0 && (
-            <div className="rack-card">
+            <div className="rack-card rack-card--sound">
               <div className="rack-card-head">Sends</div>
               <div className="line-sends">
                 {activeFxTracks.map(busId => {
@@ -1270,7 +1306,8 @@ function LineTrack({
               </div>
             </div>
           )}
-        </div>
+          </div>
+        </>
       )}
     </div>
   )

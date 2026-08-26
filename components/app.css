@@ -453,12 +453,12 @@
 .mute-btn.active { background: color-mix(in srgb, var(--warning) 16%, transparent); border-color: var(--warning); color: var(--warning); }
 
 .disable-btn {
-  width: 26px; height: 26px;
+  width: 30px; height: 30px;
   border: 1px solid var(--border);
   background: var(--surface2);
   color: var(--muted);
   font-family: inherit;
-  font-size: 0.68rem;
+  font-size: 0.9rem;
   cursor: pointer;
   border-radius: 3px;
   flex-shrink: 0;
@@ -699,8 +699,16 @@
   vertical-align: middle;
 }
 .lt-mix .midi-export-btn {
-  min-width: 26px;
+  min-width: 30px;
+  min-height: 30px;
   padding: 4px 7px;
+}
+.lt-mix .lane-export-btn {
+  min-width: 38px;
+  padding-inline: 6px;
+  font-size: 0.48rem;
+  font-weight: 750;
+  letter-spacing: 0.06em;
 }
 .wav-export-btn:hover:not(:disabled) {
   color: var(--accent);

@@ -319,9 +319,52 @@
   padding-top: 2px;
 }
 
+.rack-domain-key {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  min-height: 30px;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--surface-sunken);
+}
+.rack-domain-key-item {
+  --rack-domain: var(--accent);
+  display: inline-flex;
+  align-items: baseline;
+  gap: 7px;
+  min-width: 0;
+  color: var(--rack-domain);
+  font-size: 0.58rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.rack-domain-key-item--sound { --rack-domain: var(--info); }
+.rack-domain-key-item--rhythm { --rack-domain: var(--automation); }
+.rack-domain-key-dot {
+  align-self: center;
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  background: var(--rack-domain);
+  flex-shrink: 0;
+}
+.rack-domain-key-item strong { font-weight: 750; white-space: nowrap; }
+.rack-domain-key-item small {
+  color: var(--muted);
+  font-size: 0.55rem;
+  letter-spacing: 0.04em;
+  text-transform: none;
+  white-space: nowrap;
+}
+
 .rack-card {
+  --rack-domain: var(--accent);
   background: var(--surface2);
   border: 1px solid var(--border);
+  border-top-color: color-mix(in srgb, var(--rack-domain) 58%, var(--border));
+  box-shadow: inset 2px 0 0 color-mix(in srgb, var(--rack-domain) 72%, transparent);
   border-radius: 5px;
   padding: 8px 10px 10px;
   display: flex;
@@ -331,6 +374,8 @@
   break-inside: avoid;       /* keep a card whole within one column */
   margin-bottom: 8px;        /* multicol spaces with margins, not gap */
 }
+.rack-card--sound { --rack-domain: var(--info); }
+.rack-card--rhythm { --rack-domain: var(--automation); }
 .rack-card-head {
   display: flex;
   align-items: center;
@@ -348,9 +393,20 @@
   width: 6px;
   height: 6px;
   border-radius: 2px;
-  background: var(--accent);
+  background: var(--rack-domain);
   flex-shrink: 0;
 }
+.rack-card--sound .rack-card-head::after,
+.rack-card--rhythm .rack-card-head::after {
+  margin-left: auto;
+  font-size: 0.44rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--rack-domain);
+  opacity: 0.9;
+}
+.rack-card--sound .rack-card-head::after { content: 'TONE'; }
+.rack-card--rhythm .rack-card-head::after { content: 'RHYTHM'; }
 .rack-card .synth-select { flex: none; width: 100%; }
 .rack-card .line-sends { border-top: none; margin-top: 0; padding: 0; }
 /* Sends inside the rack use the track accent (green), not the FX-bus purple */
@@ -429,8 +485,10 @@
 
 /* Add automation lane button */
 .add-lane-btn {
-  font-size: 0.6rem;
-  padding: 1px 5px;
+  font-size: 0.72rem;
+  min-width: 26px;
+  min-height: 26px;
+  padding: 2px 6px;
   border: 1px solid var(--border);
   border-radius: 3px;
   background: transparent;
@@ -462,9 +520,11 @@
   flex-shrink: 0;
 }
 .dup-btn, .dup-remove-btn, .change-line-btn {
-  font-size: 0.72rem;
+  width: 30px;
+  height: 30px;
+  font-size: 0.9rem;
   line-height: 1;
-  padding: 2px 5px;
+  padding: 0;
   border: 1px solid var(--border);
   border-radius: 3px;
   background: transparent;
@@ -474,10 +534,56 @@
   flex-shrink: 0;
   transition: background 0.12s, color 0.12s, border-color 0.12s;
 }
+.dup-btn, .dup-remove-btn, .change-line-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
 .dup-btn:hover { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 60%, transparent); }
 .dup-remove-btn:hover { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 60%, transparent); }
 .change-line-btn:hover:not(:disabled) { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 60%, transparent); }
 .change-line-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* Immediate, keyboard-visible explanations for the compact lane controls.
+   Native title tooltips wait too long and are unavailable to keyboard users. */
+.lane-icon-btn {
+  position: relative;
+  overflow: visible;
+}
+.lane-icon-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+@media (hover: hover) {
+  .lane-icon-btn[data-tooltip]::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    left: 50%;
+    bottom: calc(100% + 7px);
+    z-index: 600;
+    transform: translate(-50%, 2px);
+    padding: 5px 7px;
+    border: 1px solid var(--border-strong);
+    border-radius: 3px;
+    background: var(--surface-overlay);
+    box-shadow: var(--elevation-overlay);
+    color: var(--text);
+    font-size: 0.58rem;
+    font-weight: 600;
+    line-height: 1.2;
+    letter-spacing: 0.02em;
+    text-transform: none;
+    white-space: nowrap;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 60ms ease-out, transform 60ms ease-out;
+  }
+  .lane-icon-btn[data-tooltip]:hover::after,
+  .lane-icon-btn[data-tooltip]:focus-visible::after {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
 
 /* Merged (PolySynth chord) lane badge — distinct hue from the dup badge */
 .merged-badge {
@@ -1066,11 +1172,11 @@
 
 /* ── Solo button ────────────────────────────────────────────────────────── */
 .solo-btn {
-  width: 26px; height: 26px;
+  width: 30px; height: 30px;
   border: 1px solid var(--border);
   background: var(--surface2);
   color: var(--muted);
-  font-family: inherit; font-size: 0.68rem;
+  font-family: inherit; font-size: 0.78rem; font-weight: 700;
   cursor: pointer; border-radius: 3px; flex-shrink: 0;
 }
 .solo-btn.active { background: color-mix(in srgb, var(--warning) 16%, transparent); border-color: var(--warning); color: var(--warning); }

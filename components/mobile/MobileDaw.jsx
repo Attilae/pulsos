@@ -85,6 +85,9 @@ export default function MobileDaw({ controls, lanes }) {
         octave={lanes.octaves?.[openLaneId] ?? 0}
         semitone={lanes.semitones?.[openLaneId] ?? 0}
         pitchVariety={lanes.pitchVariety?.[openLaneId]}
+        speed={lanes.speeds?.[openLaneId] ?? 1}
+        gridResolution={lanes.gridResolutions?.[openLaneId]}
+        arp={lanes.arps?.[openLaneId]}
         perStopSteps={lanes.pitchOffsets?.[openLaneId]}
         stopVelocities={lanes.stopVelocities?.[openLaneId]}
         sendMatrix={lanes.sendMatrix}
@@ -99,6 +102,10 @@ export default function MobileDaw({ controls, lanes }) {
         onSynthType={lanes.onSynthType}
         onScale={lanes.onScale}
         onOctaveShift={lanes.onOctaveShift}
+        onPitchVariety={lanes.onPitchVariety}
+        onTrackSpeed={lanes.onTrackSpeed}
+        onGridResolution={lanes.onGridResolution}
+        onArp={lanes.onArp}
         onSendLevel={lanes.onSendLevel}
         onSidechain={lanes.onSidechain}
         onStopPitch={lanes.onStopPitch}

@@ -2,8 +2,8 @@
 
 This file provides guidance to Codex when working with code in this repository.
 
-> **Note:** this file is a generated, near-verbatim copy of `CLAUDE.md`. Edit `CLAUDE.md` and
-> mirror the change here; only these header lines differ.
+> **Note:** this file is **generated** from `CLAUDE.md` by `npm run sync:agents` — do not edit it
+> directly. Edit `CLAUDE.md` and re-run that script; only these header lines differ.
 
 ## Concept
 
@@ -63,6 +63,7 @@ npm run db:generate # drizzle-kit: emit SQL migration into drizzle/ (commit it �
 npm run db:migrate  # drizzle-kit: apply migrations to DATABASE_URL
 npm run db:push     # drizzle-kit: push schema directly (dev only, writes no migration file)
 npm test            # node --test — pure-logic tests only (no audio/UI coverage)
+npm run sync:agents # regenerate AGENTS.md from CLAUDE.md (`-- --check` fails on drift)
 ```
 
 `npm test` runs the built-in Node test runner (`node --test`) over `test/`. Every test is **pure
@@ -81,17 +82,29 @@ change as verified on a green build alone.
 
 ### Environment
 
-**Next app** (`.env`, gitignored — see `.env.example`):
-- `DATABASE_URL` — Postgres (Vercel Postgres / Neon). Required for auth + presets.
+**Next app** (`.env` **and** `.env.local`, both gitignored — see `.env.example`):
+- `DATABASE_URL` — Postgres (Neon). Required for auth + presets. In practice it lives in
+  **`.env.local`**, not `.env` — that's what `vercel env pull` writes (alongside the `POSTGRES_*`/
+  `PG*`/`BLOB_*` mirrors it generates). Don't "fix" a missing `DATABASE_URL` by adding a second
+  copy to `.env`; check `.env.local` first. Next loads both, but drizzle-kit only auto-loads
+  `.env`, which is why `drizzle.config.js` explicitly loads `.env.local` then `.env` so the `db:*`
+  scripts work from a bare `npm run`.
 - `BETTER_AUTH_SECRET` (≥32 chars), `BETTER_AUTH_URL`, `NEXT_PUBLIC_APP_URL` — Better Auth.
 - `OPENROUTER_API_KEY` — required only for the AI Composer (`POST /api/compose`).
 - `OPENROUTER_MODEL` — optional override (default `anthropic/claude-sonnet-4.5`).
+- `LEMONSQUEEZY_API_KEY`, `LEMONSQUEEZY_STORE_ID`, `LEMONSQUEEZY_VARIANT_ID_MONTHLY`,
+  `LEMONSQUEEZY_VARIANT_ID_ANNUAL`, `LEMONSQUEEZY_WEBHOOK_SECRET` — the Free/Pro billing surface
+  (`app/api/billing/*`, see **Billing & entitlements** below). Unset → checkout/portal/webhook
+  fail; everything else, including Free-tier gating, still works.
 - `NEXT_PUBLIC_LINES_URL` — Vercel Blob URL for the **default city's** `lines.json` in production;
   unset locally (falls back to `public/data/lines.json`). `BLOB_READ_WRITE_TOKEN` — only for
   `upload:lines`.
 - **Per-city frontend vars** (resolved in `lib/shared/cities.js`): `NEXT_PUBLIC_LINES_URL_<CITY>`
   and `NEXT_PUBLIC_FEED_WS_URL_<CITY>` (e.g. `_HELSINKI`) point a non-default city at its Blob URL
   and feed. A null/unset feed URL makes that city **mock-only** (Live toggle disabled).
+  `NEXT_PUBLIC_LINES_URL_SLIM` and `NEXT_PUBLIC_LINES_URL_<CITY>_SLIM` point at the phone payloads
+  (`lines.<city>.slim.json`, see **Phone route payloads** under Mobile) — unset means phones
+  silently fall back to the full 22–65 MB file, which is a real download, not a warning.
   `NEXT_PUBLIC_DEFAULT_CITY` — initial city id (default `budapest`).
 - `RESEND_API_KEY`, `EMAIL_FROM` — magic-link email; **optional in dev** (links print to the
   server console when unset).
@@ -142,6 +155,12 @@ change as verified on a green build alone.
   `liveWsUrl` (`lib/liveClient.js`).
 
 ## Architecture
+
+**Three files hold most of the complexity** — `components/DawView.jsx` (~2.6k lines),
+`lib/engine.js` (~2.5k) and `components/tabs/MixerTab.jsx` (~2.3k), together roughly a third of all
+JS here. The sections below describe what they do; treat that as the map and enter them by search
+(`.codegraph/` is indexed — `codegraph_search`/`codegraph_context`, or grep) rather than reading
+one cold.
 
 ### `app/` — Next.js routes
 
