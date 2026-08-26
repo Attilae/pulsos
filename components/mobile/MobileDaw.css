@@ -348,19 +348,53 @@
 }
 .lsheet-segment {
   flex: 1;
+  min-width: 0;
   min-height: var(--tap-min);
   background: var(--surface2);
   color: var(--muted);
   border: none;
   border-right: 1px solid var(--border);
   font-family: inherit;
-  font-size: 0.74rem;
+  font-size: 0.7rem;
   cursor: pointer;
 }
 .lsheet-segment:last-child { border-right: none; }
 .lsheet-segment.is-active { background: var(--accent-tint); color: var(--accent); }
 
 .lsheet-body { display: flex; flex-direction: column; gap: var(--space-200); }
+
+.lsheet-group {
+  --lsheet-domain: var(--accent);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-150);
+  padding: var(--space-150);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--lsheet-domain);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--lsheet-domain) 4%, var(--surface));
+}
+.lsheet-group--sound { --lsheet-domain: var(--info); }
+.lsheet-group--rhythm { --lsheet-domain: var(--automation); }
+.lsheet-group-head {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding-bottom: var(--space-100);
+  border-bottom: 1px solid color-mix(in srgb, var(--lsheet-domain) 28%, var(--border));
+}
+.lsheet-group-head strong {
+  color: var(--lsheet-domain);
+  font-size: 0.72rem;
+  font-weight: 750;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+}
+.lsheet-group-head span {
+  color: var(--muted);
+  font-size: 0.68rem;
+  line-height: 1.4;
+}
 
 .lsheet-field { display: flex; flex-direction: column; gap: var(--space-075); }
 .lsheet-label {
@@ -391,6 +425,44 @@
 }
 .lsheet-pair { display: flex; gap: var(--space-100); }
 .lsheet-pair select { flex: 1; min-width: 0; }
+.lsheet-pair--steppers > .lsheet-field { flex: 1; min-width: 0; }
+
+.lsheet-choice-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(72px, 1fr));
+  gap: var(--space-075);
+}
+.lsheet-choice-grid--compact {
+  grid-template-columns: repeat(auto-fit, minmax(54px, 1fr));
+}
+.lsheet-choice-grid button {
+  min-width: 0;
+  min-height: var(--tap-min);
+  padding: 0 var(--space-075);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface2);
+  color: var(--muted);
+  font-family: inherit;
+  font-size: 0.7rem;
+  cursor: pointer;
+}
+.lsheet-choice-grid button.is-active {
+  border-color: var(--lsheet-domain);
+  background: color-mix(in srgb, var(--lsheet-domain) 13%, var(--surface2));
+  color: var(--lsheet-domain);
+}
+.lsheet-choice-grid button:focus-visible {
+  outline: 2px solid var(--lsheet-domain);
+  outline-offset: 2px;
+}
+.lsheet-choice-grid button:disabled { cursor: default; }
+.lsheet-disabled-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-150);
+  opacity: 0.42;
+}
 
 .lsheet-stepper {
   display: flex;
@@ -408,6 +480,7 @@
   font-family: inherit; font-size: 1rem;
   cursor: pointer;
 }
+.lsheet-stepper button:disabled { cursor: default; }
 .lsheet-stepper span {
   min-width: 44px; text-align: center;
   font-size: 0.78rem; color: var(--text);

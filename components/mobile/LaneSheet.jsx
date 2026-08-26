@@ -1,8 +1,9 @@
 // Everything about one lane that doesn't fit on its strip.
 //
 // Desktop shows this as a multi-column "device rack" of dense cards. Here it's
-// three segments in a bottom sheet:
-//   Sound — instrument and harmony
+// four segments in a bottom sheet:
+//   Tone   — instrument, harmony and pitch mapping
+//   Rhythm — playback timing and arpeggiation
 //   Mix   — level, stereo position, FX sends, sidechain ducking
 //   Notes — the touch replacement for the stop rail (see below)
 //
@@ -15,14 +16,20 @@
 
 import { useMemo, useState } from 'react'
 import Sheet from '../Sheet.jsx'
-import { NOTE_ROOTS, SCALE_TYPES, SYNTH_TYPES, SidechainSourceOptions } from '../DawView.jsx'
+import {
+  NOTE_ROOTS, SCALE_TYPES, SYNTH_TYPES, SidechainSourceOptions,
+  SPEED_OPTIONS, ARP_STYLE_LABELS, ARP_RATE_LABELS,
+  CONTOUR_LABELS, CONTOUR_TITLES,
+} from '../DawView.jsx'
 import { LaneTagFields } from '../LaneTagEditor.jsx'
-import { DEFAULT_SIDECHAIN } from '@/lib/engine.js'
+import { ARP_RATES, ARP_STYLES, DEFAULT_ARP, DEFAULT_SIDECHAIN } from '@/lib/engine.js'
+import { DEFAULT_GRID_RESOLUTION, DEFAULT_PITCH_VARIETY, PITCH_CONTOURS } from '@/lib/mappings.js'
 import { FX_BUSES } from '@/lib/fxTrack.js'
 import { buildLanePitchMaps, buildLaneNoteRows } from '@/lib/laneNotes.js'
 
 const SEGMENTS = [
-  { id: 'sound', label: 'Sound' },
+  { id: 'sound', label: 'Tone' },
+  { id: 'rhythm', label: 'Rhythm' },
   { id: 'mix',   label: 'Mix' },
   { id: 'notes', label: 'Notes' },
 ]
@@ -41,6 +48,9 @@ export default function LaneSheet({
   octave = 0,
   semitone = 0,
   pitchVariety,
+  speed = 1,
+  gridResolution = DEFAULT_GRID_RESOLUTION,
+  arp,
   perStopSteps,
   stopVelocities,
   sendMatrix,
@@ -50,11 +60,14 @@ export default function LaneSheet({
   tag,
   // handlers — the same ones the desktop rack calls
   onVolume, onPan, onDisable, onSolo, onSynthType, onScale, onOctaveShift,
+  onPitchVariety, onTrackSpeed, onGridResolution, onArp,
   onSendLevel, onSidechain, onStopPitch, onStopVelocity, onLaneTag,
 }) {
   const [segment, setSegment] = useState('sound')
 
   const trackScale = scale ?? { root: 'C', scaleType: 'major' }
+  const pv = { ...DEFAULT_PITCH_VARIETY, ...pitchVariety }
+  const ag = { ...DEFAULT_ARP, ...arp }
 
   const noteRows = useMemo(() => {
     if (!route || segment !== 'notes') return []
@@ -93,55 +106,189 @@ export default function LaneSheet({
     >
       {segment === 'sound' && (
         <div className="lsheet-body">
-          {/* Same controls as the desktop label modal, imported rather than
-              re-implemented, so the two can't drift on presets or swatches. */}
-          <Field label="Label" hint="Name this lane by what it plays. The colour marks the lane.">
-            <LaneTagFields tag={tag} onChange={patch => onLaneTag(route.id, patch)} />
-          </Field>
+          <section className="lsheet-group lsheet-group--sound">
+            <GroupHead title="Voice" description="Choose the lane’s instrument and role." />
+            {/* Both handlers match the desktop rack. The engine needs line type
+                to wire the right per-line-type bus. */}
+            <Field label="Instrument">
+              <select
+                value={synthType ?? 'Synth'}
+                onChange={e => onSynthType(route.id, route.type, e.target.value)}
+              >
+                {SYNTH_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+              </select>
+            </Field>
 
-          {/* Both of these take three arguments, matching the desktop rack's
-              `onSynthType(route.id, route.type, st)` / `onScale(route.id,
-              route.name, s)`. The engine needs the line type to wire the right
-              per-line-type bus, and the short name to update the sound mode. */}
-          <Field label="Instrument">
-            <select
-              value={synthType ?? 'Synth'}
-              onChange={e => onSynthType(route.id, route.type, e.target.value)}
+            {/* Same controls as the desktop label modal, imported rather than
+                re-implemented, so the two can't drift on presets or swatches. */}
+            <Field label="Label" hint="Name this lane by what it plays. The colour marks the lane.">
+              <LaneTagFields tag={tag} onChange={patch => onLaneTag(route.id, patch)} />
+            </Field>
+          </section>
+
+          <section className="lsheet-group lsheet-group--sound">
+            <GroupHead title="Pitch map" description="Turn route data into melody." />
+            <Field label="Key" hint="Sets the scale this line's stops are mapped onto.">
+              <div className="lsheet-pair">
+                <select
+                  value={trackScale.root}
+                  onChange={e => onScale(route.id, route.name, { ...trackScale, root: e.target.value })}
+                  aria-label="Root note"
+                >
+                  {NOTE_ROOTS.map(r => <option key={r} value={r}>{r}</option>)}
+                </select>
+                <select
+                  value={trackScale.scaleType}
+                  onChange={e => onScale(route.id, route.name, { ...trackScale, scaleType: e.target.value })}
+                  aria-label="Scale"
+                >
+                  {SCALE_TYPES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                </select>
+              </div>
+            </Field>
+
+            <Field label="Contour" hint="Choose what shapes the notes along the route.">
+              <div className="lsheet-choice-grid">
+                {PITCH_CONTOURS.map(contour => (
+                  <button
+                    key={contour}
+                    type="button"
+                    className={pv.contour === contour ? 'is-active' : ''}
+                    onClick={() => onPitchVariety(route.id, { contour })}
+                    aria-pressed={pv.contour === contour}
+                    aria-label={CONTOUR_TITLES[contour]}
+                  >{CONTOUR_LABELS[contour] ?? contour}</button>
+                ))}
+              </div>
+            </Field>
+
+            <Field
+              label={`Variation · ${Math.round(pv.variety * 100)}%`}
+              hint="Adds repeatable melodic variation without changing the selected contour."
             >
-              {SYNTH_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-            </select>
-          </Field>
+              <input
+                type="range" min={0} max={1} step={0.01} value={pv.variety}
+                onChange={e => onPitchVariety(route.id, { variety: Number(e.target.value) })}
+                aria-label="Pitch variation"
+              />
+            </Field>
 
-          <Field label="Key" hint="Sets the scale this line's stops are mapped onto.">
-            <div className="lsheet-pair">
-              <select
-                value={trackScale.root}
-                onChange={e => onScale(route.id, route.name, { ...trackScale, root: e.target.value })}
-                aria-label="Root note"
-              >
-                {NOTE_ROOTS.map(r => <option key={r} value={r}>{r}</option>)}
-              </select>
-              <select
-                value={trackScale.scaleType}
-                onChange={e => onScale(route.id, route.name, { ...trackScale, scaleType: e.target.value })}
-                aria-label="Scale"
-              >
-                {SCALE_TYPES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-              </select>
-            </div>
-          </Field>
-
-          <Field label="Octave">
-            <div className="lsheet-stepper">
-              <button type="button" onClick={() => onOctaveShift(route.id, -1)} aria-label="Octave down">−</button>
-              <span className="mono">{octave > 0 ? `+${octave}` : octave}</span>
-              <button type="button" onClick={() => onOctaveShift(route.id, +1)} aria-label="Octave up">+</button>
-            </div>
-          </Field>
+            <Field label="Octave">
+              <div className="lsheet-stepper">
+                <button type="button" onClick={() => onOctaveShift(route.id, Math.max(-2, octave - 1))} aria-label="Octave down">−</button>
+                <span className="mono">{octave > 0 ? `+${octave}` : octave}</span>
+                <button type="button" onClick={() => onOctaveShift(route.id, Math.min(2, octave + 1))} aria-label="Octave up">+</button>
+              </div>
+            </Field>
+          </section>
 
           <p className="lsheet-note">
-            Envelope, filter, EQ, arpeggiator and granular controls are on desktop.
+            Envelope, filter, EQ and granular controls are on desktop.
           </p>
+        </div>
+      )}
+
+      {segment === 'rhythm' && (
+        <div className="lsheet-body">
+          <section className="lsheet-group lsheet-group--rhythm">
+            <GroupHead title="Timing" description="Set the lane’s cycle and note grid." />
+            <Field label="Playback speed">
+              <div className="lsheet-choice-grid lsheet-choice-grid--compact">
+                {SPEED_OPTIONS.map(option => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    className={speed === option.value ? 'is-active' : ''}
+                    onClick={() => onTrackSpeed(route.id, option.value)}
+                    aria-pressed={speed === option.value}
+                    aria-label={option.title}
+                  >{option.label}</button>
+                ))}
+              </div>
+            </Field>
+
+            <Field label="Note grid" hint="Snaps stops to this rhythmic subdivision.">
+              <div className="lsheet-choice-grid lsheet-choice-grid--compact">
+                {ARP_RATES.map(rate => (
+                  <button
+                    key={rate}
+                    type="button"
+                    className={gridResolution === rate ? 'is-active' : ''}
+                    onClick={() => onGridResolution(route.id, rate)}
+                    aria-pressed={gridResolution === rate}
+                  >{ARP_RATE_LABELS[rate] ?? rate}</button>
+                ))}
+              </div>
+            </Field>
+          </section>
+
+          <section className="lsheet-group lsheet-group--rhythm">
+            <GroupHead title="Arpeggiator" description="Break each stop note into a rhythmic pattern." />
+            <button
+              type="button"
+              className={`lsheet-toggle lsheet-toggle--inline ${ag.enabled ? 'is-on' : ''}`}
+              onClick={() => onArp(route.id, { enabled: !ag.enabled })}
+              aria-pressed={ag.enabled}
+            >{ag.enabled ? 'Arpeggiator on' : 'Arpeggiator off'}</button>
+
+            <div className={ag.enabled ? '' : 'lsheet-disabled-group'}>
+              <Field label="Style">
+                <div className="lsheet-choice-grid">
+                  {ARP_STYLES.map(style => (
+                    <button
+                      key={style}
+                      type="button"
+                      disabled={!ag.enabled}
+                      className={ag.style === style ? 'is-active' : ''}
+                      onClick={() => onArp(route.id, { style })}
+                      aria-pressed={ag.style === style}
+                    >{ARP_STYLE_LABELS[style] ?? style}</button>
+                  ))}
+                </div>
+              </Field>
+
+              <Field label="Rate">
+                <div className="lsheet-choice-grid lsheet-choice-grid--compact">
+                  {ARP_RATES.map(rate => (
+                    <button
+                      key={rate}
+                      type="button"
+                      disabled={!ag.enabled}
+                      className={ag.rate === rate ? 'is-active' : ''}
+                      onClick={() => onArp(route.id, { rate })}
+                      aria-pressed={ag.rate === rate}
+                    >{ARP_RATE_LABELS[rate] ?? rate}</button>
+                  ))}
+                </div>
+              </Field>
+
+              <div className="lsheet-pair lsheet-pair--steppers">
+                <Field label="Octaves">
+                  <div className="lsheet-stepper">
+                    <button type="button" disabled={!ag.enabled} onClick={() => onArp(route.id, { octaves: Math.max(1, ag.octaves - 1) })} aria-label="Arpeggiator octaves down">−</button>
+                    <span className="mono">{ag.octaves}</span>
+                    <button type="button" disabled={!ag.enabled} onClick={() => onArp(route.id, { octaves: Math.min(4, ag.octaves + 1) })} aria-label="Arpeggiator octaves up">+</button>
+                  </div>
+                </Field>
+                <Field label="Steps">
+                  <div className="lsheet-stepper">
+                    <button type="button" disabled={!ag.enabled} onClick={() => onArp(route.id, { steps: Math.max(1, ag.steps - 1) })} aria-label="Arpeggiator steps down">−</button>
+                    <span className="mono">{ag.steps}</span>
+                    <button type="button" disabled={!ag.enabled} onClick={() => onArp(route.id, { steps: Math.min(6, ag.steps + 1) })} aria-label="Arpeggiator steps up">+</button>
+                  </div>
+                </Field>
+              </div>
+
+              <Field label={`Gate · ${Math.round(ag.gate * 100)}%`}>
+                <input
+                  type="range" min={0.05} max={2} step={0.05} value={ag.gate}
+                  disabled={!ag.enabled}
+                  onChange={e => onArp(route.id, { gate: Number(e.target.value) })}
+                  aria-label="Arpeggiator gate"
+                />
+              </Field>
+            </div>
+          </section>
         </div>
       )}
 
@@ -317,6 +464,15 @@ function Field({ label, hint, children }) {
       {/* Desktop carries these as title= tooltips, which never appear on touch. */}
       {hint && <span className="lsheet-hint">{hint}</span>}
       {children}
+    </div>
+  )
+}
+
+function GroupHead({ title, description }) {
+  return (
+    <div className="lsheet-group-head">
+      <strong>{title}</strong>
+      <span>{description}</span>
     </div>
   )
 }
