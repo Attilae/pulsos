@@ -169,7 +169,7 @@
   /* Stop names/notes were hover-only, i.e. unreachable on touch. The phone
      layout lists them as text in the lane sheet instead. */
   .stop-dot:hover .stop-label { opacity: 0; }
-  .stop-dot:hover { transform: none; }
+  .stop-dot:hover { transform: translate(-50%, -50%); }
   .loop-handle:hover::before { width: 1px; }
   .tab-btn:hover { background: transparent; color: var(--muted); }
   .tab-btn.active:hover { color: var(--accent); }
