@@ -510,7 +510,7 @@ classes.
 A **Lemon Squeezy**-backed Free/Pro tier gates a few features by usage. The pure resolution logic
 is `lib/billing/plans.js` (the one tested module) — `resolveAccess({role, override, subscription})`
 picks a plan in priority order **superadmin → override → subscription → free**, returning the
-`limits` object. `FREE_LIMITS` caps `activeLanes: 4`, `compositionItems: 3`, `exports: 3`, `ai: 3`
+`limits` object. `FREE_LIMITS` caps `activeLanes: 6`, `compositionItems: 3`, `exports: 3`, `ai: 3`
 (lifetime); Pro lifts all but `ai: 50`/month; superadmin is unlimited. `null` in a limit means
 unlimited.
 

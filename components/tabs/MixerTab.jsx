@@ -465,7 +465,7 @@ export default function MixerTab({ active = true }) {
 
   // ── Deliberate lane selection (LinePicker) ────────────────────────────────
   // Add a specific transit line as a new *active* lane. Stop-only, like re-pick.
-  // Free is capped at limits.activeLanes audible lanes → the 5th add opens the
+  // Free is capped at limits.activeLanes audible lanes → the next add opens the
   // upgrade modal; Pro is unlimited.
   const handleAddLine = useCallback((route) => {
     if (!route || started) return

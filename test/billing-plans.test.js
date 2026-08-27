@@ -42,12 +42,13 @@ test('access resolution prioritizes superadmins, then overrides, then subscripti
 
 test('free lane normalization counts instruments but never the drum pseudo-route', () => {
   const routes = [
-    { id: 'a' }, { id: '__drums__' }, { id: 'b' }, { id: 'c' }, { id: 'd' }, { id: 'e' },
+    { id: 'a' }, { id: '__drums__' }, { id: 'b' }, { id: 'c' }, { id: 'd' },
+    { id: 'e' }, { id: 'f' }, { id: 'g' },
   ]
   const result = normalizeLaneAccess(routes, {}, FREE_LIMITS.activeLanes)
-  assert.deepEqual(result.lockedIds, ['e'])
-  assert.equal(result.disabled.e, true)
-  assert.equal(countActiveLanes(routes, result.disabled), 4)
+  assert.deepEqual(result.lockedIds, ['g'])
+  assert.equal(result.disabled.g, true)
+  assert.equal(countActiveLanes(routes, result.disabled), 6)
 })
 
 test('snapshot downgrade follows the saved manifest and preserves configuration', () => {
