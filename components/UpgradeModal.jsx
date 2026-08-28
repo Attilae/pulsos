@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import './UpgradeModal.css'
 
 const REASON_COPY = {
-  lane_limit: ['Four lines are playing', 'Free sessions can run four instrument lanes at once. Keep this set, or unlock a larger network.'],
+  lane_limit: ['Six lines are playing', 'Free sessions can run six instrument lanes at once. Keep this set, or unlock a larger network.'],
   composition_limit: ['Your chain is full', 'Free songs can chain three presets. Pro removes the ceiling so the arrangement can keep moving.'],
   export_limit: ['The last sample export is gone', 'Pro unlocks unlimited MIDI and real-time WAV capture across every instrument.'],
   ai_limit: ['AI Composer allowance reached', 'Pro includes 50 new composition prompts every month.'],

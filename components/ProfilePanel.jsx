@@ -44,7 +44,7 @@ export default function ProfilePanel({ onClose }) {
 
         <div className="profile-scroll">
           <AccountSection user={user} />
-          <BillingSection />
+          <BillingSection onDone={onClose} />
           <PresetsSection />
           <SecuritySection />
         </div>
@@ -55,7 +55,10 @@ export default function ProfilePanel({ onClose }) {
 
 // ── Billing ─────────────────────────────────────────────────────────────────
 
-export function BillingSection() {
+// `onDone` closes the surface this is rendered in (the header drawer sits at
+// z-index 1500, the upgrade modal at 500 — leaving it open hides the modal
+// behind it). Portal/manage-billing navigates away, so it doesn't need it.
+export function BillingSection({ onDone }) {
   const {
     plan, isPro, accessSource, loading, usage, subscription, override, billingBusy,
     openUpgrade, openPortal,
@@ -99,7 +102,11 @@ export function BillingSection() {
             <button
               className="profile-btn"
               disabled={billingBusy}
-              onClick={() => hasPaidAccess ? openPortal() : openUpgrade('upgrade')}
+              onClick={() => {
+                if (hasPaidAccess) { openPortal(); return }
+                onDone?.()
+                openUpgrade('upgrade')
+              }}
             >
               {billingBusy ? 'Connecting…' : hasPaidAccess ? 'Manage billing' : 'Upgrade to Pro'}
             </button>
