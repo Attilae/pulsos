@@ -136,7 +136,7 @@ function AuthenticatedMenu({ user, view, onNavigate, onClose, onStartTour }) {
   const { plan } = useEntitlements()
   if (view === 'profile') return <AccountSection user={user} />
   if (view === 'presets') return <PresetsSection />
-  if (view === 'billing') return <BillingSection />
+  if (view === 'billing') return <BillingSection onDone={onClose} />
   if (view === 'security') return <SecuritySection />
 
   return (
