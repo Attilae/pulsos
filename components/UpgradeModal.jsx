@@ -13,6 +13,13 @@ const REASON_COPY = {
   upgrade: ['Take the full network', 'Build wider arrangements, export every idea, and keep AI Composer in the session.'],
 }
 
+// Prices are charged in EUR — the Lemon Squeezy store currency. Keep these in sync
+// with the LEMONSQUEEZY_VARIANT_ID_* variants; nothing derives them at runtime.
+const PRICES = {
+  monthly: '€5.99',
+  annual: '€49',
+}
+
 export default function UpgradeModal({ reason, signedIn, busy, onClose, onCheckout, onSignIn }) {
   const [period, setPeriod] = useState('annual')
   const [title, body] = REASON_COPY[reason] ?? REASON_COPY.upgrade
@@ -43,14 +50,14 @@ export default function UpgradeModal({ reason, signedIn, busy, onClose, onChecko
           <>
             <div className="upgrade-period" aria-label="Billing period">
               <button className={period === 'monthly' ? 'active' : ''} onClick={() => setPeriod('monthly')}>
-                Monthly <span>$5.99</span>
+                Monthly <span>{PRICES.monthly}</span>
               </button>
               <button className={period === 'annual' ? 'active' : ''} onClick={() => setPeriod('annual')}>
-                Annual <span>$49 · save 32%</span>
+                Annual <span>{PRICES.annual} · save 32%</span>
               </button>
             </div>
             <button className="upgrade-cta" disabled={busy} onClick={() => onCheckout(period)}>
-              {busy ? 'Connecting…' : `Start Pro · ${period === 'annual' ? '$49/year' : '$5.99/month'}`}
+              {busy ? 'Connecting…' : `Start Pro · ${period === 'annual' ? `${PRICES.annual}/year` : `${PRICES.monthly}/month`}`}
             </button>
             <p className="upgrade-footnote">Secure checkout and tax handling by Lemon Squeezy. Cancel any time.</p>
           </>
