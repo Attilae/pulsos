@@ -71,11 +71,12 @@ npm run sync:agents # regenerate AGENTS.md from CLAUDE.md (`-- --check` fails on
 logic** — nothing boots Tone.js, React, or the DB: `billing-plans` (`lib/billing/plans.js`),
 `ai-plan-apply` (`lib/ai/planApply.js` + `lib/shared/cityFacts.js`), `song-lanes`
 (`lib/songLanes.js`), `song-snapshot` + `song-migrate` (`lib/songState.js`), `stop-signals`
-(`scripts/lib/stopSignals.js`), `ridership-adapters` (`scripts/ridership/`). There is **no linter
+(`scripts/lib/stopSignals.js`), `ridership-adapters` (`scripts/ridership/`),
+`feedback-validate` (`lib/feedback.js`). There is **no linter
 configured** and the audio/UI code has no tests. Run a single file with
 `node --test test/ai-plan-apply.test.js`.
 
-**Verifying a change**: there is no lint and no typecheck, and `npm test` only covers the seven
+**Verifying a change**: there is no lint and no typecheck, and `npm test` only covers the eight
 pure-logic modules above — so for anything in `components/`, `app/`, or the audio engine,
 `npm run build` is the only automated check that exists. Run it before calling such a change done.
 Actual audio behaviour can only be confirmed by playing it (`npm run dev`); don't report a sound
@@ -107,8 +108,18 @@ change as verified on a green build alone.
   (`lines.<city>.slim.json`, see **Phone route payloads** under Mobile) — unset means phones
   silently fall back to the full 22–65 MB file, which is a real download, not a warning.
   `NEXT_PUBLIC_DEFAULT_CITY` — initial city id (default `budapest`).
-- `RESEND_API_KEY`, `EMAIL_FROM` — magic-link email; **optional in dev** (links print to the
-  server console when unset).
+- `RESEND_API_KEY`, `EMAIL_FROM` — magic-link **and feedback** email; **optional in dev** (mail
+  prints to the server console when unset).
+- `FEEDBACK_TO` — where `/api/feedback` mails reports; defaults to `LEGAL_DETAILS.contactEmail`.
+- `NEXT_PUBLIC_TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY` — Cloudflare Turnstile on the feedback
+  form. The **site key is public** (it ships to the browser); only the secret is sensitive, and an
+  unset secret skips server-side verification, deliberately mirroring the `RESEND_API_KEY` fallback
+  so dev needs no Cloudflare account. `TURNSTILE_SECRET` is accepted as an alias because that's the
+  name Cloudflare's own tooling writes. Cloudflare's always-pass/always-fail test keys are in
+  `.env.example`.
+- `TURNSTILE_HOSTNAMES` — optional comma-separated allowlist of hostnames a token may come from.
+  Unset derives it from `NEXT_PUBLIC_APP_URL`/`BETTER_AUTH_URL` plus loopback. It never falls back
+  to "accept anything": an empty allowlist rejects (see below for why).
 - `FEED_HTTP_URL` — server-side, where `/api/snapshot` proxies to (default `http://localhost:3005`).
 - `NEXT_PUBLIC_FEED_WS_URL` — browser connects to the feed's WebSocket directly.
 
@@ -189,6 +200,7 @@ one cold.
   adapter; server config + React client.
 - `email.js` — Resend sender with a dev console fallback.
 - `db/schema.js` — Drizzle schema: `user`/`session`/`account`/`verification` (Better Auth) +
+  `feedback` (open-submission bug reports; nullable `user_id`, salted `ip_hash` for rate limiting) +
   `presets` (`state jsonb`, plus a nullable `share_id` for public share links) + `compositions`
   (`items jsonb` — an ordered list of `{presetId, bars, transition}`; see Song Chainer below).
   `db/index.js` — pooled `pg` client. **Migrations are committed** — `drizzle/` holds the
@@ -416,19 +428,23 @@ NetworkState (drone hum + hub-convergence chords) → AlertLayer input
 #### Musical mapping (`lib/mappings.js`)
 
 Pure, side-effect-free functions — the place to change *how data becomes music*. Per-stop pitch
-is a single **geographic stop-rail** mapping: `generatePitchMap(stops, rootMidi, modeScale,
-octaveSpan, opts)` builds a line's note sequence from each stop's geography (latitude → scale
-degree, longitude → octave register) via `geoToMidi`/`latToMidi`. `opts = { contour, variety,
-routeId }` (`PITCH_CONTOURS = ['geographic','demand','randomWalk','arch']`, `DEFAULT_PITCH_VARIETY =
-{ contour: 'geographic', variety: 0 }`) is an opt-in per-track variety layer on top of the
-geographic mapping — `variety === 0` with `contour: 'geographic'` reproduces the plain mapping
-byte-for-byte, so old saved songs are unaffected. Engine-side: `_pitchVariety[routeId]`
-(`setPitchVariety`). Also here: `SCALES`/`MODES`, the `normalizeX` family (GTFS field → 0..1 for
+comes from the **stop rail**: `generatePitchMap(stops, rootMidi, modeScale, octaveSpan, opts)`
+builds a line's note sequence per stop, either from geography (latitude → scale degree, longitude →
+octave register, via `geoToMidi`/`latToMidi`) or from the stop's baked-in demand. `opts = { contour,
+variety, routeId }` (`PITCH_CONTOURS = ['demand','geographic','randomWalk','arch']`,
+`DEFAULT_PITCH_VARIETY = { contour: 'demand', variety: 0 }`) picks the contour and layers opt-in
+variety on top; `variety === 0` reproduces the chosen contour's plain mapping byte-for-byte.
+**The default contour is `demand`** (`geographic` was the default before `SCHEMA_VERSION` 4) — the
+function's own `opts` destructuring default has to match `DEFAULT_PITCH_VARIETY`, since callers
+spread a possibly-absent per-track config. `trackPitchVariety` is sparse, so `songState`'s v4
+migration pins every lane of an older song to `geographic` rather than letting it re-pitch onto the
+new default. Engine-side: `_pitchVariety[routeId]` (`setPitchVariety`). Also here: `SCALES`/`MODES`, the `normalizeX` family (GTFS field → 0..1 for
 automation), seeded RNG (`hashStringToInt`/`mulberry32`/`makeSalt`), and polyline/grid helpers.
 `mockData.js` holds mock-mode data and a `latToNote` copy.
 
-The **`demand` contour** is the one mapping that reads baked-in data rather than geometry: it maps
-each stop's `signals.demand` (0–1) across the lane's full register, so busier stops sit higher. It
+The **`demand` contour** (the default) is the one mapping that reads baked-in data rather than
+geometry: it maps each stop's `signals.demand` (0–1) across the lane's full register, so busier
+stops sit higher. It
 is *not* a live signal — see **Stop demand signals** under *Data pipeline gotchas* — and falls back exactly to
 `geographic` when a route's stops carry no `signals`, so older `lines.<city>.json` still plays.
 
@@ -496,7 +512,8 @@ classes.
 - **Migrations are an ordered pipeline**, not implicit shape-sniffing: `songState.migrateSnapshot`
   keyed off `schemaVersion` (→2 coerces stale `'Granular'` synth types, normalizes legacy EQ3 via
   `eqMigrate.normalizeEqState`, hoists `duplicates[].perStopSteps` into `trackPitchOffsets`; →3
-  derives `routeIds`). A *newer* version warns but still applies — a save from a newer client must
+  derives `routeIds`; →4 pins every lane's pitch contour to `'geographic'`, the pre-v4 default).
+  A *newer* version warns but still applies — a save from a newer client must
   never become unopenable. Check here before assuming an old song loads against a changed shape.
 - **New session**: `SongMenu` → New autosaves the current song (signed-in only; signed-out users
   are warned first) then calls `MixerTab.resetSessionState` (`onReset` on the hook). That disposes
@@ -557,6 +574,37 @@ unlimited.
 layout can't drift page to page; `lib/legal.js` (`LEGAL_DETAILS`)
 centralizes operator/contact/jurisdiction facts they render from. `app/robots.js`,
 `app/opengraph-image.jsx`, `app/twitter-image.jsx`, and `app/icon.jsx` are Next metadata routes.
+
+**Feedback / bug reports** (`app/feedback`) render through the same `LegalShell` and are linked
+from the header drawer directly under the legal block (`FeedbackItem` in `HeaderMenu.jsx` — kept
+*outside* the `aria-label="Legal documents"` nav on purpose). `components/FeedbackForm.jsx` posts
+to `app/api/feedback/route.js`, which is **the only route open to signed-out visitors that
+writes**, and therefore the only place in the app with abuse defences. They run in a fixed order:
+honeypot → Turnstile (`lib/turnstile.js`) → validation (`lib/feedback.js`, pure and tested in
+`test/feedback-validate.test.js`) → a Postgres-backed per-IP rate limit (5/hour, keyed on a
+**salted hash** of the IP — the raw address is never stored).
+
+`verifyTurnstile` follows Cloudflare's canonical siteverify pattern, and the non-obvious half of it
+is why `success: true` alone is **not** enough. A sitekey is public, so anyone can embed the same
+widget on their own page and replay the tokens it mints against `/api/feedback`. Two checks close
+that: the widget stamps `action` (`TURNSTILE_ACTION`, shared from `lib/feedback.js` so the two
+sides can't drift) and the server rejects a mismatch; and `result.hostname` must be in the
+allowlist, which fails closed when empty rather than degrading to "accept anything".
+
+The widget is **invisible**: `components/Turnstile.jsx` renders with `execution: 'execute'` and
+`appearance: 'interaction-only'`, and exposes `getToken()` through a ref that `FeedbackForm` awaits
+during submit. Running the challenge at submit rather than on load is what makes invisible mode
+survivable — a token minted on load expires in ~300 s while someone writes a long report, and with
+no widget on screen there is nothing to show that it lapsed, so Send would just stop working
+silently. It also means Send is **not** gated on having a token (there would be no visible reason
+for a disabled button) and that visitors who never submit are never challenged. Note the widget
+*mode* is a property of the sitekey in the Cloudflare dashboard, not something the page chooses;
+this component works under Managed, Non-interactive and Invisible alike. Invisible mode removes
+Cloudflare's own badge, so `.feedback-captcha-note` carries the required Privacy/Terms links. The row is inserted *before* the two
+emails, and both sends are best-effort: a Resend outage logs and still returns 201, because the
+report is already durable. The operator mail sets `reply_to` to the submitter — the only reason
+`sendEmail` grew a `replyTo` argument (it is omitted from the payload otherwise, so the magic-link
+caller is unchanged).
 
 ### Mobile (phones, tablets, and audio reliability)
 
