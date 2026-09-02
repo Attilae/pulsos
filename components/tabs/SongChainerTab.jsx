@@ -103,11 +103,24 @@ export default function SongChainerTab({ active = true }) {
   }, [active, playing])
 
   // ── Load the user's presets + compositions when signed in ────────────────
+  // Refetched on every switch *into* this tab, not just on mount: the tab stays
+  // mounted once visited (App.jsx toggles display:none), so a song saved in the
+  // Map/DAW tab afterwards would otherwise never appear in the picker.
   useEffect(() => {
     if (!signedIn) { setPresets([]); setComps([]); return }
+    if (!active) return
     listSongs().then(setPresets).catch(() => {})
     listCompositions().then(setComps).catch(() => {})
-  }, [signedIn])
+    // The list isn't the only stale thing — snapCacheRef holds the snapshot each
+    // chain item plays, so an edited preset would keep playing its old contents.
+    // Safe to drop while stopped (nothing is mid-handoff); preloadChain re-warms
+    // the JSON, and the sample cache is process-wide so nothing is refetched.
+    if (!playing) {
+      snapCacheRef.current.clear()
+      playerRef.current?.preloadChain()
+    }
+    // `playing` is read as a guard here, not a trigger — deliberately not a dep.
+  }, [signedIn, active])
 
   const refreshComps = useCallback(() => {
     listCompositions().then(setComps).catch(() => {})

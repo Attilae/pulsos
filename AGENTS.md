@@ -211,7 +211,7 @@ one cold.
 
 ### `components/` — React UI (client-only)
 
-`App.jsx` is a tab shell with an `AuthControl` (sign-in/up + magic link) in the header. Only
+`App.jsx` is a tab shell with a `HeaderMenu` (the header ⋯ drawer) above it. Only
 **three tabs ship**: Map/DAW, Drum Machine, and **Song** (the Song Chainer). Loop Capturer,
 Headphone and Motif are **commented out of the `TABS` array** but their components and engines are
 kept intact — uncomment the entries to restore them. Each
@@ -224,6 +224,17 @@ the header menu; `lib/tourState.js` persists the seen/skipped flag to localStora
 — hidden on phones. **Product analytics** go through `lib/productAnalytics.js`
 (`trackProductEvent`), a swallow-everything wrapper around `@vercel/analytics` — it must never
 throw into the audio path, so it is deliberately try/catch'd and silent.
+
+**The header drawer is `HeaderMenu.jsx`**, and it is the only account surface that ships. It
+composes `AuthForm` (sign-in/up + magic link — the sole remaining export of `AuthControl.jsx`),
+`CitySelect`, `ThemeToggle`, the tour replay, the sound check (`openSoundCheck`), the legal links,
+and — as drawer *views* — the four named sections exported by `ProfilePanel.jsx`
+(`AccountSection`/`BillingSection`/`PresetsSection`/`SecuritySection`). `ProfilePanel`'s **default**
+export is an older full-screen overlay with no importers left, and its file-top comment still
+describes that overlay; edit the sections, not the default export. `PresetsSection` reaches songs
+through `lib/persistence.js` directly rather than `useSongPersistence`, deliberately decoupling the
+header from MixerTab — which is also why its "Open" sets the per-device last-song pointer and
+reloads into the Map tab instead of threading MixerTab state up through the header.
 
 **Tabs stay mounted once visited**: `App.jsx` keeps a `mounted` `Set` of every tab id opened this
 session (seeded with `'mixer'`); switching tabs toggles a `display: none` pane rather than
@@ -269,12 +280,21 @@ mock playback on `active` going false if it was running, since all tabs share on
 - Active (soloed or non-disabled) tracks are **excluded as automation-lane sources** in
   `DawView.jsx`'s `AutomationLane` — picking one as a source would make it vanish from the
   instrument view once music starts.
+- **Choosing which lines are lanes** is `components/LinePicker.jsx`, a portal modal driven by a
+  `linePicker` payload assembled in `DawView.jsx`. `mode: 'add'` picks a new line (lines already in
+  the mix are listed disabled); `mode: 'change'` swaps the line backing an existing lane while
+  keeping that lane's sound, and also offers "Remove this lane". Its candidates are the whole
+  `lines.<city>.json` route list, so it is the deliberate alternative to re-rolling the random
+  `pickStartupRoutes` selection. Changing or removing a lane here is exactly what
+  `remapSidechainSource`/`dropSidechainSource` exist to survive (see Persistence below).
 - `handleDuplicateTrack(sourceId)` clones a track's full per-track config (including arp/granular
   configs) into a new synthetic route id (`<sourceId>~dup~<ts><rand>`) for **chord voicing**, so
   stacked duplicates harmonize rather than unison. Duplicate lanes are audio-only and hidden from
   the map. Duplicate descriptors are now just `{ id, sourceId, name }` — per-stop offsets moved to
   `trackPitchOffsets` (below); `songState.js`'s `_hoistLegacyPitchOffsets` migrates old
-  `duplicates[i].perStopSteps` snapshots into it on load.
+  `duplicates[i].perStopSteps` snapshots into it on load. Duplicating goes through
+  `components/DuplicateLaneDialog.jsx` first — a portal modal asking for a chromatic ±semitone
+  offset (±24 max); confirming `0` reproduces the plain unison copy that predated the dialog.
 - **Per-stop pitch + velocity editing** is generalized to every lane (base or duplicate), not just
   duplicates: clicking a stop-rail note dot opens `components/StopEditor.jsx` (a portal-rendered
   modal — a ±1 diatonic-degree stepper plus a 20–100% velocity slider, both live, no Apply button),
@@ -531,7 +551,9 @@ unlimited.
 
 ### Legal & SEO
 
-`app/{privacy,terms,legal,licenses}` are static legal pages; `lib/legal.js` (`LEGAL_DETAILS`)
+`app/{privacy,terms,legal,licenses}` are static legal pages, all four rendered through
+`components/legal/LegalShell.jsx` (shared nav, header and footer chrome, CSS module) so their
+layout can't drift page to page; `lib/legal.js` (`LEGAL_DETAILS`)
 centralizes operator/contact/jurisdiction facts they render from. `app/robots.js`,
 `app/opengraph-image.jsx`, `app/twitter-image.jsx`, and `app/icon.jsx` are Next metadata routes.
 
