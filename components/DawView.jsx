@@ -86,8 +86,8 @@ export const ARP_RATE_LABELS = {
 // Pitch-contour display labels (values come from PITCH_CONTOURS in mappings)
 export const CONTOUR_LABELS = { geographic: 'Geo', demand: 'Demand', randomWalk: 'Walk', arch: 'Arch' }
 export const CONTOUR_TITLES = {
-  geographic: 'Geographic — latitude traces the melody (default)',
-  demand:     'Demand — more service or riders produces a higher note',
+  demand:     'Demand — more service or riders produces a higher note (default)',
+  geographic: 'Geographic — latitude traces the melody',
   randomWalk: 'Random walk — seeded melodic drift through the scale',
   arch:       'Arch — rises then falls along the stop sequence',
 }

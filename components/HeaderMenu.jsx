@@ -128,6 +128,7 @@ function GuestMenu({ onDone, onStartTour }) {
       </button>
       <SoundCheckItem onDone={onDone} />
       <LegalItems />
+      <FeedbackItem />
     </>
   )
 }
@@ -162,6 +163,7 @@ function AuthenticatedMenu({ user, view, onNavigate, onClose, onStartTour }) {
       </button>
       <SoundCheckItem onDone={onClose} />
       <LegalItems />
+      <FeedbackItem />
 
       <button type="button" className="header-menu-signout" onClick={() => { signOut(); onClose() }}>
         Sign out
@@ -210,6 +212,16 @@ function LegalItems() {
         ))}
       </nav>
     </>
+  )
+}
+
+// Sits under the legal block rather than inside it: the nav above is labelled
+// "Legal documents", and a feedback form is not one.
+function FeedbackItem() {
+  return (
+    <Link href="/feedback" className="header-menu-item">
+      <span>Feedback &amp; bug reports</span><span aria-hidden="true">↗</span>
+    </Link>
   )
 }
 

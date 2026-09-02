@@ -7,6 +7,7 @@ const NAV_ITEMS = [
   { href: '/privacy', label: 'Privacy' },
   { href: '/terms', label: 'Terms' },
   { href: '/licenses', label: 'Licences' },
+  { href: '/feedback', label: 'Feedback' },
 ]
 
 export function LegalShell({ current, title, kicker, summary, children }) {

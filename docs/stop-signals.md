@@ -33,7 +33,9 @@ copy).
 Values are log-normalized between the city's 5th and 95th percentiles so a
 single major hub cannot collapse the rest of the melody into its lowest notes.
 The DAW's **Demand** pitch contour maps `demand` across the lane's full scale
-register. Existing Geographic songs are unchanged, and Demand falls back to
+register. It is the **default contour** for new lanes (as of snapshot schema
+version 4; songs saved before that are migrated with every lane pinned to
+Geographic, so they still play what they were saved with). Demand falls back to
 Geographic when an older route file has no signals.
 
 ## Optional ridership exports

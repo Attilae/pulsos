@@ -1,0 +1,206 @@
+/* Styles for the /feedback form. It renders inside LegalShell's CSS-module
+   scope, so it inherits the --legal-* tokens that shell defines and reads as
+   part of the document rather than as a widget dropped onto it.
+   Global (not a module) matching the convention everywhere outside
+   components/legal/. */
+
+.feedback-form {
+  display: grid;
+  gap: 26px;
+  max-width: 62ch;
+  font-family: var(--font-mono);
+}
+
+.feedback-form input,
+.feedback-form textarea {
+  width: 100%;
+  padding: 10px 12px;
+  background: var(--legal-surface, var(--surface));
+  color: var(--legal-text, var(--text));
+  border: 1px solid var(--legal-border, var(--border));
+  border-radius: 2px;
+  font: inherit;
+  font-size: 0.82rem;
+}
+
+.feedback-form input:focus,
+.feedback-form textarea:focus {
+  outline: none;
+  border-color: var(--legal-accent, var(--accent));
+}
+
+.feedback-form textarea {
+  resize: vertical;
+  min-height: 160px;
+  line-height: 1.6;
+}
+
+/* ── Kind picker ─────────────────────────────────────────────────────────── */
+
+.feedback-kinds { border: none; margin: 0; padding: 0; }
+
+.feedback-kinds legend,
+.feedback-field label {
+  padding: 0;
+  margin-bottom: 8px;
+  font-size: 0.64rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--legal-muted, var(--muted));
+}
+
+.feedback-kind-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.feedback-kind {
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+  cursor: pointer;
+  background: var(--legal-surface, var(--surface));
+  border: 1px solid var(--legal-border, var(--border));
+  border-radius: 2px;
+}
+
+/* The radio itself is redundant once the card shows selection, but it stays in
+   the DOM so keyboard and screen-reader users get real radio-group semantics. */
+.feedback-kind input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.feedback-kind strong { font-size: 0.8rem; font-weight: 600; }
+.feedback-kind small { font-size: 0.68rem; color: var(--legal-muted, var(--muted)); line-height: 1.4; }
+.feedback-kind:hover { border-color: var(--legal-accent, var(--accent)); }
+
+.feedback-kind--on {
+  border-color: var(--legal-accent, var(--accent));
+  box-shadow: inset 3px 0 0 var(--legal-accent, var(--accent));
+}
+
+.feedback-kind:focus-within {
+  outline: 2px solid var(--legal-accent, var(--accent));
+  outline-offset: 2px;
+}
+
+/* ── Fields ──────────────────────────────────────────────────────────────── */
+
+.feedback-field { display: block; }
+
+.feedback-field small {
+  display: block;
+  margin-top: 6px;
+  font-size: 0.68rem;
+  color: var(--legal-muted, var(--muted));
+}
+
+.feedback-count--low { color: var(--legal-accent, var(--accent)); }
+
+/* Honeypot: off-screen rather than display:none, because some bots skip fields
+   that are not rendered at all. aria-hidden + tabindex=-1 keep people out. */
+.feedback-hp {
+  position: absolute;
+  left: -9999px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
+/* ── Attached diagnostics ────────────────────────────────────────────────── */
+
+.feedback-context button {
+  display: inline-flex;
+  gap: 6px;
+  padding: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--legal-muted, var(--muted));
+  font: inherit;
+  font-size: 0.7rem;
+}
+
+.feedback-context button:hover { color: var(--legal-accent, var(--accent)); }
+
+.feedback-context dl {
+  margin: 10px 0 0;
+  display: grid;
+  gap: 6px;
+  padding: 12px;
+  background: var(--legal-surface, var(--surface));
+  border: 1px solid var(--legal-border, var(--border));
+  font-size: 0.68rem;
+}
+
+.feedback-context dl div {
+  display: grid;
+  grid-template-columns: 74px 1fr;
+  gap: 10px;
+}
+
+.feedback-context dt { color: var(--legal-muted, var(--muted)); }
+.feedback-context dd { margin: 0; overflow-wrap: anywhere; }
+
+/* ── Captcha ─────────────────────────────────────────────────────────────── */
+
+/* In invisible mode Turnstile renders nothing, so the widget div would leave a
+   stray grid gap. The notice below it keeps the zone non-empty and carries the
+   Cloudflare links the visible badge would otherwise show. */
+.feedback-captcha:empty { display: none; }
+
+.feedback-captcha-note {
+  margin: 0;
+  font-size: 0.66rem;
+  color: var(--legal-muted, var(--muted));
+}
+
+.feedback-captcha-note a { color: inherit; }
+.feedback-captcha-note a:hover { color: var(--legal-accent, var(--accent)); }
+
+/* ── Actions ─────────────────────────────────────────────────────────────── */
+
+.feedback-actions { display: grid; gap: 10px; justify-items: start; }
+
+.feedback-btn {
+  padding: 11px 22px;
+  min-height: 44px;
+  cursor: pointer;
+  background: var(--legal-accent, var(--accent));
+  color: var(--legal-bg, var(--bg));
+  border: 1px solid var(--legal-accent, var(--accent));
+  border-radius: 2px;
+  font: inherit;
+  font-size: 0.74rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.feedback-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.feedback-btn--ghost {
+  background: none;
+  color: var(--legal-text, var(--text));
+  border-color: var(--legal-border, var(--border));
+}
+
+.feedback-msg { margin: 0; font-size: 0.72rem; color: var(--legal-muted, var(--muted)); }
+.feedback-msg--err { color: var(--danger); }
+
+/* ── Sent ────────────────────────────────────────────────────────────────── */
+
+.feedback-done { max-width: 62ch; font-family: var(--font-mono); }
+.feedback-done h2 { margin: 0 0 10px; font-size: 1.05rem; }
+.feedback-done p { margin: 0 0 20px; font-size: 0.82rem; line-height: 1.7; color: var(--legal-muted, var(--muted)); }
+
+/* Phone: 767px is PHONE_MAX in lib/shared/breakpoints.js. */
+@media (max-width: 767px) {
+  .feedback-kind-row { grid-template-columns: 1fr; }
+  .feedback-form input,
+  .feedback-form textarea { font-size: 16px; } /* below 16px iOS zooms on focus */
+}

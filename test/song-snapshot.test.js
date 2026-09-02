@@ -50,7 +50,7 @@ const baseState = () => ({
 test('buildSnapshot records the city, the lane list, and the drum mute', () => {
   const snap = buildSnapshot(baseState())
   assert.equal(snap.schemaVersion, SCHEMA_VERSION)
-  assert.equal(snap.schemaVersion, 3)
+  assert.equal(snap.schemaVersion, 4)
   assert.equal(snap.cityId, 'budapest')
   assert.deepEqual(snap.routeIds, ['M1', '4', '47'])
   assert.equal(snap.drumsMuted, true)

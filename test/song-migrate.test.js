@@ -90,3 +90,32 @@ test('stale automation targets fall back to volume rather than binding to nothin
   assert.equal(lane.sourceRouteId, '4', 'the source lane is preserved')
   assert.deepEqual(lane.points, { 0: 1 }, 'authored points survive')
 })
+
+test('a pre-v4 song keeps its geographic melody when the default contour changes', () => {
+  const s = migrateSnapshot({
+    cityId: 'berlin',
+    routeIds: ['U1', 'U2'],
+    muted: { U1: false, U2: false, __drums__: false },
+    duplicates: [{ id: 'U1~dup~1', sourceId: 'U1', name: 'U1 (2)' }],
+    merges: [],
+    // One lane the user actually configured: its own contour and variety win.
+    trackPitchVariety: { U2: { contour: 'randomWalk', variety: 0.4 } },
+    automationCfg: {},
+  }, 3)
+
+  assert.deepEqual(s.trackPitchVariety.U1, { variety: 0, contour: 'geographic' },
+    'an untouched lane is pinned to the contour it actually played')
+  assert.deepEqual(s.trackPitchVariety['U1~dup~1'], { variety: 0, contour: 'geographic' },
+    'duplicate lanes are pinned too — they have their own engine config')
+  assert.deepEqual(s.trackPitchVariety.U2, { contour: 'randomWalk', variety: 0.4 },
+    'an explicitly configured lane is untouched')
+})
+
+test('a v4 song is left on the new default contour', () => {
+  const s = migrateSnapshot({
+    cityId: 'berlin', routeIds: ['U1'], muted: { U1: false },
+    duplicates: [], merges: [], automationCfg: {},
+  }, 4)
+  assert.deepEqual(s.trackPitchVariety ?? {}, {},
+    'nothing is pinned, so U1 picks up DEFAULT_PITCH_VARIETY (demand)')
+})

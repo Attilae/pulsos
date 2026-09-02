@@ -176,3 +176,7 @@
 .header-menu-session .city-select { margin-left: 0; flex: 1; min-width: 0; }
 .header-menu-session .city-select-input { width: 100%; min-height: var(--tap-min); }
 .header-menu-session .theme-toggle { flex-shrink: 0; }
+
+/* The feedback entry under the legal block is a Link, not a button — it needs
+   the underline removed to match the sibling .header-menu-item buttons. */
+a.header-menu-item { text-decoration: none; color: inherit; }

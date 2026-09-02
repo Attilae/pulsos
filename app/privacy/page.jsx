@@ -21,9 +21,10 @@ const dataRows = [
 const providers = [
   ['Vercel', 'Application and static-data hosting, delivery, operational logs, and cookie-free web analytics.', 'https://vercel.com/legal/privacy-policy'],
   ['Neon', 'Managed Postgres database for accounts and saved work.', 'https://neon.com/privacy-policy'],
-  ['Resend', 'Delivery of magic-link and account emails.', 'https://resend.com/legal/privacy-policy'],
+  ['Resend', 'Delivery of magic-link, account, and feedback emails.', 'https://resend.com/legal/privacy-policy'],
   ['OpenRouter and the selected model provider', 'Process prompts, route context, and generated plans only when a signed-in user invokes AI Composer.', 'https://openrouter.ai/privacy'],
   ['Lemon Squeezy', 'Processes checkout, subscription, tax, invoice, and billing-support information as merchant of record.', 'https://www.lemonsqueezy.com/privacy'],
+  ['Cloudflare', 'Runs the Turnstile bot check on the feedback form; the check receives your IP address and browser signals.', 'https://www.cloudflare.com/privacypolicy/'],
   ['CARTO', 'Supplies map tiles; tile requests can include network and browser data.', 'https://carto.com/privacy'],
   ['GitHub Pages', 'Supplies optional melodic sample files hosted for Tone.js and tonejs-instruments; requests can include network and browser data.', 'https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement'],
 ]
