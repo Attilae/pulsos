@@ -182,13 +182,19 @@
 .chain-item {
   position: relative;
   display: flex;
-  align-items: center;
-  gap: 12px;
+  flex-direction: column;
+  gap: 8px;
   padding: 10px 12px;
   background: var(--surface2);
   border: 1px solid var(--border);
   border-radius: 4px;
   overflow: hidden;
+}
+/* The controls row. The loop strip sits under it inside the same item. */
+.chain-item-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 .chain-item.playing { border-color: var(--accent); }
 .chain-item--locked { opacity: .62; border-style: dashed; }
@@ -228,6 +234,178 @@
   outline: none;
 }
 .chain-item-field input { width: 52px; text-align: center; }
+
+/* ── Loop strip ────────────────────────────────────────────────────────────
+   One row per audible lane; brick width = that lane's loop length as a share of
+   the part. A hatched brick is a loop the part cuts in half — the misalignment
+   the strip exists to surface. Numbers come from lib/laneCycles.js. */
+.chain-loops {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 7px 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+}
+.chain-loops--pending {
+  font-size: 0.66rem;
+  color: var(--muted);
+  font-style: italic;
+  padding: 5px 8px;
+}
+
+.chain-loops-grid {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  --name-col: 68px;
+  --len-col: 34px;
+}
+
+/* Vertical rules where every lane comes back around. */
+.chain-loop-cycles {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(var(--name-col) + 8px);
+  right: calc(var(--len-col) + 8px);
+  pointer-events: none;
+}
+.chain-loop-cycle {
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  width: 1px;
+  background: var(--accent);
+  opacity: 0.5;
+}
+
+.chain-loop-lane {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.chain-loop-name {
+  flex: 0 0 var(--name-col);
+  width: var(--name-col);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.64rem;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.chain-loop-dot {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--lane-color, var(--muted));
+}
+
+.chain-loop-track {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  height: 12px;
+  border-radius: 2px;
+  background: var(--surface2);
+  /* One faint rule per bar, so a brick's width is readable against the grid. */
+  background-image: repeating-linear-gradient(
+    to right,
+    var(--border) 0 1px,
+    transparent 1px var(--bar-pct, 100%)
+  );
+  overflow: hidden;
+}
+
+.chain-loop-brick {
+  flex: none;
+  height: 100%;
+  box-sizing: border-box;
+  background: var(--lane-color, var(--accent));
+  border-right: 2px solid var(--surface);
+  opacity: 0.82;
+}
+/* Cut mid-loop: hatched so a truncated lane reads at a glance. */
+.chain-loop-brick--partial {
+  background: repeating-linear-gradient(
+    45deg,
+    var(--lane-color, var(--accent)) 0 3px,
+    transparent 3px 6px
+  );
+  border-right: 2px solid var(--surface);
+  opacity: 0.8;
+}
+/* Too many repeats to draw individually. */
+.chain-loop-brick--dense {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.58rem;
+  color: var(--surface2);
+  font-weight: 700;
+}
+
+.chain-loop-len {
+  flex: 0 0 var(--len-col);
+  width: var(--len-col);
+  text-align: right;
+  font-size: 0.6rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.chain-loop-len--cut { color: var(--accent); }
+
+.chain-loops-ruler .chain-loop-track {
+  height: 11px;
+  background: none;
+  background-image: none;
+}
+.chain-loop-tick {
+  flex: none;
+  font-size: 0.55rem;
+  line-height: 11px;
+  color: var(--muted);
+  opacity: 0.7;
+  border-left: 1px solid var(--border);
+  padding-left: 2px;
+  overflow: hidden;
+  font-variant-numeric: tabular-nums;
+}
+
+.chain-loops-hint {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 0.65rem;
+  color: var(--muted);
+}
+.chain-loops-hint strong { color: var(--text); font-weight: 600; }
+.chain-loops-ok { color: var(--muted); }
+.chain-loops-more { opacity: 0.8; }
+.chain-loops-warn { color: var(--danger); }
+
+.chain-snap-chips { display: inline-flex; gap: 4px; }
+.chain-snap-chip {
+  padding: 1px 7px;
+  background: transparent;
+  color: var(--accent);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font: inherit;
+  font-size: 0.62rem;
+  cursor: pointer;
+  font-variant-numeric: tabular-nums;
+}
+.chain-snap-chip:hover { border-color: var(--accent); background: var(--hover-surface); }
 
 .chain-item-progress {
   position: absolute;
@@ -282,10 +460,12 @@
 
   /* The item row (index · name · 3× 52px fields · progress · ↑↓✕) can't fit on
      one line, so it wraps into a card. */
-  .chain-item { flex-wrap: wrap; gap: var(--space-075); }
+  .chain-item-row { flex-wrap: wrap; gap: var(--space-075); }
   .chain-item-name { flex: 1 1 100%; min-width: 0; }
   .chain-item-field input { width: 64px; min-height: var(--tap-min); }
   .chain-item-actions { margin-left: auto; }
+  .chain-loops-grid { --name-col: 54px; --len-col: 30px; }
+  .chain-snap-chip { min-height: var(--tap-min); padding: 0 12px; }
   .chain-icon { width: var(--tap-min); height: var(--tap-min); }
 
   /* New/Save/Save As/Open/Delete scroll sideways rather than stacking into

@@ -10,6 +10,7 @@ import {
   listCompositions, loadComposition, saveComposition, deleteComposition, newCompositionId,
 } from '@/lib/compositions.js'
 import { SongChainPlayer } from '@/lib/songChainPlayer.js'
+import ChainItemLoops from './ChainItemLoops.jsx'
 import { confirmDialog } from '../Dialog.jsx'
 import './SongChainerTab.css'
 
@@ -27,6 +28,11 @@ export default function SongChainerTab({ active = true }) {
   const enginesRef = useRef(null)
   const playerRef  = useRef(null)
   const snapCacheRef = useRef(new Map())   // presetId → loaded song snapshot
+  // Same snapshots, but in render-visible state: the chain rows draw each
+  // preset's lane loops, and a ref can't trigger that render. `cacheEpoch` is
+  // bumped whenever snapCacheRef is dropped, so the strips refetch with it.
+  const [snapshots,  setSnapshots]  = useState({})   // presetId → snapshot | null
+  const [cacheEpoch, setCacheEpoch] = useState(0)
 
   const [presets, setPresets] = useState([])     // user's saved presets (picker)
   const [comps,   setComps]   = useState([])     // user's saved compositions
@@ -117,6 +123,7 @@ export default function SongChainerTab({ active = true }) {
     // the JSON, and the sample cache is process-wide so nothing is refetched.
     if (!playing) {
       snapCacheRef.current.clear()
+      setCacheEpoch(n => n + 1)
       playerRef.current?.preloadChain()
     }
     // `playing` is read as a guard here, not a trigger — deliberately not a dep.
@@ -216,6 +223,7 @@ export default function SongChainerTab({ active = true }) {
     setPlaying(false); setCurrentIndex(-1); setProgress(0)
     setItems([]); setName('Untitled song'); setBpm(120)
     setCurrentCompId(null); setLoadedCityId(null)
+    setSnapshots({})
   }, [])
 
   const handleOpen = useCallback(async (id) => {
@@ -245,6 +253,24 @@ export default function SongChainerTab({ active = true }) {
     () => [...presets].sort((a, b) => (a.name || '').localeCompare(b.name || '')),
     [presets],
   )
+
+  // The chain rows need each preset's saved state to draw its lane loops. Keyed
+  // off the *distinct preset ids* rather than `items`, or every keystroke in a
+  // bars input would refire it. loadSnapshot is promise-cached, so re-running
+  // this after a reorder costs nothing.
+  const presetIdKey = useMemo(
+    () => [...new Set(items.map(it => it.presetId).filter(Boolean))].sort().join('|'),
+    [items],
+  )
+
+  useEffect(() => {
+    const ids = presetIdKey ? presetIdKey.split('|') : []
+    if (!ids.length) { setSnapshots({}); return }
+    let cancelled = false
+    Promise.all(ids.map(id => loadSnapshot(id).then(snap => [id, snap ?? null]).catch(() => [id, null])))
+      .then((pairs) => { if (!cancelled) setSnapshots(Object.fromEntries(pairs)) })
+    return () => { cancelled = true }
+  }, [presetIdKey, cacheEpoch, loadSnapshot])
 
   const totalBars = useMemo(() => items.reduce((n, it) => n + (it.bars || 0), 0), [items])
   const cityMismatch = loadedCityId && loadedCityId !== cityId
@@ -353,50 +379,63 @@ export default function SongChainerTab({ active = true }) {
                 key={`${it.presetId}-${idx}`}
                 className={`chain-item ${currentIndex === idx ? 'playing' : ''} ${itemLimit != null && idx >= itemLimit ? 'chain-item--locked' : ''}`}
               >
-                <span className="chain-item-idx">{idx + 1}</span>
-                <span className="chain-item-name">{it.presetName}</span>
-                {itemLimit != null && idx >= itemLimit ? <button className="chain-pro-lock" onClick={() => openUpgrade('composition_limit')}>PRO</button> : null}
+                <div className="chain-item-row">
+                  <span className="chain-item-idx">{idx + 1}</span>
+                  <span className="chain-item-name">{it.presetName}</span>
+                  {itemLimit != null && idx >= itemLimit ? <button className="chain-pro-lock" onClick={() => openUpgrade('composition_limit')}>PRO</button> : null}
 
-                <label className="chain-item-field">
-                  bars
-                  <input
-                    type="number" min="1" max="64"
-                    value={it.bars}
-                    onChange={e => updateItem(idx, { bars: Math.max(1, Math.min(64, +e.target.value || 1)) })}
-                  />
-                </label>
-
-                <label className="chain-item-field">
-                  transition
-                  <select
-                    value={it.transition}
-                    onChange={e => updateItem(idx, { transition: e.target.value })}
-                  >
-                    <option value="cut">cut</option>
-                    <option value="crossfade">crossfade</option>
-                  </select>
-                </label>
-
-                {it.transition === 'crossfade' && (
                   <label className="chain-item-field">
-                    xfade bars
+                    bars
                     <input
-                      type="number" min="1" max="16"
-                      value={it.crossfadeBars ?? 1}
-                      onChange={e => updateItem(idx, { crossfadeBars: Math.max(1, Math.min(16, +e.target.value || 1)) })}
+                      type="number" min="1" max="64"
+                      value={it.bars}
+                      onChange={e => updateItem(idx, { bars: Math.max(1, Math.min(64, +e.target.value || 1)) })}
                     />
                   </label>
-                )}
+
+                  <label className="chain-item-field">
+                    transition
+                    <select
+                      value={it.transition}
+                      onChange={e => updateItem(idx, { transition: e.target.value })}
+                    >
+                      <option value="cut">cut</option>
+                      <option value="crossfade">crossfade</option>
+                    </select>
+                  </label>
+
+                  {it.transition === 'crossfade' && (
+                    <label className="chain-item-field">
+                      xfade bars
+                      <input
+                        type="number" min="1" max="16"
+                        value={it.crossfadeBars ?? 1}
+                        onChange={e => updateItem(idx, { crossfadeBars: Math.max(1, Math.min(16, +e.target.value || 1)) })}
+                      />
+                    </label>
+                  )}
+
+                  <div className="chain-item-actions">
+                    <button className="chain-icon" onClick={() => moveItem(idx, -1)} disabled={idx === 0} title="Move up">↑</button>
+                    <button className="chain-icon" onClick={() => moveItem(idx, +1)} disabled={idx === items.length - 1} title="Move down">↓</button>
+                    <button className="chain-icon chain-icon--danger" onClick={() => removeItem(idx)} title="Remove">✕</button>
+                  </div>
+                </div>
+
+                {/* What this part actually plays: one brick row per audible lane,
+                    brick width = that lane's loop length. Makes the bar count a
+                    reading rather than a guess. */}
+                <ChainItemLoops
+                  snapshot={snapshots[it.presetId]}
+                  routes={routes}
+                  bars={it.bars}
+                  activeLaneLimit={limits.activeLanes}
+                  onSnapBars={n => updateItem(idx, { bars: n })}
+                />
 
                 {currentIndex === idx && (
                   <span className="chain-item-progress" style={{ width: `${Math.round(progress * 100)}%` }} />
                 )}
-
-                <div className="chain-item-actions">
-                  <button className="chain-icon" onClick={() => moveItem(idx, -1)} disabled={idx === 0} title="Move up">↑</button>
-                  <button className="chain-icon" onClick={() => moveItem(idx, +1)} disabled={idx === items.length - 1} title="Move down">↓</button>
-                  <button className="chain-icon chain-icon--danger" onClick={() => removeItem(idx)} title="Remove">✕</button>
-                </div>
               </li>
             ))}
           </ol>
