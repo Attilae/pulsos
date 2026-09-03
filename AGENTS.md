@@ -71,11 +71,11 @@ logic** — nothing boots Tone.js, React, or the DB: `billing-plans` (`lib/billi
 `ai-plan-apply` (`lib/ai/planApply.js` + `lib/shared/cityFacts.js`), `song-lanes`
 (`lib/songLanes.js`), `song-snapshot` + `song-migrate` (`lib/songState.js`), `stop-signals`
 (`scripts/lib/stopSignals.js`), `ridership-adapters` (`scripts/ridership/`),
-`feedback-validate` (`lib/feedback.js`). There is **no linter
+`feedback-validate` (`lib/feedback.js`), `turnstile-hostnames` (`lib/turnstile.js`). There is **no linter
 configured** and the audio/UI code has no tests. Run a single file with
 `node --test test/ai-plan-apply.test.js`.
 
-**Verifying a change**: there is no lint and no typecheck, and `npm test` only covers the eight
+**Verifying a change**: there is no lint and no typecheck, and `npm test` only covers the nine
 pure-logic modules above — so for anything in `components/`, `app/`, or the audio engine,
 `npm run build` is the only automated check that exists. Run it before calling such a change done.
 Actual audio behaviour can only be confirmed by playing it (`npm run dev`); don't report a sound
@@ -118,7 +118,9 @@ change as verified on a green build alone.
   `.env.example`.
 - `TURNSTILE_HOSTNAMES` — optional comma-separated allowlist of hostnames a token may come from.
   Unset derives it from `NEXT_PUBLIC_APP_URL`/`BETTER_AUTH_URL` plus loopback. It never falls back
-  to "accept anything": an empty allowlist rejects (see below for why).
+  to "accept anything": an empty allowlist rejects (see below for why). Either way the apex and its
+  `www.` counterpart are paired, because a site served on both mints tokens on whichever one the
+  visitor is on — allowing only the configured half rejected real submissions in production.
 - `FEED_HTTP_URL` — server-side, where `/api/snapshot` proxies to (default `http://localhost:3005`).
 - `NEXT_PUBLIC_FEED_WS_URL` — browser connects to the feed's WebSocket directly.
 
