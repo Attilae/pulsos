@@ -274,3 +274,25 @@ test('formatBars: fractions stay fractions', () => {
   assert.equal(formatBars(8 / 3), '2 2/3')
   assert.equal(formatBars(0), '—')
 })
+
+test('describeSnapshotLoops: a loop rest pattern stretches the realign point', () => {
+  const out = describeSnapshotLoops(snap({
+    muted: { r1: false, r2: false, r3: true },
+    trackLoopRegions: { r1: { startCell: 0, endCell: 16 }, r2: { startCell: 0, endCell: 16 } },
+    trackLoopPatterns: { r2: { play: 1, rest: 3 } },
+  }), ROUTES)
+  assert.equal(out.lanes[0].pattern, null)
+  assert.equal(out.lanes[0].periodUnits, out.lanes[0].loopUnits)
+  assert.deepEqual(out.lanes[1].pattern, { play: 1, rest: 3, offset: 0 })
+  assert.equal(out.lanes[1].periodUnits, out.lanes[1].loopUnits * 4)
+  // Two 1-bar lanes would realign every bar; resting 3 of 4 makes it 4 bars.
+  assert.equal(out.suggestedBars, 4)
+})
+
+test('describeSnapshotLoops: a pattern with no rest is the default', () => {
+  const out = describeSnapshotLoops(snap({
+    muted: { r1: false, r2: true, r3: true },
+    trackLoopPatterns: { r1: { play: 3, rest: 0 } },
+  }), ROUTES)
+  assert.equal(out.lanes[0].pattern, null)
+})

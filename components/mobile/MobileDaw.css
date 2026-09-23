@@ -552,6 +552,8 @@
 }
 .lsheet-noterow-controls { display: flex; align-items: center; gap: var(--space-150); }
 .lsheet-noterow-controls input { flex: 1; min-width: 0; }
+.lsheet-note-chance { flex: 0 0 auto; min-width: 5.5em; font-size: 0.75rem; color: var(--muted); }
+.lsheet-note-chance-reset { flex: 0 0 auto; }
 
 /* ── More sheet ───────────────────────────────────────────────────────────── */
 .msheet-field { display: flex; flex-direction: column; gap: var(--space-075); }
