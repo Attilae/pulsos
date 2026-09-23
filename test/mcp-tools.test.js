@@ -4,10 +4,10 @@ import { Client, StreamableHTTPClientTransport } from '@modelcontextprotocol/cli
 import { createMcpHandler } from '@modelcontextprotocol/server'
 import { createLeidMcpServer } from '../lib/server/mcpTools.js'
 
-async function connectedClient(services) {
-  const handler = createMcpHandler(() => createLeidMcpServer('user-1', services), { legacy: 'reject' })
+async function connectedClient(services, modern = true) {
+  const handler = createMcpHandler(() => createLeidMcpServer('user-1', services), { legacy: 'stateless' })
   const client = new Client({ name: 'leid-test', version: '1.0.0' }, {
-    versionNegotiation: { mode: { pin: '2026-07-28' } },
+    ...(modern ? { versionNegotiation: { mode: { pin: '2026-07-28' } } } : {}),
   })
   await client.connect(new StreamableHTTPClientTransport(new URL('http://test.local/mcp'), {
     fetch: (url, init) => handler.fetch(new Request(url, init)),
@@ -32,6 +32,19 @@ test('modern MCP client sees only the scoped song tools and can read a song', as
     const read = await client.callTool({ name: 'get_song', arguments: { id: 'song-1' } })
     assert.equal(read.structuredContent.song.state.bpm, 120)
     assert.deepEqual(seen, [['entitlement', 'user-1'], ['get', 'user-1', 'song-1']])
+  } finally {
+    await client.close()
+    await handler.close()
+  }
+})
+
+test('legacy Streamable HTTP client can list tools', async () => {
+  const { client, handler } = await connectedClient({
+    getEntitlements: async () => ({ isPro: true }),
+  }, false)
+  try {
+    const tools = await client.listTools()
+    assert.ok(tools.tools.some((tool) => tool.name === 'list_cities'))
   } finally {
     await client.close()
     await handler.close()
