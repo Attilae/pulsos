@@ -73,11 +73,14 @@ logic** — nothing boots Tone.js, React, or the DB: `billing-plans` (`lib/billi
 (`lib/songLanes.js`), `song-snapshot` + `song-migrate` (`lib/songState.js`), `stop-signals`
 (`scripts/lib/stopSignals.js`), `ridership-adapters` (`scripts/ridership/`),
 `feedback-validate` (`lib/feedback.js`), `turnstile-hostnames` (`lib/turnstile.js`),
-`lane-cycles` (`lib/laneCycles.js`), `lane-gating` (`lib/laneGating.js`). There is **no linter
+`lane-cycles` (`lib/laneCycles.js`), `lane-gating` (`lib/laneGating.js`), `auth-origins`
+(`lib/authOrigins.js`), `mcp-tools`
+(`lib/server/mcpTools.js` — drives the real MCP SDK client/handler in-process, but every DB/billing
+call is injected through its `services` argument, so it still never touches Postgres). There is **no linter
 configured** and the audio/UI code has no tests. Run a single file with
 `node --test test/ai-plan-apply.test.js`.
 
-**Verifying a change**: there is no lint and no typecheck, and `npm test` only covers the eleven
+**Verifying a change**: there is no lint and no typecheck, and `npm test` only covers the thirteen
 pure-logic modules above — so for anything in `components/`, `app/`, or the audio engine,
 `npm run build` is the only automated check that exists. Run it before calling such a change done.
 Actual audio behaviour can only be confirmed by playing it (`npm run dev`); don't report a sound
@@ -93,8 +96,14 @@ change as verified on a green build alone.
   `.env`, which is why `drizzle.config.js` explicitly loads `.env.local` then `.env` so the `db:*`
   scripts work from a bare `npm run`.
 - `BETTER_AUTH_SECRET` (≥32 chars), `BETTER_AUTH_URL`, `NEXT_PUBLIC_APP_URL` — Better Auth.
+  `trustedOrigins` is derived from the two URLs with apex/`www.` paired (`lib/authOrigins.js`) —
+  trusting only `BETTER_AUTH_URL` made every sign-in from the other half fail with `INVALID_ORIGIN`.
 - `OPENROUTER_API_KEY` — required only for the AI Composer (`POST /api/compose`).
 - `OPENROUTER_MODEL` — optional override (default `anthropic/claude-sonnet-4.5`).
+- `MCP_ENABLED` / `NEXT_PUBLIC_MCP_ENABLED` — default `false`; gate the Pro MCP server and its
+  header-menu entry (see **MCP server** below). Apply the Drizzle migrations to the target database
+  **before** flipping either on — Better Auth's MCP/OAuth plugins read tables that only exist after
+  migration `0007`.
 - `LEMONSQUEEZY_API_KEY`, `LEMONSQUEEZY_STORE_ID`, `LEMONSQUEEZY_VARIANT_ID_MONTHLY`,
   `LEMONSQUEEZY_VARIANT_ID_ANNUAL`, `LEMONSQUEEZY_WEBHOOK_SECRET` — the Free/Pro billing surface
   (`app/api/billing/*`, see **Billing & entitlements** below). Unset → checkout/portal/webhook
@@ -196,6 +205,8 @@ one cold.
   CRUD (Song Chainer's presets-of-presets; see below), mirroring the `api/presets` contract.
 - `api/entitlements/route.js` (+ `api/entitlements/claim`) and `api/billing/{checkout,portal,webhook}`
   — the **Free/Pro billing** surface (see the Billing section below).
+- `mcp/route.js` (+ `mcp/sign-in`, `mcp/consent` pages), `.well-known/oauth-*` discovery routes,
+  and `api/mcp/connections` — the flag-gated **Pro MCP server** (see **MCP server** below).
 
 ### `lib/` — auth, DB, persistence, and the audio engine (non-UI logic)
 
@@ -244,8 +255,9 @@ throw into the audio path, so it is deliberately try/catch'd and silent.
 **The header drawer is `HeaderMenu.jsx`**, and it is the only account surface that ships. It
 composes `AuthForm` (sign-in/up + magic link — the sole remaining export of `AuthControl.jsx`),
 `CitySelect`, `ThemeToggle`, the tour replay, the sound check (`openSoundCheck`), the legal links,
-and — as drawer *views* — the four named sections exported by `ProfilePanel.jsx`
-(`AccountSection`/`BillingSection`/`PresetsSection`/`SecuritySection`). `ProfilePanel`'s **default**
+and — as drawer *views* — the named sections exported by `ProfilePanel.jsx`
+(`AccountSection`/`BillingSection`/`PresetsSection`/`SecuritySection`, plus `McpSection` behind
+`NEXT_PUBLIC_MCP_ENABLED`). `ProfilePanel`'s **default**
 export is an older full-screen overlay with no importers left, and its file-top comment still
 describes that overlay; edit the sections, not the default export. `PresetsSection` reaches songs
 through `lib/persistence.js` directly rather than `useSongPersistence`, deliberately decoupling the
@@ -505,7 +517,7 @@ classes.
   `cityId` and `routeIds` because route ids are **city-scoped**. Before v3 neither was stored, so
   loading a song re-rolled a random lane selection (`pickStartupRoutes` is random for
   tram/trolley/bus) and a cross-city song orphaned every lane. `presets.city_id` mirrors
-  `state.cityId`, derived server-side in `app/api/presets/*` (`cityIdOf`) so a stale client can't
+  `state.cityId`, derived server-side in `lib/server/presets.js` (`cityIdOf`) so a stale client can't
   desync them; it's nullable because pre-v3 rows genuinely don't know their city, and `null` keeps
   meaning "assume the currently-loaded city".
 - **`lib/songLanes.js` is the single lane resolver** — `snapshotBaseRouteIds` /
@@ -562,7 +574,7 @@ classes.
 ### Billing & entitlements (Free/Pro)
 
 A **Lemon Squeezy**-backed Free/Pro tier gates a few features by usage. The pure resolution logic
-is `lib/billing/plans.js` (the one tested module) — `resolveAccess({role, override, subscription})`
+is `lib/billing/plans.js` (tested in `test/billing-plans.test.js`) — `resolveAccess({role, override, subscription})`
 picks a plan in priority order **superadmin → override → subscription → free**, returning the
 `limits` object. `FREE_LIMITS` caps `activeLanes: 6`, `compositionItems: 3`, `exports: 3`, `ai: 3`
 (lifetime); Pro lifts all but `ai: 50`/month; superadmin is unlimited. `null` in a limit means
@@ -582,6 +594,33 @@ unlimited.
   the plan's `activeLanes` cap **without discarding them** — an oversized saved song loads verbatim
   with the overflow lanes muted, so upgrading restores them. `countActiveLanes` excludes the drum
   pseudo-route (`__drums__`).
+
+### MCP server (Pro, flag-gated, in progress)
+
+A remote MCP endpoint lets a Pro user connect an external AI client to their **saved songs** — the
+intended long-term replacement for the in-app AI Composer. Status, phases and release gates are in
+`docs/mcp-plan.md`; read it before extending this.
+
+- **Auth**: `lib/auth.js` adds Better Auth's `jwt` + `mcp` + `cimd` (Client ID Metadata Document)
+  plugins **only when `MCP_ENABLED=true`**. OAuth code+PKCE; the resource is `MCP_RESOURCE` =
+  `<BETTER_AUTH_URL>/mcp`, so `BETTER_AUTH_URL` must be the public HTTPS origin in deployment. A
+  browser cookie session is never accepted as MCP authorization.
+- **Endpoint**: `app/mcp/route.js` is a stateless Streamable HTTP `POST` handler (MCP SDK v2,
+  `2026-07-28` profile, `legacy: 'reject'` — older clients and dynamic client registration are not
+  supported yet). Order: flag → origin check → 1 MB size cap → bearer token (`requireMcpAuth`) →
+  `getEntitlements(userId).isPro` (403 otherwise) → `hasActiveMcpConsent` (403 if disconnected).
+  Pro is **re-checked inside every tool** as well, so a downgrade cuts access immediately.
+- **Tools**: `lib/server/mcpTools.js` (`createLeidMcpServer(userId, services)`) registers
+  `list_cities`, `list_songs`, `get_song`, `set_song_tempo`. Writes take `expectedUpdatedAt` and
+  fail on conflict rather than overwriting a newer browser save. Tools edit **stored songs only** —
+  they cannot touch an open DAW tab (that state lives in the browser's MixerTab/Tone graph).
+- **Shared song service**: `lib/server/presets.js` holds the user-scoped preset DB logic
+  (`listSongs`/`getSong`/`createSong`/…, `serializeSong`, `cityIdOf`). Both `app/api/presets/*`
+  and the MCP tools call it; MCP must never call the cookie-protected HTTP routes. Nothing under
+  `lib/server/` may import Tone.js, React, or `lib/ai/composer.js` (which pulls in browser code).
+- **Connections**: `lib/server/mcpAccess.js` lists/revokes a user's OAuth consents; disconnecting
+  deletes the consent and revokes that client's access + refresh tokens. UI is `McpSection` in
+  `ProfilePanel.jsx`, backed by `app/api/mcp/connections`.
 
 ### Legal & SEO
 
@@ -859,6 +898,7 @@ quirks, candidate cities, generalization gotchas), `docs/vst-plugin-plan.md` (pl
 port), `docs/mobile-app-plan.md` (native-app direction behind the mobile gate), `docs/gtfs-salt.md`,
 `docs/admin-access.md` (superadmin role + manual Pro entitlement overrides), `docs/stop-signals.md`
 (the baked-in `signals` block, the Demand contour, and the optional per-city ridership adapters),
+`docs/mcp-plan.md` (Pro MCP server phases, release gates, rollout checklist),
 `docs/social-launch-runbook.md` (marketing/launch copy — not engineering guidance).
 
 ## Planned (not yet wired in)
