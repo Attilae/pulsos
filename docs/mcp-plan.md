@@ -11,9 +11,9 @@ This is an implementation plan, not an enabled endpoint.
 | Phase | Deliverable | Exit check | Status |
 | --- | --- | --- | --- |
 | 0 | Feature branch and reviewed integration plan | Scope and browser/server boundary documented | Complete |
-| 1 | OAuth provider, MCP discovery, Pro-protected empty endpoint, migration | External client can authorize; Free and expired Pro accounts are denied | In progress: database migrated and discovery/challenge verified; client authorization pending |
+| 1 | OAuth provider, MCP discovery, Pro-protected empty endpoint, migration | External client can authorize; Free and expired Pro accounts are denied | In progress: Claude connection verified; Free/expired Pro denial pending |
 | 2 | Shared saved-song service and MCP song tools | Ownership, validation, conflict, and protocol tests pass | In progress: song index/read and tempo write tools added; integration tests pending |
-| 3 | Account connection/revocation UI and rollout flag | Pro user connects a client and disconnect stops further calls | In progress: gated connection and revocation code added; live client check pending |
+| 3 | Account connection/revocation UI and rollout flag | Pro user connects a client and disconnect stops further calls | In progress: Claude connection verified; disconnect check pending |
 | 4 | In-app AI chat retirement | MCP path works in production; copy, billing, and usage-meter cleanup reviewed | Pending |
 
 Keep the phases reviewable as separate deliverables. The configured Neon database contains only the owner's test accounts and data. Its existing app tables had no Drizzle migration ledger and lacked the `compositions` table; on 2026-09-23, the missing compositions and OAuth migrations were applied in one transaction and the ledger was baselined after checking the pre-MCP table columns, constraints, and indexes. `npm run db:migrate` now succeeds. End-to-end connection checks and deployment remain release gates. Phase 4 is the explicit chat retirement step; earlier phases do not disable it.
@@ -55,7 +55,7 @@ The first release deliberately targets saved-song editing. If live control of an
 4. Check that `list_cities`, `list_songs`, `get_song`, and `set_song_tempo` work for the owner, reject a Free account, detect a stale `expectedUpdatedAt`, and stop working after **Disconnect**. Exercise token refresh/reconnect after deployment. The initial tool set edits saved-song BPM; it does not apply a prose plan or control an open DAW tab.
 5. Test Claude and other clients after deployment. The server now supports stateless 2025 requests and Dynamic Client Registration, but interoperability and full replacement of the in-app AI Composer still require end-to-end checks.
 
-Vercel Bot Protection currently challenges direct requests to `/mcp` and the OAuth discovery/auth endpoints with a `429 Vercel Security Checkpoint` before they reach Next.js. A narrowly scoped WAF bypass for `/mcp`, OAuth `/.well-known/*` metadata, `/api/auth/oauth2/*`, and `/api/auth/jwks` is required for remote MCP clients. Keep the application's bearer-token, consent, and Pro checks enabled; they enforce access after the edge forwards the request.
+Vercel Bot Protection initially challenged direct requests to `/mcp` and the OAuth discovery/auth endpoints with a `429 Vercel Security Checkpoint` before they reached Next.js. On 2026-09-23, a narrowly scoped WAF bypass was activated for `/mcp`, OAuth `/.well-known/*` metadata, `/api/auth/oauth2/*`, and `/api/auth/jwks`. The deployed endpoint now returns its own `401` OAuth challenge, registration is advertised, and a Claude custom connector completed sign-in and consent. The application's bearer-token, consent, and Pro checks remain enabled after the edge forwards the request.
 
 ## Reference material
 
