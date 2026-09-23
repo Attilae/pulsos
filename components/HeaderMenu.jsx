@@ -6,7 +6,7 @@ import { AuthForm } from './AuthControl.jsx'
 import CitySelect from './CitySelect.jsx'
 import ThemeToggle from './ThemeToggle.jsx'
 import { openSoundCheck, hasSoundCheck } from '@/lib/shared/soundCheck.js'
-import { AccountSection, BillingSection, PresetsSection, SecuritySection } from './ProfilePanel.jsx'
+import { AccountSection, BillingSection, McpSection, PresetsSection, SecuritySection } from './ProfilePanel.jsx'
 import { useEntitlements } from '@/lib/shared/EntitlementsContext.jsx'
 import { signOut, useSession } from '../lib/auth-client.js'
 import './HeaderMenu.css'
@@ -52,6 +52,8 @@ export default function HeaderMenu({ startTour, showSessionControls = false }) {
       ? 'My presets'
       : view === 'billing'
         ? 'Plan & billing'
+      : view === 'mcp'
+        ? 'Connect an AI client'
       : view === 'security'
         ? 'Change password'
         : 'Menu'
@@ -138,6 +140,7 @@ function AuthenticatedMenu({ user, view, onNavigate, onClose, onStartTour }) {
   if (view === 'profile') return <AccountSection user={user} />
   if (view === 'presets') return <PresetsSection />
   if (view === 'billing') return <BillingSection onDone={onClose} />
+  if (view === 'mcp') return <McpSection onDone={onClose} />
   if (view === 'security') return <SecuritySection />
 
   return (
@@ -154,6 +157,9 @@ function AuthenticatedMenu({ user, view, onNavigate, onClose, onStartTour }) {
         <MenuButton label="Profile" detail="Account information" onClick={() => onNavigate('profile')} />
         <MenuButton label="My presets" detail="Open, share, or delete saved songs" onClick={() => onNavigate('presets')} />
         <MenuButton label={`Plan · ${plan === 'pro' ? 'Pro' : 'Free'}`} detail="Usage, exports, and billing" onClick={() => onNavigate('billing')} />
+        {process.env.NEXT_PUBLIC_MCP_ENABLED === 'true' && (
+          <MenuButton label="Connect an AI client" detail="Pro MCP access" onClick={() => onNavigate('mcp')} />
+        )}
         <MenuButton label="Change password" detail="Update your account security" onClick={() => onNavigate('security')} />
       </div>
 

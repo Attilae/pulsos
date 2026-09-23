@@ -25,11 +25,15 @@
     "slim:all": "for c in budapest helsinki berlin prague newyork zurich warsaw; do node scripts/slim_lines.js --city $c; done"
   },
   "dependencies": {
+    "@better-auth/cimd": "1.7.5",
+    "@better-auth/mcp": "1.7.5",
+    "@better-auth/oauth-provider": "1.7.5",
+    "@modelcontextprotocol/server": "^2.0.0",
     "@tonejs/midi": "^2.0.28",
     "@vercel/analytics": "^2.0.1",
     "@vercel/blob": "^2.4.0",
     "adm-zip": "^0.5.17",
-    "better-auth": "^1.2.8",
+    "better-auth": "1.7.5",
     "dotenv": "^17.4.2",
     "driver.js": "^1.6.0",
     "drizzle-orm": "^0.45.2",
@@ -44,9 +48,11 @@
     "tone": "^15.1.22",
     "tunajs": "^1.1.3",
     "weq8": "^0.2.2",
-    "ws": "^8.20.1"
+    "ws": "^8.20.1",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
+    "@modelcontextprotocol/client": "^2.0.0",
     "drizzle-kit": "^0.31.4"
   },
   "overrides": {
