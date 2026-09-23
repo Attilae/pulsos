@@ -7,6 +7,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { authClient } from '../lib/auth-client.js'
+import { friendlyAuthError, validateAuthInput } from '../lib/authFormValidation.js'
 
 export function AuthForm({ onDone, className = '', callbackURL = '/' }) {
   const [mode, setMode] = useState('signin') // 'signin' | 'signup'
@@ -15,10 +16,12 @@ export function AuthForm({ onDone, className = '', callbackURL = '/' }) {
   const [name, setName] = useState('')
   const [msg, setMsg] = useState('')
 
-  const run = async (fn, ok) => {
+  const run = async (action, fn, ok) => {
+    const invalid = validateAuthInput(action, { email, password })
+    if (invalid) { setMsg(invalid); return }
     setMsg('…')
-    const { error } = await fn()
-    if (error) setMsg(error.message || 'error')
+    const { error } = await fn(email.trim())
+    if (error) setMsg(friendlyAuthError(error))
     else { setMsg(ok); if (!ok) onDone() }
   }
 
@@ -31,15 +34,15 @@ export function AuthForm({ onDone, className = '', callbackURL = '/' }) {
       {mode === 'signup' && (
         <input placeholder="name" value={name} onChange={e => setName(e.target.value)} />
       )}
-      <input placeholder="email" value={email} onChange={e => setEmail(e.target.value)} />
+      <input placeholder="email" type="email" autoComplete="email" value={email} onChange={e => setEmail(e.target.value)} />
       <input placeholder="password" type="password" value={password} onChange={e => setPassword(e.target.value)} />
       {mode === 'signin' ? (
-        <button className="auth-btn" onClick={() => run(() => authClient.signIn.email({ email, password }), '')}>
+        <button className="auth-btn" onClick={() => run('signin', (addr) => authClient.signIn.email({ email: addr, password }), '')}>
           Sign in
         </button>
       ) : (
         <>
-          <button className="auth-btn" onClick={() => run(() => authClient.signUp.email({ email, password, name: name || email }), '')}>
+          <button className="auth-btn" onClick={() => run('signup', (addr) => authClient.signUp.email({ email: addr, password, name: name || addr }), '')}>
             Create account
           </button>
           <p className="auth-legal">
@@ -51,11 +54,11 @@ export function AuthForm({ onDone, className = '', callbackURL = '/' }) {
       )}
       <button
         className="auth-btn auth-btn--ghost"
-        onClick={() => run(() => authClient.signIn.magicLink({ email, callbackURL }), 'Magic link sent — check your email.')}
+        onClick={() => run('magic', (addr) => authClient.signIn.magicLink({ email: addr, callbackURL }), 'Magic link sent — check your email.')}
       >
         Email me a magic link
       </button>
-      {msg && <p className="auth-msg">{msg}</p>}
+      {msg && <p className="auth-msg" role="status" aria-live="polite">{msg}</p>}
     </div>
   )
 }
