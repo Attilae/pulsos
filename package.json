@@ -22,7 +22,8 @@
     "test": "node --test",
     "sync:agents": "node scripts/sync_agents.js",
     "slim:lines": "node scripts/slim_lines.js",
-    "slim:all": "for c in budapest helsinki berlin prague newyork zurich warsaw; do node scripts/slim_lines.js --city $c; done"
+    "slim:all": "for c in budapest helsinki berlin prague newyork zurich warsaw; do node scripts/slim_lines.js --city $c; done",
+    "index:routes": "node scripts/build_route_index.js"
   },
   "dependencies": {
     "@better-auth/cimd": "1.7.5",
