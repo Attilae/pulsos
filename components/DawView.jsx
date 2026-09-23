@@ -13,6 +13,7 @@ import StopEditor from './StopEditor.jsx'
 import LaneTagEditor from './LaneTagEditor.jsx'
 import DuplicateLaneDialog from './DuplicateLaneDialog.jsx'
 import LinePicker from './LinePicker.jsx'
+import { NOTE_ROOTS, SCALE_TYPES } from '@/lib/harmony.js'
 import './DawView.css'
 
 // Exported so the phone lane sheet offers exactly the same instruments.
@@ -30,7 +31,7 @@ export const SECTIONS = [
   { type: 'bus',     label: 'Bus' },
 ]
 
-export const NOTE_ROOTS = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
+export { NOTE_ROOTS, SCALE_TYPES } from '@/lib/harmony.js'
 
 // Grouped <option> list for a sidechain source picker. Exported so the phone lane
 // sheet offers exactly the same sources as the desktop rack — MixerTab builds the
@@ -54,17 +55,6 @@ export function SidechainSourceOptions({ sources = [], excludeId }) {
     </>
   )
 }
-export const SCALE_TYPES = [
-  ['major',           'Major'],
-  ['minor',           'Minor'],
-  ['pentatonic',      'Pent.'],
-  ['pentatonicMinor', 'Pent. Min'],
-  ['dorian',          'Dorian'],
-  ['phrygian',        'Phrygian'],
-  ['lydian',          'Lydian'],
-  ['mixolydian',      'Mixolyd.'],
-]
-
 export const SPEED_OPTIONS = [
   { value: 0.25, label: '÷4',   title: '0.25× speed — one pass every 4 loops' },
   { value: 0.5,  label: '÷2',   title: '0.5× speed — one pass every 2 loops' },

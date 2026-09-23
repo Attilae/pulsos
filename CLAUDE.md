@@ -59,6 +59,7 @@ npm run preprocess:warsaw    # regenerate public/data/lines.warsaw.json
 # generic form: node scripts/preprocess_lines.js --city <id> [--gtfs data/<id>_gtfs]
 npm run slim:lines -- --city <id>  # write public/data/lines.<id>.slim.json (phone payload)
 npm run slim:all     # slim every city (run after any preprocess — the slim file is not automatic)
+npm run index:routes # rebuild lib/server/routeIndex/<city>.js, the MCP composer's route list (also manual)
 npm run upload:lines # upload public/data/lines.json to Vercel Blob (needs BLOB_READ_WRITE_TOKEN)
 npm run db:generate # drizzle-kit: emit SQL migration into drizzle/ (commit it — see lib/db below)
 npm run db:migrate  # drizzle-kit: apply migrations to DATABASE_URL
@@ -76,11 +77,14 @@ logic** — nothing boots Tone.js, React, or the DB: `billing-plans` (`lib/billi
 `lane-cycles` (`lib/laneCycles.js`), `lane-gating` (`lib/laneGating.js`), `auth-origins`
 (`lib/authOrigins.js`), `mcp-tools`
 (`lib/server/mcpTools.js` — drives the real MCP SDK client/handler in-process, but every DB/billing
-call is injected through its `services` argument, so it still never touches Postgres). There is **no linter
+call is injected through its `services` argument, so it still never touches Postgres),
+`plan-snapshot` (`lib/ai/planSnapshot.js` — round-trips its output through the real
+`applySnapshot`/`buildSnapshot`), `server-purity` (loads the MCP module graph in a child process
+that throws on any Tone/React/`.jsx` import, plus `lib/server/routeIndex.js`). There is **no linter
 configured** and the audio/UI code has no tests. Run a single file with
 `node --test test/ai-plan-apply.test.js`.
 
-**Verifying a change**: there is no lint and no typecheck, and `npm test` only covers the thirteen
+**Verifying a change**: there is no lint and no typecheck, and `npm test` only covers the
 pure-logic modules above — so for anything in `components/`, `app/`, or the audio engine,
 `npm run build` is the only automated check that exists. Run it before calling such a change done.
 Actual audio behaviour can only be confirmed by playing it (`npm run dev`); don't report a sound
@@ -155,6 +159,10 @@ change as verified on a green build alone.
   routes mapped through `routeTypeToLineType` (filtered to the descriptor's `mapLineTypes`).
   Budapest also **mirrors** to `lines.json` (the default-city dev fallback). In production each is
   served from **Vercel Blob** (`npm run upload:lines` → set `NEXT_PUBLIC_LINES_URL[_<CITY>]`).
+- **`lib/server/routeIndex/<city>.js` is a third manual step** (`npm run index:routes`): a
+  committed, generated `{id, name, type, stopCount, meanDemand, desc}` list per city that the MCP
+  composition tools validate plans against — the server never loads `lines.<city>.json`. Skip it
+  after a preprocess and MCP keeps composing against the previous route ids.
 - **`lines.<city>.slim.json` is a separate build step, not a side effect of preprocessing.**
   `npm run slim:all` (or `slim:lines -- --city <id>`) regenerates the phone payloads; if you
   preprocess a city and forget this, phones keep serving the *previous* geometry. See **Phone route
@@ -557,8 +565,12 @@ classes.
 - **Sharing**: an owner can publish a saved song via `SongMenu` → `POST /api/presets/:id/share`
   mints a `share_id`; the link `/?shared=<id>` is publicly readable (`/api/shared/:id`) and the
   hook imports it on load as a detached/unsaved song (Save As to keep a copy).
-- **AI Composer**: `lib/ai/composer.js` builds the system prompt from the live route list and
-  validates the model's JSON plan; `app/api/compose` proxies the call same-origin (**gated to
+- **AI Composer**: `lib/ai/composer.js` sends the prompt; the vocabulary, system prompt
+  (`buildSystemPrompt`) and validator (`validatePlan`) live in **`lib/ai/planContract.js`**, which is
+  pure so the MCP server can share it (composer.js re-exports it). The plan's wire shape is one Zod
+  definition in `lib/ai/planSchema.js` (`makePlanSchema({strict})`): strict →
+  `COMPOSITION_RESPONSE_FORMAT` for OpenRouter, lenient → the MCP tools' `plan` input. It's kept out
+  of planContract.js so the browser bundle doesn't pull in Zod. `app/api/compose` proxies the call same-origin (**gated to
   signed-in users** — it spends the OpenRouter key); `applyAIPlan`
   in MixerTab applies a plan by **replaying the same handlers a human would click** (order
   matters — see the comment there). Two pieces of it live outside those files:
@@ -611,13 +623,31 @@ intended long-term replacement for the in-app AI Composer. Status, phases and re
   `getEntitlements(userId).isPro` (403 otherwise) → `hasActiveMcpConsent` (403 if disconnected).
   Pro is **re-checked inside every tool** as well, so a downgrade cuts access immediately.
 - **Tools**: `lib/server/mcpTools.js` (`createLeidMcpServer(userId, services)`) registers
-  `list_cities`, `list_songs`, `get_song`, `set_song_tempo`. Writes take `expectedUpdatedAt` and
-  fail on conflict rather than overwriting a newer browser save. Tools edit **stored songs only** —
-  they cannot touch an open DAW tab (that state lives in the browser's MixerTab/Tone graph).
+  `list_cities`, `list_songs`, `get_song`, `set_song_tempo`, plus the composition set
+  `get_composer_guide`, `list_routes`, `preview_song_plan`, `create_song_from_plan`,
+  `apply_plan_to_song` and a `compose_loop` prompt. Writes take `expectedUpdatedAt` (via
+  `updateSongState` in presets.js) and fail on conflict rather than overwriting a newer browser save.
+  Tools edit **stored songs only** — they cannot touch an open DAW tab (that state lives in the
+  browser's MixerTab/Tone graph); a write returns `openUrl` = `/?song=<id>`, which
+  `useSongPersistence` opens once signed in.
+- **Composition over MCP**: the connected client *is* the model, so nothing calls OpenRouter and
+  none of it touches the `ai` usage meter. The guide is `buildComposerGuide` — the same vocabulary
+  text as the in-app prompt (`composerVocabularyText`), with routes coming from `list_routes` over
+  `lib/server/routeIndex.js` instead of being inlined. A plan goes `validatePlan` (against the
+  city's route index, capped at the user's `activeLanes`) → `applyPlanToSnapshot`
+  (`lib/ai/planSnapshot.js`), a **pure port of `MixerTab.applyAIPlan`'s handlers onto snapshot
+  maps**. Change one and you must change the other; `test/plan-snapshot.test.js` pins the port to
+  the app's own load/save round trip. Unlike in-app, a plan may name any city route — missing ones
+  are appended to `routeIds`/`laneManifest`.
 - **Shared song service**: `lib/server/presets.js` holds the user-scoped preset DB logic
   (`listSongs`/`getSong`/`createSong`/…, `serializeSong`, `cityIdOf`). Both `app/api/presets/*`
   and the MCP tools call it; MCP must never call the cookie-protected HTTP routes. Nothing under
   `lib/server/` may import Tone.js, React, or `lib/ai/composer.js` (which pulls in browser code).
+  The vocabulary it needs was moved out of the engine for that reason — `lib/soundSpecs.js`
+  (synth defaults, sampler presets, drum voices, granular/sidechain defaults, `DEFAULT_FX_TRACKS`),
+  `lib/fxSpecs.js`, `lib/drumSpecs.js`, `lib/harmony.js` — each re-exported from its old home
+  (`engine.js`, `fxTrack.js`, `drumEngine.js`, `DawView.jsx`). Add new plan vocabulary there, not
+  in the Tone modules; `test/server-purity.test.js` fails otherwise.
 - **Connections**: `lib/server/mcpAccess.js` lists/revokes a user's OAuth consents; disconnecting
   deletes the consent and revokes that client's access + refresh tokens. UI is `McpSection` in
   `ProfilePanel.jsx`, backed by `app/api/mcp/connections`.
