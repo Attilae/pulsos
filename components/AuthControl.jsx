@@ -8,7 +8,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { authClient } from '../lib/auth-client.js'
 
-export function AuthForm({ onDone, className = '' }) {
+export function AuthForm({ onDone, className = '', callbackURL = '/' }) {
   const [mode, setMode] = useState('signin') // 'signin' | 'signup'
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -51,7 +51,7 @@ export function AuthForm({ onDone, className = '' }) {
       )}
       <button
         className="auth-btn auth-btn--ghost"
-        onClick={() => run(() => authClient.signIn.magicLink({ email, callbackURL: '/' }), 'Magic link sent — check your email.')}
+        onClick={() => run(() => authClient.signIn.magicLink({ email, callbackURL }), 'Magic link sent — check your email.')}
       >
         Email me a magic link
       </button>

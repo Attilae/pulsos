@@ -117,6 +117,90 @@ export function BillingSection({ onDone }) {
   )
 }
 
+export function McpSection({ onDone }) {
+  const { isPro, loading, openUpgrade } = useEntitlements()
+  const [url, setUrl] = useState('')
+  const [copied, setCopied] = useState(false)
+  const [connections, setConnections] = useState(null)
+  const [message, setMessage] = useState('')
+
+  useEffect(() => {
+    setUrl(`${window.location.origin}/mcp`)
+  }, [])
+
+  useEffect(() => {
+    if (loading || !isPro) return
+    fetch('/api/mcp/connections', { cache: 'no-store' })
+      .then(async (response) => {
+        if (!response.ok) throw new Error('Could not load connected clients')
+        return response.json()
+      })
+      .then(setConnections)
+      .catch((error) => setMessage(error.message))
+  }, [loading, isPro])
+
+  const disconnect = async (id) => {
+    setMessage('')
+    try {
+      const response = await fetch('/api/mcp/connections', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+      })
+      if (!response.ok) throw new Error('Could not disconnect this client')
+      setConnections((items) => items.filter((item) => item.id !== id))
+      setMessage('Client disconnected.')
+    } catch (error) {
+      setMessage(error.message)
+    }
+  }
+
+  return (
+    <section className="profile-section">
+      <h3>Connect an AI client</h3>
+      {loading ? <p className="profile-empty">Checking signal…</p> : isPro ? (
+        <>
+          <p>In your AI client, add a remote MCP server using this URL. Sign in to Leið when prompted.</p>
+          <div className="profile-field">
+            <label htmlFor="mcp-server-url">MCP server URL</label>
+            <div className="profile-inline">
+              <input id="mcp-server-url" value={url} readOnly />
+              <button className="profile-btn" type="button" disabled={!url} onClick={async () => {
+                try {
+                  await navigator.clipboard.writeText(url)
+                  setCopied(true)
+                } catch {
+                  setMessage('Could not copy the URL. Select it from the field instead.')
+                }
+              }}>{copied ? 'Copied' : 'Copy'}</button>
+            </div>
+          </div>
+          <p>The connected client can work with your saved songs. Changes to a saved song appear when you open it in Leið.</p>
+          <h4>Connected clients</h4>
+          {connections === null ? <p className="profile-empty">Loading connections…</p>
+            : connections.length === 0 ? <p className="profile-empty">No clients connected yet.</p>
+              : connections.map((connection) => (
+                <div className="profile-inline" key={connection.id}>
+                  <span className="profile-readonly">{connection.name}</span>
+                  <button className="profile-btn" type="button" onClick={() => disconnect(connection.id)}>
+                    Disconnect
+                  </button>
+                </div>
+              ))}
+        </>
+      ) : (
+        <>
+          <p>AI client connections are available with Leið Pro.</p>
+          <button className="profile-btn" type="button" onClick={() => { onDone?.(); openUpgrade('upgrade') }}>
+            Upgrade to Pro
+          </button>
+        </>
+      )}
+      {message && <p className="profile-msg" role="status">{message}</p>}
+    </section>
+  )
+}
+
 function UsageMeter({ label, usage, suffix }) {
   const unlimited = usage?.limit == null
   const percent = unlimited ? 100 : Math.min(100, ((usage?.used ?? 0) / Math.max(1, usage?.limit ?? 1)) * 100)
