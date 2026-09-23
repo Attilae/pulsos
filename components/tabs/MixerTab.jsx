@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import * as Tone from 'tone'
 import { TransitEngine, SYNTH_DEFAULTS, availableAutomationTargets, DEFAULT_ARP, DEFAULT_GRANULAR, DEFAULT_SIDECHAIN, SIDECHAIN_ANY_DRUM, SIDECHAIN_PAD_SOURCES, DEFAULT_PITCH_VARIETY, DRUMS_ROUTE_ID } from '@/lib/engine.js'
+import { DEFAULT_FX_TRACKS } from '@/lib/soundSpecs.js'
 import { FX_BUSES } from '@/lib/fxTrack.js'
 import { randomFromScale, shiftOctaveNote, geoToMidi, routeBounds, midiToNote, noteToMidi, SCALES, MODES, setCityBounds } from '@/lib/mappings.js'
 import { fetchLines } from '@/lib/shared/useRoutes.js'
@@ -39,9 +40,6 @@ const MAX_EVENTS = 80
 // without a cap they'd all open at once and freeze the map/DAW render. ≥9 keeps
 // every current non-NYC city unchanged.
 const STARTUP_PICKS = { metro: 10, tram: 5, trolley: 5, bus: 5 }
-
-// FX rack buses present in a fresh session (new song / city switch / reset).
-const DEFAULT_FX_TRACKS = ['reverb', 'delay', 'chorus', 'distortion']
 
 // Fisher–Yates shuffle in place (unseeded — a fresh roll each call).
 function shuffle(pool) {
