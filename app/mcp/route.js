@@ -17,7 +17,7 @@ const protectedPost = requireMcpAuth(auth, async (request, claims) => {
     return new Response('MCP client authorization has been revoked', { status: 403 })
   }
 
-  const handler = createMcpHandler(() => createLeidMcpServer(userId), { legacy: 'reject' })
+  const handler = createMcpHandler(() => createLeidMcpServer(userId), { legacy: 'stateless' })
 
   return handler.fetch(request)
 }, { resource: MCP_RESOURCE })
