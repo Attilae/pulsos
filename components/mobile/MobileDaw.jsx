@@ -90,6 +90,9 @@ export default function MobileDaw({ controls, lanes }) {
         arp={lanes.arps?.[openLaneId]}
         perStopSteps={lanes.pitchOffsets?.[openLaneId]}
         stopVelocities={lanes.stopVelocities?.[openLaneId]}
+        noteChance={lanes.noteChances?.[openLaneId]}
+        stopChances={lanes.stopChances?.[openLaneId]}
+        loopPattern={lanes.loopPatterns?.[openLaneId]}
         sendMatrix={lanes.sendMatrix}
         activeFxTracks={lanes.activeFxTracks}
         sidechain={lanes.sidechains?.[openLaneId]}
@@ -110,6 +113,9 @@ export default function MobileDaw({ controls, lanes }) {
         onSidechain={lanes.onSidechain}
         onStopPitch={lanes.onStopPitch}
         onStopVelocity={lanes.onStopVelocity}
+        onNoteChance={lanes.onNoteChance}
+        onStopChance={lanes.onStopChance}
+        onLoopPattern={lanes.onLoopPattern}
         onLaneTag={lanes.onLaneTag}
       />
 

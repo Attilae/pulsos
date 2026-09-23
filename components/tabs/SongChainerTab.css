@@ -343,6 +343,8 @@
   border-right: 2px solid var(--surface);
   opacity: 0.8;
 }
+/* A loop the lane's rest pattern sits out (lib/laneGating.js). */
+.chain-loop-brick--rest { opacity: 0.22; }
 /* Too many repeats to draw individually. */
 .chain-loop-brick--dense {
   display: flex;

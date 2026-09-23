@@ -72,11 +72,12 @@ logic** — nothing boots Tone.js, React, or the DB: `billing-plans` (`lib/billi
 `ai-plan-apply` (`lib/ai/planApply.js` + `lib/shared/cityFacts.js`), `song-lanes`
 (`lib/songLanes.js`), `song-snapshot` + `song-migrate` (`lib/songState.js`), `stop-signals`
 (`scripts/lib/stopSignals.js`), `ridership-adapters` (`scripts/ridership/`),
-`feedback-validate` (`lib/feedback.js`), `turnstile-hostnames` (`lib/turnstile.js`). There is **no linter
+`feedback-validate` (`lib/feedback.js`), `turnstile-hostnames` (`lib/turnstile.js`),
+`lane-cycles` (`lib/laneCycles.js`), `lane-gating` (`lib/laneGating.js`). There is **no linter
 configured** and the audio/UI code has no tests. Run a single file with
 `node --test test/ai-plan-apply.test.js`.
 
-**Verifying a change**: there is no lint and no typecheck, and `npm test` only covers the nine
+**Verifying a change**: there is no lint and no typecheck, and `npm test` only covers the eleven
 pure-logic modules above — so for anything in `components/`, `app/`, or the audio engine,
 `npm run build` is the only automated check that exists. Run it before calling such a change done.
 Actual audio behaviour can only be confirmed by playing it (`npm run dev`); don't report a sound
@@ -327,6 +328,19 @@ mock playback on `active` going false if it was running, since all tabs share on
   there makes the space between two words untypable. `components/LaneTagEditor.jsx` exports both the
   desktop modal and `LaneTagFields`, which the phone lane sheet reuses (same trick as
   `SidechainSourceOptions`). The label also renders in MapView's track-status overlay.
+- **Note chance + loop rest patterns** (`lib/laneGating.js`, pure and tested): a lane's
+  `trackNoteChances` (0–1) rolls **fresh dice per note on every pass** (`Math.random`, not seeded —
+  deliberately non-repeatable), and `trackStopChances` overrides it per stop (StopEditor / phone Notes
+  list). `trackLoopPatterns` (`{play, rest, offset}`) makes a lane play `play` of its **own** loops
+  then sit out `rest`. All three are sparse (absent = always play, so no schema bump) and are
+  **read at callback time** — `setNoteChance`/`setStopChances`/`setLoopPattern` never rebuild a Part.
+  The single gate is `engine._laneGate`, called in the mock and merged-chord Part callbacks *before*
+  `onEvent`/MIDI record/`_fireSidechain`, so a silent note neither flashes the map nor ducks another
+  lane. Loop passes are counted in **ticks** (`_partLoopTicks`/`_partStartTicks`), not seconds: a
+  Part's loop is fixed in ticks, so a BPM change must not shift the count. Legato lanes release on
+  entering a rest loop (`_releaseRestingLegato`). Live only applies lane chance; drums and automation
+  lanes are ungated. The Song Chainer loop strip multiplies each lane's loop by `patternPeriod` for
+  its realign hint, and one-loop MIDI export drops only 0%-chance stops.
 - Fresh sessions now start with `DEFAULT_FX_TRACKS = ['reverb', 'delay', 'chorus', 'distortion']`
   pre-activated (was empty), so automation targets like `send.reverb` are available immediately.
 
@@ -706,6 +720,16 @@ references presets by id rather than embedding their state, so editing a preset 
 composition using it. Data model (`lib/compositions.js`, `compositions` table): `items` is
 `[{presetId, presetName, bars, transition: 'cut'|'crossfade', crossfadeBars?}]`, plus `bpm` and
 `cityId` (compositions are implicitly single-city).
+
+**Loop strip**: an item cuts its preset after a fixed `bars`, but the preset's lanes loop on
+their own polyrhythmic cycles, so a bar count that cuts a lane mid-loop is otherwise invisible.
+Each chain row renders `components/tabs/ChainItemLoops.jsx` — display only — which tiles every
+audible lane's loop as bricks across the part, hatches the brick the part cuts, and offers
+one-click snap-to-realignment bar counts. Every number comes from `lib/laneCycles.js` (pure,
+tested: `laneLoopUnits`/`cycleFromUnits` (loop length from region + speed, LCM realign point),
+`suggestBarOptions`, `buildLoopBricks`, `describeSnapshotLoops`), which reads the same snapshot
+fields playback does. `test/lane-cycles.test.js` hard-codes a copy of DawView's `SPEED_OPTIONS`
+— change both.
 
 Playback does **not** reuse MixerTab's engine — `SongChainerTab` instantiates **two** standalone
 `TransitEngine`s plus a `SongChainPlayer` (`lib/songChainPlayer.js`). Each item is configured via

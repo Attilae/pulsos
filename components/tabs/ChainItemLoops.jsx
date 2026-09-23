@@ -13,6 +13,7 @@ import { useMemo } from 'react'
 import {
   describeSnapshotLoops, buildLoopBricks, suggestBarOptions, formatBars,
 } from '@/lib/laneCycles.js'
+import { loopPlays, formatLoopPattern } from '@/lib/laneGating.js'
 
 // Beyond this the strip is taller than the row it explains; the rest collapse
 // into a count. Chosen to comfortably clear the Free plan's 6-lane cap.
@@ -24,6 +25,7 @@ function LaneRow({ lane, barCount }) {
   const bricks = buildLoopBricks(lane.loopUnits, barCount)
   const length = formatBars(lane.loopBars)
   const title  = `${lane.name} · loops every ${length} bar${lane.loopBars === 1 ? '' : 's'}`
+    + (lane.pattern ? ` · pattern ${formatLoopPattern(lane.pattern)} (rests are faded)` : '')
     + (bricks.aligned ? '' : ' — cut mid-loop by this part')
 
   return (
@@ -45,7 +47,7 @@ function LaneRow({ lane, barCount }) {
           Array.from({ length: bricks.fullCount }, (_, i) => (
             <span
               key={i}
-              className="chain-loop-brick"
+              className={`chain-loop-brick ${lane.pattern && !loopPlays(i, lane.pattern) ? 'chain-loop-brick--rest' : ''}`}
               style={{ width: `${bricks.widthPct}%`, ...(lane.color ? { '--lane-color': lane.color } : {}) }}
             />
           ))

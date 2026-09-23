@@ -26,6 +26,10 @@ import { ARP_RATES, ARP_STYLES, DEFAULT_ARP, DEFAULT_SIDECHAIN } from '@/lib/eng
 import { DEFAULT_GRID_RESOLUTION, DEFAULT_PITCH_VARIETY, PITCH_CONTOURS } from '@/lib/mappings.js'
 import { FX_BUSES } from '@/lib/fxTrack.js'
 import { buildLanePitchMaps, buildLaneNoteRows } from '@/lib/laneNotes.js'
+import {
+  LOOP_PATTERN_PRESETS, MAX_PATTERN_PLAY, MAX_PATTERN_REST,
+  normalizeLoopPattern, normalizeNoteChance,
+} from '@/lib/laneGating.js'
 
 const SEGMENTS = [
   { id: 'sound', label: 'Tone' },
@@ -53,6 +57,9 @@ export default function LaneSheet({
   arp,
   perStopSteps,
   stopVelocities,
+  noteChance,
+  stopChances,
+  loopPattern,
   sendMatrix,
   activeFxTracks = [],
   sidechain,
@@ -62,12 +69,15 @@ export default function LaneSheet({
   onVolume, onPan, onDisable, onSolo, onSynthType, onScale, onOctaveShift,
   onPitchVariety, onTrackSpeed, onGridResolution, onArp,
   onSendLevel, onSidechain, onStopPitch, onStopVelocity, onLaneTag,
+  onNoteChance, onStopChance, onLoopPattern,
 }) {
   const [segment, setSegment] = useState('sound')
 
   const trackScale = scale ?? { root: 'C', scaleType: 'major' }
   const pv = { ...DEFAULT_PITCH_VARIETY, ...pitchVariety }
   const ag = { ...DEFAULT_ARP, ...arp }
+  const laneChance = normalizeNoteChance(noteChance)
+  const pattern = normalizeLoopPattern(loopPattern)
 
   const noteRows = useMemo(() => {
     if (!route || segment !== 'notes') return []
@@ -75,8 +85,8 @@ export default function LaneSheet({
       scale: trackScale, pitchVariety, perStopSteps,
       octaveShift: octave, semitoneShift: semitone,
     })
-    return buildLaneNoteRows(route, { pitchMap, perStopSteps, stopVelocities })
-  }, [route, segment, trackScale.root, trackScale.scaleType, pitchVariety, perStopSteps, stopVelocities, octave, semitone])
+    return buildLaneNoteRows(route, { pitchMap, perStopSteps, stopVelocities, stopChances, laneChance })
+  }, [route, segment, trackScale.root, trackScale.scaleType, pitchVariety, perStopSteps, stopVelocities, stopChances, laneChance, octave, semitone])
 
   if (!route) return null
 
@@ -220,6 +230,56 @@ export default function LaneSheet({
                 ))}
               </div>
             </Field>
+          </section>
+
+          <section className="lsheet-group lsheet-group--rhythm">
+            <GroupHead title="Variation" description="Let the lane skip notes and sit out loops." />
+            <Field
+              label={`Note chance · ${Math.round(laneChance * 100)}%`}
+              hint="Each note rolls fresh dice every loop. Lower means fewer notes play."
+            >
+              <input
+                type="range" min={0} max={1} step={0.05} value={laneChance}
+                onChange={e => onNoteChance(route.id, Number(e.target.value))}
+                aria-label="Note chance"
+              />
+            </Field>
+
+            <Field label="Loop pattern" hint="Play some loops, rest others. 1:3 plays every 4th loop.">
+              <div className="lsheet-choice-grid lsheet-choice-grid--compact">
+                {LOOP_PATTERN_PRESETS.map(pr => {
+                  const on = pattern.play === pr.play && pattern.rest === pr.rest
+                  return (
+                    <button
+                      key={pr.id}
+                      type="button"
+                      className={on ? 'is-active' : ''}
+                      onClick={() => onLoopPattern(route.id, { play: pr.play, rest: pr.rest, offset: pr.rest ? pattern.offset : 0 })}
+                      aria-pressed={on}
+                      aria-label={pr.title}
+                    >{pr.label}</button>
+                  )
+                })}
+              </div>
+            </Field>
+
+            {[
+              { key: 'play',   label: 'Play loops', min: 1, max: MAX_PATTERN_PLAY },
+              { key: 'rest',   label: 'Rest loops', min: 0, max: MAX_PATTERN_REST },
+              { key: 'offset', label: 'Shift',      min: 0, max: pattern.play + pattern.rest - 1 },
+            ].map(f => (
+              <Field key={f.key} label={f.label}>
+                <div className="lsheet-stepper">
+                  <button type="button" disabled={pattern[f.key] <= f.min}
+                    onClick={() => onLoopPattern(route.id, { ...pattern, [f.key]: pattern[f.key] - 1 })}
+                    aria-label={`${f.label} down`}>−</button>
+                  <span className="mono">{pattern[f.key]}</span>
+                  <button type="button" disabled={pattern[f.key] >= f.max}
+                    onClick={() => onLoopPattern(route.id, { ...pattern, [f.key]: pattern[f.key] + 1 })}
+                    aria-label={`${f.label} up`}>+</button>
+                </div>
+              </Field>
+            ))}
           </section>
 
           <section className="lsheet-group lsheet-group--rhythm">
@@ -418,7 +478,8 @@ export default function LaneSheet({
         <div className="lsheet-body">
           <p className="lsheet-note">
             One row per stop, in travel order. ± moves the note within the
-            lane&rsquo;s scale; the slider sets how hard it&rsquo;s struck.
+            lane&rsquo;s scale; the sliders set how hard it&rsquo;s struck and
+            how likely it is to play.
           </p>
           <ul className="lsheet-notes">
             {noteRows.map(row => (
@@ -447,6 +508,25 @@ export default function LaneSheet({
                     onChange={e => onStopVelocity(route.id, row.id, Number(e.target.value))}
                     aria-label={`${row.name}: velocity`}
                   />
+                </div>
+                <div className="lsheet-noterow-controls">
+                  <span className="lsheet-note-chance mono">
+                    {Math.round(row.chance * 100)}%{row.chanceOverride ? '' : ' · lane'}
+                  </span>
+                  <input
+                    type="range" min={0} max={1} step={0.05}
+                    value={row.chance}
+                    onChange={e => onStopChance(route.id, row.id, Number(e.target.value))}
+                    aria-label={`${row.name}: chance`}
+                  />
+                  {row.chanceOverride && (
+                    <button
+                      type="button"
+                      className="lsheet-note-chance-reset"
+                      onClick={() => onStopChance(route.id, row.id, null)}
+                      aria-label={`${row.name}: follow lane chance`}
+                    >Lane</button>
+                  )}
                 </div>
               </li>
             ))}

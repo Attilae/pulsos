@@ -8,6 +8,7 @@ import { useCitySelection } from '@/lib/shared/CityContext.jsx'
 import { getCityEntry, linesUrlFor } from '@/lib/shared/cities.js'
 import { resolveSnapshotLanes, clampMode } from '@/lib/songLanes.js'
 import { normalizeLaneTag } from '@/lib/laneTags.js'
+import { normalizeNoteChance, normalizeLoopPattern, isDefaultPattern } from '@/lib/laneGating.js'
 import { useDrumClipboard } from '@/lib/shared/DrumClipboardContext.jsx'
 import { cycleStepValue } from '@/lib/engines/drumEngine.js'
 import DawView, { NOTE_ROOTS, SCALE_TYPES } from '../DawView.jsx'
@@ -246,6 +247,11 @@ export default function MixerTab({ active = true }) {
   // Per-stop diatonic pitch offsets: routeId → { stopId: degrees } (stop-editor modal).
   // Applies to every lane (base + duplicate); engine re-pitches via setPitchOffsets.
   const [trackPitchOffsets, setTrackPitchOffsets] = useState({})
+  // Note chance + loop rest pattern (lib/laneGating.js), all sparse — absent means
+  // "always play". routeId → 0..1 / routeId → { stopId: 0..1 } / routeId → { play, rest, offset }.
+  const [trackNoteChances, setTrackNoteChances] = useState({})
+  const [trackStopChances, setTrackStopChances] = useState({})
+  const [trackLoopPatterns, setTrackLoopPatterns] = useState({})
   const [trackArps,       setTrackArps]       = useState({})
   const [trackGranulars,  setTrackGranulars]  = useState({})
   const [trackSidechains, setTrackSidechains] = useState({})
@@ -507,6 +513,7 @@ export default function MixerTab({ active = true }) {
     rename(setTrackOctaves); rename(setTrackSemitones); rename(setTrackGlides); rename(setTrackLegatos)
     rename(setTrackDroneModes); rename(setTrackDroneRoots); rename(setTrackSpeeds); rename(setTrackLoopRegions)
     rename(setTrackGridResolutions); rename(setTrackPitchVariety); rename(setTrackArps); rename(setTrackGranulars)
+    rename(setTrackNoteChances); rename(setTrackLoopPatterns)
     // The label names the lane's musical role, not the line, so it follows the swap.
     rename(setTrackLabels)
     // Sidechain needs more than a key rename: lanes ducking *off* the old id would
@@ -518,7 +525,7 @@ export default function MixerTab({ active = true }) {
       if (!(oldId in m)) return m
       const next = { ...m }; delete next[oldId]; return next
     })
-    drop(setTrackStopVelocities); drop(setTrackPitchOffsets)
+    drop(setTrackStopVelocities); drop(setTrackPitchOffsets); drop(setTrackStopChances)
     setSoloRoutes(prev => {
       if (!prev.has(oldId)) return prev
       const next = new Set(prev); next.delete(oldId); next.add(newRoute.id); return next
@@ -567,6 +574,8 @@ export default function MixerTab({ active = true }) {
     if (trackLoopRegions[oldId])     engine.setTrackLoopRegion(newRoute.id, trackLoopRegions[oldId])
     if (trackGridResolutions[oldId]) engine.setGridResolution(newRoute.id, trackGridResolutions[oldId])
     if (trackPitchVariety[oldId])    engine.setPitchVariety(newRoute.id, trackPitchVariety[oldId])
+    if (trackNoteChances[oldId] != null) engine.setNoteChance(newRoute.id, trackNoteChances[oldId])
+    if (trackLoopPatterns[oldId])    engine.setLoopPattern(newRoute.id, trackLoopPatterns[oldId])
     if (trackDroneModes[oldId])      engine.setDroneMode(newRoute.id, true, trackDroneRoots[oldId] ?? 'C3')
     for (const [key, level] of Object.entries(sendMatrix)) {
       const [rid, bus] = key.split(':')
@@ -575,7 +584,7 @@ export default function MixerTab({ active = true }) {
   }, [routes, started, disabledRoutes, volumes, pans, trackScales, trackFilters, trackEqs,
       trackOctaves, trackSemitones, trackGlides, trackLegatos, trackArps, trackGranulars,
       trackSidechains, trackSpeeds, trackLoopRegions, trackGridResolutions, trackPitchVariety,
-      trackDroneModes, trackDroneRoots, sendMatrix])
+      trackNoteChances, trackLoopPatterns, trackDroneModes, trackDroneRoots, sendMatrix])
 
   // Remove a base lane entirely (drop its route + all per-track state). Stop-only.
   const handleRemoveLine = useCallback((routeId) => {
@@ -591,6 +600,7 @@ export default function MixerTab({ active = true }) {
     drop(setTrackOctaves); drop(setTrackSemitones); drop(setTrackGlides); drop(setTrackLegatos)
     drop(setTrackDroneModes); drop(setTrackDroneRoots); drop(setTrackSpeeds); drop(setTrackLoopRegions)
     drop(setTrackGridResolutions); drop(setTrackPitchVariety); drop(setTrackStopVelocities); drop(setTrackPitchOffsets)
+    drop(setTrackNoteChances); drop(setTrackStopChances); drop(setTrackLoopPatterns)
     drop(setTrackArps); drop(setTrackGranulars); drop(setTrackLabels)
     setTrackSidechains(m => dropSidechainSource(m, routeId))
     setSoloRoutes(prev => {
@@ -1216,6 +1226,34 @@ export default function MixerTab({ active = true }) {
     })
   }, [])
 
+  // Lane-wide note chance (0..1). 100% deletes the entry — absent means "always".
+  const handleNoteChance = useCallback((routeId, chance) => {
+    const c = normalizeNoteChance(chance)
+    setTrackNoteChances(prev => {
+      if (c >= 1) {
+        if (!(routeId in prev)) return prev
+        const next = { ...prev }; delete next[routeId]; return next
+      }
+      return { ...prev, [routeId]: Math.round(c * 100) / 100 }
+    })
+    engineRef.current?.setNoteChance(routeId, c >= 1 ? null : c)
+  }, [])
+
+  // Loop rest pattern ({ play, rest, offset }). A pattern with no rest is the
+  // default and is deleted rather than stored.
+  const handleLoopPattern = useCallback((routeId, pattern) => {
+    const p = normalizeLoopPattern(pattern)
+    const isDefault = isDefaultPattern(p)
+    setTrackLoopPatterns(prev => {
+      if (isDefault) {
+        if (!(routeId in prev)) return prev
+        const next = { ...prev }; delete next[routeId]; return next
+      }
+      return { ...prev, [routeId]: p }
+    })
+    engineRef.current?.setLoopPattern(routeId, isDefault ? null : p)
+  }, [])
+
   // Set a lane's role label. `patch` is partial ({ text } / { color } / both),
   // so a preset chip can set name and colour in one call. An entry that ends up
   // blank is deleted rather than stored empty — the lane simply has no label.
@@ -1259,6 +1297,7 @@ export default function MixerTab({ active = true }) {
     copy(setTrackOctaves); copy(setTrackGlides); copy(setTrackLegatos)
     copy(setTrackDroneModes); copy(setTrackDroneRoots); copy(setTrackSpeeds); copy(setTrackLoopRegions)
     copy(setTrackGridResolutions); copy(setTrackPitchVariety); copy(setTrackStopVelocities); copy(setTrackPitchOffsets)
+    copy(setTrackNoteChances); copy(setTrackStopChances); copy(setTrackLoopPatterns)
     copy(setTrackArps); copy(setTrackGranulars); copy(setTrackSidechains); copy(setTrackLabels)
     setSendMatrix(m => {
       const next = { ...m }
@@ -1302,6 +1341,9 @@ export default function MixerTab({ active = true }) {
     if (trackPitchVariety[sourceId]) engine.setPitchVariety(id, trackPitchVariety[sourceId])
     if (trackStopVelocities[sourceId]) engine.setStopVelocities(id, trackStopVelocities[sourceId])
     if (trackPitchOffsets[sourceId]) engine.setPitchOffsets(id, trackPitchOffsets[sourceId])
+    if (trackNoteChances[sourceId] != null) engine.setNoteChance(id, trackNoteChances[sourceId])
+    if (trackStopChances[sourceId])  engine.setStopChances(id, trackStopChances[sourceId])
+    if (trackLoopPatterns[sourceId]) engine.setLoopPattern(id, trackLoopPatterns[sourceId])
     if (trackDroneModes[sourceId])   engine.setDroneMode(id, true, trackDroneRoots[sourceId] ?? 'C3')
     for (const [key, level] of Object.entries(sendMatrix)) {
       const [rid, bus] = key.split(':')
@@ -1311,6 +1353,7 @@ export default function MixerTab({ active = true }) {
       trackSynthTypes, trackADSRs, trackFilters, trackEqs, trackOctaves, trackSemitones, trackGlides,
       trackLegatos, trackDroneModes, trackDroneRoots, trackSpeeds, trackLoopRegions,
       trackGridResolutions, trackPitchVariety, trackStopVelocities, trackPitchOffsets, trackArps, trackGranulars, trackSidechains, sendMatrix,
+      trackNoteChances, trackStopChances, trackLoopPatterns,
       limits.activeLanes, visibleInstrumentRoutes, openUpgrade])
 
   const handleRemoveDuplicate = useCallback((dupId) => {
@@ -1325,6 +1368,7 @@ export default function MixerTab({ active = true }) {
     drop(setTrackOctaves); drop(setTrackSemitones); drop(setTrackGlides); drop(setTrackLegatos)
     drop(setTrackDroneModes); drop(setTrackDroneRoots); drop(setTrackSpeeds); drop(setTrackLoopRegions)
     drop(setTrackGridResolutions); drop(setTrackPitchVariety); drop(setTrackStopVelocities); drop(setTrackPitchOffsets)
+    drop(setTrackNoteChances); drop(setTrackStopChances); drop(setTrackLoopPatterns)
     drop(setTrackArps); drop(setTrackGranulars); drop(setTrackLabels)
     setTrackSidechains(m => dropSidechainSource(m, dupId))
     setSoloRoutes(prev => {
@@ -1348,6 +1392,21 @@ export default function MixerTab({ active = true }) {
       if (Math.abs(v - 1) < 0.01) delete map[stopId]
       else map[stopId] = Math.round(v * 100) / 100
       engineRef.current?.setStopVelocities(routeId, map)
+      if (!Object.keys(map).length) {
+        const next = { ...prev }; delete next[routeId]; return next
+      }
+      return { ...prev, [routeId]: map }
+    })
+  }, [])
+
+  // Set one stop's chance override (stop-editor modal). `null` clears it — the
+  // stop falls back to the lane's chance.
+  const handleStopChance = useCallback((routeId, stopId, chance) => {
+    setTrackStopChances(prev => {
+      const map = { ...(prev[routeId] ?? {}) }
+      if (chance == null) delete map[stopId]
+      else map[stopId] = Math.round(normalizeNoteChance(chance) * 100) / 100
+      engineRef.current?.setStopChances(routeId, map)
       if (!Object.keys(map).length) {
         const next = { ...prev }; delete next[routeId]; return next
       }
@@ -1431,6 +1490,7 @@ export default function MixerTab({ active = true }) {
     drop(setTrackOctaves); drop(setTrackSemitones); drop(setTrackGlides); drop(setTrackLegatos)
     drop(setTrackDroneModes); drop(setTrackDroneRoots); drop(setTrackSpeeds); drop(setTrackLoopRegions)
     drop(setTrackGridResolutions); drop(setTrackPitchVariety); drop(setTrackStopVelocities); drop(setTrackPitchOffsets)
+    drop(setTrackNoteChances); drop(setTrackStopChances); drop(setTrackLoopPatterns)
     drop(setTrackArps); drop(setTrackGranulars); drop(setTrackLabels)
     setTrackSidechains(m => dropSidechainSource(m, mergeId))
     setSoloRoutes(prev => {
@@ -1668,6 +1728,8 @@ export default function MixerTab({ active = true }) {
     trackGridResolutions,
     trackPitchVariety,
     trackStopVelocities,
+    trackNoteChances,
+    trackStopChances,
     trackDroneModes,
     automationSourceIds,
     perStopSteps: trackPitchOffsets,
@@ -1675,7 +1737,7 @@ export default function MixerTab({ active = true }) {
   }), [
     bpm, disabledRoutes, soloRoutes, trackScales, trackOctaves, trackSemitones, trackSoundModes,
     trackLegatos, trackSpeeds, trackLoopRegions, trackGridResolutions, trackPitchVariety, trackStopVelocities, trackDroneModes,
-    automationSourceIds, trackPitchOffsets, hasMidiSession,
+    trackNoteChances, trackStopChances, automationSourceIds, trackPitchOffsets, hasMidiSession,
   ])
 
   const canExportMix = useMemo(() => {
@@ -1738,6 +1800,7 @@ export default function MixerTab({ active = true }) {
     trackSoundModes, trackScales, trackSynthTypes, trackADSRs,
     trackFilters, trackEqs,
     trackOctaves, trackSemitones, trackGlides, trackLegatos, trackDroneModes, trackDroneRoots, trackSpeeds, trackLoopRegions, trackGridResolutions, trackPitchVariety, trackStopVelocities, trackPitchOffsets, trackArps, trackGranulars, trackSidechains, trackLabels,
+    trackNoteChances, trackStopChances, trackLoopPatterns,
     activeFxTracks, fxBusWet, fxBusMuted, fxBusSoloed, fxBusParams,
     sendMatrix, automationCfg, duplicates, merges, drumPattern, drumsMuted,
     laneManifest: visibleInstrumentRoutes.map(route => ({
@@ -1752,6 +1815,7 @@ export default function MixerTab({ active = true }) {
     trackSoundModes, trackScales, trackSynthTypes, trackADSRs,
     trackFilters, trackEqs,
     trackOctaves, trackSemitones, trackGlides, trackLegatos, trackDroneModes, trackDroneRoots, trackSpeeds, trackLoopRegions, trackGridResolutions, trackPitchVariety, trackStopVelocities, trackPitchOffsets, trackArps, trackGranulars, trackSidechains, trackLabels,
+    trackNoteChances, trackStopChances, trackLoopPatterns,
     activeFxTracks, fxBusWet, fxBusMuted, fxBusSoloed, fxBusParams,
     sendMatrix, automationCfg, duplicates, merges, drumPattern, drumsMuted, visibleInstrumentRoutes,
   ])
@@ -1783,6 +1847,7 @@ export default function MixerTab({ active = true }) {
     setTrackPitchVariety({})
     setTrackStopVelocities({})
     setTrackPitchOffsets({})
+    setTrackNoteChances({}); setTrackStopChances({}); setTrackLoopPatterns({})
     setTrackArps({})
     setTrackGranulars({})
     setTrackSidechains({})
@@ -1804,6 +1869,7 @@ export default function MixerTab({ active = true }) {
     setTrackSoundModes, setTrackScales, setTrackSynthTypes, setTrackADSRs,
     setTrackFilters, setTrackEqs,
     setTrackOctaves, setTrackSemitones, setTrackGlides, setTrackLegatos, setTrackDroneModes, setTrackDroneRoots, setTrackSpeeds, setTrackLoopRegions, setTrackGridResolutions, setTrackPitchVariety, setTrackStopVelocities, setTrackPitchOffsets, setTrackArps, setTrackGranulars, setTrackSidechains, setTrackLabels,
+    setTrackNoteChances, setTrackStopChances, setTrackLoopPatterns,
     setActiveFxTracks, setFxBusWet, setFxBusMuted, setFxBusSoloed, setFxBusParams,
     setSendMatrix, setAutomationCfg, setDuplicates, setMerges,
     setDrumPattern: setSyncedDrumPattern, setDrumsMuted,
@@ -2153,6 +2219,12 @@ export default function MixerTab({ active = true }) {
         onPitchVariety={handlePitchVariety}
         trackStopVelocities={trackStopVelocities}
         onStopVelocity={handleStopVelocity}
+        trackNoteChances={trackNoteChances}
+        onNoteChance={handleNoteChance}
+        trackStopChances={trackStopChances}
+        onStopChance={handleStopChance}
+        trackLoopPatterns={trackLoopPatterns}
+        onLoopPattern={handleLoopPattern}
         trackLabels={trackLabels}
         onLaneTag={handleLaneTag}
         trackDroneModes={trackDroneModes}
@@ -2236,6 +2308,9 @@ export default function MixerTab({ active = true }) {
             arps: trackArps,
             pitchOffsets: trackPitchOffsets,
             stopVelocities: trackStopVelocities,
+            noteChances: trackNoteChances,
+            stopChances: trackStopChances,
+            loopPatterns: trackLoopPatterns,
             sidechains: trackSidechains,
             sidechainSources,
             sendMatrix,
@@ -2255,6 +2330,9 @@ export default function MixerTab({ active = true }) {
             onSidechain: handleSidechain,
             onStopPitch: handleStopPitch,
             onStopVelocity: handleStopVelocity,
+            onNoteChance: handleNoteChance,
+            onStopChance: handleStopChance,
+            onLoopPattern: handleLoopPattern,
             onLaneTag: handleLaneTag,
           }}
         />

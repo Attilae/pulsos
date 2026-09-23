@@ -8,6 +8,7 @@ import { buildLanePitchMaps } from '@/lib/laneNotes.js'
 import { useResetGesture } from '@/lib/shared/useResetGesture.js'
 import { useIsPhone } from '@/lib/shared/useViewport.js'
 import { normalizeLaneTag } from '@/lib/laneTags.js'
+import { LOOP_PATTERN_PRESETS, MAX_PATTERN_PLAY, MAX_PATTERN_REST, normalizeLoopPattern, normalizeNoteChance, formatLoopPattern, loopIndexAt, loopPlays } from '@/lib/laneGating.js'
 import StopEditor from './StopEditor.jsx'
 import LaneTagEditor from './LaneTagEditor.jsx'
 import DuplicateLaneDialog from './DuplicateLaneDialog.jsx'
@@ -129,6 +130,7 @@ export default function DawView({
   trackGridResolutions,
   trackPitchVariety, onPitchVariety,
   trackStopVelocities, onStopVelocity,
+  trackNoteChances, onNoteChance, trackStopChances, onStopChance, trackLoopPatterns, onLoopPattern,
   trackLabels, onLaneTag,
   trackDroneModes, trackDroneRoots, onDroneMode, onDroneRoot,
   onVolume, onDisable, onPan, onSolo,
@@ -382,6 +384,11 @@ export default function DawView({
                     pitchVariety={trackPitchVariety?.[route.id]}
                     onPitchVariety={cfg => onPitchVariety(route.id, cfg)}
                     stopVelocities={trackStopVelocities?.[route.id]}
+                    noteChance={trackNoteChances?.[route.id]}
+                    onNoteChance={c => onNoteChance?.(route.id, c)}
+                    stopChances={trackStopChances?.[route.id]}
+                    loopPattern={trackLoopPatterns?.[route.id]}
+                    onLoopPattern={p => onLoopPattern?.(route.id, p)}
                     onStopOpen={setEditingStop}
                     onSoundMode={m => onSoundMode(route.id, route.name, m)}
                     onScale={s => onScale(route.id, route.name, s)}
@@ -522,6 +529,7 @@ export default function DawView({
           onClose={() => setEditingStop(null)}
           onPitch={onStopPitch}
           onVelocity={onStopVelocity}
+          onChance={onStopChance}
         />
       )}
 
@@ -696,6 +704,7 @@ function LineTrack({
   loopRegion, onLoopRegion, gridResolution, onGridResolution,
   pitchVariety, onPitchVariety,
   stopVelocities, onStopOpen,
+  noteChance, onNoteChance, stopChances, loopPattern, onLoopPattern,
   onVolume, onDisable, onPan, onSolo, onSoundMode, onScale, onSynthType, onADSR,
   onSamplerPreset, onDrumVoice, onSamplerUpload,
   onFilter,
@@ -728,6 +737,13 @@ function LineTrack({
   const varietyReset = useResetGesture(() => onPitchVariety({ variety: 0 }))
   const glideReset   = useResetGesture(() => { if (!aGli.disabled) onGlide(0) })
   const arpGateReset = useResetGesture(() => onArp({ gate: 0.5 }))
+  const chanceReset  = useResetGesture(() => onNoteChance(1))
+
+  const laneChance  = normalizeNoteChance(noteChance)
+  // Memoized: StopRail's playhead effect depends on it, and a fresh object per
+  // render would restart that rAF loop on every re-render.
+  const pattern     = useMemo(() => normalizeLoopPattern(loopPattern), [loopPattern])
+  const patternText = formatLoopPattern(pattern)
 
   return (
     <div
@@ -760,6 +776,16 @@ function LineTrack({
             </span>
             {isDuplicate && <span className="dup-badge" title="Chord copy — re-pitched within harmony">copy</span>}
             {isMerged && <span className="dup-badge merged-badge" title="Merged PolySynth chord lane">merged</span>}
+            {laneChance < 1 && (
+              <span className="dup-badge gate-badge" title={`Each note plays with ${Math.round(laneChance * 100)}% chance`}>
+                {Math.round(laneChance * 100)}%
+              </span>
+            )}
+            {patternText && (
+              <span className="dup-badge gate-badge" title={`Plays ${pattern.play} loop(s), rests ${pattern.rest}`}>
+                {patternText}
+              </span>
+            )}
             {/* Role label. Untagged lanes keep a faint placeholder rather than
                 nothing at all — otherwise the feature is undiscoverable. */}
             <button
@@ -895,6 +921,9 @@ function LineTrack({
         stopVelocities={stopVelocities}
         perStopSteps={perStopSteps}
         onStopOpen={onStopOpen}
+        laneChance={laneChance}
+        stopChances={stopChances}
+        loopPattern={pattern}
       />
 
       {rackOpen && (
@@ -1054,6 +1083,53 @@ function LineTrack({
                   </button>
                 ))}
               </div>
+            </div>
+            <div className="glide-row">
+              <span className="glide-label">CHANCE</span>
+              <input
+                type="range" min="0" max="1" step="0.05"
+                value={laneChance}
+                onChange={e => onNoteChance(parseFloat(e.target.value))}
+                {...chanceReset}
+                className="glide-slider"
+                title="Note chance — each note rolls fresh dice every loop. Double-click for 100%"
+              />
+              <span className="glide-val">{Math.round(laneChance * 100)}%</span>
+            </div>
+            <div className="speed-row">
+              <span className="speed-label">LOOPS</span>
+              <div className="speed-btns">
+                {LOOP_PATTERN_PRESETS.map(pr => {
+                  const on = pattern.play === pr.play && pattern.rest === pr.rest
+                  return (
+                    <button
+                      key={pr.id}
+                      className={`speed-btn ${on ? 'active' : ''}`}
+                      style={on ? { borderColor: route.color, color: route.color } : {}}
+                      onClick={() => onLoopPattern({ play: pr.play, rest: pr.rest, offset: pr.rest ? pattern.offset : 0 })}
+                      title={pr.title}
+                    >
+                      {pr.label}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+            <div className="speed-row loop-pattern-steppers">
+              {[
+                { key: 'play',   label: 'PLAY', min: 1, max: MAX_PATTERN_PLAY, title: 'Loops played in a row' },
+                { key: 'rest',   label: 'REST', min: 0, max: MAX_PATTERN_REST, title: 'Loops skipped after playing' },
+                { key: 'offset', label: 'SHIFT', min: 0, max: pattern.play + pattern.rest - 1, title: 'Shift which loop the pattern starts on — offset two lanes to make them take turns' },
+              ].map(f => (
+                <span key={f.key} className="loop-stepper" title={f.title}>
+                  <span className="speed-label">{f.label}</span>
+                  <button className="octave-btn" disabled={pattern[f.key] <= f.min}
+                    onClick={() => onLoopPattern({ ...pattern, [f.key]: pattern[f.key] - 1 })}>−</button>
+                  <span className="octave-val">{pattern[f.key]}</span>
+                  <button className="octave-btn" disabled={pattern[f.key] >= f.max}
+                    onClick={() => onLoopPattern({ ...pattern, [f.key]: pattern[f.key] + 1 })}>+</button>
+                </span>
+              ))}
             </div>
           </div>
 
@@ -2347,6 +2423,7 @@ function StopRail({
   loopRegion, onLoopRegion, gridResolution, automationValues = null,
   pitchVariety = null,
   stopVelocities = null, perStopSteps = null, onStopOpen = null,
+  laneChance = 1, stopChances = null, loopPattern = null,
 }) {
   const needleRef = useRef(null)
   const railRef   = useRef(null)
@@ -2377,11 +2454,27 @@ function StopRail({
       const local = partLoopSec > 0 ? ((t % partLoopSec) + partLoopSec) % partLoopSec / partLoopSec : 0
       const x = startPct + local * (endPct - startPct)
       el.style.left = `${x}%`
+      // Dim the rail while its loop pattern sits this pass out. Toggled on the
+      // DOM, not via state, so the per-frame tick doesn't re-render the rail.
+      // Counted in ticks like the engine's _laneGate (a Part's loop is fixed in
+      // ticks, so BPM changes don't shift it); MixerTab anchors Parts at 0.
+      const rail = railRef.current
+      if (rail && loopPattern?.rest) {
+        const transport = Tone.getTransport()
+        const loopTicks = (regionLen / GRID_TOTAL_CELLS) * 16 * transport.PPQ / (speed || 1)
+        rail.classList.toggle('stop-rail--resting',
+          !loopPlays(loopIndexAt(transport.ticks, 0, loopTicks), loopPattern))
+      } else {
+        rail?.classList.remove('stop-rail--resting')
+      }
       rafId = requestAnimationFrame(tick)
     }
     rafId = requestAnimationFrame(tick)
-    return () => cancelAnimationFrame(rafId)
-  }, [started, speed, startPct, endPct, regionLen])
+    return () => {
+      cancelAnimationFrame(rafId)
+      railRef.current?.classList.remove('stop-rail--resting')
+    }
+  }, [started, speed, startPct, endPct, regionLen, loopPattern])
 
   // ── Loop-handle drag ──────────────────────────────────────────────────────
   const cellFromClientX = useCallback((clientX) => {
@@ -2633,6 +2726,9 @@ function StopRail({
         : stopPoints.map((stop, i) => {
         const vel = stopVelocities?.[stop.id]
         const velSuffix = vel != null ? ` · vel ${Math.round(vel * 100)}%` : ''
+        const stopChance = stopChances?.[stop.id]
+        const chance     = stopChance ?? laneChance
+        const chanceSuffix = chance < 1 || stopChance != null ? ` · ${Math.round(chance * 100)}% chance` : ''
         return (
         <div
           key={`${stop.id}_${i}`}
@@ -2641,16 +2737,18 @@ function StopRail({
             stop.id === activeStopId ? 'active' : '',
             mode === 'live' ? 'stop-dot--ref' : '',
             canEdit ? 'stop-dot--editable' : '',
+            chance < 1 ? 'stop-dot--chance' : '',
           ].filter(Boolean).join(' ')}
           style={{
             '--pos': `${stop.x}%`,
             '--y-pos': `${stop.y}%`,
             '--line-color': route.color,
             '--vel': vel ?? 1,
+            '--chance': chance,
           }}
           title={canEdit
-            ? `${stop.name} · ${stop.noteName}${velSuffix} — click to edit pitch & velocity`
-            : `${stop.name} · bar ${stop.bar + 1} beat ${stop.beat + 1} step ${stop.sixteenth + 1}${velSuffix}`}
+            ? `${stop.name} · ${stop.noteName}${velSuffix}${chanceSuffix} — click to edit pitch, velocity & chance`
+            : `${stop.name} · bar ${stop.bar + 1} beat ${stop.beat + 1} step ${stop.sixteenth + 1}${velSuffix}${chanceSuffix}`}
           onClick={canEdit
             ? () => onStopOpen({
                 routeId: route.id,
@@ -2659,6 +2757,8 @@ function StopRail({
                 geoNote: geoDisplayMap[stop.originalIdx],
                 degrees: perStopSteps?.[stop.id] ?? 0,
                 velocity: vel ?? 1,
+                chance: stopChance ?? null,
+                laneChance,
                 root: trackScale.root,
                 scaleType: trackScale.scaleType,
                 semitoneShift,

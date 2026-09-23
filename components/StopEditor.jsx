@@ -1,10 +1,12 @@
 // Per-stop editor modal for the Map/DAW stop rail. Opened by clicking a note dot;
-// edits pitch (diatonic ± steps, stays in key) and velocity (0.2..1). Edits are
+// edits pitch (diatonic ± steps, stays in key), velocity (0.2..1) and chance
+// (0..1, overriding the lane's note chance — see lib/laneGating.js). Edits are
 // live — each control fires its callback immediately, so there is no Apply button.
 //
 // Driven by an `editingStop` payload assembled in DawView's StopRail:
-//   { routeId, stopId, stopName, geoNote, degrees, velocity, root, scaleType,
-//     semitoneShift }
+//   { routeId, stopId, stopName, geoNote, degrees, velocity, chance, laneChance,
+//     root, scaleType, semitoneShift }
+// `chance` is the stop's own override, or null when it follows `laneChance`.
 // `geoNote` is the octave-shifted, offset-free geographic note; the displayed pitch
 // applies its diatonic edit first, then the lane's chromatic transpose.
 'use client'
@@ -16,10 +18,12 @@ import './StopEditor.css'
 
 const DEGREE_LIMIT = 14   // ±2 octaves of diatonic steps
 
-export default function StopEditor({ editingStop, onClose, onPitch, onVelocity }) {
+export default function StopEditor({ editingStop, onClose, onPitch, onVelocity, onChance }) {
   const { routeId, stopId, stopName, geoNote, root, scaleType, semitoneShift = 0 } = editingStop
   const [degrees,  setDegrees]  = useState(editingStop.degrees ?? 0)
   const [velocity, setVelocity] = useState(editingStop.velocity ?? 1)
+  const laneChance = editingStop.laneChance ?? 1
+  const [chance, setChance] = useState(editingStop.chance ?? null)
 
   // Esc closes.
   useEffect(() => {
@@ -51,12 +55,24 @@ export default function StopEditor({ editingStop, onClose, onPitch, onVelocity }
     onVelocity?.(routeId, stopId, 1)
   }, [routeId, stopId, onVelocity])
 
+  const changeChance = useCallback((pct) => {
+    const c = Math.max(0, Math.min(1, pct / 100))
+    setChance(c)
+    onChance?.(routeId, stopId, c)
+  }, [routeId, stopId, onChance])
+
+  const followLane = useCallback(() => {
+    setChance(null)
+    onChance?.(routeId, stopId, null)
+  }, [routeId, stopId, onChance])
+
   const baseNote = shiftSemitones(geoNote, semitoneShift)
   const currentNote = shiftSemitones(
     transposeNoteInScale(geoNote, degrees, root, scaleType),
     semitoneShift,
   )
   const velPct = Math.round(velocity * 100)
+  const chancePct = Math.round((chance ?? laneChance) * 100)
 
   return createPortal(
     <div className="dlg-overlay" onPointerDown={onClose}>
@@ -92,6 +108,25 @@ export default function StopEditor({ editingStop, onClose, onPitch, onVelocity }
           </div>
           <button className="stop-editor-reset" onClick={resetVelocity} disabled={velPct === 100}>Reset</button>
         </div>
+
+        {onChance && (
+          <div className="stop-editor-row">
+            <span className="stop-editor-label">Chance</span>
+            <div className="stop-editor-control">
+              <input
+                className="stop-editor-slider"
+                type="range" min="0" max="100" step="5"
+                value={chancePct}
+                onChange={e => changeChance(Number(e.target.value))}
+                title="How likely this note is to play on each loop"
+              />
+              <span className="stop-editor-note stop-editor-note--vel">{chancePct}%</span>
+              <span className="stop-editor-meta">{chance == null ? 'lane' : 'own'}</span>
+            </div>
+            <button className="stop-editor-reset" onClick={followLane} disabled={chance == null}
+              title={`Follow the lane's chance (${Math.round(laneChance * 100)}%)`}>Lane</button>
+          </div>
+        )}
       </div>
     </div>,
     document.body,

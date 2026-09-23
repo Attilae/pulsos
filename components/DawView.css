@@ -591,6 +591,15 @@
   color: var(--merge);
 }
 
+/* Note chance / loop pattern badge (lib/laneGating.js) — muted so it reads as
+   a setting, not a lane type like copy/merged. */
+.gate-badge {
+  background: transparent;
+  border: 1px dashed color-mix(in srgb, var(--accent) 55%, transparent);
+  text-transform: none;
+  font-variant-numeric: tabular-nums;
+}
+
 /* ── Merge lanes toolbar ────────────────────────────────────────────────── */
 .merge-bar {
   display: flex;
@@ -1634,3 +1643,14 @@
   line-height: 1.5;
   color: var(--muted);
 }
+
+/* ── Note chance + loop rest patterns ───────────────────────────────────── */
+/* A stop that may not fire gets a dashed ring; the fill still carries velocity. */
+.stop-dot--chance { border-style: dashed; }
+/* The rail fades while its loop pattern sits this pass out. */
+.stop-rail--resting .stop-dot,
+.stop-rail--resting .stop-rail-svg { opacity: 0.18; }
+.loop-pattern-steppers { gap: 10px; flex-wrap: wrap; }
+.loop-stepper { display: inline-flex; align-items: center; gap: 3px; }
+.loop-stepper .speed-label { width: auto; }
+.loop-stepper .octave-btn:disabled { opacity: 0.35; cursor: default; }
