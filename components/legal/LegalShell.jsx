@@ -10,7 +10,19 @@ const NAV_ITEMS = [
   { href: '/feedback', label: 'Feedback' },
 ]
 
-export function LegalShell({ current, title, kicker, summary, children }) {
+const LEGAL_META = [
+  { label: 'Operator', value: LEGAL_DETAILS.operatorName },
+  { label: 'Updated', value: <time dateTime={LEGAL_DETAILS.updatedAtISO}>{LEGAL_DETAILS.updatedAt}</time> },
+  { label: 'Jurisdiction', value: LEGAL_DETAILS.governingLaw },
+]
+
+// Defaults render the legal documents. The product guides (components/guides/)
+// reuse the same chrome with their own nav, meta row and footer prompt.
+export function LegalShell({
+  current, title, kicker, summary, children,
+  navItems = NAV_ITEMS, navLabel = 'Legal documents', meta = LEGAL_META,
+  footerPrompt = 'Questions about these documents?',
+}) {
   return (
     <div className={styles.page}>
       <header className={styles.header}>
@@ -18,8 +30,8 @@ export function LegalShell({ current, title, kicker, summary, children }) {
           <span>Leið</span>
           <small>layth</small>
         </Link>
-        <nav className={styles.nav} aria-label="Legal documents">
-          {NAV_ITEMS.map(item => (
+        <nav className={styles.nav} aria-label={navLabel}>
+          {navItems.map(item => (
             <Link
               key={item.href}
               className={current === item.href ? styles.active : undefined}
@@ -44,26 +56,22 @@ export function LegalShell({ current, title, kicker, summary, children }) {
             <p className={styles.kicker}>{kicker}</p>
             <h1>{title}</h1>
             <p className={styles.summary}>{summary}</p>
-            <dl className={styles.meta}>
-              <div>
-                <dt>Operator</dt>
-                <dd>{LEGAL_DETAILS.operatorName}</dd>
-              </div>
-              <div>
-                <dt>Updated</dt>
-                <dd><time dateTime={LEGAL_DETAILS.updatedAtISO}>{LEGAL_DETAILS.updatedAt}</time></dd>
-              </div>
-              <div>
-                <dt>Jurisdiction</dt>
-                <dd>{LEGAL_DETAILS.governingLaw}</dd>
-              </div>
-            </dl>
+            {meta?.length > 0 && (
+              <dl className={styles.meta}>
+                {meta.map(item => (
+                  <div key={item.label}>
+                    <dt>{item.label}</dt>
+                    <dd>{item.value}</dd>
+                  </div>
+                ))}
+              </dl>
+            )}
           </div>
 
           <div className={styles.content}>{children}</div>
 
           <footer className={styles.footer}>
-            <p>Questions about these documents?</p>
+            <p>{footerPrompt}</p>
             <a href={`mailto:${LEGAL_DETAILS.contactEmail}`}>{LEGAL_DETAILS.contactEmail}</a>
           </footer>
         </article>
