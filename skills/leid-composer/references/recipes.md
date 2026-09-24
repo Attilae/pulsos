@@ -21,13 +21,16 @@ doesn't list gets dropped.
 - **Tempo and key:** 70–90 BPM (or 140 read at half time), minor or dorian.
 - **Roles:** a metro line with few stops (≈10–16) as MonoSynth bass at octave -1 or -2, with legato
   and a low filter, ducked by the kick. A tram line with an 8n grid and chance ~0.6 plays the skank
-  or chord stab. A bus line plays a quiet pad or organ that enters late.
+  or chord stab. A bus line plays a quiet organ on a `loopPattern` that rests first and then
+  alternates, so it comes in on the second pass. (A later `loopRegion` would *not* delay it: every lane
+  starts together, and a window only chooses which part of the line loops.)
 - **Drums:** kick on 1 and 3, rim or snare on 3. Hats stay sparse.
-- **FX:** a dotted-8th delay with high feedback on the skank, and a spring reverb.
+- **FX:** a dotted-8th delay with high feedback on the skank as the audible answer, and a small
+  `jcreverb` room behind it. Keep the bass dry.
 
 ```json
 {
-  "summary": "Deep minor dub: a kick-ducked bass, a delayed tram skank and a late organ.",
+  "summary": "Deep minor dub: a kick-ducked bass, a delayed tram skank and an organ that answers every other pass. Try raising the skank's delay send, darkening the organ, or shortening the bass release.",
   "bpm": 76,
   "harmony": { "root": "G", "scaleType": "minor" },
   "masterVolume": -4,
@@ -68,7 +71,7 @@ doesn't list gets dropped.
       "envelope": { "attack": 0.3, "decay": 0.5, "sustain": 0.6, "release": 3 },
       "speed": 0.25,
       "gridResolution": "4n",
-      "loopRegion": { "startCell": 32, "endCell": 64 },
+      "loopPattern": { "play": 1, "rest": 1, "offset": 1 },
       "pitchVariety": { "contour": "arch", "variety": 0.1 },
       "label": "Pad"
     }
@@ -85,15 +88,15 @@ doesn't list gets dropped.
   "fx": [
     {
       "busId": "delay",
-      "wet": 0.5,
+      "wet": 1,
       "params": [ { "paramId": "sync", "value": "8n." }, { "paramId": "feedback", "value": 0.6 } ],
-      "sends": [ { "routeId": "<tram-1>", "level": 0.55 }, { "routeId": "drums", "level": 0.15 } ]
+      "sends": [ { "routeId": "<tram-1>", "level": 0.28 }, { "routeId": "drums", "level": 0.08 } ]
     },
     {
       "busId": "jcreverb",
-      "wet": 0.4,
+      "wet": 1,
       "params": [ { "paramId": "roomSize", "value": 0.7 } ],
-      "sends": [ { "routeId": "<bus-1>", "level": 0.4 }, { "routeId": "<tram-1>", "level": 0.2 } ]
+      "sends": [ { "routeId": "<bus-1>", "level": 0.16 }, { "routeId": "<tram-1>", "level": 0.08 } ]
     }
   ]
 }
@@ -105,9 +108,11 @@ doesn't list gets dropped.
 - **Density:** the whole point. Every melodic lane plays ≤ 0.5 notes per beat and pads ≤ 0.25, so
   use speed 0.25–0.5, a 4n grid and lines with few stops. Use no drums.
 - **Roles:** an FM bell lead on a sparse metro line at octave +1, with noteChance ~0.7. Two
-  bus-line pads with long releases play different loopRegions and speeds so they drift. Add a
-  granular halo on one pad.
-- **FX:** a cathedral or hall reverb doing most of the work, plus a slow ping-pong delay.
+  bus-line pads with long releases use different speeds and loop windows so they drift (the windows
+  change *which* material each pad loops and how long its cycle is; both still start together). The
+  second pad rests every other pass. Add a granular halo on one pad.
+- **FX:** a long `synthetic` reverb doing most of the work (only `synthetic` follows `decay`; the named
+  rooms are fixed recordings), plus a slow ping-pong delay.
 
 ```json
 {
@@ -161,15 +166,15 @@ doesn't list gets dropped.
   "fx": [
     {
       "busId": "reverb",
-      "wet": 0.7,
-      "params": [ { "paramId": "irType", "value": "cathedral" }, { "paramId": "decay", "value": 8 } ],
-      "sends": [ { "routeId": "<metro-1>", "level": 0.6 }, { "routeId": "<bus-1>", "level": 0.5 }, { "routeId": "<bus-2>", "level": 0.5 } ]
+      "wet": 1,
+      "params": [ { "paramId": "irType", "value": "synthetic" }, { "paramId": "decay", "value": 6 } ],
+      "sends": [ { "routeId": "<metro-1>", "level": 0.42 }, { "routeId": "<bus-1>", "level": 0.35 }, { "routeId": "<bus-2>", "level": 0.35 } ]
     },
     {
       "busId": "pingpong",
-      "wet": 0.35,
+      "wet": 1,
       "params": [ { "paramId": "sync", "value": "4n." }, { "paramId": "feedback", "value": 0.5 } ],
-      "sends": [ { "routeId": "<metro-1>", "level": 0.35 } ]
+      "sends": [ { "routeId": "<metro-1>", "level": 0.12 } ]
     }
   ]
 }
@@ -241,15 +246,15 @@ doesn't list gets dropped.
   "fx": [
     {
       "busId": "autofilter",
-      "wet": 0.6,
+      "wet": 1,
       "params": [ { "paramId": "sync", "value": "1n" }, { "paramId": "baseFrequency", "value": 300 }, { "paramId": "octaves", "value": 4 } ],
-      "sends": [ { "routeId": "<tram-1>", "level": 0.6 } ]
+      "sends": [ { "routeId": "<tram-1>", "level": 0.36 } ]
     },
     {
       "busId": "delay",
-      "wet": 0.3,
+      "wet": 1,
       "params": [ { "paramId": "sync", "value": "8t" }, { "paramId": "feedback", "value": 0.35 } ],
-      "sends": [ { "routeId": "<tram-2>", "level": 0.4 } ]
+      "sends": [ { "routeId": "<tram-2>", "level": 0.12 } ]
     }
   ]
 }
@@ -260,9 +265,9 @@ doesn't list gets dropped.
 - **Tempo and key:** 70–88 BPM, dorian, minor or major pentatonic.
 - **Roles:** a piano or electric-piano sampler on a mid-density metro line, with a lowpass around
   3 kHz. A contrabass or bass-electric sampler plays the bass. A tram line with soft hats at
-  noteChance ~0.5 gives a shuffle feel.
+  noteChance ~0.5 loosens the top end. (Chance is not swing: the grid stays straight.)
 - **Drums:** a lazy kick and snare with soft (0.4) ghost hats.
-- **FX:** a chorus plus a warm hall reverb, and a light bitcrusher on the drums.
+- **FX:** a gentle chorus plus a short `synthetic` reverb, and a light bitcrusher on the drums.
 
 ```json
 {
@@ -322,21 +327,21 @@ doesn't list gets dropped.
   "fx": [
     {
       "busId": "chorus",
-      "wet": 0.4,
+      "wet": 1,
       "params": [ { "paramId": "frequency", "value": 0.6 }, { "paramId": "depth", "value": 0.5 } ],
-      "sends": [ { "routeId": "<metro-1>", "level": 0.5 } ]
+      "sends": [ { "routeId": "<metro-1>", "level": 0.2 } ]
     },
     {
       "busId": "reverb",
-      "wet": 0.45,
-      "params": [ { "paramId": "irType", "value": "hall" }, { "paramId": "decay", "value": 3 } ],
-      "sends": [ { "routeId": "<metro-1>", "level": 0.35 }, { "routeId": "drums", "level": 0.15 } ]
+      "wet": 1,
+      "params": [ { "paramId": "irType", "value": "synthetic" }, { "paramId": "decay", "value": 2 } ],
+      "sends": [ { "routeId": "<metro-1>", "level": 0.16 }, { "routeId": "drums", "level": 0.07 } ]
     },
     {
       "busId": "bitcrusher",
-      "wet": 0.25,
+      "wet": 1,
       "params": [ { "paramId": "bits", "value": 8 } ],
-      "sends": [ { "routeId": "drums", "level": 0.4 } ]
+      "sends": [ { "routeId": "drums", "level": 0.1 } ]
     }
   ]
 }
@@ -349,7 +354,9 @@ doesn't list gets dropped.
   or flute sampler on a metro line uses the `arch` contour so the phrase rises and falls. A harp arp
   on a tram line adds shimmer. Use toms instead of a kit, or no drums at all.
 - **Levels:** strings swell through release and reverb, not through attack. See NOTE LENGTH in the
-  guide.
+  guide. The concert-hall IR is a fixed recording, so there is no `decay` to set on it.
+- **Entrances:** the harp arp rests on the first pass (`loopPattern` offset). That is the only way to
+  hold a lane back. A `loopRegion` never delays a lane.
 
 ```json
 {
@@ -381,7 +388,6 @@ doesn't list gets dropped.
       "envelope": { "attack": 0.5, "decay": 0.5, "sustain": 0.8, "release": 3 },
       "speed": 0.5,
       "gridResolution": "4n",
-      "loopRegion": { "startCell": 16, "endCell": 64 },
       "pitchVariety": { "contour": "arch", "variety": 0.15 },
       "label": "Lead"
     },
@@ -403,9 +409,9 @@ doesn't list gets dropped.
   "fx": [
     {
       "busId": "reverb",
-      "wet": 0.6,
-      "params": [ { "paramId": "irType", "value": "hall" }, { "paramId": "decay", "value": 6 } ],
-      "sends": [ { "routeId": "<hev-1>", "level": 0.4 }, { "routeId": "<metro-1>", "level": 0.5 }, { "routeId": "<tram-1>", "level": 0.5 } ]
+      "wet": 1,
+      "params": [ { "paramId": "irType", "value": "hall" } ],
+      "sends": [ { "routeId": "<hev-1>", "level": 0.2 }, { "routeId": "<metro-1>", "level": 0.3 }, { "routeId": "<tram-1>", "level": 0.3 } ]
     }
   ]
 }

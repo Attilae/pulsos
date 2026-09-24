@@ -25,8 +25,10 @@ the Leið DAW and plays.
 
 1. **City.** If the user named none, ask or call `list_cities`. Use the city `id` (e.g. `budapest`),
    not its display name.
-2. **Guide.** `get_composer_guide({ cityId })`. Read the note-density, register, contour and level
-   sections. They decide whether the result sounds good.
+2. **Guide.** `get_composer_guide({ cityId })`. If the request names a style, call it again with the
+   matching `genre` from its `recipes` list (e.g. `get_composer_guide({ cityId, genre: "dub-techno" })`)
+   to get that recipe's tempo, roles, drum seed and effects. Read the musical policy and the
+   note-density, register, contour and level sections. They decide whether the result sounds good.
 3. **Pick lines by role.** Call `list_routes({ cityId, type })` once per role you need. The usual
    mapping is metro → melodic lead/keys/bass, tram/trolley → rhythmic percussion, bus → pads/textures,
    hev → low, slow melodic voices. Choose by `stopCount`: few stops make a sparse part and many stops
@@ -34,8 +36,10 @@ the Leið DAW and plays.
    which drives the default `demand` pitch contour. Only use `id` values the tool returned. Never
    invent or guess ids.
 4. **Write the plan.** Use only the tracks the loop needs, listed in musical priority order and no
-   more than `maxTracks`. Use at most three FX buses. Leave out settings you don't want to change
-   instead of guessing.
+   more than `maxTracks`. Use at most three FX buses. In a new song, every setting you leave out
+   starts at its default (arp, granular, drone and sidechain off, full loop window, no sends), and
+   leaving out `drums` means no drums. Set what the idea needs and leave out the rest instead of
+   guessing.
 5. **Preview.** `preview_song_plan({ cityId, plan })`. Read `dropped` (settings that were invalid and
    ignored) and `skippedRouteIds`. Fix every item that matters and preview again. Values outside a
    range are clamped silently, so check the numbers against the guide. `references/troubleshooting.md`
@@ -47,7 +51,8 @@ the Leið DAW and plays.
 
 ## Editing a saved song
 
-1. Find it with `list_songs`, then call `get_song({ id })`. Keep its `updatedAt`.
+1. Find it with `list_songs`, then call `get_song({ id })`. Keep its `updatedAt`. Its `current`
+   summary lists what each audible lane plays. Preserve everything the user didn't ask to change.
 2. For a tempo-only change, use `set_song_tempo({ id, bpm, expectedUpdatedAt })`.
 3. For anything else, write a plan and preview it against the song with
    `preview_song_plan({ songId, plan })`.
@@ -76,8 +81,13 @@ the Leið DAW and plays.
   (pad, perc or arp) beat six lanes playing at full density.
 - Most failures come from density. An ambient piece needs slow speeds (0.25–0.5), a coarse grid and
   low-stop lines. A groove needs one dense rhythmic lane with the others kept sparse.
-- Use `loopRegion`, mixed `speed` values and `loopPattern` so parts enter, answer and drift against
-  each other. Use `noteChance` for human-feeling percussion.
+- Every lane starts at the same moment. A `loopRegion` chooses *which* part of a line loops (and a
+  shorter window repeats sooner). It never delays an entrance. To make a part come and go, use
+  `loopPattern` (e.g. `{ "play": 1, "rest": 1, "offset": 1 }` rests first). Use mixed `speed` values
+  for drift over a stable anchor. Use `noteChance` for ornaments, not for the parts that hold the groove.
+- Numeric delay `delayTime` and reverb `preDelay` are in seconds. Reverb `decay` only works with
+  `irType: "synthetic"`, because the named rooms are fixed recordings. Keep FX `wet` at 1 and set the
+  amount with modest send levels.
 - Get space from reverb or delay sends rather than loud pads. Duck pads and bass off the kick with
   `sidechain` when there are drums.
 

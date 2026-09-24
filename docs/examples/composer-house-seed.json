@@ -1,0 +1,88 @@
+{
+  "summary": "A restrained piano figure sits over steady house drums. Open its filter for brightness, raise its delay send slightly for a more audible echo response, or lower the lane speed for more space.",
+  "bpm": 122,
+  "harmony": { "root": "A", "scaleType": "minor" },
+  "masterVolume": -6,
+  "tracks": [
+    {
+      "routeId": "example-route",
+      "synthType": "Sampler",
+      "samplerPreset": "piano",
+      "volume": -10,
+      "pan": 0.1,
+      "octave": 0,
+      "glide": 0,
+      "legato": false,
+      "envelope": { "attack": 0.005, "decay": 0.2, "sustain": 0.3, "release": 0.35 },
+      "filter": { "type": "lowpass", "frequency": 5000, "Q": 0.7 },
+      "speed": 0.5,
+      "loopRegion": { "startCell": 0, "endCell": 64 },
+      "gridResolution": "8n",
+      "pitchVariety": { "contour": "randomWalk", "variety": 0.1 },
+      "noteChance": 1,
+      "loopPattern": { "play": 1, "rest": 0, "offset": 0 },
+      "label": "Lead",
+      "drone": { "enabled": false, "root": "A2" },
+      "arp": {
+        "enabled": false,
+        "style": "up",
+        "rate": "8n",
+        "gate": 0.5,
+        "octaves": 1,
+        "steps": 3,
+        "distance": 2
+      },
+      "granular": {
+        "enabled": false,
+        "mix": 0,
+        "grainSize": 0.1,
+        "overlap": 0.05,
+        "playbackRate": 1,
+        "loopStart": 0,
+        "loopEnd": 1,
+        "jitter": 0,
+        "reverse": false,
+        "attack": 0.01,
+        "release": 0.5
+      },
+      "sidechain": {
+        "enabled": false,
+        "source": "drums:kick",
+        "amountDb": -6,
+        "attack": 0.005,
+        "release": 0.2
+      }
+    }
+  ],
+  "drums": {
+    "enabled": true,
+    "volume": -12,
+    "filter": { "type": "lowpass", "frequency": 16000, "Q": 0.7 },
+    "patterns": [
+      { "padId": "kick", "steps": [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0] },
+      { "padId": "clap", "steps": [0, 0, 0, 0, 0.7, 0, 0, 0, 0, 0, 0, 0, 0.7, 0, 0, 0] },
+      { "padId": "hat", "steps": [0, 0, 0.4, 0, 0, 0, 0.7, 0, 0, 0, 0.4, 0, 0, 0, 0.7, 0] }
+    ]
+  },
+  "fx": [
+    {
+      "busId": "delay",
+      "wet": 1,
+      "params": [
+        { "paramId": "sync", "value": "8n." },
+        { "paramId": "feedback", "value": 0.25 }
+      ],
+      "sends": [{ "routeId": "example-route", "level": 0.12 }]
+    },
+    {
+      "busId": "reverb",
+      "wet": 1,
+      "params": [
+        { "paramId": "irType", "value": "synthetic" },
+        { "paramId": "decay", "value": 1.2 },
+        { "paramId": "preDelay", "value": 0.015 }
+      ],
+      "sends": [{ "routeId": "example-route", "level": 0.1 }]
+    }
+  ]
+}

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { requestComposition, validatePlan } from '@/lib/ai/composer.js'
+import { requestComposition, validatePlan, GENRE_RECIPES } from '@/lib/ai/composer.js'
+import { withNewCompositionBaseline } from '@/lib/ai/planApply.js'
 import { useEntitlements } from '@/lib/shared/EntitlementsContext.jsx'
 import { shuffledFactsForCity } from '@/lib/shared/cityFacts.js'
 import { trackProductEvent } from '@/lib/productAnalytics.js'
@@ -11,6 +12,9 @@ import './AIComposerPanel.css'
 // only touch the app's controls when they click Apply.
 export default function AIComposerPanel({
   className = '', routes, onApply, cityId, cityName,
+  // "Edit current" support: a () => describeSnapshot(…, { detail: true }) of the
+  // open song, and whether it has any audible lane worth editing.
+  describeCurrentSong, canEdit = false,
   // Optionally controlled: the phone launches this from the More sheet rather
   // than leaving a 340px floating panel over the map.
   open: openProp, onOpenChange,
@@ -19,7 +23,13 @@ export default function AIComposerPanel({
   const [prompt,  setPrompt]  = useState('')
   const [loading, setLoading] = useState(false)
   const [error,   setError]   = useState(null)
-  const [result,  setResult]  = useState(null) // { plan, dropped }
+  const [result,  setResult]  = useState(null) // { plan, dropped, recipe, mode }
+  // 'new' starts every planned lane from a clean baseline; 'edit' sends the
+  // current song and keeps whatever the plan leaves out.
+  const [mode, setMode] = useState('new')
+  // Genre chip: null = auto-detect from the prompt text.
+  const [recipeId, setRecipeId] = useState(null)
+  const effectiveMode = mode === 'edit' && canEdit ? 'edit' : 'new'
   const [openState, setOpenState] = useState(true)
   const open = openProp ?? openState
   const setOpen = (next) => {
@@ -68,9 +78,12 @@ export default function AIComposerPanel({
     setLoading(true); setError(null); setResult(null); setApplied(null); setApplying(false)
     try {
       const maxTracks = Math.min(routes?.length ?? 1, limits.activeLanes ?? 8)
-      const raw = await requestComposition(prompt.trim(), routes, { cityId, cityName, maxTracks })
-      setResult(validatePlan(raw, routes, { activeLaneLimit: maxTracks }))
-      trackProductEvent('ai_plan_generated', { city: cityId })
+      const currentSong = effectiveMode === 'edit' ? describeCurrentSong?.() ?? null : null
+      const { raw, recipe } = await requestComposition(prompt.trim(), routes, {
+        cityId, cityName, maxTracks, recipeId, mode: effectiveMode, currentSong,
+      })
+      setResult({ ...validatePlan(raw, routes, { activeLaneLimit: maxTracks }), recipe, mode: effectiveMode })
+      trackProductEvent('ai_plan_generated', { city: cityId, mode: effectiveMode, recipe: recipe?.recipe.id ?? 'none' })
       await refresh()
     } catch (e) {
       if (e?.code === 'ai_limit_reached') {
@@ -88,7 +101,10 @@ export default function AIComposerPanel({
     setApplying(true)
     setError(null)
     try {
-      const outcome = await onApply(result.plan)
+      // A new idea must not inherit the previous song's arps, sends or drums on
+      // the lanes it reuses; an edit keeps everything the plan leaves out.
+      const plan = result.mode === 'new' ? withNewCompositionBaseline(result.plan) : result.plan
+      const outcome = await onApply(plan)
       const count = outcome?.appliedCount ?? result.plan.tracks?.length ?? 0
       setApplied(`Applied ${count} track${count === 1 ? '' : 's'} — playing`)
       trackProductEvent('ai_plan_applied', { city: cityId, track_count: count })
@@ -128,9 +144,36 @@ export default function AIComposerPanel({
 
       {open && (
         <div className="ai-composer-body">
+          <div className="ai-composer-mode" role="radiogroup" aria-label="Composer mode">
+            <button
+              type="button" role="radio" aria-checked={effectiveMode === 'new'}
+              className={effectiveMode === 'new' ? 'is-active' : ''}
+              onClick={() => setMode('new')} disabled={loading}
+            >New idea</button>
+            <button
+              type="button" role="radio" aria-checked={effectiveMode === 'edit'}
+              className={effectiveMode === 'edit' ? 'is-active' : ''}
+              onClick={() => setMode('edit')} disabled={loading || !canEdit}
+              title={canEdit ? 'Change the song that is playing now' : 'Enable a lane first'}
+            >Edit current</button>
+          </div>
+
+          <div className="ai-composer-genres" role="radiogroup" aria-label="Genre recipe">
+            {[{ id: null, label: 'Auto' }, ...GENRE_RECIPES].map(r => (
+              <button
+                key={r.id ?? 'auto'}
+                type="button" role="radio" aria-checked={recipeId === r.id}
+                className={`ai-genre-chip${recipeId === r.id ? ' is-active' : ''}`}
+                onClick={() => setRecipeId(r.id)} disabled={loading}
+              >{r.label}</button>
+            ))}
+          </div>
+
           <textarea
             className="ai-composer-input"
-            placeholder="Describe what you want to hear — e.g. “dusty 92 BPM dub in A dorian; program a kick-and-hat beat, duck the warm metro pad from the kick, and send both to cave reverb.”"
+            placeholder={effectiveMode === 'edit'
+              ? 'Describe the change — e.g. “keep the bass and drums, make the lead warmer and give it a short echo.”'
+              : 'Describe what you want to hear — e.g. “warm deep house at 122 BPM: a restrained bass under one answering keys figure, with short echoes.”'}
             value={prompt}
             onChange={e => setPrompt(e.target.value)}
             onKeyDown={onKeyDown}
@@ -179,6 +222,12 @@ function PlanPreview({ result, routeName, applied, applying, onApply, onDiscard 
       {plan.summary && <p className="ai-preview-summary">{plan.summary}</p>}
 
       <div className="ai-preview-tags">
+        <span className="ai-tag">{result.mode === 'edit' ? 'Edit' : 'New idea'}</span>
+        {result.recipe && (
+          <span className="ai-tag" title={result.recipe.source === 'auto' ? 'Detected from your prompt' : 'Chosen genre'}>
+            Recipe: {result.recipe.recipe.label}{result.recipe.secondary ? ` + ${result.recipe.secondary.label}` : ''}
+          </span>
+        )}
         {bpmChanges && <span className="ai-tag">{plan.bpm} BPM</span>}
         {plan.harmony && <span className="ai-tag">{plan.harmony.root} {plan.harmony.scaleType}</span>}
         {plan.masterVolume != null && <span className="ai-tag">master {plan.masterVolume} dB</span>}
@@ -220,6 +269,13 @@ function PlanPreview({ result, routeName, applied, applying, onApply, onDiscard 
               </li>
             ))}
           </ul>
+        </div>
+      )}
+
+      {!plan.drums && result.mode === 'new' && (
+        <div className="ai-preview-section">
+          <div className="ai-preview-label">Drums</div>
+          <div className="ai-preview-detail">No drums</div>
         </div>
       )}
 

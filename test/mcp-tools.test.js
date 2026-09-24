@@ -289,3 +289,85 @@ test('compose_loop prompt walks the client through the tools', async () => {
     await handler.close()
   }
 })
+
+test('composer guide lists the genre recipes and includes one only when asked', async () => {
+  const { services } = composeServices()
+  const { client, handler } = await connectedClient(services)
+  try {
+    const plain = await client.callTool({ name: 'get_composer_guide', arguments: { cityId: 'budapest' } })
+    assert.ok(plain.structuredContent.recipes.some(r => r.id === 'dub-techno' && r.bpm.default === 118))
+    assert.equal(plain.structuredContent.genre, null)
+    assert.match(plain.structuredContent.guide, /MUSICAL POLICY/)
+    assert.doesNotMatch(plain.structuredContent.guide, /GENRE RECIPE/)
+
+    const dub = await client.callTool({ name: 'get_composer_guide', arguments: { cityId: 'budapest', genre: 'dub-techno' } })
+    assert.equal(dub.structuredContent.genre, 'dub-techno')
+    assert.match(dub.structuredContent.guide, /GENRE RECIPE — Dub techno/)
+    assert.match(dub.structuredContent.guide, /delayTime \(0\.01\.\.1\.5 s\)/)
+
+    const bad = await client.callTool({ name: 'get_composer_guide', arguments: { cityId: 'budapest', genre: 'polka' } })
+    assert.equal(bad.isError, true)
+  } finally {
+    await client.close()
+    await handler.close()
+  }
+})
+
+test('a new song starts from the clean baseline; no drums block means no drums', async () => {
+  const { services, calls } = composeServices()
+  const { client, handler } = await connectedClient(services)
+  try {
+    await client.callTool({
+      name: 'create_song_from_plan',
+      arguments: { cityId: 'budapest', name: 'Quiet', plan: { tracks: [{ routeId: 'B9', synthType: 'AMSynth' }] } },
+    })
+    const { state } = calls.created[0].body
+    assert.equal(state.drumPattern, null)
+    assert.equal(state.trackArps.B9.enabled, false)
+    assert.equal(state.trackSpeeds.B9, 1)
+  } finally {
+    await client.close()
+    await handler.close()
+  }
+})
+
+test('an edit keeps what the plan leaves out, and get_song describes the song for it', async () => {
+  let written = null
+  const stored = {
+    id: 'song-1', name: 'Set', cityId: 'budapest', updatedAt: 1000,
+    state: {
+      cityId: 'budapest', routeIds: ['B9'], laneManifest: [{ id: 'B9', kind: 'base' }], muted: { B9: false }, bpm: 90,
+      trackSpeeds: { B9: 0.5 }, trackArps: { B9: { enabled: true, style: 'up', rate: '8n' } },
+      drumPattern: { patterns: { kick: new Array(64).fill(0).map((_, i) => (i % 4 ? 0 : 1)) } },
+      sendMatrix: { 'B9:reverb': 0.3 },
+    },
+  }
+  const { services } = composeServices({
+    getSong: async () => stored,
+    updateSongState: async (userId, id, expected, mutate) => {
+      const next = await mutate(stored)
+      written = next.state
+      return { song: { ...stored, state: next.state, updatedAt: 2000 } }
+    },
+  })
+  const { client, handler } = await connectedClient(services)
+  try {
+    const read = await client.callTool({ name: 'get_song', arguments: { id: 'song-1' } })
+    const lane = read.structuredContent.current.lanes[0]
+    assert.equal(lane.speed, 0.5)
+    assert.deepEqual(lane.arp, { enabled: true, style: 'up', rate: '8n' })
+    assert.deepEqual(lane.sends, [{ busId: 'reverb', level: 0.3 }])
+
+    await client.callTool({
+      name: 'apply_plan_to_song',
+      arguments: { id: 'song-1', expectedUpdatedAt: 1000, plan: { tracks: [{ routeId: 'B9', volume: -4 }] } },
+    })
+    assert.equal(written.trackArps.B9.enabled, true, 'arp kept')
+    assert.equal(written.trackSpeeds.B9, 0.5, 'speed kept')
+    assert.equal(written.sendMatrix['B9:reverb'], 0.3, 'send kept')
+    assert.ok(written.drumPattern, 'drums kept')
+  } finally {
+    await client.close()
+    await handler.close()
+  }
+})
