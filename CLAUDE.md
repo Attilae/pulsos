@@ -598,16 +598,22 @@ classes.
   recipe to a prompt.
 - **Sound design** lives in `lib/ai/soundPolicy.js` (distilled from
   `docs/composer-synthesis-guide.md`). It holds the sound policy text and the structured sound
-  recipes R1–R13. Each genre names its `sounds`, and only those go into the prompt. With no genre,
+  recipes R1–R15. Each genre names its `sounds`, and only those go into the prompt. With no genre,
   the in-app prompt gets `DEFAULT_SOUND_IDS` and the MCP guide gets all of them. Recipes and the
-  genre texts stick to the six instruments a plan fully controls (Synth, FMSynth, PolySynth,
-  NoiseSynth, Sampler, Drums). All twelve types are in the lane picker: `SYNTH_TYPES` in
+  genre texts stick to the instruments a plan fully controls (Synth, MonoSynth, FMSynth, PolySynth,
+  PluckSynth, NoiseSynth, Sampler, Drums). All twelve types are in the lane picker: `SYNTH_TYPES` in
   `soundSpecs.js` is the one list, re-exported by `engine.js`, `DawView.jsx` and `planContract.js`.
-- **Plan `tone`** covers `oscillator`, `harmonicity`, `modulationIndex` and `modEnvelope`. It is
-  flattened by `toneToSynthParams`/`trackSynthParams` (`planApply.js`) into the same `trackADSRs`
-  keys the synth editors write. Both apply paths merge it after the synthType reset.
-  `TONE_SUPPORT` says which instrument honours which key; `validatePlan` drops the rest when the
-  plan names the synthType.
+- **Plan `tone`** covers `oscillator`, `harmonicity`, `modulationIndex`, `modEnvelope`, MonoSynth's
+  `filterEnvelope`/`filterQ` and PluckSynth's `resonance`/`dampening`/`attackNoise`. It is
+  flattened by `toneToSynthParams` (`soundSpecs.js`) / `trackSynthParams` (`planApply.js`) into the
+  same `trackADSRs` keys the synth editors write. Both apply paths merge it after the synthType
+  reset. `TONE_SUPPORT` says which instrument honours which key; `validatePlan` drops the rest when
+  the plan names the synthType, and the apply paths filter an edit's tone by the lane's *current*
+  instrument — `resonance` is comb feedback on PluckSynth but Hz on MetalSynth.
+- **MonoSynth's cutoff is its filter envelope.** Tone connects `filterEnvelope` into
+  `filter.frequency` and zeroes its base, so `buildSynthOpts` never passes a filter frequency (a
+  later `set()` would add it back as an offset). The cutoff sweeps `filterEnvBaseFreq` →
+  `filterEnvBaseFreq · 2^filterEnvOctaves`.
 - **Advisories** (`planAdvisories`) list settings that validate but won't sound as planned: an
   attack longer than the one-beat gate, FMSynth without a mod envelope, grains on a Drums
   lane, and so on. They never change the plan. MCP preview/create/apply return them and the

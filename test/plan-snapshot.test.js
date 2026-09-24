@@ -290,3 +290,28 @@ test('tone in an edit (no synthType) changes only the named keys', () => {
   const { snapshot } = applyPlanToSnapshot(song, plan({ tracks: [{ routeId: '4', tone: { modulationIndex: 8 } }] }).validated)
   assert.deepEqual(snapshot.trackADSRs['4'], { ...song.trackADSRs['4'], modulationIndex: 8 })
 })
+
+test('MonoSynth filter envelope and Pluck tone: applied, described, round-trip clean', () => {
+  const raw = {
+    tracks: [
+      { routeId: 'M1', synthType: 'MonoSynth', tone: { filterEnvelope: { attack: 0.001, decay: 0.18, sustain: 0, release: 0.1, baseFrequency: 120, octaves: 4 }, filterQ: 6 } },
+      { routeId: '4', synthType: 'PluckSynth', tone: { resonance: 0.9, dampening: 3000 } },
+    ],
+  }
+  const { snapshot } = applyPlanToSnapshot(defaultSnapshot('budapest'), plan(raw).validated)
+  assert.equal(snapshot.trackADSRs.M1.filterEnvBaseFreq, 120)
+  assert.equal(snapshot.trackADSRs.M1.filterQ, 6)
+  assert.equal(snapshot.trackADSRs['4'].resonance, 0.9)
+  assert.deepEqual(roundTrip(snapshot, CITY), snapshot)
+
+  const detail = describeSnapshot(snapshot, CITY, { detail: true })
+  assert.deepEqual(detail.lanes.find(l => l.routeId === 'M1').tone, {
+    filterEnvelope: { attack: 0.001, decay: 0.18, sustain: 0, release: 0.1, baseFrequency: 120, octaves: 4 }, filterQ: 6,
+  })
+  assert.deepEqual(detail.lanes.find(l => l.routeId === '4').tone, { resonance: 0.9, dampening: 3000 })
+
+  // An edit naming no synthType keeps the lane's instrument and its tone rules.
+  const { snapshot: edited } = applyPlanToSnapshot(snapshot, plan({ tracks: [{ routeId: '4', tone: { resonance: 0.96, oscillator: 'square' } }] }).validated)
+  assert.equal(edited.trackADSRs['4'].resonance, 0.96)
+  assert.equal(edited.trackADSRs['4'].oscillatorType, undefined, 'PluckSynth has no oscillator')
+})

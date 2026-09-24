@@ -119,3 +119,39 @@ test('validatePlan keeps only the tone keys the instrument uses, and clamps them
   assert.ok(dropped.some(d => d.startsWith('tone.modulationIndex on Synth lane "B"')))
   assert.ok(dropped.includes('tone.oscillator "nope" on "C"'))
 })
+
+test('MonoSynth filter envelope and Pluck keys map onto the synth editors\' keys', () => {
+  assert.deepEqual(toneToSynthParams({
+    filterEnvelope: { attack: 0.001, decay: 0.18, sustain: 0, release: 0.1, baseFrequency: 120, octaves: 4 }, filterQ: 6,
+  }, 'MonoSynth'), {
+    filterEnvAttack: 0.001, filterEnvDecay: 0.18, filterEnvSustain: 0, filterEnvRelease: 0.1,
+    filterEnvBaseFreq: 120, filterEnvOctaves: 4, filterQ: 6,
+  })
+  assert.deepEqual(toneToSynthParams({ resonance: 0.9, dampening: 3000, attackNoise: 2 }, 'PluckSynth'),
+    { resonance: 0.9, dampening: 3000, attackNoise: 2 })
+})
+
+// PluckSynth's resonance is comb feedback (0..1); MetalSynth's shares the key but
+// is a frequency in Hz. An edit that names no synthType is filtered by the lane's
+// current instrument, so a Pluck-style value can't retune a MetalSynth to 0.9 Hz.
+test('an edit\'s tone is filtered by the lane\'s current instrument', () => {
+  assert.deepEqual(trackSynthParams({ tone: { resonance: 0.9, oscillator: 'square' } }, 'MetalSynth'), {})
+  assert.deepEqual(trackSynthParams({ tone: { resonance: 0.9, oscillator: 'square' } }, 'PluckSynth'), { resonance: 0.9 })
+  assert.deepEqual(trackSynthParams({ synthType: 'MonoSynth', tone: { oscillator: 'square' } }), { oscillatorType: 'square' })
+})
+
+test('validatePlan clamps MonoSynth and Pluck tone and drops them elsewhere', () => {
+  const routes = [{ id: 'A' }, { id: 'B' }, { id: 'C' }]
+  const { plan, dropped } = validatePlan({ tracks: [
+    { routeId: 'A', synthType: 'MonoSynth', tone: { filterEnvelope: { attack: 0.001, decay: 0.2, sustain: 0, release: 0.1, baseFrequency: 9000, octaves: 12 }, filterQ: 50, resonance: 0.9 } },
+    { routeId: 'B', synthType: 'PluckSynth', tone: { resonance: 1.5, dampening: 50, attackNoise: 0 } },
+    { routeId: 'C', synthType: 'MetalSynth', tone: { resonance: 0.9 } },
+  ] }, routes)
+  assert.deepEqual(plan.tracks[0].tone, {
+    filterEnvelope: { attack: 0.001, decay: 0.2, sustain: 0, release: 0.1, baseFrequency: 5000, octaves: 8 }, filterQ: 20,
+  })
+  assert.deepEqual(plan.tracks[1].tone, { resonance: 0.98, dampening: 200, attackNoise: 0.1 }, 'attackNoise 0 would silence the string')
+  assert.equal(plan.tracks[2].tone, undefined)
+  assert.ok(dropped.some(d => d.startsWith('tone.resonance on MonoSynth lane "A"')))
+  assert.ok(dropped.some(d => d.startsWith('tone.resonance on MetalSynth lane "C"')))
+})

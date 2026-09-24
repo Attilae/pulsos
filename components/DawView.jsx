@@ -2198,7 +2198,7 @@ function EnvPanel({ synthType, adsr, onADSR, onSamplerPreset, onDrumVoice, onSam
 
   if (synthType === 'PluckSynth') return (
     <div className="sp-panel">
-      <SpSlider label="Noise" min={0} max={1}    step={0.01} {...a('attackNoise', p.attackNoise ?? 1)}  onChange={v => onADSR({ attackNoise: v })} />
+      <SpSlider label="Noise" min={0.1} max={20} step={0.1}  {...a('attackNoise', p.attackNoise ?? 1)}  onChange={v => onADSR({ attackNoise: v })} />
       <SpSlider label="Damp"  min={200} max={8000} step={10} {...a('dampening', p.dampening ?? 4000)}   onChange={v => onADSR({ dampening: v })} unit="Hz" />
       <SpSlider label="Res"   min={0} max={0.98} step={0.01} {...a('resonance', p.resonance ?? 0.7)}    onChange={v => onADSR({ resonance: v })} />
     </div>
@@ -2245,7 +2245,6 @@ function EnvPanel({ synthType, adsr, onADSR, onSamplerPreset, onDrumVoice, onSam
       {envBlock()}
       <SpSection label="FILTER" />
       <SpSelect label="Type"   value={p.filterType ?? 'lowpass'}        options={FILTER_TYPES}               onChange={v => onADSR({ filterType: v })} />
-      <SpSlider label="Freq"   min={20}  max={20000} step={10}          {...a('filterFrequency', p.filterFrequency ?? 800)} onChange={v => onADSR({ filterFrequency: v })} unit="Hz" />
       <SpSelect label="Roll"   value={String(p.filterRolloff ?? -12)}   options={FILTER_ROLLOFFS.map(String)} onChange={v => onADSR({ filterRolloff: Number(v) })} />
       <SpSlider label="Q"      min={0.1} max={20}   step={0.1}          {...a('filterQ', p.filterQ ?? 1)}                   onChange={v => onADSR({ filterQ: v })} />
       <SpSection label="FILTER ENV" />
@@ -2253,7 +2252,7 @@ function EnvPanel({ synthType, adsr, onADSR, onSamplerPreset, onDrumVoice, onSam
       <SpSlider label="D"      min={0.001} max={2}  step={0.001}        {...a('filterEnvDecay', p.filterEnvDecay ?? 0.3)}      onChange={v => onADSR({ filterEnvDecay: v })} />
       <SpSlider label="S"      min={0} max={1}      step={0.01}         {...a('filterEnvSustain', p.filterEnvSustain ?? 0.3)}  onChange={v => onADSR({ filterEnvSustain: v })} />
       <SpSlider label="R"      min={0.01} max={4}   step={0.01}         {...a('filterEnvRelease', p.filterEnvRelease ?? 0.8)}  onChange={v => onADSR({ filterEnvRelease: v })} />
-      <SpSlider label="Base"   min={20}  max={20000} step={10}          value={p.filterEnvBaseFreq ?? 200}   onChange={v => onADSR({ filterEnvBaseFreq: v })} unit="Hz" />
+      <SpSlider label="Base"   min={20}  max={5000} step={10}           {...a('filterEnvBaseFreq', p.filterEnvBaseFreq ?? 200)} onChange={v => onADSR({ filterEnvBaseFreq: v })} unit="Hz" />
       <SpSlider label="Oct"    min={0}   max={8}    step={0.5}          {...a('filterEnvOctaves', p.filterEnvOctaves ?? 3)}    onChange={v => onADSR({ filterEnvOctaves: v })} />
       <SpSlider label="Exp"    min={0.1} max={8}    step={0.1}          value={p.filterEnvExponent ?? 2}     onChange={v => onADSR({ filterEnvExponent: v })} />
     </div>

@@ -1677,7 +1677,8 @@ export default function MixerTab({ active = true }) {
       if (t.synthType)    handleSynthType(t.routeId, route.type, t.synthType)
       if (t.samplerPreset) handleSamplerPreset(t.routeId, route.type, t.samplerPreset)
       if (t.drumVoice)    handleDrumVoice(t.routeId, route.type, t.drumVoice)
-      const synthParams = trackSynthParams(t)
+      // An edit without a synthType keeps the lane's instrument; filter its tone by that.
+      const synthParams = trackSynthParams(t, t.synthType ?? trackSynthTypes[t.routeId] ?? 'Synth')
       if (Object.keys(synthParams).length) handleADSR(t.routeId, synthParams)
       if (t.filter)       handleFilter(t.routeId, t.filter)
       if (t.granular)     handleGranular(t.routeId, t.granular)
@@ -1725,7 +1726,7 @@ export default function MixerTab({ active = true }) {
     return { appliedCount: replacement.activeIds.length, skippedCount: replacement.skippedIds.length }
   }, [
     routes, started, masterVolume, bpm, visibleInstrumentRoutes, disabledRoutes, limits.activeLanes, soloRoutes, sendMatrix,
-    handleMasterVolume, handleGlobalHarmony, handleSynthType, handleSamplerPreset, handleDrumVoice, handleGranular,
+    trackSynthTypes, handleMasterVolume, handleGlobalHarmony, handleSynthType, handleSamplerPreset, handleDrumVoice, handleGranular,
     handleADSR, handleFilter, handleVolume, handlePan, handleScale, handleOctaveShift, handleGlide, handleLegato, handleArp,
     handleSidechain, handleLaneTag, handleClearDrums, setSyncedDrumPattern,
     handleDroneMode, handleDroneRoot, handleAddFxTrack, handleFxBusWet,
