@@ -2,6 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { applyPlanToSnapshot, defaultSnapshot, describeSnapshot } from '../lib/ai/planSnapshot.js'
 import { validatePlan } from '../lib/ai/planContract.js'
+import { withNewCompositionBaseline } from '../lib/ai/planApply.js'
 import { buildSnapshot, applySnapshot } from '../lib/songState.js'
 import { SYNTH_DEFAULTS, DRUMS_ROUTE_ID } from '../lib/soundSpecs.js'
 
@@ -198,4 +199,62 @@ test('drone: a missing root defaults into the key, an unusable one is reported a
   ] })
   assert.deepEqual(validated.tracks.map(t => t.drone.root), ['G1', 'G2', 'A1'])
   assert.deepEqual(dropped, ['drone root "G" on "M2"'])
+})
+
+test('a new-composition plan over an effects-heavy song leaves the planned lanes clean', () => {
+  const heavy = applyPlanToSnapshot(defaultSnapshot('budapest'), plan({
+    ...RAW_PLAN,
+    tracks: [
+      { routeId: 'M1', synthType: 'FMSynth', noteChance: 0.4, loopPattern: { play: 1, rest: 3, offset: 0 },
+        granular: { enabled: true, mix: 0.6 }, drone: { enabled: true, root: 'A2' },
+        sidechain: { enabled: true, source: 'drums:kick', amountDb: -10, attack: 0.005, release: 0.2 } },
+      RAW_PLAN.tracks[1],
+    ],
+  }).validated).snapshot
+  assert.equal(heavy.sendMatrix['M1:reverb'], 0.4)
+
+  const fresh = withNewCompositionBaseline(plan({
+    bpm: 72, tracks: [{ routeId: 'M1', synthType: 'AMSynth' }, { routeId: '4', synthType: 'Synth' }],
+  }).validated)
+  const { snapshot } = applyPlanToSnapshot(heavy, fresh)
+
+  assert.equal(snapshot.trackArps['4'].enabled, false, 'old arp off')
+  assert.equal(snapshot.trackGranulars.M1.enabled, false, 'old granular off')
+  assert.equal(snapshot.trackDroneModes.M1, false, 'old drone off')
+  assert.equal(snapshot.trackSidechains.M1.enabled, false, 'old sidechain off')
+  assert.equal('M1' in snapshot.trackNoteChances, false, 'chance back to always-play')
+  assert.equal('M1' in snapshot.trackLoopPatterns, false, 'rest pattern cleared')
+  assert.deepEqual(snapshot.trackLoopRegions['4'], { startCell: 0, endCell: 64 }, 'crop cleared')
+  assert.equal(snapshot.trackSpeeds['4'], 1)
+  assert.equal(snapshot.sendMatrix['M1:reverb'], 0, 'old lane send zeroed')
+  assert.equal(snapshot.sendMatrix[`${DRUMS_ROUTE_ID}:reverb`], 0, 'old drum send zeroed')
+  assert.equal(snapshot.drumPattern, null, 'no drums block → no drums')
+  assert.deepEqual(roundTrip(snapshot, CITY), snapshot)
+})
+
+test('an edit plan (no baseline) keeps settings and sends it does not mention', () => {
+  const first = applyPlanToSnapshot(defaultSnapshot('budapest'), plan().validated).snapshot
+  const { snapshot } = applyPlanToSnapshot(first, plan({ tracks: [{ routeId: '4', volume: -3 }, { routeId: 'M1' }] }).validated)
+  assert.equal(snapshot.trackArps['4'].enabled, true)
+  assert.equal(snapshot.sendMatrix['M1:reverb'], 0.4)
+  assert.ok(snapshot.drumPattern, 'drums untouched')
+})
+
+test('describeSnapshot detail carries what an edit must preserve', () => {
+  const { snapshot } = applyPlanToSnapshot(defaultSnapshot('budapest'), plan().validated)
+  const brief = describeSnapshot(snapshot, CITY)
+  assert.equal('speed' in brief.lanes[1], false, 'brief form unchanged')
+  const detail = describeSnapshot(snapshot, CITY, { detail: true })
+  const lane4 = detail.lanes.find(l => l.routeId === '4')
+  assert.equal(lane4.speed, 2)
+  assert.deepEqual(lane4.loopRegion, { startCell: 0, endCell: 32 })
+  assert.deepEqual(lane4.arp, { enabled: true, style: 'up', rate: '16n' })
+  assert.deepEqual(lane4.pitchVariety, { contour: 'arch', variety: 0.3 })
+  const m1 = detail.lanes.find(l => l.routeId === 'M1')
+  assert.deepEqual(m1.sends, [{ busId: 'reverb', level: 0.4 }])
+  assert.deepEqual(m1.sidechain, { enabled: true, source: 'drums:kick', amountDb: -10 })
+  assert.deepEqual(m1.scale, { root: 'D', scaleType: 'minor' }, 'a lane scale that differs from the song key')
+  assert.deepEqual(detail.drums.patterns, [{ padId: 'kick', steps: kick }])
+  assert.deepEqual(detail.drums.sends, [{ busId: 'reverb', level: 0.2 }])
+  assert.ok(detail.fx.some(f => f.busId === 'reverb' && f.params?.irType === 'cave'))
 })

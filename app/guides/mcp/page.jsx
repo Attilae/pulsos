@@ -10,11 +10,11 @@ export const metadata = {
 
 const TOOLS = [
   ['list_cities', 'Lists the cities you can compose in.', 'Read'],
-  ['list_songs / get_song', 'Lists your saved songs and reads one of them.', 'Read'],
-  ['get_composer_guide', 'Returns the instruments, effects, scales and ranges a plan may use, plus your lane limit.', 'Read'],
+  ['list_songs / get_song', 'Lists your saved songs and reads one of them, with a summary of what its lanes play.', 'Read'],
+  ['get_composer_guide', 'Returns the musical guidance, instruments, effects, scales and ranges a plan may use, your lane limit, and the genre recipes. Pass a genre to get that recipe.', 'Read'],
   ['list_routes', 'Finds a city’s lines by type or name. Each line becomes a track.', 'Read'],
   ['preview_song_plan', 'Checks a plan and reports anything invalid. Saves nothing.', 'Read'],
-  ['create_song_from_plan', 'Saves a plan as a new song in your library.', 'Write'],
+  ['create_song_from_plan', 'Saves a plan as a new song in your library. Every lane starts from clean defaults.', 'Write'],
   ['apply_plan_to_song', 'Applies a plan to one of your saved songs.', 'Write'],
   ['set_song_tempo', 'Changes a saved song’s BPM.', 'Write'],
 ]

@@ -79,7 +79,9 @@ logic** — nothing boots Tone.js, React, or the DB: `billing-plans` (`lib/billi
 (`lib/server/mcpTools.js` — drives the real MCP SDK client/handler in-process, but every DB/billing
 call is injected through its `services` argument, so it still never touches Postgres),
 `composer-skill` (runs every example plan in `skills/leid-composer/` through the real
-`validatePlan`/`PLAN_INPUT_SCHEMA` and checks each tool it names is registered), `plan-snapshot` (`lib/ai/planSnapshot.js` — round-trips its output through the real
+`validatePlan`/`PLAN_INPUT_SCHEMA` and checks each tool it names is registered),
+`composer-guide` (pins the prompt's loop-window/FX-unit/fixed-IR facts and its example plan),
+`musical-policy` (`lib/ai/musicalPolicy.js` — genre recipe selection and prompt size), `plan-snapshot` (`lib/ai/planSnapshot.js` — round-trips its output through the real
 `applySnapshot`/`buildSnapshot`), `server-purity` (loads the MCP module graph in a child process
 that throws on any Tone/React/`.jsx` import, plus `lib/server/routeIndex.js`). There is **no linter
 configured** and the audio/UI code has no tests. Run a single file with
@@ -583,6 +585,26 @@ classes.
   shown last so it can't repeat back-to-back. Both are pure and covered by
   `test/ai-plan-apply.test.js` — keep new composer logic testable the same way rather than
   growing MixerTab.
+- **Musical policy + genre recipes** live in `lib/ai/musicalPolicy.js` (pure; distilled from
+  `docs/composer-musical-guide.md`). Both prompts get the universal policy; the in-app prompt
+  also gets the **one** recipe `selectRecipe(prompt, chipOverride)` picks. Keyword detection works
+  longest alias first, and a style named just before another one modifies it ("ambient techno" →
+  techno + ambient). MCP gets a recipe via `get_composer_guide({genre})`. Never append every
+  recipe to a prompt.
+- **New idea vs edit.** The in-app panel's toggle and the MCP tool choose the mode. The model
+  never chooses it. **New** runs `withNewCompositionBaseline` (`planApply.js`) before apply, which
+  fills every omitted resettable lane field with its default, turns drums off when the plan has
+  none, and sets `clearSends`. Both `applyAIPlan` and `applyPlanToSnapshot` must honour
+  `clearSends` via `sendsToClear`. Without the baseline, a reused lane silently keeps the previous
+  song's arp, sends and drums. **Edit** sends `describeSnapshot(…, {detail: true})` as CURRENT
+  SONG and applies the plan unchanged. MCP `create_song_from_plan` (and preview without `songId`)
+  counts as new, and `apply_plan_to_song` counts as an edit.
+- **Prompt facts that are easy to get wrong** (pinned by `test/composer-guide.test.js`):
+  - A `loopRegion` selects material and never delays a lane's entrance. Parts are rebased to the
+    loop start, and `loopPattern` is the only "comes in later" tool.
+  - Delay `delayTime` and reverb `preDelay` are stored in **seconds**; the "ms" in `fxSpecs.js` is
+    the UI display unit (`planParamUnit`). Chorus `delayTime` really is ms.
+  - Reverb `decay`/`preDelay` only affect `irType: "synthetic"`.
 
 ### Billing & entitlements (Free/Pro)
 

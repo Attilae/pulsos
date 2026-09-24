@@ -17,7 +17,8 @@ import MapView from '../MapView.jsx'
 import AIComposerPanel from '../AIComposerPanel.jsx'
 import SongMenu from '../SongMenu.jsx'
 import { useSongPersistence } from '../../lib/useSongPersistence.js'
-import { applySnapshot } from '@/lib/songState.js'
+import { applySnapshot, buildSnapshot } from '@/lib/songState.js'
+import { describeSnapshot } from '@/lib/ai/planSnapshot.js'
 import {
   MidiSessionRecorder, exportRouteMidi, exportMixMidi,
   isRouteExportable, isRouteAudible, buildLoopMidiEvents,
@@ -25,7 +26,7 @@ import {
 import { exportRouteAudio, exportMixAudio } from '@/lib/audioExport.js'
 import { useEntitlements } from '@/lib/shared/EntitlementsContext.jsx'
 import { countActiveLanes, normalizeLaneAccess, normalizeSnapshotLaneAccess } from '@/lib/billing/plans.js'
-import { buildReplacementLaneState } from '@/lib/ai/planApply.js'
+import { buildReplacementLaneState, sendsToClear } from '@/lib/ai/planApply.js'
 import { trackProductEvent } from '@/lib/productAnalytics.js'
 import { unlockAudio, releaseAudioSession, probeOutputPeak } from '@/lib/audioSession.js'
 import { registerSoundCheck } from '@/lib/shared/soundCheck.js'
@@ -1700,6 +1701,14 @@ export default function MixerTab({ active = true }) {
       if (t.sidechain) handleSidechain(t.routeId, t.sidechain)
     }
 
+    // New-composition plans (withNewCompositionBaseline) clear the planned lanes'
+    // old sends first; planSnapshot.applyPlanToSnapshot mirrors this.
+    if (plan.clearSends) {
+      for (const { routeId, busId } of sendsToClear(sendMatrix, [...activeIds, DRUMS_ROUTE_ID])) {
+        handleSendLevel(routeId, busId, 0)
+      }
+    }
+
     for (const f of plan.fx ?? []) {
       handleAddFxTrack(f.busId)
       if (f.wet != null) handleFxBusWet(f.busId, f.wet)
@@ -1714,7 +1723,7 @@ export default function MixerTab({ active = true }) {
     setPendingAiStart(value => value + 1)
     return { appliedCount: replacement.activeIds.length, skippedCount: replacement.skippedIds.length }
   }, [
-    routes, started, masterVolume, bpm, visibleInstrumentRoutes, disabledRoutes, limits.activeLanes, soloRoutes,
+    routes, started, masterVolume, bpm, visibleInstrumentRoutes, disabledRoutes, limits.activeLanes, soloRoutes, sendMatrix,
     handleMasterVolume, handleGlobalHarmony, handleSynthType, handleSamplerPreset, handleDrumVoice, handleGranular,
     handleADSR, handleFilter, handleVolume, handlePan, handleScale, handleOctaveShift, handleGlide, handleLegato, handleArp,
     handleSidechain, handleLaneTag, handleClearDrums, setSyncedDrumPattern,
@@ -1967,6 +1976,13 @@ export default function MixerTab({ active = true }) {
     }
   }, [loadCity, songSetters, setCityId])
 
+  // What the AI Composer's "Edit current" mode tells the model is playing now.
+  const describeCurrentSong = useCallback(
+    () => describeSnapshot(buildSnapshot(songState), mergedRoutes ?? routes ?? [], { detail: true }),
+    [songState, mergedRoutes, routes],
+  )
+  const hasAudibleLanes = visibleInstrumentRoutes.some(route => !disabledRoutes[route.id])
+
   const song = useSongPersistence({
     state: songState,
     applyPreset,
@@ -2159,6 +2175,8 @@ export default function MixerTab({ active = true }) {
         cityId={cityId}
         cityName={cityEntry.name}
         onApply={applyAIPlan}
+        describeCurrentSong={describeCurrentSong}
+        canEdit={hasAudibleLanes}
         {...(isPhone ? { open: aiOpen, onOpenChange: setAiOpen } : {})}
       />
       {!isPhone && (
