@@ -1694,6 +1694,8 @@ export default function MixerTab({ active = true }) {
       if (t.loopRegion) handleTrackLoopRegion(t.routeId, t.loopRegion)
       if (t.gridResolution) handleTrackGridResolution(t.routeId, t.gridResolution)
       if (t.pitchVariety) handlePitchVariety(t.routeId, t.pitchVariety)
+      if (t.noteChance != null) handleNoteChance(t.routeId, t.noteChance)
+      if (t.loopPattern) handleLoopPattern(t.routeId, t.loopPattern)
       if (t.label) handleLaneTag(t.routeId, t.label)
       if (t.sidechain) handleSidechain(t.routeId, t.sidechain)
     }
@@ -1718,7 +1720,7 @@ export default function MixerTab({ active = true }) {
     handleSidechain, handleLaneTag, handleClearDrums, setSyncedDrumPattern,
     handleDroneMode, handleDroneRoot, handleAddFxTrack, handleFxBusWet,
     handleFxBusParam, handleSendLevel, handleTrackSpeed, handleTrackLoopRegion,
-    handleTrackGridResolution, handlePitchVariety,
+    handleTrackGridResolution, handlePitchVariety, handleNoteChance, handleLoopPattern,
   ])
 
   const midiExportCtx = useMemo(() => ({

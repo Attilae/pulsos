@@ -213,6 +213,8 @@ function PlanPreview({ result, routeName, applied, applying, onApply, onDiscard 
                     t.gridResolution,
                     t.loopRegion && `cells ${t.loopRegion.startCell}–${t.loopRegion.endCell}`,
                     t.pitchVariety && `${t.pitchVariety.contour} ${Math.round(t.pitchVariety.variety * 100)}%`,
+                    t.noteChance != null && t.noteChance < 1 && `chance ${Math.round(t.noteChance * 100)}%`,
+                    t.loopPattern && t.loopPattern.rest > 0 && `play ${t.loopPattern.play} / rest ${t.loopPattern.rest}`,
                   ].filter(Boolean).join(' · ')}
                 </span>
               </li>
