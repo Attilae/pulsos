@@ -3,7 +3,9 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
+    "predev": "node scripts/build_skill.js",
     "dev": "next dev",
+    "prebuild": "node scripts/build_skill.js",
     "build": "next build",
     "start": "next start",
     "feed": "node feed/index.js",
@@ -23,7 +25,8 @@
     "sync:agents": "node scripts/sync_agents.js",
     "slim:lines": "node scripts/slim_lines.js",
     "slim:all": "for c in budapest helsinki berlin prague newyork zurich warsaw; do node scripts/slim_lines.js --city $c; done",
-    "index:routes": "node scripts/build_route_index.js"
+    "index:routes": "node scripts/build_route_index.js",
+    "build:skill": "node scripts/build_skill.js"
   },
   "dependencies": {
     "@better-auth/cimd": "1.7.5",

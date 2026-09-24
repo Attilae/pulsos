@@ -125,6 +125,7 @@
 }
 .profile-btn:hover:not(:disabled) { background: var(--hover-surface); }
 .profile-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+a.profile-btn { display: inline-block; text-decoration: none; }
 
 .profile-checkbox {
   display: flex;

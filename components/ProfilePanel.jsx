@@ -19,6 +19,7 @@ import {
 } from '../lib/persistence.js'
 import { confirmDialog } from './Dialog.jsx'
 import { useEntitlements } from '@/lib/shared/EntitlementsContext.jsx'
+import { trackProductEvent } from '@/lib/productAnalytics.js'
 import './ProfilePanel.css'
 
 export default function ProfilePanel({ onClose }) {
@@ -176,6 +177,12 @@ export function McpSection({ onDone }) {
             </div>
           </div>
           <p>The connected client can work with your saved songs. Changes to a saved song appear when you open it in Leið.</p>
+          <h4>Composer skill</h4>
+          <p>Teaches Claude the Leið composing workflow and a set of genre recipes. In Claude, open Settings → Capabilities → Skills and upload the zip.</p>
+          <a className="profile-btn" href="/skills/leid-composer.zip" download
+            onClick={() => trackProductEvent('mcp_skill_download')}>
+            Download skill
+          </a>
           <h4>Connected clients</h4>
           {connections === null ? <p className="profile-empty">Loading connections…</p>
             : connections.length === 0 ? <p className="profile-empty">No clients connected yet.</p>
