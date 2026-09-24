@@ -21,9 +21,27 @@ A dropped item was ignored. The rest of the plan still applies. Fix the item and
 | `fx for unknown bus "…"`, `… param "…"`, `busId.param = "…"` | Wrong bus id, param id or enum value. | Copy the ids from the guide's FX list. Params go as `[{ "paramId", "value" }]`. |
 | `fx bus "…" exceeds the three-bus limit` | More than three FX buses. | Keep the three that matter most. |
 | `send from inactive route "…"` | A send comes from a route that isn't in `tracks`. | Add the track, or remove the send. For drums, use `"drums"` and enable them. |
+| `tone.… on … lane "…" (not used by that instrument)` | The lane's instrument doesn't read that `tone` key (e.g. an oscillator on a Sampler, or modulationIndex on a Synth). | Remove it, or pick an instrument that uses it (see the guide's tone line). |
 
 Out-of-range numbers are **clamped without a message**. A volume of -60 becomes the minimum, not an
 error. Check numbers against the guide's RANGES.
+
+## `advisories` from `preview_song_plan`
+
+An advisory means the setting was kept but will not sound the way the plan probably intends. Nothing
+was dropped. Fix the ones that matter to the idea and preview again.
+
+| Advisory says | Why | Fix |
+| --- | --- | --- |
+| attack is longer than one beat | Each note is held for one beat (60 ÷ BPM s), so the attack never reaches full level. | Shorten the attack, or hold the note with drone or legato on a mono synth. |
+| FMSynth … blooms late | The default modulator attack is 0.5 s, so a fast carrier attack still sounds soft at first. | Set `tone.modEnvelope` (e.g. attack 0.001, decay 0.12, sustain 0, release 0.08). |
+| … the picker does not offer | The user can't reselect that instrument in the DAW. | Use Synth, FMSynth, NoiseSynth, PolySynth, Sampler or Drums unless the sound needs it. |
+| PluckSynth ignores envelope | The string model only takes a note-on. | Use a short-envelope Synth for a controllable pluck. |
+| legato … voices pile up | Legato holds notes on Sampler/PolySynth instead of gliding. | Use legato on a mono synth only. |
+| … has no pitch effect | NoiseSynth is unpitched; a Drums lane plays its sample at a fixed pitch. | Remove octave/scale/contour/arp from that lane. |
+| granular … C4 / mix / bass | Sampler grains can be detuned, grains add on top of the dry sound, and grain on the bass muddies it. | Use a synth-sourced lane, mix around 0.08, keep the bass dry. |
+| no synthType | In a new song the lane would keep the instrument it had before. | Set `synthType` on every lane. |
+| … pad has no steps | The sidechain listens to a drum pad that never plays. | Duck off a pad that plays (usually `drums:kick`). |
 
 ## Errors
 

@@ -371,3 +371,26 @@ test('an edit keeps what the plan leaves out, and get_song describes the song fo
     await handler.close()
   }
 })
+
+test('preview reports advisories for settings that validate but will not sound as planned', async () => {
+  const { services } = composeServices()
+  const { client, handler } = await connectedClient(services)
+  try {
+    const out = await client.callTool({
+      name: 'preview_song_plan',
+      arguments: { cityId: 'budapest', plan: { bpm: 120, tracks: [
+        { routeId: 'M1', synthType: 'FMSynth', envelope: { attack: 0.005, decay: 0.2, sustain: 0, release: 0.1 } },
+        { routeId: 'B9', synthType: 'Synth', envelope: { attack: 0.9, decay: 0.2, sustain: 0.5, release: 1 },
+          tone: { oscillator: 'sawtooth' } },
+      ] } },
+    })
+    const { advisories, dropped } = out.structuredContent
+    assert.deepEqual(dropped, [])
+    assert.equal(advisories.length, 2)
+    assert.match(advisories[0], /modulator attack/)
+    assert.match(advisories[1], /0\.9 s attack/)
+  } finally {
+    await client.close()
+    await handler.close()
+  }
+})

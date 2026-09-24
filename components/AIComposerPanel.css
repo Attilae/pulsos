@@ -147,6 +147,10 @@
   line-height: 1.4;
 }
 
+/* Advisories: kept settings that may not sound as planned — quieter than "ignored". */
+.ai-composer-note--advice { color: var(--muted); }
+.ai-composer-note--advice ul { margin: 2px 0 0; padding-left: 16px; }
+
 .ai-planning-overlay {
   position: fixed;
   inset: 0;

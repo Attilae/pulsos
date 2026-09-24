@@ -26,7 +26,7 @@ import {
 import { exportRouteAudio, exportMixAudio } from '@/lib/audioExport.js'
 import { useEntitlements } from '@/lib/shared/EntitlementsContext.jsx'
 import { countActiveLanes, normalizeLaneAccess, normalizeSnapshotLaneAccess } from '@/lib/billing/plans.js'
-import { buildReplacementLaneState, sendsToClear } from '@/lib/ai/planApply.js'
+import { buildReplacementLaneState, sendsToClear, trackSynthParams } from '@/lib/ai/planApply.js'
 import { trackProductEvent } from '@/lib/productAnalytics.js'
 import { unlockAudio, releaseAudioSession, probeOutputPeak } from '@/lib/audioSession.js'
 import { registerSoundCheck } from '@/lib/shared/soundCheck.js'
@@ -1677,7 +1677,8 @@ export default function MixerTab({ active = true }) {
       if (t.synthType)    handleSynthType(t.routeId, route.type, t.synthType)
       if (t.samplerPreset) handleSamplerPreset(t.routeId, route.type, t.samplerPreset)
       if (t.drumVoice)    handleDrumVoice(t.routeId, route.type, t.drumVoice)
-      if (t.envelope)     handleADSR(t.routeId, t.envelope)
+      const synthParams = trackSynthParams(t)
+      if (Object.keys(synthParams).length) handleADSR(t.routeId, synthParams)
       if (t.filter)       handleFilter(t.routeId, t.filter)
       if (t.granular)     handleGranular(t.routeId, t.granular)
       if (t.volume != null) handleVolume(t.routeId, t.volume)

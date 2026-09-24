@@ -258,3 +258,35 @@ test('describeSnapshot detail carries what an edit must preserve', () => {
   assert.deepEqual(detail.drums.sends, [{ busId: 'reverb', level: 0.2 }])
   assert.ok(detail.fx.some(f => f.busId === 'reverb' && f.params?.irType === 'cave'))
 })
+
+test('tone: applied after the synthType reset, reported by describe, round-trips clean', () => {
+  const raw = {
+    tracks: [
+      { routeId: 'M1', synthType: 'FMSynth', envelope: { attack: 0.005, decay: 0.2, sustain: 0, release: 0.1 },
+        tone: { harmonicity: 2, modulationIndex: 3, modEnvelope: { attack: 0.001, decay: 0.12, sustain: 0, release: 0.08 } } },
+      { routeId: '4', synthType: 'Synth', tone: { oscillator: 'square' } },
+    ],
+  }
+  const base = defaultSnapshot('budapest')
+  base.trackADSRs = { M1: { harmonicity: 9, oscillatorType: 'pwm' } }
+  const { snapshot } = applyPlanToSnapshot(base, plan(raw).validated)
+  assert.deepEqual(snapshot.trackADSRs.M1, {
+    ...SYNTH_DEFAULTS.FMSynth, attack: 0.005, decay: 0.2, sustain: 0, release: 0.1,
+    harmonicity: 2, modulationIndex: 3, modAttack: 0.001, modDecay: 0.12, modSustain: 0, modRelease: 0.08,
+  })
+  assert.equal(snapshot.trackADSRs['4'].oscillatorType, 'square')
+  assert.deepEqual(roundTrip(snapshot, CITY), snapshot)
+
+  const detail = describeSnapshot(snapshot, CITY, { detail: true })
+  assert.deepEqual(detail.lanes.find(l => l.routeId === '4').tone, { oscillator: 'square' })
+  assert.deepEqual(detail.lanes.find(l => l.routeId === 'M1').tone, {
+    harmonicity: 2, modulationIndex: 3, modEnvelope: { attack: 0.001, decay: 0.12, sustain: 0, release: 0.08 },
+  })
+  assert.deepEqual(detail.lanes.find(l => l.routeId === 'M1').envelope, { attack: 0.005, decay: 0.2, sustain: 0, release: 0.1 })
+})
+
+test('tone in an edit (no synthType) changes only the named keys', () => {
+  const { snapshot: song } = applyPlanToSnapshot(defaultSnapshot('budapest'), plan().validated)
+  const { snapshot } = applyPlanToSnapshot(song, plan({ tracks: [{ routeId: '4', tone: { modulationIndex: 8 } }] }).validated)
+  assert.deepEqual(snapshot.trackADSRs['4'], { ...song.trackADSRs['4'], modulationIndex: 8 })
+})

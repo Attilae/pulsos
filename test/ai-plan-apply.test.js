@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { buildReplacementLaneState, withNewCompositionBaseline, sendsToClear } from '../lib/ai/planApply.js'
+import { buildReplacementLaneState, withNewCompositionBaseline, sendsToClear, toneToSynthParams, trackSynthParams } from '../lib/ai/planApply.js'
+import { validatePlan } from '../lib/ai/planContract.js'
 import { CITY_FACTS, factsForCity, shuffledFactsForCity } from '../lib/shared/cityFacts.js'
 
 const CITY_IDS = ['budapest', 'helsinki', 'berlin', 'prague', 'newyork', 'zurich', 'warsaw']
@@ -87,4 +88,34 @@ test('sendsToClear picks non-zero sends from the given lanes only', () => {
     { routeId: 'a', busId: 'reverb' },
     { routeId: '__drums__', busId: 'delay' },
   ])
+})
+
+test('toneToSynthParams maps a plan tone onto the synth param block keys', () => {
+  assert.deepEqual(toneToSynthParams(null), {})
+  assert.deepEqual(toneToSynthParams({
+    oscillator: 'fatsawtooth', harmonicity: 2, modulationIndex: 3,
+    modEnvelope: { attack: 0.001, decay: 0.12, sustain: 0, release: 0.08 },
+  }), {
+    oscillatorType: 'fatsawtooth', harmonicity: 2, modulationIndex: 3,
+    modAttack: 0.001, modDecay: 0.12, modSustain: 0, modRelease: 0.08,
+  })
+  assert.deepEqual(
+    trackSynthParams({ envelope: { attack: 0.01 }, tone: { oscillator: 'square' } }),
+    { attack: 0.01, oscillatorType: 'square' },
+  )
+})
+
+test('validatePlan keeps only the tone keys the instrument uses, and clamps them', () => {
+  const routes = [{ id: 'A' }, { id: 'B' }, { id: 'C' }]
+  const { plan, dropped } = validatePlan({ tracks: [
+    { routeId: 'A', synthType: 'Sampler', samplerPreset: 'piano', tone: { oscillator: 'square' } },
+    { routeId: 'B', synthType: 'Synth', tone: { oscillator: 'sawtooth', modulationIndex: 5 } },
+    { routeId: 'C', tone: { oscillator: 'nope', harmonicity: 99, modulationIndex: 90 } },
+  ] }, routes)
+  assert.equal(plan.tracks[0].tone, undefined)
+  assert.deepEqual(plan.tracks[1].tone, { oscillator: 'sawtooth' })
+  assert.deepEqual(plan.tracks[2].tone, { harmonicity: 20, modulationIndex: 40 }, 'no synthType (an edit): valid keys kept, clamped')
+  assert.ok(dropped.some(d => d.startsWith('tone.oscillator on Sampler lane "A"')))
+  assert.ok(dropped.some(d => d.startsWith('tone.modulationIndex on Synth lane "B"')))
+  assert.ok(dropped.includes('tone.oscillator "nope" on "C"'))
 })

@@ -82,7 +82,9 @@ call is injected through its `services` argument, so it still never touches Post
 `composer-skill` (runs every example plan in `skills/leid-composer/` through the real
 `validatePlan`/`PLAN_INPUT_SCHEMA` and checks each tool it names is registered),
 `composer-guide` (pins the prompt's loop-window/FX-unit/fixed-IR facts and its example plan),
-`musical-policy` (`lib/ai/musicalPolicy.js` — genre recipe selection and prompt size), `plan-snapshot` (`lib/ai/planSnapshot.js` — round-trips its output through the real
+`musical-policy` (`lib/ai/musicalPolicy.js` — genre recipe selection and prompt size),
+`sound-policy` (`lib/ai/soundPolicy.js` — every sound recipe survives `validatePlan` and raises no
+advisory), `plan-advisories` (`lib/ai/planAdvisories.js`), `plan-snapshot` (`lib/ai/planSnapshot.js` — round-trips its output through the real
 `applySnapshot`/`buildSnapshot`), `server-purity` (loads the MCP module graph in a child process
 that throws on any Tone/React/`.jsx` import, plus `lib/server/routeIndex.js`). There is **no linter
 configured** and the audio/UI code has no tests. Run a single file with
@@ -592,6 +594,21 @@ classes.
   longest alias first, and a style named just before another one modifies it ("ambient techno" →
   techno + ambient). MCP gets a recipe via `get_composer_guide({genre})`. Never append every
   recipe to a prompt.
+- **Sound design** lives in `lib/ai/soundPolicy.js` (distilled from
+  `docs/composer-synthesis-guide.md`). It holds the sound policy text and the structured sound
+  recipes R1–R13. Each genre names its `sounds`, and only those go into the prompt. With no genre,
+  the in-app prompt gets `DEFAULT_SOUND_IDS` and the MCP guide gets all of them. Recipes and the
+  genre texts stick to `PICKER_SYNTH_TYPES` (`soundSpecs.js`, re-exported as `SYNTH_TYPES`),
+  because a lane on a hidden type can't be reselected in the DAW.
+- **Plan `tone`** covers `oscillator`, `harmonicity`, `modulationIndex` and `modEnvelope`. It is
+  flattened by `toneToSynthParams`/`trackSynthParams` (`planApply.js`) into the same `trackADSRs`
+  keys the synth editors write. Both apply paths merge it after the synthType reset.
+  `TONE_SUPPORT` says which instrument honours which key; `validatePlan` drops the rest when the
+  plan names the synthType.
+- **Advisories** (`planAdvisories`) list settings that validate but won't sound as planned: an
+  attack longer than the one-beat gate, FMSynth without a mod envelope, a hidden type, Sampler
+  granular, and so on. They never change the plan. MCP preview/create/apply return them and the
+  panel preview shows them.
 - **New idea vs edit.** The in-app panel's toggle and the MCP tool choose the mode. The model
   never chooses it. **New** runs `withNewCompositionBaseline` (`planApply.js`) before apply, which
   fills every omitted resettable lane field with its default, turns drums off when the plan has
@@ -606,6 +623,9 @@ classes.
   - Delay `delayTime` and reverb `preDelay` are stored in **seconds**; the "ms" in `fxSpecs.js` is
     the UI display unit (`planParamUnit`). Chorus `delayTime` really is ms.
   - Reverb `decay`/`preDelay` only affect `irType: "synthetic"`.
+  - Every ordinary stop note has a one-beat (`'4n'`) gate regardless of grid or speed.
+    Sampler/Drums honour attack and release only. PluckSynth is attack-only. FMSynth's default
+    modulator attack is 0.5 s.
 
 ### Billing & entitlements (Free/Pro)
 

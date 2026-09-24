@@ -4,6 +4,8 @@ import { readFileSync, readdirSync } from 'node:fs'
 import { join, relative } from 'node:path'
 import { validatePlan } from '../lib/ai/planContract.js'
 import { PLAN_INPUT_SCHEMA } from '../lib/ai/planSchema.js'
+import { planAdvisories } from '../lib/ai/planAdvisories.js'
+import { PICKER_SYNTH_TYPES } from '../lib/soundSpecs.js'
 
 // The user-installable Agent Skill (skills/leid-composer) teaches an MCP client
 // how to compose. It deliberately carries no vocabulary of its own — that comes
@@ -79,7 +81,7 @@ for (const { label, raw } of examples) {
         if (typeof value === 'object') {
           for (const [sub, subValue] of Object.entries(value)) {
             if (key === 'sidechain' && sub === 'source') continue // normalized to an internal id
-            assert.equal(track[key][sub], subValue, `${input.routeId}.${key}.${sub} unchanged`)
+            assert.deepEqual(track[key][sub], subValue, `${input.routeId}.${key}.${sub} unchanged`)
           }
         }
       }
@@ -93,6 +95,14 @@ for (const { label, raw } of examples) {
       }
     }
     assert.equal(out.fx.flatMap(fx => fx.sends).length, exampleSends(plan).length, 'every send kept')
+
+    // The recipes teach by example, so each must follow the sound advice it
+    // gives: picker instruments only (the user can keep editing every lane) and
+    // nothing the preview would flag as not sounding as planned.
+    for (const track of plan.tracks) {
+      assert.ok(PICKER_SYNTH_TYPES.includes(track.synthType), `${track.routeId} uses a picker instrument`)
+    }
+    assert.deepEqual(planAdvisories(out, { mode: 'new' }), [], 'no advisories')
   })
 }
 
