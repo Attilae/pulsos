@@ -134,7 +134,11 @@ export default function MixerTab({ active = true }) {
   // *synchronously* before setCityId so the city effect below can see it and stand
   // down (it would otherwise reset + randomly re-pick over the loaded song).
   // `presetTokenRef` supersedes stale applies when loads or switches overlap.
-  const pendingPresetRef = useRef(null)   // { token, cityId } | null
+  // The claim is released by whichever side finishes *second*: when the target
+  // city's routes are already cached, the apply can finish before React commits
+  // the city change, and clearing the claim then let the effect re-pick random
+  // lanes over the song that had just loaded (`seen`/`done` track the handoff).
+  const pendingPresetRef = useRef(null)   // { token, cityId, seen, done } | null
   const presetTokenRef   = useRef(0)
   // Latest values for applyPreset to read without becoming a new function on every
   // change — it must stay referentially stable or useSongPersistence re-hydrates.
@@ -402,7 +406,12 @@ export default function MixerTab({ active = true }) {
   useEffect(() => {
     // A preset load already owns this switch: it will load the city and install
     // the song's own lanes. Resetting or re-picking here would wipe that.
-    if (pendingPresetRef.current?.cityId === cityId) return
+    const pending = pendingPresetRef.current
+    if (pending?.cityId === cityId) {
+      if (pending.done) pendingPresetRef.current = null
+      else pending.seen = true
+      return
+    }
     // A manual city switch cancels any preset apply still in flight.
     presetTokenRef.current++
     pendingPresetRef.current = null
@@ -1685,6 +1694,8 @@ export default function MixerTab({ active = true }) {
       if (t.loopRegion) handleTrackLoopRegion(t.routeId, t.loopRegion)
       if (t.gridResolution) handleTrackGridResolution(t.routeId, t.gridResolution)
       if (t.pitchVariety) handlePitchVariety(t.routeId, t.pitchVariety)
+      if (t.noteChance != null) handleNoteChance(t.routeId, t.noteChance)
+      if (t.loopPattern) handleLoopPattern(t.routeId, t.loopPattern)
       if (t.label) handleLaneTag(t.routeId, t.label)
       if (t.sidechain) handleSidechain(t.routeId, t.sidechain)
     }
@@ -1709,7 +1720,7 @@ export default function MixerTab({ active = true }) {
     handleSidechain, handleLaneTag, handleClearDrums, setSyncedDrumPattern,
     handleDroneMode, handleDroneRoot, handleAddFxTrack, handleFxBusWet,
     handleFxBusParam, handleSendLevel, handleTrackSpeed, handleTrackLoopRegion,
-    handleTrackGridResolution, handlePitchVariety,
+    handleTrackGridResolution, handlePitchVariety, handleNoteChance, handleLoopPattern,
   ])
 
   const midiExportCtx = useMemo(() => ({
@@ -1907,7 +1918,7 @@ export default function MixerTab({ active = true }) {
     // Claim the switch synchronously, *before* setCityId — the city effect reads
     // this ref and must see it whether it runs before or after the await below.
     if (targetEntry.id !== cityIdRef.current) {
-      pendingPresetRef.current = { token, cityId: targetEntry.id }
+      pendingPresetRef.current = { token, cityId: targetEntry.id, seen: false, done: false }
       setSwitching(true)
       setCityId(targetEntry.id)
     }
@@ -1945,7 +1956,13 @@ export default function MixerTab({ active = true }) {
       }
       return null
     } finally {
-      if (pendingPresetRef.current?.token === token) pendingPresetRef.current = null
+      const pending = pendingPresetRef.current
+      if (pending?.token === token) {
+        // The city effect hasn't run for this switch yet: leave the claim for it
+        // to release, or it would treat the switch as manual and re-pick.
+        if (pending.seen) pendingPresetRef.current = null
+        else pending.done = true
+      }
       requestAnimationFrame(() => { if (presetTokenRef.current === token) setSwitching(false) })
     }
   }, [loadCity, songSetters, setCityId])
