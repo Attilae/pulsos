@@ -166,3 +166,36 @@ test('describeSnapshot summarizes only the audible lanes', () => {
   assert.equal(summary.lanes[0].samplerPreset, 'cello')
   assert.deepEqual(summary.drums, { pads: ['kick'], muted: false })
 })
+
+test('note chance and loop pattern: stored like the handlers do, sparse at their defaults, round-trip clean', () => {
+  const raw = { tracks: [
+    { routeId: 'M1', noteChance: 0.456, loopPattern: { play: 1, rest: 3, offset: 1 } },
+    { routeId: '4', noteChance: 1, loopPattern: { play: 1, rest: 0, offset: 0 } },
+    { routeId: '6', noteChance: 'often', loopPattern: { play: 'x', rest: 1 } },
+  ] }
+  const { validated, dropped } = plan(raw)
+  assert.deepEqual(dropped, ['noteChance on "6"', 'loopPattern on "6"'])
+  const { snapshot } = applyPlanToSnapshot(defaultSnapshot('budapest'), validated)
+  assert.deepEqual(snapshot.trackNoteChances, { M1: 0.46 })
+  assert.deepEqual(snapshot.trackLoopPatterns, { M1: { play: 1, rest: 3, offset: 1 } })
+  assert.deepEqual(roundTrip(snapshot, CITY), snapshot)
+})
+
+test('an existing chance/pattern is cleared when a plan sets the lane back to always-play', () => {
+  const base = { ...defaultSnapshot('budapest'), routeIds: ['M1'],
+    trackNoteChances: { M1: 0.5 }, trackLoopPatterns: { M1: { play: 1, rest: 1, offset: 0 } } }
+  const { validated } = plan({ tracks: [{ routeId: 'M1', noteChance: 1, loopPattern: { play: 1, rest: 0, offset: 0 } }] })
+  const { snapshot } = applyPlanToSnapshot(base, validated)
+  assert.deepEqual(snapshot.trackNoteChances, {})
+  assert.deepEqual(snapshot.trackLoopPatterns, {})
+})
+
+test('drone: a missing root defaults into the key, an unusable one is reported and replaced', () => {
+  const { validated, dropped } = plan({ harmony: { root: 'G', scaleType: 'minor' }, tracks: [
+    { routeId: 'M1', octave: -1, drone: { enabled: true, root: null } },
+    { routeId: 'M2', drone: { enabled: true, root: 'G' } },
+    { routeId: '4', scale: { root: 'D', scaleType: 'dorian' }, drone: { enabled: true, root: 'A1' } },
+  ] })
+  assert.deepEqual(validated.tracks.map(t => t.drone.root), ['G1', 'G2', 'A1'])
+  assert.deepEqual(dropped, ['drone root "G" on "M2"'])
+})
