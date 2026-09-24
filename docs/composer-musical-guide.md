@@ -1,16 +1,16 @@
 # Leið: a musical guide for the composer
 
-Research date: 2026-09-24. Scope: instrumental, loop-based electronic starting points for Leið.
+Research date: 2026-09-24. Scope: instrumental, loop-based electronic starting points for Leið, including synthesis and sampling with the instruments already in the repository.
 
 **The desired result is a small musical idea that sounds intentional, survives repeated listening, and gives the listener a reason to touch a control.** A valid plan is only the first requirement. Musical success needs a clear focal point, complementary parts, an appropriate groove, and room to develop.
 
-This is a research and implementation guide. It does not change the running composer. The companion [composer instruction draft](composer-musical-prompt.md) distils the recommendations for a future prompt update.
+This is a research and implementation guide. It does not change the running composer. Read the [synthesis and sampling chapter](composer-synthesis-guide.md) alongside the genre recipes: instrument choice, articulation, register, rhythm, and effects are one musical decision. The companion [composer instruction draft](composer-musical-prompt.md) distils the recommendations for a future prompt update.
 
 ## How to use this guide
 
 1. Read the capability boundaries before translating musical ideas into plan fields.
 2. Choose one genre recipe, one mood, and one focal role.
-3. Apply the composition rules, then translate only supported controls.
+3. Pair each role with a [sound recipe](composer-synthesis-guide.md#5-sound-recipes-for-the-current-composer), fit its envelope to the rhythmic spacing, then translate only supported controls.
 4. Validate the plan and audition the result with the listening rubric.
 5. Offer three specific edits that develop the same idea.
 
@@ -189,6 +189,27 @@ For the current composer, reduce the bass's reverb/delay sends and simplify the 
 
 For synthetic reverb, start with short spaces around 0.4–1.2 seconds for articulate material, 1.5–3 seconds for pads, and longer tails only when density allows. An eighth-note delay is `30 / BPM` seconds; a dotted eighth is `45 / BPM`. Prefer the plan's delay sync control (`8n`, `8n.`, etc.) to numeric time. These are proposed audition ranges. Fixed impulse responses do not acquire a new decay just because the plan supplies a decay value. Compare effects at similar output level and keep enough headroom for summing and tails.
 
+## 4a. Connect genre, synthesis, and rhythm
+
+A short, bright attack makes a syncopated figure read differently from the same notes with a slow swell. A bass tail can fill the space intended for the next kick. A granular shadow can develop a repeated figure without adding another melody. Choose those relationships before adding more lanes.
+
+The [synthesis chapter](composer-synthesis-guide.md) contains the instrument audit, techniques, practical settings, and complete beat blueprints. Use these proposed combinations as entry points, then audition them:
+
+| Genre direction | Bass / foundation | Foreground / support | Sound-and-rhythm relationship |
+| --- | --- | --- | --- |
+| House / deep house | Filtered `Synth` bass + stable kit | `Sampler` piano/organ or restrained `FMSynth` | Short bass articulation leaves kick room; keys make the answer |
+| Hypnotic techno | Compact `Synth` bass + kit | Dry `Synth` cell and occasional filtered `NoiseSynth` | Change brightness and percussion accents while preserving the cell |
+| Dub techno | Simple dry low anchor | Organ sample or short `PolySynth` figure + synced delay | Sparse attacks give echoes space; exact chord stabs still need note authoring |
+| Melodic techno | Restrained low `Synth` | One `FMSynth`/`PolySynth` motif; softer support | Shorter foreground and slower support preserve the melody |
+| Lo-fi hip-hop | Gentle kit; optional sparse bass | Piano sample, low-pass tone, restrained chorus/bitcrusher | Softer transients change feel; filtering does not provide shuffle |
+| Ambient | No obligatory kit; slow event pacing | Sampler or `PolySynth` detail + low granular layer | Keep the source audible while its texture evolves |
+| Synthwave | Repeating low `Synth` | `PolySynth` lead/support, modest chorus | Strong backbeat and contrasting envelopes give shape |
+| UK garage | Broken kit + short filtered bass | Sparse FM/plucked-style figure | Preserve rhythmic gaps; true swing remains unavailable |
+| Liquid D&B | Fast kit + slower bass | Piano/FM detail and restrained spacious support | Pitched material need not match the hats' speed |
+| Trance | Stable kick and low support | One articulated `PolySynth` arp + delay | Gate and release determine whether the arp drives or smears |
+
+These choices use the six types visible in the current picker. They are proposed Leið adaptations, not claims that a synth class guarantees a genre or that every patch has been auditioned. The chapter also covers six additional types accepted by the plan but absent from the current picker.
+
 ## 5. Translate the music honestly into Leið
 
 The following audit describes the repository on the research date. The shared vocabulary is in [planContract.js](../lib/ai/planContract.js), the accepted structure in [planSchema.js](../lib/ai/planSchema.js), and in-app request context in [composer.js](../lib/ai/composer.js). The MCP skill also has [five existing recipes](../skills/leid-composer/references/recipes.md); those recipes are not included in the in-app prompt.
@@ -212,7 +233,7 @@ The following audit describes the repository on the research date. The shared vo
 - Contours: `demand`, `geographic`, `randomWalk`, `arch`; variety `0–1`. A contour is a pitch-generating method, not a composed motif.
 - Grid/arp rates: `4n`, `8n`, `8t`, `16n`, `16t`, `32n`. Lane speeds: `0.25`, `0.5`, `1`, `1.5`, `2`, `3`, `4`.
 - BPM: `40–240`; octave offset: `-2–2`; volume/master: `-40–6` dB; pan: `-1–1`.
-- Synths: `Synth`, `FMSynth`, `AMSynth`, `MonoSynth`, `MembraneSynth`, `MetalSynth`, `NoiseSynth`, `PluckSynth`, `PolySynth`, `DuoSynth`, `Sampler`, `Drums`.
+- Synths accepted by the plan: `Synth`, `FMSynth`, `AMSynth`, `MonoSynth`, `MembraneSynth`, `MetalSynth`, `NoiseSynth`, `PluckSynth`, `PolySynth`, `DuoSynth`, `Sampler`, `Drums`. The current DAW picker exposes only `Synth`, `FMSynth`, `NoiseSynth`, `PolySynth`, `Sampler`, `Drums`; see the [instrument matrix](composer-synthesis-guide.md#1-instrument-inventory) before choosing the other six.
 - Drum pads: `kick`, `snare`, `hat`, `rim`, `ride`, `clap`. These IDs differ from the one-shot `Drums` instrument's sample IDs.
 - Planned FX buses: at most three. Available IDs: `reverb`, `jcreverb`, `delay`, `pingpong`, `chorus`, `phaser`, `tremolo`, `vibrato`, `autofilter`, `autopanner`, `wah`, `distortion`, `bitcrusher`, `widener`.
 
@@ -259,9 +280,9 @@ These are proposed stages for the composer pipeline, not claims about the presen
 
 1. **Interpret.** Identify new composition versus revision, primary genre, energy, groove, tonal colour, and explicit constraints. Choose a documented default for missing details.
 2. **Allocate roles.** Select the bass/foreground/support relationship and a small lane budget. Keep one recognizable focal idea or, for ambient work, one recognizable textural relationship.
-3. **Choose material.** Match routes and available presets to those roles. Use actual candidate-note previews when implemented; with current metadata, make conservative selections and avoid precise melodic claims.
+3. **Choose material and synthesis.** Match routes and actual instrument patches/sample presets to those roles. Choose attack character, spectral range, and tail behavior together. Use actual candidate-note previews when implemented; with current metadata, make conservative selections and avoid precise melodic claims.
 4. **Build the foundation.** Establish drum anchors and low-end interaction. For drumless music, establish pacing through attacks, holds, and silence.
-5. **Shape the foreground.** Adjust contour, range, density, and envelope. Preserve space around its attacks. Add an answer only if it improves the focal idea.
+5. **Shape the foreground.** Adjust contour, range, density, and instrument-appropriate envelope. Check gate duration against attack and release; sampler attack/release do not behave like full synth ADSR. Preserve space around attacks. Add an answer only if it improves the focal idea.
 6. **Add character.** Choose one or two purposeful effect treatments. Decide how the idea changes across several repeats without randomizing every lane.
 7. **Translate and validate.** Emit only supported schema fields, valid city route IDs, valid presets, coherent effect sources, and explicit new-composition resets. Reject silently dropped essential instructions.
 8. **Audition and repair.** Use the checks below. Fix the specific defect before adding another layer.
@@ -307,6 +328,9 @@ Keep an audio defect gate separate: clipping, missing samples, runaway feedback,
 | Repetition becomes tiring | Alter one ending, texture, or supporting appearance |
 | Genre is only recognizable from tempo | Revisit beat accents, sound roles, and articulation |
 | New ambient request still has drums | Fix explicit replacement/reset handling |
+| Patch is inaudible despite sensible volume | Check sample loading, attack versus gate, and whether the filter removed the fundamental |
+| Changing an envelope does little | Check the instrument's actual envelope adapter; sampler and legacy types differ |
+| A “warmer” patch loses the hook | Restore the transient or a little upper-mid definition before raising volume |
 
 ## 8. Make the user want to play with it
 
@@ -328,9 +352,11 @@ The offered controls must exist in the generated plan/UI. A future interface cou
 | --- | --- | --- |
 | 1 | Correct loop-window, FX-unit, fixed-IR, and inherited-state guidance | Contract tests for affected semantics; listen to representative recipes |
 | 2 | Add shared role policy and a selected genre recipe to website and MCP | Valid outputs plus blind preference over the old prompt |
+| 2a | Add instrument-aware sound recipes and correct misleading envelope/control assumptions | Audible contrast on the same route; no unsupported parameter promises |
 | 3 | Distinguish new composition from edits; supply current snapshot | “Keep bass, change lead” preserves the bass and unrelated settings |
 | 4 | Expose route note previews and measure duration/density | Chosen routes actually match requested register and activity |
 | 5 | Add explicit motif/chord and rhythm controls, then swing and sections | Audible examples demonstrating each requested capability |
+| 5a | Expose a bounded set of synthesis parameters already supported by the underlying instruments | Useful FM, filter, and sample transformations survive saving/reloading and work in playback |
 | 6 | Add audio preview/measurement and bounded repair | Fewer silent, clipped, crowded, or misleading outputs |
 
 For the first comparison, use 12 briefs covering house, deep house, techno, dub, melodic techno, lo-fi, ambient, synthwave, garage, D&B, trance, and one hybrid. Generate three candidates per brief with each prompt version: 72 clips total. Keep the model, city, available routes, and generation settings matched; log variability rather than cherry-picking the best take. Randomize order, conceal prompt version, and have at least two listeners score the rubric and choose which clip they would continue editing. Listen at matched levels.

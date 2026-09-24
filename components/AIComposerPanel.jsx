@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { requestComposition, validatePlan, GENRE_RECIPES } from '@/lib/ai/composer.js'
 import { withNewCompositionBaseline } from '@/lib/ai/planApply.js'
+import { planAdvisories } from '@/lib/ai/planAdvisories.js'
 import { useEntitlements } from '@/lib/shared/EntitlementsContext.jsx'
 import { shuffledFactsForCity } from '@/lib/shared/cityFacts.js'
 import { trackProductEvent } from '@/lib/productAnalytics.js'
@@ -23,7 +24,7 @@ export default function AIComposerPanel({
   const [prompt,  setPrompt]  = useState('')
   const [loading, setLoading] = useState(false)
   const [error,   setError]   = useState(null)
-  const [result,  setResult]  = useState(null) // { plan, dropped, recipe, mode }
+  const [result,  setResult]  = useState(null) // { plan, dropped, advisories, recipe, mode }
   // 'new' starts every planned lane from a clean baseline; 'edit' sends the
   // current song and keeps whatever the plan leaves out.
   const [mode, setMode] = useState('new')
@@ -82,8 +83,12 @@ export default function AIComposerPanel({
       const { raw, recipe } = await requestComposition(prompt.trim(), routes, {
         cityId, cityName, maxTracks, recipeId, mode: effectiveMode, currentSong,
       })
-      setResult({ ...validatePlan(raw, routes, { activeLaneLimit: maxTracks }), recipe, mode: effectiveMode })
-      trackProductEvent('ai_plan_generated', { city: cityId, mode: effectiveMode, recipe: recipe?.recipe.id ?? 'none' })
+      const validated = validatePlan(raw, routes, { activeLaneLimit: maxTracks })
+      const advisories = planAdvisories(validated.plan, { mode: effectiveMode, bpm: currentSong?.bpm })
+      setResult({ ...validated, advisories, recipe, mode: effectiveMode })
+      trackProductEvent('ai_plan_generated', {
+        city: cityId, mode: effectiveMode, recipe: recipe?.recipe.id ?? 'none', advisories: advisories.length,
+      })
       await refresh()
     } catch (e) {
       if (e?.code === 'ai_limit_reached') {
@@ -214,7 +219,7 @@ export default function AIComposerPanel({
 }
 
 function PlanPreview({ result, routeName, applied, applying, onApply, onDiscard }) {
-  const { plan, dropped } = result
+  const { plan, dropped, advisories = [] } = result
   const bpmChanges = plan.bpm != null
 
   return (
@@ -253,6 +258,12 @@ function PlanPreview({ result, routeName, applied, applying, onApply, onDiscard 
                     t.glide != null && `glide ${t.glide}s`,
                     t.legato && 'legato',
                     t.envelope && `env ${t.envelope.attack}/${t.envelope.decay}/${t.envelope.sustain}/${t.envelope.release}`,
+                    t.tone?.oscillator,
+                    t.tone?.modulationIndex != null && `FM ${t.tone.harmonicity ?? '–'}:${t.tone.modulationIndex}`,
+                    t.tone?.filterEnvelope && `filt env ${t.tone.filterEnvelope.baseFrequency}Hz +${t.tone.filterEnvelope.octaves}oct`,
+                    t.tone?.filterQ != null && `Q ${t.tone.filterQ}`,
+                    t.tone?.resonance != null && `ring ${t.tone.resonance}`,
+                    t.tone?.dampening != null && `damp ${t.tone.dampening}Hz`,
                     t.filter && `${t.filter.type} ${Math.round(t.filter.frequency)}Hz`,
                     t.drone?.enabled && 'drone',
                     t.arp?.enabled && `arp ${t.arp.style} ${t.arp.rate}`,
@@ -260,6 +271,7 @@ function PlanPreview({ result, routeName, applied, applying, onApply, onDiscard 
                     t.sidechain?.enabled && `duck ← ${t.sidechain.source.replace('__drums__', 'drums')}`,
                     t.speed != null && `${t.speed}×`,
                     t.gridResolution,
+                    t.noteLength && `hold ${t.noteLength}`,
                     t.loopRegion && `cells ${t.loopRegion.startCell}–${t.loopRegion.endCell}`,
                     t.pitchVariety && `${t.pitchVariety.contour} ${Math.round(t.pitchVariety.variety * 100)}%`,
                     t.noteChance != null && t.noteChance < 1 && `chance ${Math.round(t.noteChance * 100)}%`,
@@ -316,6 +328,13 @@ function PlanPreview({ result, routeName, applied, applying, onApply, onDiscard 
 
       {dropped.length > 0 && (
         <div className="ai-composer-note">Ignored {dropped.length} unsupported value{dropped.length > 1 ? 's' : ''}: {dropped.join(', ')}</div>
+      )}
+
+      {advisories.length > 0 && (
+        <div className="ai-composer-note ai-composer-note--advice">
+          <div>May not sound as planned:</div>
+          <ul>{advisories.map(text => <li key={text}>{text}</li>)}</ul>
+        </div>
       )}
 
       <div className="ai-composer-actions">

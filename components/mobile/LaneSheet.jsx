@@ -24,6 +24,7 @@ import {
 import { LaneTagFields } from '../LaneTagEditor.jsx'
 import { ARP_RATES, ARP_STYLES, DEFAULT_ARP, DEFAULT_SIDECHAIN } from '@/lib/engine.js'
 import { DEFAULT_GRID_RESOLUTION, DEFAULT_PITCH_VARIETY, PITCH_CONTOURS } from '@/lib/mappings.js'
+import { NOTE_LENGTHS, NOTE_LENGTH_LABELS, DEFAULT_NOTE_LENGTH } from '@/lib/noteLength.js'
 import { FX_BUSES } from '@/lib/fxTrack.js'
 import { buildLanePitchMaps, buildLaneNoteRows } from '@/lib/laneNotes.js'
 import {
@@ -58,6 +59,7 @@ export default function LaneSheet({
   perStopSteps,
   stopVelocities,
   noteChance,
+  noteLength,
   stopChances,
   loopPattern,
   sendMatrix,
@@ -69,7 +71,7 @@ export default function LaneSheet({
   onVolume, onPan, onDisable, onSolo, onSynthType, onScale, onOctaveShift,
   onPitchVariety, onTrackSpeed, onGridResolution, onArp,
   onSendLevel, onSidechain, onStopPitch, onStopVelocity, onLaneTag,
-  onNoteChance, onStopChance, onLoopPattern,
+  onNoteChance, onStopChance, onLoopPattern, onNoteLength,
 }) {
   const [segment, setSegment] = useState('sound')
 
@@ -228,6 +230,23 @@ export default function LaneSheet({
                     aria-pressed={gridResolution === rate}
                   >{ARP_RATE_LABELS[rate] ?? rate}</button>
                 ))}
+              </div>
+            </Field>
+
+            <Field label="Note length" hint="How long each note is held before it releases. No effect with legato, the arpeggiator or PluckSynth.">
+              <div className="lsheet-choice-grid lsheet-choice-grid--compact">
+                {NOTE_LENGTHS.map(len => {
+                  const on = (noteLength ?? DEFAULT_NOTE_LENGTH) === len
+                  return (
+                    <button
+                      key={len}
+                      type="button"
+                      className={on ? 'is-active' : ''}
+                      onClick={() => onNoteLength?.(route.id, len)}
+                      aria-pressed={on}
+                    >{NOTE_LENGTH_LABELS[len]}</button>
+                  )
+                })}
               </div>
             </Field>
           </section>

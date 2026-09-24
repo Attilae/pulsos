@@ -27,8 +27,9 @@ the Leið DAW and plays.
    not its display name.
 2. **Guide.** `get_composer_guide({ cityId })`. If the request names a style, call it again with the
    matching `genre` from its `recipes` list (e.g. `get_composer_guide({ cityId, genre: "dub-techno" })`)
-   to get that recipe's tempo, roles, drum seed and effects. Read the musical policy and the
-   note-density, register, contour and level sections. They decide whether the result sounds good.
+   to get that recipe's tempo, roles, drum seed, effects, beat blueprint and sound recipes. Read the
+   musical and sound-design policy and the note-density, note-length, instruments, register, contour
+   and level sections. They decide whether the result sounds good.
 3. **Pick lines by role.** Call `list_routes({ cityId, type })` once per role you need. The usual
    mapping is metro → melodic lead/keys/bass, tram/trolley → rhythmic percussion, bus → pads/textures,
    hev → low, slow melodic voices. Choose by `stopCount`: few stops make a sparse part and many stops
@@ -39,9 +40,12 @@ the Leið DAW and plays.
    more than `maxTracks`. Use at most three FX buses. In a new song, every setting you leave out
    starts at its default (arp, granular, drone and sidechain off, full loop window, no sends), and
    leaving out `drums` means no drums. Set what the idea needs and leave out the rest instead of
-   guessing.
+   guessing. Design each role's sound from the guide's sound recipes (R1–R15): instrument, an
+   envelope fitted to the lane's note length, `tone`, and filter.
 5. **Preview.** `preview_song_plan({ cityId, plan })`. Read `dropped` (settings that were invalid and
-   ignored) and `skippedRouteIds`. Fix every item that matters and preview again. Values outside a
+   ignored), `advisories` (settings that were kept but will not sound as planned, such as an attack
+   longer than a beat or an FM lane without a mod envelope) and `skippedRouteIds`. Fix every item
+   that matters and preview again. Values outside a
    range are clamped silently, so check the numbers against the guide. `references/troubleshooting.md`
    explains each message.
 6. **Save.** `create_song_from_plan({ cityId, name, plan })` with a short, evocative name.
@@ -90,6 +94,34 @@ the Leið DAW and plays.
   amount with modest send levels.
 - Get space from reverb or delay sends rather than loud pads. Duck pads and bass off the kick with
   `sidechain` when there are drums.
+
+## Sound design
+
+- Choose the role, then its sound. The same line becomes a bass groove, a keys figure or a
+  percussion texture depending on its instrument, register and envelope.
+- Build most beats from Synth, MonoSynth, FMSynth, PolySynth, PluckSynth, NoiseSynth, Sampler and
+  Drums, whose sound a plan fully controls. Use DuoSynth, AMSynth, MembraneSynth or MetalSynth for a
+  specific colour; the guide's INSTRUMENTS list says what a plan can and can't set on each.
+- `noteLength` sets how long each note is held before its release: `16n` … `1n`, default `4n` (one
+  beat, 60 ÷ BPM s), whatever the grid or speed. An attack longer than the note never peaks, so give
+  a slow swell a `2n` or `1n` note on a sparse lane. Use `8n` or `16n` for tight stabs and bass. A
+  short release alone does not shorten the note. Note length does nothing with legato, drone, an
+  arp (use `arp.gate`) or PluckSynth.
+- A Sampler or Drums lane only uses attack and release. PluckSynth ignores the envelope, note length
+  and velocity. NoiseSynth and Drums lanes have no melodic pitch.
+- `tone` shapes the sound beyond the envelope:
+  - `tone.oscillator` sets the waveform. A square bass stays audible on small speakers; a sawtooth
+    lead is bright.
+  - On FMSynth, `tone.harmonicity` and `tone.modulationIndex` shape the timbre.
+  - `tone.modEnvelope` controls the modulator. A fast one gives a struck FM tone; without it,
+    FMSynth's brightness blooms late.
+  - On MonoSynth, `tone.filterEnvelope` sweeps its own filter from `baseFrequency` up by `octaves`,
+    and `tone.filterQ` sets its resonance. A fast decay, sustain 0 and Q 4–8 give an acid squelch.
+  - On PluckSynth, `tone.resonance` sets how long the string rings, `tone.dampening` its brightness
+    and `tone.attackNoise` the pick noise.
+- Keep granular quiet (mix around 0.08), on a sustained support lane, and off the bass.
+- The drum kit's pads have fixed synthesized sounds and share one effects chain. Create contrast
+  with hat vs ride, rim vs clap, and step velocities.
 
 For genre starting points with full example plans, read `references/recipes.md`. For the meaning of
 preview warnings and error messages, read `references/troubleshooting.md`.

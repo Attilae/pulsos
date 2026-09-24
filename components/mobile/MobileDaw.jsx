@@ -91,6 +91,7 @@ export default function MobileDaw({ controls, lanes }) {
         perStopSteps={lanes.pitchOffsets?.[openLaneId]}
         stopVelocities={lanes.stopVelocities?.[openLaneId]}
         noteChance={lanes.noteChances?.[openLaneId]}
+        noteLength={lanes.noteLengths?.[openLaneId]}
         stopChances={lanes.stopChances?.[openLaneId]}
         loopPattern={lanes.loopPatterns?.[openLaneId]}
         sendMatrix={lanes.sendMatrix}
@@ -108,6 +109,7 @@ export default function MobileDaw({ controls, lanes }) {
         onPitchVariety={lanes.onPitchVariety}
         onTrackSpeed={lanes.onTrackSpeed}
         onGridResolution={lanes.onGridResolution}
+        onNoteLength={lanes.onNoteLength}
         onArp={lanes.onArp}
         onSendLevel={lanes.onSendLevel}
         onSidechain={lanes.onSidechain}

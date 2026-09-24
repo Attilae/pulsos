@@ -81,7 +81,10 @@ call is injected through its `services` argument, so it still never touches Post
 `composer-skill` (runs every example plan in `skills/leid-composer/` through the real
 `validatePlan`/`PLAN_INPUT_SCHEMA` and checks each tool it names is registered),
 `composer-guide` (pins the prompt's loop-window/FX-unit/fixed-IR facts and its example plan),
-`musical-policy` (`lib/ai/musicalPolicy.js` — genre recipe selection and prompt size), `plan-snapshot` (`lib/ai/planSnapshot.js` — round-trips its output through the real
+`musical-policy` (`lib/ai/musicalPolicy.js` — genre recipe selection and prompt size),
+`note-length` (`lib/noteLength.js` + its plan/advisory rules),
+`sound-policy` (`lib/ai/soundPolicy.js` — every sound recipe survives `validatePlan` and raises no
+advisory), `plan-advisories` (`lib/ai/planAdvisories.js`), `plan-snapshot` (`lib/ai/planSnapshot.js` — round-trips its output through the real
 `applySnapshot`/`buildSnapshot`), `server-purity` (loads the MCP module graph in a child process
 that throws on any Tone/React/`.jsx` import, plus `lib/server/routeIndex.js`). There is **no linter
 configured** and the audio/UI code has no tests. Run a single file with
@@ -364,6 +367,12 @@ mock playback on `active` going false if it was running, since all tabs share on
   entering a rest loop (`_releaseRestingLegato`). Live only applies lane chance; drums and automation
   lanes are ungated. The Song Chainer loop strip multiplies each lane's loop by `patternPeriod` for
   its realign hint, and one-loop MIDI export drops only 0%-chance stops.
+- **Note length** (`lib/noteLength.js`, pure and tested): `trackNoteLengths` (routeId → `'16n'`…`'1n'`)
+  sets how long a lane's ordinary stop notes are held. Sparse — absent keeps the legacy gate
+  (`'4n'` in mock, `'8n'` in the legacy percussive mode and in live), so older songs are unchanged
+  and there's no schema bump. Like chance it's read at callback time (`engine._noteLengths`, no Part
+  rebuild), and MIDI export (`noteDurationSec`) resolves it the same way. It doesn't touch arp
+  steps (`arp.gate`), legato, drone, or PluckSynth.
 - Fresh sessions now start with `DEFAULT_FX_TRACKS = ['reverb', 'delay', 'chorus', 'distortion']`
   pre-activated (was empty), so automation targets like `send.reverb` are available immediately.
 
@@ -430,7 +439,9 @@ NetworkState (drone hum + hub-convergence chords) → AlertLayer input
   route melody). Both keep `attack`/`release` as top-level params — never push `urls` through
   `.set()` (see `updateEnvelope`). Drum samples are CC0 placeholders in
   `public/samples/drums/cc-kit/` (`DRUM_BASE_URL`; license in `DRUM_VOICE_LICENSE` +
-  `ATTRIBUTION.md`).
+  `ATTRIBUTION.md`). `DuoSynth` has no top-level envelope either (its amp envelopes live on
+  `voice0`/`voice1`), and Tone's `.set()` silently skips unknown keys — so live envelope writes go
+  through `setAmpEnvelope`, never a bare `set({ envelope })`.
 - Supporting modules: `vehicleVoice.js` (per-vehicle FM voice pool, modulated by speed/occupancy/
   delay), `granularVoice.js` (`GranularVoice` — an optional per-track `Tone.GrainPlayer` layer fed
   by a rendered sample of the route's instrument; layered on top of each note), `fxTrack.js`
@@ -591,6 +602,28 @@ classes.
   longest alias first, and a style named just before another one modifies it ("ambient techno" →
   techno + ambient). MCP gets a recipe via `get_composer_guide({genre})`. Never append every
   recipe to a prompt.
+- **Sound design** lives in `lib/ai/soundPolicy.js` (distilled from
+  `docs/composer-synthesis-guide.md`). It holds the sound policy text and the structured sound
+  recipes R1–R15. Each genre names its `sounds`, and only those go into the prompt. With no genre,
+  the in-app prompt gets `DEFAULT_SOUND_IDS` and the MCP guide gets all of them. Recipes and the
+  genre texts stick to the instruments a plan fully controls (Synth, MonoSynth, FMSynth, PolySynth,
+  PluckSynth, NoiseSynth, Sampler, Drums). All twelve types are in the lane picker: `SYNTH_TYPES` in
+  `soundSpecs.js` is the one list, re-exported by `engine.js`, `DawView.jsx` and `planContract.js`.
+- **Plan `tone`** covers `oscillator`, `harmonicity`, `modulationIndex`, `modEnvelope`, MonoSynth's
+  `filterEnvelope`/`filterQ` and PluckSynth's `resonance`/`dampening`/`attackNoise`. It is
+  flattened by `toneToSynthParams` (`soundSpecs.js`) / `trackSynthParams` (`planApply.js`) into the
+  same `trackADSRs` keys the synth editors write. Both apply paths merge it after the synthType
+  reset. `TONE_SUPPORT` says which instrument honours which key; `validatePlan` drops the rest when
+  the plan names the synthType, and the apply paths filter an edit's tone by the lane's *current*
+  instrument — `resonance` is comb feedback on PluckSynth but Hz on MetalSynth.
+- **MonoSynth's cutoff is its filter envelope.** Tone connects `filterEnvelope` into
+  `filter.frequency` and zeroes its base, so `buildSynthOpts` never passes a filter frequency (a
+  later `set()` would add it back as an offset). The cutoff sweeps `filterEnvBaseFreq` →
+  `filterEnvBaseFreq · 2^filterEnvOctaves`.
+- **Advisories** (`planAdvisories`) list settings that validate but won't sound as planned: an
+  attack longer than the lane's note length, FMSynth without a mod envelope, grains on a Drums
+  lane, and so on. They never change the plan. MCP preview/create/apply return them and the
+  panel preview shows them.
 - **New idea vs edit.** The in-app panel's toggle and the MCP tool choose the mode. The model
   never chooses it. **New** runs `withNewCompositionBaseline` (`planApply.js`) before apply, which
   fills every omitted resettable lane field with its default, turns drums off when the plan has
@@ -605,6 +638,9 @@ classes.
   - Delay `delayTime` and reverb `preDelay` are stored in **seconds**; the "ms" in `fxSpecs.js` is
     the UI display unit (`planParamUnit`). Chorus `delayTime` really is ms.
   - Reverb `decay`/`preDelay` only affect `irType: "synthetic"`.
+  - Every ordinary stop note is held for the lane's `noteLength` (default `'4n'`, one beat)
+    regardless of grid or speed. Sampler/Drums honour attack and release only. PluckSynth is attack-only. FMSynth's default
+    modulator attack is 0.5 s.
 
 ### Billing & entitlements (Free/Pro)
 

@@ -5,6 +5,8 @@ import { FX_BUSES, AUTOMATION_TARGETS, FX_PARAM_SPECS, FX_SYNC_TARGETS } from '@
 import { PAD_DEFS as DRUM_PAD_DEFS, STEPS as DRUM_STEPS, SOURCE_STEPS as DRUM_SOURCE_STEPS, emptyPattern as emptyDrumPattern } from '@/lib/engines/drumEngine.js'
 import { generatePitchMap, shiftOctaveNote, shiftSemitones, noteToMidi, SCALES, hashStopValue, snapStopsToGrid, GRID_TOTAL_CELLS, GRID_BARS, GRID_STEPS_PER_BAR, GRID_RESOLUTION_STEPS_PER_BAR, DEFAULT_GRID_RESOLUTION, denormalizeToRange, denormalizeExp, transposeNoteInScale, PITCH_CONTOURS, DEFAULT_PITCH_VARIETY } from '@/lib/mappings.js'
 import { buildLanePitchMaps } from '@/lib/laneNotes.js'
+import { SYNTH_TYPES, OSC_TYPES } from '@/lib/soundSpecs.js'
+import { NOTE_LENGTHS, NOTE_LENGTH_LABELS, DEFAULT_NOTE_LENGTH } from '@/lib/noteLength.js'
 import { useResetGesture } from '@/lib/shared/useResetGesture.js'
 import { useIsPhone } from '@/lib/shared/useViewport.js'
 import { normalizeLaneTag } from '@/lib/laneTags.js'
@@ -17,10 +19,7 @@ import { NOTE_ROOTS, SCALE_TYPES } from '@/lib/harmony.js'
 import './DawView.css'
 
 // Exported so the phone lane sheet offers exactly the same instruments.
-export const SYNTH_TYPES = [
-  'Synth', 'FMSynth', 'NoiseSynth', 'PolySynth',
-  'Sampler', 'Drums',
-]
+export { SYNTH_TYPES } from '@/lib/soundSpecs.js'
 
 // Lane groupings, in render order. Exported so the phone lane list
 // (components/mobile/MobileLaneList.jsx) groups tracks identically.
@@ -83,7 +82,6 @@ export const CONTOUR_TITLES = {
   arch:       'Arch — rises then falls along the stop sequence',
 }
 
-const OSC_TYPES = ['sine', 'triangle', 'square', 'sawtooth', 'fatsine', 'fattriangle', 'fatsquare', 'fatsawtooth', 'pulse', 'pwm']
 const FILTER_TYPES = ['lowpass', 'highpass', 'bandpass', 'notch']
 const FILTER_ROLLOFFS = [-12, -24, -48, -96]
 const NOISE_TYPES = ['white', 'pink', 'brown']
@@ -121,6 +119,7 @@ export default function DawView({
   trackPitchVariety, onPitchVariety,
   trackStopVelocities, onStopVelocity,
   trackNoteChances, onNoteChance, trackStopChances, onStopChance, trackLoopPatterns, onLoopPattern,
+  trackNoteLengths, onNoteLength,
   trackLabels, onLaneTag,
   trackDroneModes, trackDroneRoots, onDroneMode, onDroneRoot,
   onVolume, onDisable, onPan, onSolo,
@@ -376,6 +375,8 @@ export default function DawView({
                     stopVelocities={trackStopVelocities?.[route.id]}
                     noteChance={trackNoteChances?.[route.id]}
                     onNoteChance={c => onNoteChance?.(route.id, c)}
+                    noteLength={trackNoteLengths?.[route.id]}
+                    onNoteLength={len => onNoteLength?.(route.id, len)}
                     stopChances={trackStopChances?.[route.id]}
                     loopPattern={trackLoopPatterns?.[route.id]}
                     onLoopPattern={p => onLoopPattern?.(route.id, p)}
@@ -695,6 +696,7 @@ function LineTrack({
   pitchVariety, onPitchVariety,
   stopVelocities, onStopOpen,
   noteChance, onNoteChance, stopChances, loopPattern, onLoopPattern,
+  noteLength, onNoteLength,
   onVolume, onDisable, onPan, onSolo, onSoundMode, onScale, onSynthType, onADSR,
   onSamplerPreset, onDrumVoice, onSamplerUpload,
   onFilter,
@@ -1072,6 +1074,29 @@ function LineTrack({
                     {ARP_RATE_LABELS[rt] ?? rt}
                   </button>
                 ))}
+              </div>
+            </div>
+            <div className="speed-row">
+              <span className="speed-label">LENGTH</span>
+              <div
+                className="speed-btns"
+                title={legato || arp?.enabled || synthType === 'PluckSynth'
+                  ? 'Note length — no effect while legato, the arpeggiator or PluckSynth is in use'
+                  : 'How long each note is held before its release'}
+              >
+                {NOTE_LENGTHS.map(len => {
+                  const on = (noteLength ?? DEFAULT_NOTE_LENGTH) === len
+                  return (
+                    <button
+                      key={len}
+                      className={`speed-btn ${on ? 'active' : ''}`}
+                      style={on ? { borderColor: route.color, color: route.color } : {}}
+                      onClick={() => onNoteLength?.(len)}
+                    >
+                      {NOTE_LENGTH_LABELS[len]}
+                    </button>
+                  )
+                })}
               </div>
             </div>
             <div className="glide-row">
@@ -2201,7 +2226,7 @@ function EnvPanel({ synthType, adsr, onADSR, onSamplerPreset, onDrumVoice, onSam
 
   if (synthType === 'PluckSynth') return (
     <div className="sp-panel">
-      <SpSlider label="Noise" min={0} max={1}    step={0.01} {...a('attackNoise', p.attackNoise ?? 1)}  onChange={v => onADSR({ attackNoise: v })} />
+      <SpSlider label="Noise" min={0.1} max={20} step={0.1}  {...a('attackNoise', p.attackNoise ?? 1)}  onChange={v => onADSR({ attackNoise: v })} />
       <SpSlider label="Damp"  min={200} max={8000} step={10} {...a('dampening', p.dampening ?? 4000)}   onChange={v => onADSR({ dampening: v })} unit="Hz" />
       <SpSlider label="Res"   min={0} max={0.98} step={0.01} {...a('resonance', p.resonance ?? 0.7)}    onChange={v => onADSR({ resonance: v })} />
     </div>
@@ -2248,7 +2273,6 @@ function EnvPanel({ synthType, adsr, onADSR, onSamplerPreset, onDrumVoice, onSam
       {envBlock()}
       <SpSection label="FILTER" />
       <SpSelect label="Type"   value={p.filterType ?? 'lowpass'}        options={FILTER_TYPES}               onChange={v => onADSR({ filterType: v })} />
-      <SpSlider label="Freq"   min={20}  max={20000} step={10}          {...a('filterFrequency', p.filterFrequency ?? 800)} onChange={v => onADSR({ filterFrequency: v })} unit="Hz" />
       <SpSelect label="Roll"   value={String(p.filterRolloff ?? -12)}   options={FILTER_ROLLOFFS.map(String)} onChange={v => onADSR({ filterRolloff: Number(v) })} />
       <SpSlider label="Q"      min={0.1} max={20}   step={0.1}          {...a('filterQ', p.filterQ ?? 1)}                   onChange={v => onADSR({ filterQ: v })} />
       <SpSection label="FILTER ENV" />
@@ -2256,7 +2280,7 @@ function EnvPanel({ synthType, adsr, onADSR, onSamplerPreset, onDrumVoice, onSam
       <SpSlider label="D"      min={0.001} max={2}  step={0.001}        {...a('filterEnvDecay', p.filterEnvDecay ?? 0.3)}      onChange={v => onADSR({ filterEnvDecay: v })} />
       <SpSlider label="S"      min={0} max={1}      step={0.01}         {...a('filterEnvSustain', p.filterEnvSustain ?? 0.3)}  onChange={v => onADSR({ filterEnvSustain: v })} />
       <SpSlider label="R"      min={0.01} max={4}   step={0.01}         {...a('filterEnvRelease', p.filterEnvRelease ?? 0.8)}  onChange={v => onADSR({ filterEnvRelease: v })} />
-      <SpSlider label="Base"   min={20}  max={20000} step={10}          value={p.filterEnvBaseFreq ?? 200}   onChange={v => onADSR({ filterEnvBaseFreq: v })} unit="Hz" />
+      <SpSlider label="Base"   min={20}  max={5000} step={10}           {...a('filterEnvBaseFreq', p.filterEnvBaseFreq ?? 200)} onChange={v => onADSR({ filterEnvBaseFreq: v })} unit="Hz" />
       <SpSlider label="Oct"    min={0}   max={8}    step={0.5}          {...a('filterEnvOctaves', p.filterEnvOctaves ?? 3)}    onChange={v => onADSR({ filterEnvOctaves: v })} />
       <SpSlider label="Exp"    min={0.1} max={8}    step={0.1}          value={p.filterEnvExponent ?? 2}     onChange={v => onADSR({ filterEnvExponent: v })} />
     </div>
@@ -2304,7 +2328,8 @@ function EnvPanel({ synthType, adsr, onADSR, onSamplerPreset, onDrumVoice, onSam
   if (synthType === 'DuoSynth') return (
     <div className="sp-panel">
       <SpSection label="OSC" />
-      <SpSelect label="Type"    value={p.voice0OscType ?? 'sawtooth'} options={OSC_TYPES} onChange={v => onADSR({ voice0OscType: v })} />
+      <SpSelect label="Osc 1"   value={p.voice0OscType ?? 'sawtooth'} options={OSC_TYPES} onChange={v => onADSR({ voice0OscType: v })} />
+      <SpSelect label="Osc 2"   value={p.voice1OscType ?? p.voice0OscType ?? 'sawtooth'} options={OSC_TYPES} onChange={v => onADSR({ voice1OscType: v })} />
       <SpSlider label="Dtn"     min={-200} max={200} step={1}          {...a('detune', p.detune ?? 0)}              onChange={v => onADSR({ detune: v })} unit="¢" />
       <SpSlider label="Harm"    min={0.1} max={6}    step={0.1}        {...a('duoHarmonicity', p.duoHarmonicity ?? 1.5)}  onChange={v => onADSR({ duoHarmonicity: v })} />
       <SpSection label="VIBRATO" />
