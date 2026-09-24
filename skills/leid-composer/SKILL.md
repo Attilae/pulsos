@@ -99,8 +99,9 @@ the Leið DAW and plays.
 
 - Choose the role, then its sound. The same line becomes a bass groove, a keys figure or a
   percussion texture depending on its instrument, register and envelope.
-- Prefer the six instruments the DAW's picker offers: Synth, FMSynth, NoiseSynth, PolySynth,
-  Sampler and Drums. The others play, but the user cannot reselect them, and a preview flags them.
+- Build most beats from Synth, FMSynth, PolySynth, NoiseSynth, Sampler and Drums, whose sound a
+  plan fully controls. Use MonoSynth, DuoSynth, AMSynth, PluckSynth, MembraneSynth or MetalSynth for
+  a specific colour; the guide's INSTRUMENTS list says what a plan can and can't set on each.
 - Every ordinary note is held for one beat (60 ÷ BPM s), whatever the grid or speed. An attack longer
   than that never peaks. For a short pulse use `sustain 0` with a short decay. A short release alone
   does not shorten the note.

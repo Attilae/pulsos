@@ -433,7 +433,9 @@ NetworkState (drone hum + hub-convergence chords) → AlertLayer input
   route melody). Both keep `attack`/`release` as top-level params — never push `urls` through
   `.set()` (see `updateEnvelope`). Drum samples are CC0 placeholders in
   `public/samples/drums/cc-kit/` (`DRUM_BASE_URL`; license in `DRUM_VOICE_LICENSE` +
-  `ATTRIBUTION.md`).
+  `ATTRIBUTION.md`). `DuoSynth` has no top-level envelope either (its amp envelopes live on
+  `voice0`/`voice1`), and Tone's `.set()` silently skips unknown keys — so live envelope writes go
+  through `setAmpEnvelope`, never a bare `set({ envelope })`.
 - Supporting modules: `vehicleVoice.js` (per-vehicle FM voice pool, modulated by speed/occupancy/
   delay), `granularVoice.js` (`GranularVoice` — an optional per-track `Tone.GrainPlayer` layer fed
   by a rendered sample of the route's instrument; layered on top of each note), `fxTrack.js`
@@ -598,15 +600,16 @@ classes.
   `docs/composer-synthesis-guide.md`). It holds the sound policy text and the structured sound
   recipes R1–R13. Each genre names its `sounds`, and only those go into the prompt. With no genre,
   the in-app prompt gets `DEFAULT_SOUND_IDS` and the MCP guide gets all of them. Recipes and the
-  genre texts stick to `PICKER_SYNTH_TYPES` (`soundSpecs.js`, re-exported as `SYNTH_TYPES`),
-  because a lane on a hidden type can't be reselected in the DAW.
+  genre texts stick to the six instruments a plan fully controls (Synth, FMSynth, PolySynth,
+  NoiseSynth, Sampler, Drums). All twelve types are in the lane picker: `SYNTH_TYPES` in
+  `soundSpecs.js` is the one list, re-exported by `engine.js`, `DawView.jsx` and `planContract.js`.
 - **Plan `tone`** covers `oscillator`, `harmonicity`, `modulationIndex` and `modEnvelope`. It is
   flattened by `toneToSynthParams`/`trackSynthParams` (`planApply.js`) into the same `trackADSRs`
   keys the synth editors write. Both apply paths merge it after the synthType reset.
   `TONE_SUPPORT` says which instrument honours which key; `validatePlan` drops the rest when the
   plan names the synthType.
 - **Advisories** (`planAdvisories`) list settings that validate but won't sound as planned: an
-  attack longer than the one-beat gate, FMSynth without a mod envelope, a hidden type, grains on a Drums
+  attack longer than the one-beat gate, FMSynth without a mod envelope, grains on a Drums
   lane, and so on. They never change the plan. MCP preview/create/apply return them and the
   panel preview shows them.
 - **New idea vs edit.** The in-app panel's toggle and the MCP tool choose the mode. The model

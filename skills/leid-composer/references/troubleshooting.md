@@ -35,7 +35,6 @@ was dropped. Fix the ones that matter to the idea and preview again.
 | --- | --- | --- |
 | attack is longer than one beat | Each note is held for one beat (60 ÷ BPM s), so the attack never reaches full level. | Shorten the attack, or hold the note with drone or legato on a mono synth. |
 | FMSynth … blooms late | The default modulator attack is 0.5 s, so a fast carrier attack still sounds soft at first. | Set `tone.modEnvelope` (e.g. attack 0.001, decay 0.12, sustain 0, release 0.08). |
-| … the picker does not offer | The user can't reselect that instrument in the DAW. | Use Synth, FMSynth, NoiseSynth, PolySynth, Sampler or Drums unless the sound needs it. |
 | PluckSynth ignores envelope | The string model only takes a note-on. | Use a short-envelope Synth for a controllable pluck. |
 | legato … voices pile up | Legato holds notes on Sampler/PolySynth instead of gliding. | Use legato on a mono synth only. |
 | … has no pitch effect | NoiseSynth is unpitched; a Drums lane plays its sample at a fixed pitch. | Remove octave/scale/contour/arp from that lane. |

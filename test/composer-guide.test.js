@@ -4,7 +4,7 @@ import { composerVocabularyText, fxBusDocs, buildSystemPrompt, buildComposerGuid
 import { PLAN_INPUT_SCHEMA } from '../lib/ai/planSchema.js'
 import { selectRecipe } from '../lib/ai/musicalPolicy.js'
 import { planAdvisories } from '../lib/ai/planAdvisories.js'
-import { PICKER_SYNTH_TYPES, OSC_TYPES } from '../lib/soundSpecs.js'
+import { OSC_TYPES } from '../lib/soundSpecs.js'
 
 // The prompt the model composes from must not contradict the engine. These pin
 // the corrections from docs/composer-musical-guide.md §5: loop windows select
@@ -45,7 +45,6 @@ test('the embedded example plan follows its own advice', () => {
   const validated = validatePlan(plan, [{ id: 'L1', type: 'metro' }, { id: 'L2', type: 'metro' }])
   assert.deepEqual(validated.dropped, [])
   assert.deepEqual(planAdvisories(validated.plan), [], 'the example raises no advisories')
-  assert.ok(plan.tracks.every(t => PICKER_SYNTH_TYPES.includes(t.synthType)), 'the example uses picker instruments')
   assert.equal(validated.plan.tracks[0].tone.oscillator, 'square', 'the example shows tone')
 
   for (const track of plan.tracks) {
@@ -70,7 +69,8 @@ test('the guide states how instruments and notes really behave', () => {
   assert.match(text, /PluckSynth \(a string model: it ignores envelope/)
   assert.match(text, /mix ADDS grains/)
   assert.match(text, /once per stop, not per arp note/)
-  assert.ok(text.includes(`The DAW's picker offers ${PICKER_SYNTH_TYPES.join(', ')}`))
+  assert.match(text, /Every type below is in the DAW's instrument picker/)
+  assert.doesNotMatch(text, /cannot reselect/)
 })
 
 test('the guide documents tone with the real waveform list and per-instrument support', () => {

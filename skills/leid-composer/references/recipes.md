@@ -11,9 +11,9 @@ doesn't list gets dropped. Its **sound recipes** (R1–R13) name the instrument,
 filter for each role. The examples below are built from them. Nobody has auditioned these examples in
 the user's city, so describe them as starting points and never claim to have heard them.
 
-Every example uses the six instruments the DAW's picker offers (Synth, FMSynth, NoiseSynth,
-PolySynth, Sampler, Drums), so the user can keep editing each lane. Every envelope also fits the
-one-beat note gate, so none of them trigger a preview advisory.
+Every example uses instruments whose sound a plan fully controls (Synth, FMSynth, NoiseSynth,
+PolySynth, Sampler, Drums). Every envelope also fits the one-beat note gate, so none of them
+trigger a preview advisory.
 
 ## Contents
 - [Warm house beat](#warm-house-beat): square-wave bass, piano, a quiet xylophone answer, kick-ducked

@@ -31,12 +31,8 @@ test('an attack longer than the one-beat gate, unless the note is held', () => {
 })
 
 test('instrument-specific rules', () => {
-  const pluck = advise({ tracks: [{ routeId: 'A', synthType: 'PluckSynth', envelope: env(0.01) }] })
-  assert.equal(pluck.length, 2, 'hidden instrument + ignored envelope')
-  assert.match(pluck[1], /ignores envelope/)
-  const pluckOnly = advise({ tracks: [{ routeId: 'A', synthType: 'PluckSynth' }] })
-  assert.equal(pluckOnly.length, 1)
-  assert.match(pluckOnly[0], /picker does not offer/)
+  one({ tracks: [{ routeId: 'A', synthType: 'PluckSynth', envelope: env(0.01) }] }, /ignores envelope/)
+  assert.deepEqual(advise({ tracks: [{ routeId: 'A', synthType: 'PluckSynth' }] }), [], 'every instrument is pickable')
   one({ tracks: [{ routeId: 'A', synthType: 'FMSynth', envelope: env(0.005) }] }, /modulator attack/)
   assert.deepEqual(advise({ tracks: [{ routeId: 'A', synthType: 'FMSynth', envelope: env(0.005),
     tone: { modEnvelope: env(0.001, 0.12, 0, 0.08) } }] }), [])

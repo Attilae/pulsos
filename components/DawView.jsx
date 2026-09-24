@@ -5,7 +5,7 @@ import { FX_BUSES, AUTOMATION_TARGETS, FX_PARAM_SPECS, FX_SYNC_TARGETS } from '@
 import { PAD_DEFS as DRUM_PAD_DEFS, STEPS as DRUM_STEPS, SOURCE_STEPS as DRUM_SOURCE_STEPS, emptyPattern as emptyDrumPattern } from '@/lib/engines/drumEngine.js'
 import { generatePitchMap, shiftOctaveNote, shiftSemitones, noteToMidi, SCALES, hashStopValue, snapStopsToGrid, GRID_TOTAL_CELLS, GRID_BARS, GRID_STEPS_PER_BAR, GRID_RESOLUTION_STEPS_PER_BAR, DEFAULT_GRID_RESOLUTION, denormalizeToRange, denormalizeExp, transposeNoteInScale, PITCH_CONTOURS, DEFAULT_PITCH_VARIETY } from '@/lib/mappings.js'
 import { buildLanePitchMaps } from '@/lib/laneNotes.js'
-import { PICKER_SYNTH_TYPES as SYNTH_TYPES, OSC_TYPES } from '@/lib/soundSpecs.js'
+import { SYNTH_TYPES, OSC_TYPES } from '@/lib/soundSpecs.js'
 import { useResetGesture } from '@/lib/shared/useResetGesture.js'
 import { useIsPhone } from '@/lib/shared/useViewport.js'
 import { normalizeLaneTag } from '@/lib/laneTags.js'
@@ -18,7 +18,7 @@ import { NOTE_ROOTS, SCALE_TYPES } from '@/lib/harmony.js'
 import './DawView.css'
 
 // Exported so the phone lane sheet offers exactly the same instruments.
-export { PICKER_SYNTH_TYPES as SYNTH_TYPES } from '@/lib/soundSpecs.js'
+export { SYNTH_TYPES } from '@/lib/soundSpecs.js'
 
 // Lane groupings, in render order. Exported so the phone lane list
 // (components/mobile/MobileLaneList.jsx) groups tracks identically.
@@ -2301,7 +2301,8 @@ function EnvPanel({ synthType, adsr, onADSR, onSamplerPreset, onDrumVoice, onSam
   if (synthType === 'DuoSynth') return (
     <div className="sp-panel">
       <SpSection label="OSC" />
-      <SpSelect label="Type"    value={p.voice0OscType ?? 'sawtooth'} options={OSC_TYPES} onChange={v => onADSR({ voice0OscType: v })} />
+      <SpSelect label="Osc 1"   value={p.voice0OscType ?? 'sawtooth'} options={OSC_TYPES} onChange={v => onADSR({ voice0OscType: v })} />
+      <SpSelect label="Osc 2"   value={p.voice1OscType ?? p.voice0OscType ?? 'sawtooth'} options={OSC_TYPES} onChange={v => onADSR({ voice1OscType: v })} />
       <SpSlider label="Dtn"     min={-200} max={200} step={1}          {...a('detune', p.detune ?? 0)}              onChange={v => onADSR({ detune: v })} unit="¢" />
       <SpSlider label="Harm"    min={0.1} max={6}    step={0.1}        {...a('duoHarmonicity', p.duoHarmonicity ?? 1.5)}  onChange={v => onADSR({ duoHarmonicity: v })} />
       <SpSection label="VIBRATO" />
