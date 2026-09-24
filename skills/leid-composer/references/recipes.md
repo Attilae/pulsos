@@ -318,7 +318,7 @@ one-beat note gate, so none of them trigger a preview advisory.
   - Two bus-line pads with different speeds and loop windows, so they drift. The windows change
     *which* material each pad loops and how long its cycle is; both still start together. The second
     pad rests every other pass.
-  - A quiet grain shadow on the synth pad (R11): mix around 0.08, a synth source, no jitter.
+  - A quiet grain shadow on the synth pad (R11): mix around 0.08, no jitter.
 - **Envelopes:** a slow attack longer than one beat (0.91 s at 66 BPM) never peaks, so the pads take
   their softness from a moderate attack, a long release and the reverb.
 - **FX:** a long `synthetic` reverb does most of the work, plus a slow ping-pong delay. Only

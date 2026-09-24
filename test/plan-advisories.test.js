@@ -47,7 +47,9 @@ test('instrument-specific rules', () => {
 
 test('granular rules', () => {
   const g = (mix) => ({ enabled: true, mix, grainSize: 0.1, overlap: 0.05, playbackRate: 1, loopStart: 0, loopEnd: 1, jitter: 0, reverse: false, attack: 0.05, release: 0.4 })
-  one({ tracks: [{ routeId: 'A', synthType: 'Sampler', samplerPreset: 'piano', granular: g(0.08) }] }, /treated as C4/)
+  assert.deepEqual(advise({ tracks: [{ routeId: 'A', synthType: 'Sampler', samplerPreset: 'piano', granular: g(0.08) }] }), [],
+    'sample-sourced grains are rendered from the real zone, so they are in tune')
+  one({ tracks: [{ routeId: 'A', synthType: 'Drums', drumVoice: 'kick', granular: g(0.08) }] }, /grains follow the route's notes/)
   one({ tracks: [{ routeId: 'A', synthType: 'PolySynth', granular: g(0.6) }] }, /granular mix 0\.6/)
   one({ tracks: [{ routeId: 'A', synthType: 'PolySynth', label: 'Bass', granular: g(0.08) }] }, /keep the bass dry/)
 })

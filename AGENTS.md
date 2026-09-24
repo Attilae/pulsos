@@ -605,8 +605,8 @@ classes.
   `TONE_SUPPORT` says which instrument honours which key; `validatePlan` drops the rest when the
   plan names the synthType.
 - **Advisories** (`planAdvisories`) list settings that validate but won't sound as planned: an
-  attack longer than the one-beat gate, FMSynth without a mod envelope, a hidden type, Sampler
-  granular, and so on. They never change the plan. MCP preview/create/apply return them and the
+  attack longer than the one-beat gate, FMSynth without a mod envelope, a hidden type, grains on a Drums
+  lane, and so on. They never change the plan. MCP preview/create/apply return them and the
   panel preview shows them.
 - **New idea vs edit.** The in-app panel's toggle and the MCP tool choose the mode. The model
   never chooses it. **New** runs `withNewCompositionBaseline` (`planApply.js`) before apply, which

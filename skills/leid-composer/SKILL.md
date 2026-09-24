@@ -112,7 +112,7 @@ the Leið DAW and plays.
   - On FMSynth, `tone.harmonicity` and `tone.modulationIndex` shape the timbre.
   - `tone.modEnvelope` controls the modulator. A fast one gives a struck FM tone; without it,
     FMSynth's brightness blooms late.
-- Keep granular quiet (mix around 0.08), on a synth-sourced support lane, and off the bass.
+- Keep granular quiet (mix around 0.08), on a sustained support lane, and off the bass.
 - The drum kit's pads have fixed synthesized sounds and share one effects chain. Create contrast
   with hat vs ride, rim vs clap, and step velocities.
 

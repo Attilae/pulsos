@@ -39,7 +39,7 @@ was dropped. Fix the ones that matter to the idea and preview again.
 | PluckSynth ignores envelope | The string model only takes a note-on. | Use a short-envelope Synth for a controllable pluck. |
 | legato … voices pile up | Legato holds notes on Sampler/PolySynth instead of gliding. | Use legato on a mono synth only. |
 | … has no pitch effect | NoiseSynth is unpitched; a Drums lane plays its sample at a fixed pitch. | Remove octave/scale/contour/arp from that lane. |
-| granular … C4 / mix / bass | Sampler grains can be detuned, grains add on top of the dry sound, and grain on the bass muddies it. | Use a synth-sourced lane, mix around 0.08, keep the bass dry. |
+| granular … Drums / mix / bass | Grains on a Drums lane follow the route's notes while the one-shot stays fixed, grains add on top of the dry sound, and grain on the bass muddies it. | Use a melodic support lane, mix around 0.08, keep the bass dry. |
 | no synthType | In a new song the lane would keep the instrument it had before. | Set `synthType` on every lane. |
 | … pad has no steps | The sidechain listens to a drum pad that never plays. | Duck off a pad that plays (usually `drums:kick`). |
 

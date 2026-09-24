@@ -74,3 +74,19 @@ test('the sound policy is part of every prompt', () => {
   assert.match(buildSystemPrompt(lanes, {}), /SOUND DESIGN \(compose the notes and the sound together/)
   assert.match(buildComposerGuide({}), /SOUND DESIGN/)
 })
+
+// Regression: the grain source used to label the nearest zone as C4, detuning
+// eight presets (casio by 17 semitones). The zone's real name must travel with it.
+test('the granular source zone keeps its real note name', async () => {
+  const { granularSourceZone, SAMPLER_PRESETS } = await import('../lib/soundSpecs.js')
+  assert.deepEqual(granularSourceZone('Sampler', { samplerPreset: 'bass-electric' }),
+    { url: SAMPLER_PRESETS['bass-electric'].baseUrl + 'Cs4.mp3', note: 'C#4' })
+  assert.equal(granularSourceZone('Sampler', { samplerPreset: 'casio' }).note, 'G2')
+  assert.equal(granularSourceZone('Sampler', { samplerPreset: 'piano' }).note, 'C4')
+  assert.equal(granularSourceZone('Sampler', { samplerPreset: 'nope' }).note, 'C4', 'unknown preset falls back to piano')
+  assert.equal(granularSourceZone('Drums', { drumVoice: 'kick' }).note, 'C4', 'a one-shot has no pitch of its own')
+  for (const [id, preset] of Object.entries(SAMPLER_PRESETS)) {
+    const zone = granularSourceZone('Sampler', { samplerPreset: id })
+    assert.ok(zone.note in preset.urls && zone.url === preset.baseUrl + preset.urls[zone.note], id)
+  }
+})
