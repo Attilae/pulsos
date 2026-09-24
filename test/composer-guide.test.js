@@ -3,6 +3,8 @@ import assert from 'node:assert/strict'
 import { composerVocabularyText, fxBusDocs, buildSystemPrompt, buildComposerGuide, validatePlan, EXAMPLE_PLAN_JSON } from '../lib/ai/planContract.js'
 import { PLAN_INPUT_SCHEMA } from '../lib/ai/planSchema.js'
 import { selectRecipe } from '../lib/ai/musicalPolicy.js'
+import { planAdvisories } from '../lib/ai/planAdvisories.js'
+import { OSC_TYPES } from '../lib/soundSpecs.js'
 
 // The prompt the model composes from must not contradict the engine. These pin
 // the corrections from docs/composer-musical-guide.md §5: loop windows select
@@ -35,11 +37,15 @@ test('the guide describes loop windows as material selection, with the loop-leng
 
 test('the embedded example plan follows its own advice', () => {
   const example = JSON.parse(EXAMPLE_PLAN_JSON)
-  const json = JSON.stringify(example).replaceAll('<one of the ids above>', 'R1')
+  const json = JSON.stringify(example)
+    .replaceAll('<one of the ids above>', 'L1')
+    .replaceAll('<another id above>', 'L2')
   const plan = JSON.parse(json)
   assert.equal(PLAN_INPUT_SCHEMA.safeParse(plan).success, true)
-  const { dropped } = validatePlan(plan, [{ id: 'R1', type: 'metro' }])
-  assert.deepEqual(dropped, [])
+  const validated = validatePlan(plan, [{ id: 'L1', type: 'metro' }, { id: 'L2', type: 'metro' }])
+  assert.deepEqual(validated.dropped, [])
+  assert.deepEqual(planAdvisories(validated.plan), [], 'the example raises no advisories')
+  assert.equal(validated.plan.tracks[0].tone.oscillator, 'square', 'the example shows tone')
 
   for (const track of plan.tracks) {
     assert.deepEqual(track.loopRegion, { startCell: 0, endCell: 64 })
@@ -49,6 +55,31 @@ test('the embedded example plan follows its own advice', () => {
     if (fx.busId === 'reverb' && 'decay' in params) assert.equal(params.irType, 'synthetic')
     assert.equal(fx.wet, 1, 'parallel sends keep wet at 1')
   }
+})
+
+// Instrument facts from docs/composer-synthesis-guide.md, verified in engine.js:
+// the '4n' note gate, Sampler/Drums attack+release only, PluckSynth attack-only,
+// FMSynth's slow default modulator.
+test('the guide states how instruments and notes really behave', () => {
+  const text = composerVocabularyText()
+  assert.match(text, /noteLength is how long each ordinary stop note is held[^\n]*4n = 1 beat[^\n]*1n = 4 beats/)
+  assert.match(text, /The default is 4n whatever the grid, speed or loop window/)
+  assert.match(text, /noteLength does nothing with legato, drone, an enabled arp/)
+  assert.match(text, /sustain 0 with a short decay/)
+  assert.match(text, /Only envelope\.attack and envelope\.release act/)
+  assert.match(text, /modulator attack 0\.5 s/)
+  assert.match(text, /PluckSynth: a plucked-string model[^\n]*It ignores envelope, note length and velocity/)
+  assert.match(text, /MonoSynth: [^\n]*baseFrequency × 2\^octaves/)
+  assert.match(text, /mix ADDS grains/)
+  assert.match(text, /once per stop, not per arp note/)
+  assert.match(text, /Every type below is in the DAW's instrument picker/)
+  assert.doesNotMatch(text, /cannot reselect/)
+})
+
+test('the guide documents tone with the real waveform list and per-instrument support', () => {
+  const text = composerVocabularyText()
+  assert.ok(text.includes(`tone.oscillator ∈ {${OSC_TYPES.join(', ')}}`))
+  assert.match(text, /tone\.modulationIndex 0\.\.40 \(FM brightness\) for FMSynth;/)
 })
 
 test('prompts carry the policy, one selected recipe, and the current song only in edit mode', () => {

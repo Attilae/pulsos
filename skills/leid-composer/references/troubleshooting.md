@@ -21,9 +21,27 @@ A dropped item was ignored. The rest of the plan still applies. Fix the item and
 | `fx for unknown bus "…"`, `… param "…"`, `busId.param = "…"` | Wrong bus id, param id or enum value. | Copy the ids from the guide's FX list. Params go as `[{ "paramId", "value" }]`. |
 | `fx bus "…" exceeds the three-bus limit` | More than three FX buses. | Keep the three that matter most. |
 | `send from inactive route "…"` | A send comes from a route that isn't in `tracks`. | Add the track, or remove the send. For drums, use `"drums"` and enable them. |
+| `tone.… on … lane "…" (not used by that instrument)` | The lane's instrument doesn't read that `tone` key (e.g. an oscillator on a Sampler, or modulationIndex on a Synth). | Remove it, or pick an instrument that uses it (see the guide's tone line). |
 
 Out-of-range numbers are **clamped without a message**. A volume of -60 becomes the minimum, not an
 error. Check numbers against the guide's RANGES.
+
+## `advisories` from `preview_song_plan`
+
+An advisory means the setting was kept but will not sound the way the plan probably intends. Nothing
+was dropped. Fix the ones that matter to the idea and preview again.
+
+| Advisory says | Why | Fix |
+| --- | --- | --- |
+| … attack but each note is held for … | Each note is held for the lane's `noteLength` (default `4n`, one beat), so the attack never reaches full level. | Shorten the attack, set a longer `noteLength` (`2n`, `1n`), or hold the note with drone or legato on a mono synth. |
+| sets noteLength … which does nothing here | Legato, drone, an enabled arp and PluckSynth decide note length themselves. | Remove `noteLength`, or use `arp.gate` on an arp lane. |
+| FMSynth … blooms late | The default modulator attack is 0.5 s, so a fast carrier attack still sounds soft at first. | Set `tone.modEnvelope` (e.g. attack 0.001, decay 0.12, sustain 0, release 0.08). |
+| PluckSynth ignores envelope | The string model only takes a note-on. | Drop the envelope and set `tone.resonance` (ring length) and `tone.dampening` (brightness). |
+| legato … voices pile up | Legato holds notes on Sampler/PolySynth instead of gliding. | Use legato on a mono synth only. |
+| … has no pitch effect | NoiseSynth is unpitched; a Drums lane plays its sample at a fixed pitch. | Remove octave/scale/contour/arp from that lane. |
+| granular … Drums / mix / bass | Grains on a Drums lane follow the route's notes while the one-shot stays fixed, grains add on top of the dry sound, and grain on the bass muddies it. | Use a melodic support lane, mix around 0.08, keep the bass dry. |
+| no synthType | In a new song the lane would keep the instrument it had before. | Set `synthType` on every lane. |
+| … pad has no steps | The sidechain listens to a drum pad that never plays. | Duck off a pad that plays (usually `drums:kick`). |
 
 ## Errors
 
@@ -49,5 +67,5 @@ error. Check numbers against the guide's RANGES.
 - **Melody jumps around:** switch from `demand` or `geographic` to `randomWalk`, and keep variety ≤ 0.3.
 - **Muddy low end:** only one lane should sit at octave -1/-2. Lowpass or duck the others.
 - **Shrill:** too many dense lanes at octave +1/+2. Move them down or make them sparser.
-- **Pads never swell:** the attack is longer than one beat. Shorten it and move the length into
-  release and reverb.
+- **Pads never swell:** the attack is longer than the note. Set `noteLength` to `2n` or `1n`, or
+  shorten the attack and move the length into release and reverb.

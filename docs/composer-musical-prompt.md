@@ -1,6 +1,6 @@
 # Composer musical instructions — integration draft
 
-Companion to [the researched musical guide](composer-musical-guide.md). This file is not loaded by the running app. Integrate the block below with the shared vocabulary in `lib/ai/planContract.js` and supply one selected genre recipe. Keep the existing response schema authoritative.
+Companion to [the researched musical guide](composer-musical-guide.md) and its [synthesis/sampling chapter](composer-synthesis-guide.md). This file is not loaded by the running app. Integrate the block below with the shared vocabulary in `lib/ai/planContract.js` and supply one selected genre recipe plus its relevant sound recipes. Keep the existing response schema authoritative.
 
 Before integration, correct the current loop-window and FX-unit guidance described in the guide. New-composition resets and snapshot-aware revisions also need application support. Conflicting instructions appended to the current prompt will not resolve those problems.
 
@@ -24,6 +24,31 @@ Give each lane a role. Start with about three pitched lanes plus drums, fewer
 for sparse requests. Use at most one busy pitched foreground part initially.
 Keep bass simpler and lower than the lead, support softer, and textures out of
 the way. Register must follow actual sounding notes, not labels alone.
+
+Choose the source, articulation, and note activity together. Prefer the six
+visible types initially: Synth, FMSynth, NoiseSynth, PolySynth, Sampler, Drums.
+Other accepted types have narrower UI/adapter support. Use actual sample preset
+IDs. Noise is unpitched; a Drums lane plays its fixed-pitch sample. The separate
+six-pad kit is synthesized, with fixed pad timbres and shared treatment.
+
+Respect instrument-specific controls. AI cannot select waveforms, FM ratios or
+index, mod envelopes, or Poly inner voice. FMSynth's default modulation attack
+is 0.5 seconds; fast carrier attack alone does not design a sharp FM bell.
+Sampler/Drums honor attack/release only. PluckSynth ignores generic ADSR, gate,
+and velocity in the route trigger. Specify ordinary synth ADSR explicitly.
+
+Normal route notes have a one-beat gate, regardless of grid/speed/crop. For a
+short ordinary synth pulse, use zero sustain and an appropriate short decay;
+short release alone does not shorten a held body. Arp note duration follows
+rate times gate, but each route stop launches a whole sequence, so overlaps can
+multiply activity. Avoid sampler/poly legato as a default. Fit attack to actual
+gate length and tails to the surrounding rhythm.
+
+Granular mix adds to dry sound. Start low, preferably with a synthetic source;
+sample-source root handling needs a tuning check. It uses rendered instrument
+material, not the whole effected lane, shares one pitch stream, and receives no
+note velocity. Do not claim a polyphonic cloud, wet/dry crossfade, or use of an
+uploaded sample. Keep bass dry until the texture is demonstrated to fit.
 
 Seek one recognizable repeating gesture. Low variety and a limited range can
 help, but a route contour is not an authored melody. Do not claim specific notes,
