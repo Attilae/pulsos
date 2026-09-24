@@ -1,0 +1,315 @@
+/* MCP OAuth pages (sign-in + consent), shared via app/mcp/McpCard.jsx. Uses the app's theme tokens
+   (app/globals.css), so it follows light/dark like the rest of Leið. */
+
+.page {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: var(--space-300) var(--space-200);
+  background:
+    linear-gradient(rgba(255, 255, 255, 0.018) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.018) 1px, transparent 1px),
+    var(--bg);
+  background-size: 32px 32px;
+  color: var(--text);
+  font-family: var(--font-sans);
+}
+
+.page * { box-sizing: border-box; }
+
+.card {
+  width: 100%;
+  max-width: 440px;
+  padding: var(--space-400);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.35);
+}
+
+.brand {
+  margin: 0 0 var(--space-300);
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+}
+
+.title {
+  margin: 0 0 var(--space-100);
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.lede {
+  margin: 0 0 var(--space-300);
+  color: var(--text-subtle);
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+/* The requesting client: its host name up front, the full client id below it
+   so the user can still check exactly which metadata document is asking. */
+.client {
+  display: flex;
+  align-items: center;
+  gap: var(--space-150);
+  margin: 0 0 var(--space-300);
+  padding: var(--space-150);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-sunken);
+}
+
+.clientMark {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-md);
+  background: var(--accent-tint);
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.clientText { min-width: 0; }
+
+.clientName {
+  margin: 0;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.clientId {
+  margin: 2px 0 0;
+  color: var(--muted-strong);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  overflow-wrap: anywhere;
+}
+
+.sectionLabel {
+  margin: 0 0 var(--space-100);
+  color: var(--muted-strong);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.scopes {
+  margin: 0 0 var(--space-300);
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: var(--space-100);
+}
+
+.scopes li {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-100);
+  font-size: 0.92rem;
+  line-height: 1.4;
+}
+
+.scopes li::before {
+  content: "";
+  flex: none;
+  width: 6px;
+  height: 6px;
+  margin-top: 0.5em;
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+}
+
+.actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-150);
+}
+
+.button {
+  min-height: var(--tap-min);
+  padding: 0 var(--space-200);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+
+.button:hover:not(:disabled) { background: var(--hover-bg); }
+
+.button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.button:disabled { opacity: 0.55; cursor: progress; }
+
+.primary {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-text);
+}
+
+.primary:hover:not(:disabled) { background: var(--lime-mid); border-color: var(--lime-mid); }
+
+.note {
+  margin: var(--space-200) 0 0;
+  color: var(--muted-strong);
+  font-size: 0.8rem;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.status {
+  margin: 0;
+  color: var(--text-subtle);
+  line-height: 1.5;
+}
+
+.status a,
+.note a { color: var(--accent); }
+
+.error {
+  margin: var(--space-200) 0 0;
+  padding: var(--space-100) var(--space-150);
+  border: 1px solid var(--red-deep);
+  border-radius: var(--radius-md);
+  color: var(--red-bright);
+  font-size: 0.88rem;
+}
+
+@media (max-width: 767px) { /* PHONE_MAX — lib/shared/breakpoints.js */
+  .card { padding: var(--space-300) var(--space-200); }
+  .actions { grid-template-columns: 1fr; }
+  .primary { order: -1; }
+}
+
+/* ── Sign-in form ──────────────────────────────────────────────────────────
+   components/AuthControl.jsx's AuthForm, restyled for the card. Its own rules
+   live in components/app.css, which these routes never load, so they're
+   re-stated here under this wrapper (global class names, scoped by .authForm). */
+
+.authForm {
+  display: grid;
+  gap: var(--space-150);
+}
+
+.authForm :global(.auth-tabs) {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-050);
+  padding: var(--space-050);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-sunken);
+}
+
+.authForm :global(.auth-tabs) button {
+  min-height: 36px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--muted-strong);
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.authForm :global(.auth-tabs) button:hover { color: var(--text); }
+
+.authForm :global(.auth-tabs) button:global(.active) {
+  background: var(--surface2);
+  color: var(--text);
+  box-shadow: inset 0 -2px 0 var(--accent);
+}
+
+.authForm input {
+  width: 100%;
+  min-height: var(--tap-min);
+  padding: 0 var(--space-150);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface-sunken);
+  color: var(--text);
+  font: inherit;
+  font-size: 1rem; /* ≥16px keeps iOS Safari from zooming on focus */
+}
+
+.authForm input::placeholder { color: var(--muted); text-transform: capitalize; }
+
+.authForm input:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-tint);
+}
+
+.authForm :global(.auth-btn) {
+  min-height: var(--tap-min);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-md);
+  background: var(--accent);
+  color: var(--accent-text);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+
+.authForm :global(.auth-btn):hover { background: var(--lime-mid); border-color: var(--lime-mid); }
+
+.authForm :global(.auth-btn):focus-visible,
+.authForm :global(.auth-tabs) button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.authForm :global(.auth-btn--ghost) {
+  border-color: var(--border-strong);
+  background: transparent;
+  color: var(--text);
+}
+
+.authForm :global(.auth-btn--ghost):hover { background: var(--hover-bg); border-color: var(--border-strong); }
+
+.authForm :global(.auth-legal),
+.authForm :global(.auth-msg) {
+  margin: 0;
+  color: var(--muted-strong);
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+
+.authForm :global(.auth-legal) a { color: var(--text); text-underline-offset: 2px; }
+.authForm :global(.auth-legal) a:hover { color: var(--accent); }
+
+.authForm :global(.auth-msg) {
+  padding: var(--space-100) var(--space-150);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-sunken);
+  color: var(--text-subtle);
+}
+
+.footer {
+  margin: var(--space-300) 0 0;
+  padding-top: var(--space-200);
+  border-top: 1px solid var(--border);
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+.footer a { color: var(--muted-strong); text-decoration: none; }
+.footer a:hover { color: var(--accent); }

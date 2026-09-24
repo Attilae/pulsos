@@ -3,6 +3,16 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { authClient } from '@/lib/auth-client.js'
+import { McpShell as Shell, ClientChip, styles } from '../McpCard.jsx'
+
+// OAuth scopes in plain language. Unknown scopes are still listed, verbatim, so
+// the screen never hides part of what is being granted.
+const SCOPE_TEXT = {
+  openid: 'Confirm who you are',
+  profile: 'See your name',
+  email: 'See your email address',
+  offline_access: 'Stay connected until you disconnect it',
+}
 
 export default function McpConsentPage() {
   const [access, setAccess] = useState('loading')
@@ -14,8 +24,8 @@ export default function McpConsentPage() {
     if (process.env.NEXT_PUBLIC_MCP_ENABLED !== 'true') return
     const params = new URLSearchParams(window.location.search)
     setRequest({
-      clientId: params.get('client_id') || 'your AI client',
-      scope: params.get('scope') || 'Access to your saved songs',
+      clientId: params.get('client_id') || '',
+      scope: params.get('scope') || '',
     })
     fetch('/api/entitlements', { cache: 'no-store' })
       .then(async (response) => {
@@ -28,7 +38,7 @@ export default function McpConsentPage() {
   }, [])
 
   if (process.env.NEXT_PUBLIC_MCP_ENABLED !== 'true') {
-    return <main style={{ maxWidth: 480, margin: '8vh auto', padding: 24 }}><p>AI client connections are not available yet.</p><Link href="/">Return to Leið</Link></main>
+    return <Shell><p className={styles.status}>AI client connections are not available yet. <Link href="/">Return to Leið</Link></p></Shell>
   }
 
   const decide = async (accept) => {
@@ -46,21 +56,35 @@ export default function McpConsentPage() {
     }
   }
 
+  const scopes = request.scope.split(/\s+/).filter(Boolean)
+
   return (
-    <main style={{ maxWidth: 480, margin: '8vh auto', padding: 24 }}>
-      <h1>Connect to Leið?</h1>
-      {access === 'loading' && <p>Checking your account…</p>}
-      {access === 'signed-out' && <p><Link href="/mcp/sign-in">Sign in</Link> to continue.</p>}
-      {access === 'free' && <p>AI client connections require Leið Pro. <Link href="/">View plans in Leið</Link>.</p>}
-      {access === 'error' && <p>Could not check your plan. Please try again.</p>}
+    <Shell>
+      <h1 className={styles.title}>Connect to Leið?</h1>
+      {access === 'loading' && <p className={styles.status}>Checking your account…</p>}
+      {access === 'signed-out' && <p className={styles.status}><Link href="/mcp/sign-in">Sign in</Link> to continue.</p>}
+      {access === 'free' && <p className={styles.status}>AI client connections require Leið Pro. <Link href="/">View plans in Leið</Link>.</p>}
+      {access === 'error' && <p className={styles.status}>Could not check your plan. Please try again.</p>}
       {access === 'pro' && <>
-        <p><strong>{request.clientId}</strong> is requesting access to your Leið account.</p>
-        <p>Requested access: {request.scope}</p>
-        <p>This client can use MCP tools to work with your saved songs. You can disconnect it later.</p>
-        <button type="button" disabled={working} onClick={() => decide(true)}>Allow access</button>{' '}
-        <button type="button" disabled={working} onClick={() => decide(false)}>Deny</button>
+        <p className={styles.lede}>An AI client wants to work with your Leið account.</p>
+
+        <ClientChip clientId={request.clientId} />
+
+        <p className={styles.sectionLabel}>It will be able to</p>
+        <ul className={styles.scopes}>
+          <li>Read, create and edit your saved songs</li>
+          {scopes.map(scope => <li key={scope}>{SCOPE_TEXT[scope] ?? scope}</li>)}
+        </ul>
+
+        <div className={styles.actions}>
+          <button type="button" className={styles.button} disabled={working} onClick={() => decide(false)}>Deny</button>
+          <button type="button" className={`${styles.button} ${styles.primary}`} disabled={working} onClick={() => decide(true)}>
+            {working ? 'Connecting…' : 'Allow access'}
+          </button>
+        </div>
+        <p className={styles.note}>You can disconnect it any time from your Leið account menu.</p>
       </>}
-      {error && <p role="alert">{error}</p>}
-    </main>
+      {error && <p role="alert" className={styles.error}>{error}</p>}
+    </Shell>
   )
 }
