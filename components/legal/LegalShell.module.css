@@ -220,6 +220,23 @@
 }
 .sectionBody a:hover { color: var(--legal-accent); }
 .sectionBody strong { color: var(--legal-text); }
+.sectionBody code {
+  padding: 0.1em 0.35em;
+  border: 1px solid var(--legal-border);
+  border-radius: 3px;
+  background: var(--legal-surface);
+  color: var(--legal-text);
+  font-family: var(--font-mono);
+  font-size: 0.86em;
+  overflow-wrap: anywhere;
+}
+.sectionBody blockquote {
+  margin: 0 0 1.2em;
+  padding: 10px 16px;
+  border-left: 2px solid var(--legal-accent);
+  background: var(--legal-surface);
+  color: var(--legal-text);
+}
 
 .tableWrap {
   width: 100%;
