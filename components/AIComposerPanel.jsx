@@ -271,6 +271,7 @@ function PlanPreview({ result, routeName, applied, applying, onApply, onDiscard 
                     t.sidechain?.enabled && `duck ← ${t.sidechain.source.replace('__drums__', 'drums')}`,
                     t.speed != null && `${t.speed}×`,
                     t.gridResolution,
+                    t.noteLength && `hold ${t.noteLength}`,
                     t.loopRegion && `cells ${t.loopRegion.startCell}–${t.loopRegion.endCell}`,
                     t.pitchVariety && `${t.pitchVariety.contour} ${Math.round(t.pitchVariety.variety * 100)}%`,
                     t.noteChance != null && t.noteChance < 1 && `chance ${Math.round(t.noteChance * 100)}%`,

@@ -40,8 +40,8 @@ the Leið DAW and plays.
    more than `maxTracks`. Use at most three FX buses. In a new song, every setting you leave out
    starts at its default (arp, granular, drone and sidechain off, full loop window, no sends), and
    leaving out `drums` means no drums. Set what the idea needs and leave out the rest instead of
-   guessing. Design each role's sound from the guide's sound recipes (R1–R13): instrument, an
-   envelope fitted to the one-beat note gate, `tone`, and filter.
+   guessing. Design each role's sound from the guide's sound recipes (R1–R15): instrument, an
+   envelope fitted to the lane's note length, `tone`, and filter.
 5. **Preview.** `preview_song_plan({ cityId, plan })`. Read `dropped` (settings that were invalid and
    ignored), `advisories` (settings that were kept but will not sound as planned, such as an attack
    longer than a beat or an FM lane without a mod envelope) and `skippedRouteIds`. Fix every item
@@ -102,9 +102,11 @@ the Leið DAW and plays.
 - Build most beats from Synth, MonoSynth, FMSynth, PolySynth, PluckSynth, NoiseSynth, Sampler and
   Drums, whose sound a plan fully controls. Use DuoSynth, AMSynth, MembraneSynth or MetalSynth for a
   specific colour; the guide's INSTRUMENTS list says what a plan can and can't set on each.
-- Every ordinary note is held for one beat (60 ÷ BPM s), whatever the grid or speed. An attack longer
-  than that never peaks. For a short pulse use `sustain 0` with a short decay. A short release alone
-  does not shorten the note.
+- `noteLength` sets how long each note is held before its release: `16n` … `1n`, default `4n` (one
+  beat, 60 ÷ BPM s), whatever the grid or speed. An attack longer than the note never peaks, so give
+  a slow swell a `2n` or `1n` note on a sparse lane. Use `8n` or `16n` for tight stabs and bass. A
+  short release alone does not shorten the note. Note length does nothing with legato, drone, an
+  arp (use `arp.gate`) or PluckSynth.
 - A Sampler or Drums lane only uses attack and release. PluckSynth ignores the envelope, note length
   and velocity. NoiseSynth and Drums lanes have no melodic pitch.
 - `tone` shapes the sound beyond the envelope:

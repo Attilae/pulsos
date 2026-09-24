@@ -62,7 +62,9 @@ test('the embedded example plan follows its own advice', () => {
 // FMSynth's slow default modulator.
 test('the guide states how instruments and notes really behave', () => {
   const text = composerVocabularyText()
-  assert.match(text, /held for one beat \(60\/bpm s\) — whatever the grid, speed or loop window/)
+  assert.match(text, /noteLength is how long each ordinary stop note is held[^\n]*4n = 1 beat[^\n]*1n = 4 beats/)
+  assert.match(text, /The default is 4n whatever the grid, speed or loop window/)
+  assert.match(text, /noteLength does nothing with legato, drone, an enabled arp/)
   assert.match(text, /sustain 0 with a short decay/)
   assert.match(text, /Only envelope\.attack and envelope\.release act/)
   assert.match(text, /modulator attack 0\.5 s/)

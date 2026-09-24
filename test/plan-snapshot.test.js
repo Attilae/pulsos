@@ -315,3 +315,15 @@ test('MonoSynth filter envelope and Pluck tone: applied, described, round-trip c
   assert.equal(edited.trackADSRs['4'].resonance, 0.96)
   assert.equal(edited.trackADSRs['4'].oscillatorType, undefined, 'PluckSynth has no oscillator')
 })
+
+test('noteLength: applied sparse, described when not the default, round-trips clean', () => {
+  const { snapshot } = applyPlanToSnapshot(defaultSnapshot('budapest'), plan({ tracks: [
+    { routeId: 'M1', synthType: 'Synth', noteLength: '8n' },
+    { routeId: '4', synthType: 'Synth', noteLength: '4n' },
+  ] }).validated)
+  assert.deepEqual(snapshot.trackNoteLengths, { M1: '8n', '4': '4n' })
+  assert.deepEqual(roundTrip(snapshot, CITY), snapshot)
+  const detail = describeSnapshot(snapshot, CITY, { detail: true })
+  assert.equal(detail.lanes.find(l => l.routeId === 'M1').noteLength, '8n')
+  assert.equal(detail.lanes.find(l => l.routeId === '4').noteLength, undefined, 'the default is not worth a prompt token')
+})

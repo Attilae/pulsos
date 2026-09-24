@@ -82,6 +82,7 @@ call is injected through its `services` argument, so it still never touches Post
 `validatePlan`/`PLAN_INPUT_SCHEMA` and checks each tool it names is registered),
 `composer-guide` (pins the prompt's loop-window/FX-unit/fixed-IR facts and its example plan),
 `musical-policy` (`lib/ai/musicalPolicy.js` — genre recipe selection and prompt size),
+`note-length` (`lib/noteLength.js` + its plan/advisory rules),
 `sound-policy` (`lib/ai/soundPolicy.js` — every sound recipe survives `validatePlan` and raises no
 advisory), `plan-advisories` (`lib/ai/planAdvisories.js`), `plan-snapshot` (`lib/ai/planSnapshot.js` — round-trips its output through the real
 `applySnapshot`/`buildSnapshot`), `server-purity` (loads the MCP module graph in a child process
@@ -366,6 +367,12 @@ mock playback on `active` going false if it was running, since all tabs share on
   entering a rest loop (`_releaseRestingLegato`). Live only applies lane chance; drums and automation
   lanes are ungated. The Song Chainer loop strip multiplies each lane's loop by `patternPeriod` for
   its realign hint, and one-loop MIDI export drops only 0%-chance stops.
+- **Note length** (`lib/noteLength.js`, pure and tested): `trackNoteLengths` (routeId → `'16n'`…`'1n'`)
+  sets how long a lane's ordinary stop notes are held. Sparse — absent keeps the legacy gate
+  (`'4n'` in mock, `'8n'` in the legacy percussive mode and in live), so older songs are unchanged
+  and there's no schema bump. Like chance it's read at callback time (`engine._noteLengths`, no Part
+  rebuild), and MIDI export (`noteDurationSec`) resolves it the same way. It doesn't touch arp
+  steps (`arp.gate`), legato, drone, or PluckSynth.
 - Fresh sessions now start with `DEFAULT_FX_TRACKS = ['reverb', 'delay', 'chorus', 'distortion']`
   pre-activated (was empty), so automation targets like `send.reverb` are available immediately.
 
@@ -614,7 +621,7 @@ classes.
   later `set()` would add it back as an offset). The cutoff sweeps `filterEnvBaseFreq` →
   `filterEnvBaseFreq · 2^filterEnvOctaves`.
 - **Advisories** (`planAdvisories`) list settings that validate but won't sound as planned: an
-  attack longer than the one-beat gate, FMSynth without a mod envelope, grains on a Drums
+  attack longer than the lane's note length, FMSynth without a mod envelope, grains on a Drums
   lane, and so on. They never change the plan. MCP preview/create/apply return them and the
   panel preview shows them.
 - **New idea vs edit.** The in-app panel's toggle and the MCP tool choose the mode. The model
@@ -631,8 +638,8 @@ classes.
   - Delay `delayTime` and reverb `preDelay` are stored in **seconds**; the "ms" in `fxSpecs.js` is
     the UI display unit (`planParamUnit`). Chorus `delayTime` really is ms.
   - Reverb `decay`/`preDelay` only affect `irType: "synthetic"`.
-  - Every ordinary stop note has a one-beat (`'4n'`) gate regardless of grid or speed.
-    Sampler/Drums honour attack and release only. PluckSynth is attack-only. FMSynth's default
+  - Every ordinary stop note is held for the lane's `noteLength` (default `'4n'`, one beat)
+    regardless of grid or speed. Sampler/Drums honour attack and release only. PluckSynth is attack-only. FMSynth's default
     modulator attack is 0.5 s.
 
 ### Billing & entitlements (Free/Pro)

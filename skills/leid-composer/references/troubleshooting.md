@@ -33,7 +33,8 @@ was dropped. Fix the ones that matter to the idea and preview again.
 
 | Advisory says | Why | Fix |
 | --- | --- | --- |
-| attack is longer than one beat | Each note is held for one beat (60 ÷ BPM s), so the attack never reaches full level. | Shorten the attack, or hold the note with drone or legato on a mono synth. |
+| … attack but each note is held for … | Each note is held for the lane's `noteLength` (default `4n`, one beat), so the attack never reaches full level. | Shorten the attack, set a longer `noteLength` (`2n`, `1n`), or hold the note with drone or legato on a mono synth. |
+| sets noteLength … which does nothing here | Legato, drone, an enabled arp and PluckSynth decide note length themselves. | Remove `noteLength`, or use `arp.gate` on an arp lane. |
 | FMSynth … blooms late | The default modulator attack is 0.5 s, so a fast carrier attack still sounds soft at first. | Set `tone.modEnvelope` (e.g. attack 0.001, decay 0.12, sustain 0, release 0.08). |
 | PluckSynth ignores envelope | The string model only takes a note-on. | Drop the envelope and set `tone.resonance` (ring length) and `tone.dampening` (brightness). |
 | legato … voices pile up | Legato holds notes on Sampler/PolySynth instead of gliding. | Use legato on a mono synth only. |
@@ -66,5 +67,5 @@ was dropped. Fix the ones that matter to the idea and preview again.
 - **Melody jumps around:** switch from `demand` or `geographic` to `randomWalk`, and keep variety ≤ 0.3.
 - **Muddy low end:** only one lane should sit at octave -1/-2. Lowpass or duck the others.
 - **Shrill:** too many dense lanes at octave +1/+2. Move them down or make them sparser.
-- **Pads never swell:** the attack is longer than one beat. Shorten it and move the length into
-  release and reverb.
+- **Pads never swell:** the attack is longer than the note. Set `noteLength` to `2n` or `1n`, or
+  shorten the attack and move the length into release and reverb.

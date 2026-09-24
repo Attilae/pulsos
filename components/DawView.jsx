@@ -6,6 +6,7 @@ import { PAD_DEFS as DRUM_PAD_DEFS, STEPS as DRUM_STEPS, SOURCE_STEPS as DRUM_SO
 import { generatePitchMap, shiftOctaveNote, shiftSemitones, noteToMidi, SCALES, hashStopValue, snapStopsToGrid, GRID_TOTAL_CELLS, GRID_BARS, GRID_STEPS_PER_BAR, GRID_RESOLUTION_STEPS_PER_BAR, DEFAULT_GRID_RESOLUTION, denormalizeToRange, denormalizeExp, transposeNoteInScale, PITCH_CONTOURS, DEFAULT_PITCH_VARIETY } from '@/lib/mappings.js'
 import { buildLanePitchMaps } from '@/lib/laneNotes.js'
 import { SYNTH_TYPES, OSC_TYPES } from '@/lib/soundSpecs.js'
+import { NOTE_LENGTHS, NOTE_LENGTH_LABELS, DEFAULT_NOTE_LENGTH } from '@/lib/noteLength.js'
 import { useResetGesture } from '@/lib/shared/useResetGesture.js'
 import { useIsPhone } from '@/lib/shared/useViewport.js'
 import { normalizeLaneTag } from '@/lib/laneTags.js'
@@ -118,6 +119,7 @@ export default function DawView({
   trackPitchVariety, onPitchVariety,
   trackStopVelocities, onStopVelocity,
   trackNoteChances, onNoteChance, trackStopChances, onStopChance, trackLoopPatterns, onLoopPattern,
+  trackNoteLengths, onNoteLength,
   trackLabels, onLaneTag,
   trackDroneModes, trackDroneRoots, onDroneMode, onDroneRoot,
   onVolume, onDisable, onPan, onSolo,
@@ -373,6 +375,8 @@ export default function DawView({
                     stopVelocities={trackStopVelocities?.[route.id]}
                     noteChance={trackNoteChances?.[route.id]}
                     onNoteChance={c => onNoteChance?.(route.id, c)}
+                    noteLength={trackNoteLengths?.[route.id]}
+                    onNoteLength={len => onNoteLength?.(route.id, len)}
                     stopChances={trackStopChances?.[route.id]}
                     loopPattern={trackLoopPatterns?.[route.id]}
                     onLoopPattern={p => onLoopPattern?.(route.id, p)}
@@ -692,6 +696,7 @@ function LineTrack({
   pitchVariety, onPitchVariety,
   stopVelocities, onStopOpen,
   noteChance, onNoteChance, stopChances, loopPattern, onLoopPattern,
+  noteLength, onNoteLength,
   onVolume, onDisable, onPan, onSolo, onSoundMode, onScale, onSynthType, onADSR,
   onSamplerPreset, onDrumVoice, onSamplerUpload,
   onFilter,
@@ -1069,6 +1074,29 @@ function LineTrack({
                     {ARP_RATE_LABELS[rt] ?? rt}
                   </button>
                 ))}
+              </div>
+            </div>
+            <div className="speed-row">
+              <span className="speed-label">LENGTH</span>
+              <div
+                className="speed-btns"
+                title={legato || arp?.enabled || synthType === 'PluckSynth'
+                  ? 'Note length — no effect while legato, the arpeggiator or PluckSynth is in use'
+                  : 'How long each note is held before its release'}
+              >
+                {NOTE_LENGTHS.map(len => {
+                  const on = (noteLength ?? DEFAULT_NOTE_LENGTH) === len
+                  return (
+                    <button
+                      key={len}
+                      className={`speed-btn ${on ? 'active' : ''}`}
+                      style={on ? { borderColor: route.color, color: route.color } : {}}
+                      onClick={() => onNoteLength?.(len)}
+                    >
+                      {NOTE_LENGTH_LABELS[len]}
+                    </button>
+                  )
+                })}
               </div>
             </div>
             <div className="glide-row">

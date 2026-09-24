@@ -12,8 +12,8 @@ filter for each role. The examples below are built from them. Nobody has auditio
 the user's city, so describe them as starting points and never claim to have heard them.
 
 Every example uses instruments whose sound a plan fully controls (Synth, FMSynth, NoiseSynth,
-PolySynth, Sampler, Drums). Every envelope also fits the one-beat note gate, so none of them
-trigger a preview advisory.
+PolySynth, Sampler, Drums). Every envelope also fits the default one-beat note length, so none of
+them trigger a preview advisory.
 
 ## Contents
 - [Warm house beat](#warm-house-beat): square-wave bass, piano, a quiet xylophone answer, kick-ducked
@@ -319,8 +319,9 @@ trigger a preview advisory.
     *which* material each pad loops and how long its cycle is; both still start together. The second
     pad rests every other pass.
   - A quiet grain shadow on the synth pad (R11): mix around 0.08, no jitter.
-- **Envelopes:** a slow attack longer than one beat (0.91 s at 66 BPM) never peaks, so the pads take
-  their softness from a moderate attack, a long release and the reverb.
+- **Envelopes:** a slow attack longer than the note (one beat is 0.91 s at 66 BPM) never peaks, so
+  the pads take their softness from a moderate attack, a long release and the reverb. For a real
+  swell, set `noteLength` to `2n` or `1n` on a sparse pad and lengthen the attack to match.
 - **FX:** a long `synthetic` reverb does most of the work, plus a slow ping-pong delay. Only
   `synthetic` follows `decay`; the named rooms are fixed recordings.
 
