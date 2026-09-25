@@ -110,7 +110,9 @@ export default function LicensesPage() {
           </a>, University of York, and are licensed under{' '}
           <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noreferrer">
             Creative Commons Attribution 4.0 International
-          </a>.
+          </a>, credited to www.openairlib.net and the contributors below. Some files have been
+          modified: they were resampled to 48 kHz, their silent tails trimmed, and a short fade-out
+          added.
         </p>
         <DataTable headers={['File', 'Space', 'Credits']} rows={impulseResponses} />
       </LegalSection>
