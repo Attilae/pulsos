@@ -4,7 +4,7 @@ import { composerVocabularyText, fxBusDocs, buildSystemPrompt, buildComposerGuid
 import { PLAN_INPUT_SCHEMA } from '../lib/ai/planSchema.js'
 import { selectRecipe } from '../lib/ai/musicalPolicy.js'
 import { planAdvisories } from '../lib/ai/planAdvisories.js'
-import { OSC_TYPES } from '../lib/soundSpecs.js'
+import { OSC_TYPES, PICKER_SYNTH_TYPES } from '../lib/soundSpecs.js'
 
 // The prompt the model composes from must not contradict the engine. These pin
 // the corrections from docs/composer-musical-guide.md §5: loop windows select
@@ -72,8 +72,7 @@ test('the guide states how instruments and notes really behave', () => {
   assert.match(text, /MonoSynth: [^\n]*baseFrequency × 2\^octaves/)
   assert.match(text, /mix ADDS grains/)
   assert.match(text, /once per stop, not per arp note/)
-  assert.match(text, /Every type below is in the DAW's instrument picker/)
-  assert.doesNotMatch(text, /cannot reselect/)
+  assert.ok(text.includes(`The DAW's instrument picker offers ${PICKER_SYNTH_TYPES.join(', ')}.`))
 })
 
 test('the guide documents tone with the real waveform list and per-instrument support', () => {
