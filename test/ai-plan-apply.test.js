@@ -155,3 +155,13 @@ test('validatePlan clamps MonoSynth and Pluck tone and drops them elsewhere', ()
   assert.ok(dropped.some(d => d.startsWith('tone.resonance on MonoSynth lane "A"')))
   assert.ok(dropped.some(d => d.startsWith('tone.resonance on MetalSynth lane "C"')))
 })
+
+test('validatePlan maps a removed reverb IR id to its replacement', () => {
+  const routes = [{ id: 'A' }]
+  const { plan, dropped } = validatePlan({
+    tracks: [{ routeId: 'A' }],
+    fx: [{ busId: 'reverb', params: [{ paramId: 'irType', value: 'hall' }, { paramId: 'irType', value: 'nope' }] }],
+  }, routes)
+  assert.equal(plan.fx[0].params.irType, 'sportshall')
+  assert.ok(dropped.includes('reverb.irType = "nope"'))
+})

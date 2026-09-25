@@ -119,3 +119,12 @@ test('a v4 song is left on the new default contour', () => {
   assert.deepEqual(s.trackPitchVariety ?? {}, {},
     'nothing is pinned, so U1 picks up DEFAULT_PITCH_VARIETY (demand)')
 })
+
+test('a removed reverb IR loads as its closest replacement, at any schemaVersion', () => {
+  for (const [old, next] of [['tunnel', 'reactor'], ['cave', 'church'], ['stairwell', 'room'], ['hall', 'sportshall']]) {
+    const s = migrateSnapshot({ fxBusParams: { reverb: { irType: old, decay: 2 }, delay: { feedback: 0.3 } } }, SCHEMA_VERSION)
+    assert.deepEqual(s.fxBusParams, { reverb: { irType: next, decay: 2 }, delay: { feedback: 0.3 } })
+  }
+  const kept = migrateSnapshot({ fxBusParams: { reverb: { irType: 'warehouse' } } }, SCHEMA_VERSION)
+  assert.equal(kept.fxBusParams.reverb.irType, 'warehouse')
+})

@@ -22,7 +22,7 @@ const RAW_PLAN = {
       loopRegion: { startCell: 0, endCell: 32 }, speed: 2, pitchVariety: { contour: 'arch', variety: 0.3 } },
   ],
   drums: { enabled: true, volume: -8, filter: null, patterns: [{ padId: 'kick', steps: kick }] },
-  fx: [{ busId: 'reverb', wet: 0.6, params: [{ paramId: 'irType', value: 'cave' }],
+  fx: [{ busId: 'reverb', wet: 0.6, params: [{ paramId: 'irType', value: 'church' }],
     sends: [{ routeId: 'M1', level: 0.4 }, { routeId: 'drums', level: 0.2 }] }],
 }
 
@@ -118,7 +118,7 @@ test('FX: bus added once, params merged, sends keyed "<route>:<bus>"', () => {
   const { snapshot } = applyPlanToSnapshot(defaultSnapshot('budapest'), plan().validated)
   assert.equal(snapshot.activeFxTracks.filter(id => id === 'reverb').length, 1)
   assert.equal(snapshot.fxBusWet.reverb, 0.6)
-  assert.deepEqual(snapshot.fxBusParams.reverb, { irType: 'cave' })
+  assert.deepEqual(snapshot.fxBusParams.reverb, { irType: 'church' })
   assert.equal(snapshot.sendMatrix['M1:reverb'], 0.4)
   assert.equal(snapshot.sendMatrix[`${DRUMS_ROUTE_ID}:reverb`], 0.2)
 })
@@ -256,7 +256,7 @@ test('describeSnapshot detail carries what an edit must preserve', () => {
   assert.deepEqual(m1.scale, { root: 'D', scaleType: 'minor' }, 'a lane scale that differs from the song key')
   assert.deepEqual(detail.drums.patterns, [{ padId: 'kick', steps: kick }])
   assert.deepEqual(detail.drums.sends, [{ busId: 'reverb', level: 0.2 }])
-  assert.ok(detail.fx.some(f => f.busId === 'reverb' && f.params?.irType === 'cave'))
+  assert.ok(detail.fx.some(f => f.busId === 'reverb' && f.params?.irType === 'church'))
 })
 
 test('tone: applied after the synthType reset, reported by describe, round-trips clean', () => {
