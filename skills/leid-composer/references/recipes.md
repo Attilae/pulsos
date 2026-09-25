@@ -583,7 +583,7 @@ them trigger a preview advisory.
   - Use toms instead of a kit, or no drums at all.
 - **Levels:** strings swell through release and reverb, not through a long attack. A Sampler's attack
   softens its transient, and at 72 BPM a note is held for 0.83 s, so keep the attack well under that.
-  The concert-hall IR is a fixed recording, so there is no `decay` to set on it.
+  The minster IR is a fixed recording, so there is no `decay` to set on it.
 - **Entrances:** the harp arp rests on the first pass (`loopPattern` offset). That is the only way to
   hold a lane back. A `loopRegion` never delays a lane.
 
@@ -639,7 +639,7 @@ them trigger a preview advisory.
     {
       "busId": "reverb",
       "wet": 1,
-      "params": [ { "paramId": "irType", "value": "hall" } ],
+      "params": [ { "paramId": "irType", "value": "minster" } ],
       "sends": [ { "routeId": "<hev-1>", "level": 0.2 }, { "routeId": "<metro-1>", "level": 0.3 }, { "routeId": "<tram-1>", "level": 0.3 } ]
     }
   ]

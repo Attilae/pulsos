@@ -270,7 +270,7 @@ For a **revision**, preserve the user's accepted motif, key, groove, and unaffec
 
 In [fxTrack.js](../lib/fxTrack.js), numeric delay/pingpong `delayTime` and reverb `preDelay` reach Tone in **seconds**, despite “ms” labels in the prompt metadata. Chorus `delayTime` really is milliseconds. Correct the metadata and cover the unit conversion when changing runtime instructions.
 
-Reverb `decay` and `preDelay` affect `irType: synthetic`. Named impulse responses such as cave/cathedral are fixed recordings; their decay is not changed by those fields. `custom` needs a supplied buffer the composition plan cannot provide. Use `synthetic` when requesting an exact tail. `jcreverb` is implemented with `JCReverb`; avoid promising an authentic spring-reverb model based on its UI name.
+Reverb `decay` and `preDelay` affect `irType: synthetic`. Named impulse responses such as church/cathedral are fixed recordings; their decay is not changed by those fields. `custom` needs a supplied buffer the composition plan cannot provide. Use `synthetic` when requesting an exact tail. `jcreverb` is implemented with `JCReverb`; avoid promising an authentic spring-reverb model based on its UI name.
 
 Sidechain sources can be a route, `drums`, or a specific pad such as `drums:kick`. Choose `drums:kick` for kick-driven breathing and ensure that pad actually plays. Ducking from the entire drum pattern creates a different rhythm. Keep attack/release appropriate to tempo; audition the resulting recovery between hits.
 

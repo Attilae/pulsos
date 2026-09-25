@@ -7,12 +7,14 @@ export const metadata = {
 }
 
 const impulseResponses = [
-  ['tunnel.wav', 'Innocent Railway Tunnel, Edinburgh', 'Andrew Chadwick; Simon Shelley'],
-  ['cave.wav', 'Creswell Crags, Derbyshire', 'OpenAIR / openairlib.net'],
-  ['stairwell.wav', 'Stairway, University of York', 'Audiolab, University of York; Simon Shelley'],
+  ['room.wav', "Terry's Typing Room, York", 'Audiolab, University of York; Dr. Damian T. Murphy'],
+  ['church.wav', "St. George's Episcopal Church", 'Adam Townsell'],
   ['cathedral.wav', 'Lady Chapel, St Albans Cathedral', 'Audiolab, University of York; Marcin Gorzel; Gavin Kearney; Aglaia Foteinou; Sorrel Hoare; Simon Shelley'],
-  ['hall.wav', 'Central Hall, University of York', 'Alexander Vilkaitis; Ilias Antonopoulos; Joska De Langen; Xuan Liu'],
+  ['sportshall.wav', 'Sports Centre, University of York', 'Audiolab, University of York; Aglaia Foteinou; Simon Shelley'],
+  ['reactor.wav', 'R1 Nuclear Reactor Hall, Stockholm', 'Audiolab, University of York; Dr. Damian T. Murphy'],
+  ['minster.wav', 'York Minster', 'Audiolab, University of York; Damian T. Murphy'],
   ['warehouse.wav', "Terry's Factory Warehouse, York", 'Audiolab, University of York; Dr. Damian T. Murphy'],
+  ['mausoleum.wav', 'Hamilton Mausoleum, Scotland', 'Audiolab, University of York; Damian T. Murphy'],
 ]
 
 const melodicSamples = [
