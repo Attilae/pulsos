@@ -1,13 +1,42 @@
 import * as Tone from 'tone'
 import { memo, useEffect, useMemo, useRef, useState } from 'react'
-import { MapContainer, TileLayer, Polyline, CircleMarker, Tooltip, LayersControl, useMap } from 'react-leaflet'
+import { MapContainer, Polyline, CircleMarker, Tooltip, LayersControl, useMap } from 'react-leaflet'
 import L from 'leaflet'
+import { maplibreGL } from '@maplibre/maplibre-gl-leaflet'
+import 'maplibre-gl/dist/maplibre-gl.css'
 import { useIsPhone } from '@/lib/shared/useViewport.js'
 import { normalizeLaneTag } from '@/lib/laneTags.js'
 import './MapView.css'
 
 delete L.Icon.Default.prototype._getIconUrl
 L.Icon.Default.mergeOptions({ iconUrl: '', shadowUrl: '' })
+
+// OpenFreeMap: free vector tiles, no key, commercial use allowed. Drawn by
+// MapLibre GL inside Leaflet's tile pane; attribution (OpenFreeMap,
+// OpenMapTiles, © OpenStreetMap contributors) comes from the style itself.
+const BASEMAP_STYLE_URL = 'https://tiles.openfreemap.org/styles/dark'
+
+function BaseMap() {
+  const map = useMap()
+  useEffect(() => {
+    const layer = maplibreGL({ style: BASEMAP_STYLE_URL }).addTo(map)
+    // The GL canvas only resizes on Leaflet's `resize` event, which fires only
+    // from invalidateSize(). The Map⇄DAW toggle resizes the container without
+    // a window resize, leaving the basemap clipped — so watch the container.
+    let raf = 0
+    const observer = new ResizeObserver(() => {
+      cancelAnimationFrame(raf)
+      raf = requestAnimationFrame(() => map.invalidateSize())
+    })
+    observer.observe(map.getContainer())
+    return () => {
+      cancelAnimationFrame(raf)
+      observer.disconnect()
+      layer.remove()
+    }
+  }, [map])
+  return null
+}
 
 function positionAlongRoute(route, progress) {
   const stops = route.stops
@@ -345,11 +374,7 @@ function MapView({
         <PlayheadPaneSetup paneRef={playheadPane} />
         <CityView city={city} routes={allRoutes} active={active} />
 
-        <TileLayer
-          url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-          attribution='&copy; <a href="https://carto.com/">CARTO</a>'
-          maxZoom={19}
-        />
+        <BaseMap />
 
         {routeLayers}
 
