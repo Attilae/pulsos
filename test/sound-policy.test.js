@@ -4,7 +4,7 @@ import { SOUND_RECIPES, SOUND_IDS, DEFAULT_SOUND_IDS, soundRecipeTrack, soundRec
 import { GENRE_RECIPES, selectRecipe, soundContextText } from '../lib/ai/musicalPolicy.js'
 import { validatePlan, buildSystemPrompt, buildComposerGuide } from '../lib/ai/planContract.js'
 import { planAdvisories } from '../lib/ai/planAdvisories.js'
-import { SYNTH_TYPES, SYNTH_DEFAULTS } from '../lib/soundSpecs.js'
+import { SYNTH_TYPES, SYNTH_DEFAULTS, PICKER_SYNTH_TYPES, pickerSynthTypes } from '../lib/soundSpecs.js'
 
 // The sound recipes are data the prompt hands the model as "use these settings",
 // so every one must survive the real contract untouched (nothing dropped, nothing
@@ -22,12 +22,18 @@ test('sound recipe ids are unique and every genre points at existing sounds', ()
   for (const r of SOUND_RECIPES) assert.ok(SYNTH_TYPES.includes(r.synthType), `${r.id} uses a real instrument`)
 })
 
-// The picker (DawView/LaneSheet), the plan vocabulary and the engine all read
-// SYNTH_TYPES; an instrument missing from it can't be reselected once a plan or
-// song sets it, and one missing from SYNTH_DEFAULTS has no params to build from.
-test('the instrument picker lists exactly the instruments the engine can build', () => {
+// The plan vocabulary and the engine read SYNTH_TYPES; one missing from
+// SYNTH_DEFAULTS has no params to build from. The DAW picker offers a subset.
+test('SYNTH_TYPES lists exactly the instruments the engine can build', () => {
   assert.deepEqual([...SYNTH_TYPES].sort(), Object.keys(SYNTH_DEFAULTS).sort())
   assert.equal(new Set(SYNTH_TYPES).size, SYNTH_TYPES.length)
+  for (const t of PICKER_SYNTH_TYPES) assert.ok(SYNTH_TYPES.includes(t), `${t} is buildable`)
+})
+
+test("the picker keeps a lane's hidden instrument listed", () => {
+  assert.deepEqual(pickerSynthTypes('Synth'), PICKER_SYNTH_TYPES)
+  assert.deepEqual(pickerSynthTypes('DuoSynth'), [...PICKER_SYNTH_TYPES, 'DuoSynth'])
+  assert.deepEqual(pickerSynthTypes('Bogus'), PICKER_SYNTH_TYPES)
 })
 
 test('every sound recipe validates untouched through validatePlan', () => {

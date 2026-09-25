@@ -608,8 +608,10 @@ classes.
   recipes R1–R15. Each genre names its `sounds`, and only those go into the prompt. With no genre,
   the in-app prompt gets `DEFAULT_SOUND_IDS` and the MCP guide gets all of them. Recipes and the
   genre texts stick to the instruments a plan fully controls (Synth, MonoSynth, FMSynth, PolySynth,
-  PluckSynth, NoiseSynth, Sampler, Drums). All twelve types are in the lane picker: `SYNTH_TYPES` in
-  `soundSpecs.js` is the one list, re-exported by `engine.js`, `DawView.jsx` and `planContract.js`.
+  PluckSynth, NoiseSynth, Sampler, Drums). `SYNTH_TYPES` in `soundSpecs.js` is every buildable type
+  (engine + plan vocabulary); the DAW lane picker (desktop rack + phone `LaneSheet`) offers only
+  `PICKER_SYNTH_TYPES` (Synth, FMSynth, NoiseSynth, PolySynth, Sampler, Drums). `pickerSynthTypes(current)`
+  appends a lane's hidden type so a plan- or song-set instrument still displays correctly.
 - **Plan `tone`** covers `oscillator`, `harmonicity`, `modulationIndex`, `modEnvelope`, MonoSynth's
   `filterEnvelope`/`filterQ` and PluckSynth's `resonance`/`dampening`/`attackNoise`. It is
   flattened by `toneToSynthParams` (`soundSpecs.js`) / `trackSynthParams` (`planApply.js`) into the

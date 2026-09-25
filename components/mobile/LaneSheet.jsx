@@ -17,7 +17,7 @@
 import { useMemo, useState } from 'react'
 import Sheet from '../Sheet.jsx'
 import {
-  NOTE_ROOTS, SCALE_TYPES, SYNTH_TYPES, SidechainSourceOptions,
+  NOTE_ROOTS, SCALE_TYPES, pickerSynthTypes, SidechainSourceOptions,
   SPEED_OPTIONS, ARP_STYLE_LABELS, ARP_RATE_LABELS,
   CONTOUR_LABELS, CONTOUR_TITLES,
 } from '../DawView.jsx'
@@ -127,7 +127,7 @@ export default function LaneSheet({
                 value={synthType ?? 'Synth'}
                 onChange={e => onSynthType(route.id, route.type, e.target.value)}
               >
-                {SYNTH_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                {pickerSynthTypes(synthType ?? 'Synth').map(t => <option key={t} value={t}>{t}</option>)}
               </select>
             </Field>
 

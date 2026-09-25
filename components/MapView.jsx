@@ -20,13 +20,17 @@ function BaseMap() {
   const map = useMap()
   useEffect(() => {
     const layer = maplibreGL({ style: BASEMAP_STYLE_URL }).addTo(map)
-    // The GL canvas only resizes on Leaflet's `resize` event, which fires only
-    // from invalidateSize(). The Map⇄DAW toggle resizes the container without
-    // a window resize, leaving the basemap clipped — so watch the container.
+    // The Map⇄DAW toggle resizes the container without a window resize, so
+    // watch it directly. invalidateSize() updates Leaflet, but the binding's
+    // resize handler never calls MapLibre's resize(), leaving the GL map on its
+    // old viewport — the basemap stays clipped until the next pan. Do both.
     let raf = 0
     const observer = new ResizeObserver(() => {
       cancelAnimationFrame(raf)
-      raf = requestAnimationFrame(() => map.invalidateSize())
+      raf = requestAnimationFrame(() => {
+        map.invalidateSize()
+        layer.getMaplibreMap()?.resize()
+      })
     })
     observer.observe(map.getContainer())
     return () => {
@@ -141,24 +145,38 @@ function boundsFromRoutes(routes) {
   return latMin <= latMax ? { latMin, latMax, lngMin, lngMax } : null
 }
 
-// Recenters the map on the active city. The MapContainer `center` prop only
-// applies on first mount, so this fits the loaded routes' bounds (falling back to
-// the city's bounds, then its center) whenever the city or its routes change.
-function CityView({ city, routes, active }) {
+// Frames the map on what's playing. The MapContainer `center` prop only applies
+// on first mount, so this fits the active (enabled / soloed) lanes' bounds —
+// falling back to every loaded route, then the city's bounds, then its center
+// when nothing is active — and refits whenever the city or active set changes.
+const FIT_MAX_ZOOM = 15             // one short line shouldn't zoom to street level
+const FIT_PADDING_TOP_LEFT = [110, 30]  // clear the lane-status overlay on the left
+const FIT_PADDING_BOTTOM_RIGHT = [30, 30]
+
+function CityView({ city, routes, disabled, soloRoutes, active }) {
   const map = useMap()
-  // Stable signature so we refit on city/route-set changes, not every render.
-  const key = `${city?.id ?? ''}:${routes?.length ?? 0}`
+  const activeRoutes = useMemo(
+    () => (routes ?? []).filter(r => isRouteActive(r, disabled, soloRoutes)),
+    [routes, disabled, soloRoutes]
+  )
+  // Stable signature so we refit when the city or the set of active lanes
+  // changes, not on every render (the playhead re-renders at 30 fps).
+  const key = `${city?.id ?? ''}:${routes?.length ?? 0}:${activeRoutes.map(r => r.id).sort().join(',')}`
   useEffect(() => {
     // Skip while hidden: fitBounds on a display:none (0×0) container makes
     // Leaflet's getBoundsZoom return maxZoom, zooming to street level. We refit
     // once the map is visible/sized (this effect also re-runs on active false→true).
     if (!active) return
-    const b = boundsFromRoutes(routes) ?? city?.bounds
+    const b = boundsFromRoutes(activeRoutes.length ? activeRoutes : routes) ?? city?.bounds
     // Wait for the container to have real dimensions before computing the fit.
     const id = setTimeout(() => {
       map.invalidateSize()
       if (b && [b.latMin, b.latMax, b.lngMin, b.lngMax].every(Number.isFinite)) {
-        map.fitBounds([[b.latMin, b.lngMin], [b.latMax, b.lngMax]], { padding: [20, 20] })
+        map.fitBounds([[b.latMin, b.lngMin], [b.latMax, b.lngMax]], {
+          paddingTopLeft: FIT_PADDING_TOP_LEFT,
+          paddingBottomRight: FIT_PADDING_BOTTOM_RIGHT,
+          maxZoom: FIT_MAX_ZOOM,
+        })
       } else if (Array.isArray(city?.center)) {
         map.setView(city.center, map.getZoom())
       }
@@ -286,13 +304,13 @@ function MapView({
               {layerRoutes.map(route => {
                 const { opacity, weight, dashArray } = routeStyle(route, disabled, soloRoutes)
                 return route.polylines.map(pl => (
+                  // Style goes through pathOptions: react-leaflet applies bare
+                  // color/weight/opacity props only at creation, so toggling a
+                  // lane on would leave its line drawn dimmed and dashed.
                   <Polyline
                     key={`${route.id}_${pl.direction}`}
                     positions={pl.coords}
-                    color={route.color}
-                    weight={weight}
-                    opacity={opacity}
-                    dashArray={dashArray}
+                    pathOptions={{ color: route.color, weight, opacity, dashArray }}
                   >
                     <Tooltip sticky>{route.name} — {route.desc}</Tooltip>
                   </Polyline>
@@ -372,7 +390,13 @@ function MapView({
       >
         <MapResizer active={active} />
         <PlayheadPaneSetup paneRef={playheadPane} />
-        <CityView city={city} routes={allRoutes} active={active} />
+        <CityView
+          city={city}
+          routes={allRoutes}
+          disabled={disabled}
+          soloRoutes={soloRoutes}
+          active={active}
+        />
 
         <BaseMap />
 

@@ -5,7 +5,7 @@ import { FX_BUSES, AUTOMATION_TARGETS, FX_PARAM_SPECS, FX_SYNC_TARGETS } from '@
 import { PAD_DEFS as DRUM_PAD_DEFS, STEPS as DRUM_STEPS, SOURCE_STEPS as DRUM_SOURCE_STEPS, emptyPattern as emptyDrumPattern } from '@/lib/engines/drumEngine.js'
 import { generatePitchMap, shiftOctaveNote, shiftSemitones, noteToMidi, SCALES, hashStopValue, snapStopsToGrid, GRID_TOTAL_CELLS, GRID_BARS, GRID_STEPS_PER_BAR, GRID_RESOLUTION_STEPS_PER_BAR, DEFAULT_GRID_RESOLUTION, denormalizeToRange, denormalizeExp, transposeNoteInScale, PITCH_CONTOURS, DEFAULT_PITCH_VARIETY } from '@/lib/mappings.js'
 import { buildLanePitchMaps } from '@/lib/laneNotes.js'
-import { SYNTH_TYPES, OSC_TYPES } from '@/lib/soundSpecs.js'
+import { pickerSynthTypes, OSC_TYPES } from '@/lib/soundSpecs.js'
 import { NOTE_LENGTHS, NOTE_LENGTH_LABELS, DEFAULT_NOTE_LENGTH } from '@/lib/noteLength.js'
 import { useResetGesture } from '@/lib/shared/useResetGesture.js'
 import { useIsPhone } from '@/lib/shared/useViewport.js'
@@ -19,7 +19,7 @@ import { NOTE_ROOTS, SCALE_TYPES } from '@/lib/harmony.js'
 import './DawView.css'
 
 // Exported so the phone lane sheet offers exactly the same instruments.
-export { SYNTH_TYPES } from '@/lib/soundSpecs.js'
+export { pickerSynthTypes } from '@/lib/soundSpecs.js'
 
 // Lane groupings, in render order. Exported so the phone lane list
 // (components/mobile/MobileLaneList.jsx) groups tracks identically.
@@ -942,7 +942,7 @@ function LineTrack({
               onChange={e => onSynthType(e.target.value)}
               aria-label="Instrument type"
             >
-              {SYNTH_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+              {pickerSynthTypes(synthType).map(t => <option key={t} value={t}>{t}</option>)}
             </select>
           </div>
 
