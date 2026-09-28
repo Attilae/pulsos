@@ -75,7 +75,7 @@ logic** — nothing boots Tone.js, React, or the DB: `billing-plans` (`lib/billi
 (`lib/songLanes.js`), `song-snapshot` + `song-migrate` (`lib/songState.js`), `stop-signals`
 (`scripts/lib/stopSignals.js`), `ridership-adapters` (`scripts/ridership/`),
 `feedback-validate` (`lib/feedback.js`), `turnstile-hostnames` (`lib/turnstile.js`),
-`lane-cycles` (`lib/laneCycles.js`), `lane-gating` (`lib/laneGating.js`), `auth-origins`
+`lane-cycles` (`lib/laneCycles.js`), `master-curves` (`lib/masterCurves.js`), `lane-gating` (`lib/laneGating.js`), `auth-origins`
 (`lib/authOrigins.js`), `mcp-tools`
 (`lib/server/mcpTools.js` — drives the real MCP SDK client/handler in-process, but every DB/billing
 call is injected through its `services` argument, so it still never touches Postgres),
@@ -413,11 +413,21 @@ per-route synth / VehicleVoice / Sampler
    → per-route insert FX (filter, weq8 EQ, sidechain duck, pan, volume)
    → per-line-type Volume+Panner bus (metro/tram/trolley/bus/hev)
    → AlertLayer (service-alert-driven reverb + scale/mode)
-   → Tone.Destination
-   ⇗ parallel FX sends (FxTrack buses: reverb/delay/etc.) via a send matrix
+   → per-engine master gain → shared master bus (lib/masterBus.js) → Tone.Destination
+   ⇗ parallel FX sends (FxTrack buses: reverb/delay/etc.) via a send matrix, returning
+     after the AlertLayer reverb
 NetworkState (drone hum + hub-convergence chords) → AlertLayer input
 ```
 
+- **The master bus is shared and hidden** (`lib/masterBus.js`, `getMasterBus()`): one
+  mastering chain per audio context (HPF → mud cut → air shelf → glue compressor → tanh
+  saturation → limiter → soft clipper; curves in the pure `lib/masterCurves.js`) that every
+  `TransitEngine` feeds, so the Song Chainer's two engines are limited as one sum. It sits
+  *ahead of* `Destination` rather than in `Destination.chain()` because the master fader is
+  `Destination.volume` — Destination's input — and must stay post-mastering. `legacy` mode
+  reproduces the old per-engine compressor+limiter for A/B; switch from the console with
+  `leidMaster.set('master'|'legacy')` (persisted to localStorage). Only TransitEngine feeds it —
+  the other tabs' engines still go straight to Destination.
 - Most settings **persist across start/stop** (stored in plain `_xxx` maps on the instance) and
   are re-applied when a synth/part is (re)built.
 - **The drum lane is a reserved pseudo-route**: `DRUMS_ROUTE_ID = '__drums__'` gets one insert
