@@ -75,7 +75,9 @@ logic** — nothing boots Tone.js, React, or the DB: `billing-plans` (`lib/billi
 (`lib/songLanes.js`), `song-snapshot` + `song-migrate` (`lib/songState.js`), `stop-signals`
 (`scripts/lib/stopSignals.js`), `ridership-adapters` (`scripts/ridership/`),
 `feedback-validate` (`lib/feedback.js`), `turnstile-hostnames` (`lib/turnstile.js`),
-`lane-cycles` (`lib/laneCycles.js`), `master-curves` (`lib/masterCurves.js`), `lane-gating` (`lib/laneGating.js`), `auth-origins`
+`lane-cycles` (`lib/laneCycles.js`), `master-curves` (`lib/masterCurves.js`),
+`true-peak-limiter` (`public/worklets/true-peak-limiter.js`), `wav-pcm` (`lib/wavPcm.js` — dithered
+16-bit conversion for WAV export), `lane-gating` (`lib/laneGating.js`), `auth-origins`
 (`lib/authOrigins.js`), `mcp-tools`
 (`lib/server/mcpTools.js` — drives the real MCP SDK client/handler in-process, but every DB/billing
 call is injected through its `services` argument, so it still never touches Postgres),
@@ -421,13 +423,23 @@ NetworkState (drone hum + hub-convergence chords) → AlertLayer input
 
 - **The master bus is shared and hidden** (`lib/masterBus.js`, `getMasterBus()`): one
   mastering chain per audio context (HPF → mud cut → air shelf → glue compressor → tanh
-  saturation → limiter → soft clipper; curves in the pure `lib/masterCurves.js`) that every
+  saturation → true-peak limiter; curves in the pure `lib/masterCurves.js`) that every
   `TransitEngine` feeds, so the Song Chainer's two engines are limited as one sum. It sits
   *ahead of* `Destination` rather than in `Destination.chain()` because the master fader is
   `Destination.volume` — Destination's input — and must stay post-mastering. `legacy` mode
   reproduces the old per-engine compressor+limiter for A/B; switch from the console with
   `leidMaster.set('master'|'legacy')` (persisted to localStorage). Only TransitEngine feeds it —
   the other tabs' engines still go straight to Destination.
+- **The master limiter is an AudioWorklet** — `public/worklets/true-peak-limiter.js`, a
+  5 ms-lookahead, 4×-oversampled true-peak brickwall at -1 dBTP. It lives in `public/` because
+  worklet modules are fetched by URL and can't import from `lib/`; its DSP is the
+  `TruePeakLimiter` class, which the test evaluates straight from that file. The file must have
+  **no `import`/`export`** — standardized-audio-context (Tone's context) re-evaluates worklet
+  source wrapped in a function body, where a top-level `export` is a syntax error. It
+  loads asynchronously, so the path starts on a native DynamicsCompressor limiter + soft clipper
+  and `_installTruePeak` swaps the worklet in once ready (the stand-in stays if it can't load).
+  Load it with `rawContext.audioWorklet.addModule`, **not** Tone's `addAudioWorkletModule`, which
+  caches the first module per context and returns that promise for every later URL.
 - Most settings **persist across start/stop** (stored in plain `_xxx` maps on the instance) and
   are re-applied when a synth/part is (re)built.
 - **The drum lane is a reserved pseudo-route**: `DRUMS_ROUTE_ID = '__drums__'` gets one insert
