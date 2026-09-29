@@ -168,7 +168,7 @@
 @media (hover: none) {
   /* Stop names/notes were hover-only, i.e. unreachable on touch. The phone
      layout lists them as text in the lane sheet instead. */
-  .stop-dot:hover .stop-label { opacity: 0; }
+  .stop-dot:hover .stop-label { display: none; }
   .stop-dot:hover { transform: translate(-50%, -50%); }
   .loop-handle:hover::before { width: 1px; }
   .tab-btn:hover { background: transparent; color: var(--muted); }
@@ -177,25 +177,46 @@
   .rack-toggle:hover { background: var(--surface2); }
 }
 
-/* ── Tablet: the desktop instrument, sized for fingers ───────────────────── */
+/* ── Tablet width: the desktop instrument in 768-1023px ────────────────────
+   (1023 = TABLET_MIN + the desktop breakpoint - 1; see lib/shared/breakpoints.js.)
+   At 768px the 260px event-log column left ~500px for lanes whose header row
+   (200px label + 120px volume + 72px pan + buttons, none shrinkable) was
+   wider than that, so the whole track list scrolled sideways. The log is a
+   passive readout the phone layout already omits; the header row wraps. */
 @media (min-width: 768px) and (max-width: 1023px) {
-  .solo-btn, .disable-btn, .mute-btn,
-  .lt-mix .midi-export-btn, .chain-icon, .stop-editor-step { min-width: 36px; min-height: 36px; }
-  .octave-btn { min-width: 32px; min-height: 32px; }
-  .sp-slider::-webkit-slider-thumb { width: 18px; height: 18px; margin-top: -7.5px; }
-  .sp-slider::-moz-range-thumb { width: 18px; height: 18px; }
+  .daw { grid-template-columns: 1fr; grid-template-areas: "header" "tracks" "footer"; }
+  .daw > .daw-body > .event-log,
+  .daw .event-log { display: none; }
+  .lt-top { flex-wrap: wrap; row-gap: var(--space-075); }
+  .lt-top .line-label { width: 160px; }
+  .line-label-top { flex-wrap: wrap; }
+  /* The tagline squeezed into a five-line column beside the song menu. */
+  .daw-sub { display: none; }
+  .lt-mix .volume-slider { width: 96px; }
+  .master-chain-card { min-width: 280px; }
+  .chain-body { grid-template-columns: 200px 1fr; }
+  .chain-item-row { flex-wrap: wrap; }
 }
 
-/* Enlarged hit areas for the precision rail controls, at any width where the
-   pointer is a finger. The *visual* size is unchanged — the loop handle's line
-   is a ::before, and the automation dot grows an invisible ::after — so the
-   desktop look survives on a touchscreen laptop. */
+/* ── Touch: sized for fingers wherever the pointer is one ──────────────────
+   Keyed on pointer, not width: an iPad in landscape (≥1024px) is still a
+   finger, and a narrow desktop window is still a mouse. */
 @media (pointer: coarse) {
-  .loop-handle { width: 24px; }
-  .auto-dot::after {
+  .solo-btn, .disable-btn, .mute-btn, .drum-lane-mute,
+  .lt-mix .midi-export-btn, .chain-icon, .stop-editor-step,
+  .octave-btn { min-width: var(--tap-min); min-height: var(--tap-min); }
+  .sp-slider::-webkit-slider-thumb { width: 22px; height: 22px; margin-top: -9.5px; }
+  .sp-slider::-moz-range-thumb { width: 22px; height: 22px; }
+
+  /* Enlarged hit areas for the precision rail controls. The *visual* size is
+     unchanged: the loop handle's line is a ::before, and the dots grow an
+     invisible ::after, so the desktop look survives on a touchscreen. */
+  .loop-handle { width: var(--tap-min); }
+  .auto-dot::after,
+  .stop-dot--editable::after {
     content: '';
     position: absolute;
-    inset: -12px;
+    inset: -14px;
   }
 }
 
