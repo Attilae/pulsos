@@ -1588,6 +1588,118 @@
 }
 
 
+/* ── Mastering card (master bus) ────────────────────────────────────────── */
+.master-chain-card {
+  min-width: 340px;
+  max-width: 400px;
+}
+
+.master-chain-name {
+  color: var(--accent);
+  min-width: 0;
+}
+
+.master-chain-flow {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.52rem;
+  color: var(--muted);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.master-chain-arrow {
+  margin: 0 3px;
+  opacity: 0.6;
+}
+
+.master-chain-reset,
+.master-chain-toggle {
+  font-size: 0.55rem;
+  font-family: inherit;
+  padding: 1px 6px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  flex-shrink: 0;
+  line-height: 1.4;
+}
+.master-chain-reset:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.master-chain-toggle.active {
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+/* The card dims when off, but the On/Off switch has to stay readable. */
+.master-chain-card.fx-track-card--muted {
+  opacity: 1;
+}
+.master-chain-card.fx-track-card--muted .master-chain-params,
+.master-chain-card.fx-track-card--muted .master-chain-flow {
+  opacity: 0.4;
+}
+
+.master-chain-params {
+  display: grid;
+  /* minmax(0, …): plain 1fr won't shrink below the rows' content and overflows. */
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: repeat(4, auto);
+  grid-auto-flow: column;
+  column-gap: 12px;
+}
+.master-chain-params .fx-param-row {
+  min-width: 0;
+}
+.master-chain-params .fx-param-val {
+  min-width: 38px;
+}
+
+.master-chain-meters {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 12px;
+  padding: 0 8px 8px;
+  min-height: 14px;
+}
+
+.gr-meter {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.gr-meter-track {
+  flex: 1;
+  height: 4px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--muted) 20%, transparent);
+  overflow: hidden;
+  min-width: 0;
+  /* Gain reduction grows from the right, like a hardware GR meter. */
+  display: flex;
+  justify-content: flex-end;
+}
+.gr-meter-fill {
+  height: 100%;
+  background: var(--warning);
+  transition: width 80ms linear;
+}
+
+.master-chain-off-note {
+  grid-column: 1 / -1;
+  font-size: 0.55rem;
+  color: var(--muted);
+  letter-spacing: 0.04em;
+}
+
+
 /* ── Add FX button ──────────────────────────────────────────────────────── */
 .fx-add-area {
   display: flex;
