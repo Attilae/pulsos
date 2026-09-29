@@ -45,6 +45,24 @@
   --tap-min: 44px;
   --mtopbar-h: 44px;
   --thumbbar-h: 56px;
+  /* Type scale (root is 14px). --fs-3xs is the floor for any text a person
+     has to read; below it the old sheets went to 5-8px. */
+  --fs-3xs: 0.62rem;   /* ≈8.7px  dense rack labels, units */
+  --fs-2xs: 0.68rem;   /* ≈9.5px  secondary labels */
+  --fs-xs: 0.72rem;    /* ≈10px   controls, captions */
+  --fs-sm: 0.78rem;    /* ≈11px   default UI text */
+  --fs-md: 0.86rem;    /* ≈12px   body in panels */
+  --fs-base: 1rem;     /* 14px */
+  --fs-lg: 1.15rem;    /* ≈16px */
+  --fs-xl: 1.4rem;     /* ≈20px */
+  /* The one exception: note names and bar numbers drawn inside a stop rail,
+     where dots sit 10-20px apart and readable text would collide. Each dot
+     carries the same information in its accessible name, tooltip and editor. */
+  --fs-micro: 0.5rem;
+  /* Tracking: body, small labels, uppercase caps labels */
+  --tracking-tight: 0.02em;
+  --tracking-wide: 0.06em;
+  --tracking-caps: 0.12em;
   /* Type */
   --font-sans: var(--font-inter, ui-sans-serif, system-ui, -apple-system, sans-serif);
   --font-mono: var(--font-jetbrains, ui-monospace, "SF Mono", Menlo, monospace);
@@ -59,8 +77,13 @@
   --border-strong: var(--n-600);
   --text: var(--n-20);
   --text-subtle: var(--n-100);
-  --muted: var(--n-300);
+  /* Secondary text. n-200 clears 4.5:1 on bg, surface and surface2
+     (n-300 measured 3.3-4.0:1, below WCAG AA for the small labels it colours). */
+  --muted: var(--n-200);
   --muted-strong: var(--n-100);
+  /* Quiet non-text chrome (idle borders, meter tracks, fallback swatches):
+     keeps the pre-contrast-fix value, since lines don't need 4.5:1. */
+  --muted-line: var(--n-300);
   --hover-surface: var(--n-700);
   --hover-bg: rgba(255,255,255,0.06);
 
@@ -75,6 +98,11 @@
   --warning: var(--amber-bright);
   --success: var(--green-bright);
   --info: var(--blue-bright);
+  /* Status hues as TEXT. Same as the fills in dark; in light the deep fills
+     read at 3.2-4.0:1, so text gets its own darker step. */
+  --warning-text: var(--warning);
+  --success-text: var(--success);
+  --automation-text: var(--automation);
 
   --grid-line: rgba(255,255,255,0.05);
   --elevation-raised: 0 1px 2px rgba(0,0,0,0.5);
@@ -94,8 +122,9 @@
   --border-strong: var(--n-50);
   --text: var(--n-900);
   --text-subtle: var(--n-400);
-  --muted: var(--n-300);
+  --muted: var(--n-400);
   --muted-strong: var(--n-400);
+  --muted-line: var(--n-300);
   --hover-surface: var(--n-20);
   --hover-bg: rgba(9,15,25,0.05);
 
@@ -110,6 +139,9 @@
   --warning: var(--amber-deep);
   --success: var(--green-deep);
   --info: var(--blue-deep);
+  --warning-text: #8f5d12;     /* ≥4.9:1 on bg, surface, surface2 */
+  --success-text: #23724a;     /* ≥5.1:1 */
+  --automation-text: #8f5d12;  /* automation is amber */
 
   --grid-line: rgba(9,15,25,0.07);
   --elevation-raised: 0 1px 2px rgba(20,25,35,0.12);
@@ -147,4 +179,33 @@ button, [role="button"], .tab-btn, select {
   clip: rect(0 0 0 0);
   white-space: nowrap;
   border: 0;
+}
+
+/* ── Keyboard focus ─────────────────────────────────────────────────────────
+   One visible ring for every focusable control. `:root` lifts specificity to
+   (0,2,0) so it beats the class-level `outline: none` resets scattered through
+   component CSS (those remain for mouse focus, which :focus-visible skips);
+   a component that styles its own `.x:focus-visible` loads later and still
+   wins. Dialog panels take focus programmatically only as a fallback, so they
+   don't get the ring. */
+:root :focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+:root [role="dialog"]:focus-visible,
+:root [role="alertdialog"]:focus-visible,
+:root [role="tabpanel"]:focus-visible {
+  outline: none;
+}
+
+/* ── Reduced motion ─────────────────────────────────────────────────────────
+   Looping animations (save pulse, arrival rings, "working" signals) play one
+   cycle instead of forever: the moment is still marked, nothing keeps moving.
+   Transitions stay, since they carry state changes (open/closed, on/off).
+   Components with their own reduced-motion blocks still apply on top. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-iteration-count: 1 !important;
+  }
+  html { scroll-behavior: auto; }
 }

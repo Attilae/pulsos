@@ -1,7 +1,7 @@
 /* Sound-check panel. Rendered inside <Sheet>, so no overlay styling here. */
 
 .audio-check-verdict {
-  font-size: 0.78rem;
+  font-size: var(--fs-sm);
   line-height: 1.5;
   padding: var(--space-100) var(--space-150);
   border-radius: var(--radius-sm);
@@ -48,7 +48,7 @@
 .audio-check-dot--ok      { background: var(--success); }
 .audio-check-dot--bad     { background: var(--danger); }
 /* Not "unknown" as in broken — as in "we can't see this from here". */
-.audio-check-dot--unknown { background: none; border: 1px solid var(--muted); }
+.audio-check-dot--unknown { background: none; border: 1px solid var(--muted-line); }
 
 .audio-check-text {
   flex: 1;
@@ -59,14 +59,14 @@
 }
 
 .audio-check-label {
-  font-size: 0.66rem;
-  letter-spacing: 0.12em;
+  font-size: var(--fs-2xs);
+  letter-spacing: var(--tracking-caps);
   text-transform: uppercase;
   color: var(--muted-strong);
 }
 
 .audio-check-detail {
-  font-size: 0.78rem;
+  font-size: var(--fs-sm);
   line-height: 1.5;
   color: var(--text);
 }
@@ -82,7 +82,7 @@
   border: 1px solid var(--accent);
   border-radius: var(--radius-sm);
   font-family: inherit;
-  font-size: 0.74rem;
+  font-size: var(--fs-xs);
   white-space: nowrap;
   cursor: pointer;
 }
@@ -132,7 +132,7 @@
 }
 
 .audio-check-foot {
-  font-size: 0.7rem;
+  font-size: var(--fs-2xs);
   line-height: 1.5;
   color: var(--muted);
 }

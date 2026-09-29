@@ -1,20 +1,20 @@
 /* First-run notice. Rendered inside <Sheet>; no overlay styling here. */
 
 .intro-lead {
-  font-size: 0.92rem;
+  font-size: var(--fs-md);
   line-height: 1.5;
   color: var(--text);
 }
 
 .intro-note {
-  font-size: 0.8rem;
+  font-size: var(--fs-sm);
   line-height: 1.55;
   color: var(--muted-strong);
 }
 
 /* The one thing a user genuinely cannot work out for themselves. */
 .intro-warn {
-  font-size: 0.8rem;
+  font-size: var(--fs-sm);
   line-height: 1.55;
   color: var(--text-subtle);
   padding: var(--space-150);
@@ -33,7 +33,7 @@
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   font-family: inherit;
-  font-size: 0.8rem;
+  font-size: var(--fs-sm);
   cursor: pointer;
 }
 .intro-btn--primary {

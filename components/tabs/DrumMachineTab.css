@@ -17,20 +17,20 @@
   gap: 14px;
 }
 .drum-title {
-  font-size: 1.05rem;
-  letter-spacing: 0.12em;
+  font-size: var(--fs-base);
+  letter-spacing: var(--tracking-caps);
   color: var(--accent);
   white-space: nowrap;
   margin-right: auto;
 }
 .drum-bpm {
   display: flex; align-items: center; gap: 6px;
-  font-size: 0.72rem; color: var(--muted);
+  font-size: var(--fs-xs); color: var(--muted);
 }
 .drum-bpm input {
   width: 56px; padding: 5px 6px;
   background: var(--surface2); border: 1px solid var(--border);
-  color: var(--text); font-family: inherit; font-size: 0.78rem;
+  color: var(--text); font-family: inherit; font-size: var(--fs-sm);
   border-radius: 3px; text-align: center; outline: none;
 }
 .drum-bpm input:disabled { opacity: 0.5; }
@@ -41,7 +41,7 @@
   background: var(--surface2);
   color: var(--text);
   font-family: inherit;
-  font-size: 0.82rem;
+  font-size: var(--fs-sm);
   cursor: pointer;
   border-radius: 3px;
   transition: background 0.12s, color 0.12s, border-color 0.12s;
@@ -50,7 +50,7 @@
 .drum-btn--ghost {
   background: transparent;
   color: var(--muted);
-  font-size: 0.74rem;
+  font-size: var(--fs-xs);
   padding: 6px 12px;
 }
 .drum-btn--ghost:hover { color: var(--text); }
@@ -87,10 +87,10 @@
   gap: 4px;
 }
 .drum-pad-name {
-  font-weight: bold;
-  font-size: 0.92rem;
+  font-weight: 700;
+  font-size: var(--fs-md);
   color: var(--text);
-  letter-spacing: 0.06em;
+  letter-spacing: var(--tracking-wide);
 }
 .drum-route-pick {
   background: var(--surface2);
@@ -99,7 +99,7 @@
   border-radius: 3px;
   padding: 4px 6px;
   font-family: inherit;
-  font-size: 0.74rem;
+  font-size: var(--fs-xs);
   outline: none;
   cursor: pointer;
 }
@@ -114,7 +114,7 @@
   cursor: pointer;
   border-radius: 3px;
   font-family: inherit;
-  font-size: 0.82rem;
+  font-size: var(--fs-sm);
   transition: background 0.1s, color 0.1s, border-color 0.1s;
 }
 .drum-mini-btn:hover { background: var(--hover-surface); color: var(--text); }
@@ -139,7 +139,7 @@
   cursor: pointer;
 }
 .drum-offset-value {
-  font-size: 0.7rem;
+  font-size: var(--fs-2xs);
   color: var(--muted);
   font-variant-numeric: tabular-nums;
   width: 18px;
@@ -177,7 +177,7 @@
 }
 .drum-step.playing:not(.on) {
   background: var(--border);
-  border-color: var(--muted);
+  border-color: var(--muted-line);
 }
 .drum-step.playing.on {
   background: var(--text);
@@ -192,7 +192,7 @@
   background: var(--surface);
 }
 .drum-hint {
-  font-size: 0.72rem;
+  font-size: var(--fs-xs);
   color: var(--muted);
   text-align: center;
 }

@@ -31,9 +31,9 @@
   margin: 0 0 var(--space-300);
   color: var(--accent);
   font-family: var(--font-mono);
-  font-size: 0.8rem;
+  font-size: var(--fs-sm);
   font-weight: 700;
-  letter-spacing: 0.18em;
+  letter-spacing: var(--tracking-caps);
 }
 
 .title {
@@ -46,7 +46,7 @@
 .lede {
   margin: 0 0 var(--space-300);
   color: var(--text-subtle);
-  font-size: 0.95rem;
+  font-size: var(--fs-base);
   line-height: 1.5;
 }
 
@@ -89,7 +89,7 @@
   margin: 2px 0 0;
   color: var(--muted-strong);
   font-family: var(--font-mono);
-  font-size: 0.72rem;
+  font-size: var(--fs-xs);
   overflow-wrap: anywhere;
 }
 
@@ -97,8 +97,8 @@
   margin: 0 0 var(--space-100);
   color: var(--muted-strong);
   font-family: var(--font-mono);
-  font-size: 0.7rem;
-  letter-spacing: 0.12em;
+  font-size: var(--fs-2xs);
+  letter-spacing: var(--tracking-caps);
   text-transform: uppercase;
 }
 
@@ -114,7 +114,7 @@
   display: flex;
   align-items: flex-start;
   gap: var(--space-100);
-  font-size: 0.92rem;
+  font-size: var(--fs-md);
   line-height: 1.4;
 }
 
@@ -167,7 +167,7 @@
 .note {
   margin: var(--space-200) 0 0;
   color: var(--muted-strong);
-  font-size: 0.8rem;
+  font-size: var(--fs-sm);
   line-height: 1.5;
   text-align: center;
 }
@@ -187,7 +187,7 @@
   border: 1px solid var(--red-deep);
   border-radius: var(--radius-md);
   color: var(--red-bright);
-  font-size: 0.88rem;
+  font-size: var(--fs-md);
 }
 
 @media (max-width: 767px) { /* PHONE_MAX — lib/shared/breakpoints.js */
@@ -223,7 +223,7 @@
   background: transparent;
   color: var(--muted-strong);
   font: inherit;
-  font-size: 0.9rem;
+  font-size: var(--fs-md);
   font-weight: 600;
   cursor: pointer;
 }
@@ -245,7 +245,7 @@
   background: var(--surface-sunken);
   color: var(--text);
   font: inherit;
-  font-size: 1rem; /* ≥16px keeps iOS Safari from zooming on focus */
+  font-size: var(--fs-base); /* ≥16px keeps iOS Safari from zooming on focus */
 }
 
 .authForm input::placeholder { color: var(--muted); text-transform: capitalize; }
@@ -288,7 +288,7 @@
 .authForm :global(.auth-msg) {
   margin: 0;
   color: var(--muted-strong);
-  font-size: 0.8rem;
+  font-size: var(--fs-sm);
   line-height: 1.5;
 }
 
@@ -307,7 +307,7 @@
   margin: var(--space-300) 0 0;
   padding-top: var(--space-200);
   border-top: 1px solid var(--border);
-  font-size: 0.85rem;
+  font-size: var(--fs-md);
   text-align: center;
 }
 
