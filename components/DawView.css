@@ -1207,7 +1207,7 @@
   font-family: inherit; font-size: var(--fs-sm); font-weight: 700;
   cursor: pointer; border-radius: 3px; flex-shrink: 0;
 }
-.solo-btn.active { background: color-mix(in srgb, var(--warning) 16%, transparent); border-color: var(--warning); color: var(--warning); }
+.solo-btn.active { background: color-mix(in srgb, var(--warning) 16%, transparent); border-color: var(--warning); color: var(--warning-text); }
 
 /* ── Dimmed stop dots in live mode ──────────────────────────────────────── */
 .stop-dot--ref {

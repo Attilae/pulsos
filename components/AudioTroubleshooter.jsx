@@ -78,7 +78,7 @@ export default function AudioTroubleshooter({
     <Sheet open={open} onClose={onClose} title="Sound check" className="audio-check">
       {soundIsLeavingTheApp && (
         <p className="audio-check-verdict audio-check-verdict--external">
-          Leið <strong>is</strong> producing sound — the output meter below is moving.
+          Leið <strong>is</strong> producing sound: the output meter below is moving.
           If you still hear nothing, it&rsquo;s between the browser and your ears:
         </p>
       )}
@@ -98,7 +98,7 @@ export default function AudioTroubleshooter({
           label="Audio engine"
           detail={contextOk
             ? `Running at ${diag?.sampleRate ? Math.round(diag.sampleRate / 1000) + ' kHz' : 'default rate'}`
-            : `Browser audio is ${diag?.contextState ?? 'suspended'} — it needs a tap to wake up.`}
+            : `Browser audio is ${diag?.contextState ?? 'suspended'}. It needs a tap to wake up.`}
           action={contextOk ? null : { label: busy ? 'Starting…' : 'Resume audio', onClick: resume, disabled: busy }}
         />
 
@@ -126,7 +126,7 @@ export default function AudioTroubleshooter({
           label="Enabled lanes"
           detail={lanesOk
             ? `${activeLaneCount} lane${activeLaneCount === 1 ? '' : 's'} audible`
-            : 'Every lane is disabled — new sessions start silent so you can build the mix one line at a time.'}
+            : 'Every lane is disabled. New sessions start silent so you can build the mix one line at a time.'}
           action={lanesOk || !onEnableLanes ? null : { label: 'Enable a lane', onClick: () => { onEnableLanes(); onClose?.() } }}
         />
 
@@ -146,7 +146,7 @@ export default function AudioTroubleshooter({
       {!soundIsLeavingTheApp && <DeviceRows ios={diag?.ios} muted />}
 
       <p className="audio-check-foot">
-        Headphones are recommended — phone speakers lose most of the bass these
+        Headphones are recommended: phone speakers lose most of the bass these
         instruments live in.
       </p>
     </Sheet>
@@ -175,7 +175,7 @@ function DeviceRows({ ios, muted = false }) {
         <div className="audio-check-text">
           <span className="audio-check-label">Device volume</span>
           <span className="audio-check-detail">
-            Press volume-up <em>while a sound is playing</em> — media volume is
+            Press volume-up <em>while a sound is playing</em>. Media volume is
             separate from ringer volume and only moves during playback.
           </span>
         </div>
@@ -209,7 +209,7 @@ function Meter({ db }) {
     : Math.max(0, Math.min(100, ((db + 60) / 60) * 100))
   return (
     <div className="audio-check-meter" role="img" aria-label={`Output peak ${db == null ? 'unknown' : `${db.toFixed(0)} dB`}`}>
-      <span className="audio-check-meter-fill" style={{ width: `${pct}%` }} />
+      <span className="audio-check-meter-fill" style={{ transform: `scaleX(${pct / 100})` }} />
     </div>
   )
 }

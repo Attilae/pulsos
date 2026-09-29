@@ -196,7 +196,7 @@ export default function MotifTab({ active = true }) {
 
       <footer className="motif-footer">
         <div className="motif-hint">
-          Each motif is a window into the line's geography — Reroll shifts the
+          Each motif is a window into the line's geography. Reroll shifts the
           starting point along the route. Drop the MIDI into your DAW.
         </div>
       </footer>

@@ -237,3 +237,10 @@ button, [role="button"], .tab-btn, select {
   }
   html { scroll-behavior: auto; }
 }
+
+/* Phosphor icons (components/icons.jsx): 1em square, sat on the text baseline
+   so "icon + label" buttons line up without per-button tweaks. */
+.icon {
+  flex-shrink: 0;
+  vertical-align: -0.125em;
+}

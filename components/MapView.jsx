@@ -313,7 +313,7 @@ function MapView({
                     positions={pl.coords}
                     pathOptions={{ color: route.color, weight, opacity, dashArray }}
                   >
-                    <Tooltip sticky>{route.name} — {route.desc}</Tooltip>
+                    <Tooltip sticky>{route.name}: {route.desc}</Tooltip>
                   </Polyline>
                 ))
               })}

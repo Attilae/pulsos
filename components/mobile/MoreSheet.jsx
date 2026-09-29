@@ -6,6 +6,7 @@
 
 import Sheet from '../Sheet.jsx'
 import { NOTE_ROOTS, SCALE_TYPES } from '../DawView.jsx'
+import { IconDownload } from '../icons.jsx'
 
 export default function MoreSheet({
   open, onClose,
@@ -79,11 +80,11 @@ export default function MoreSheet({
             ↓ MIDI
           </button>
           <button type="button" className="msheet-action" onClick={onExportWav} disabled={!canExport || audioExporting}>
-            {audioExporting ? 'Recording…' : '↓ WAV'}
+            {audioExporting ? 'Recording…' : <><IconDownload /> WAV</>}
           </button>
         </div>
         <span className="msheet-hint">
-          WAV records in real time — it plays the song through once to capture it.
+          WAV records in real time: it plays the song through once to capture it.
         </span>
       </div>
 

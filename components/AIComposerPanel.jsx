@@ -7,6 +7,7 @@ import { shuffledFactsForCity } from '@/lib/shared/cityFacts.js'
 import { trackProductEvent } from '@/lib/productAnalytics.js'
 import { unlockAudio } from '@/lib/audioSession.js'
 import './AIComposerPanel.css'
+import { IconCaretDown, IconCaretRight, IconCheck, IconWarning } from './icons.jsx'
 
 // Natural-language composer overlay for the Map tab. The user describes the
 // sound they want; we ask the model for a structured plan, show a preview, and
@@ -111,7 +112,7 @@ export default function AIComposerPanel({
       const plan = result.mode === 'new' ? withNewCompositionBaseline(result.plan) : result.plan
       const outcome = await onApply(plan)
       const count = outcome?.appliedCount ?? result.plan.tracks?.length ?? 0
-      setApplied(`Applied ${count} track${count === 1 ? '' : 's'} — playing`)
+      setApplied(`Applied ${count} track${count === 1 ? '' : 's'}. Playing`)
       trackProductEvent('ai_plan_applied', { city: cityId, track_count: count })
     } catch (e) {
       setError(e?.message ?? String(e))
@@ -128,7 +129,6 @@ export default function AIComposerPanel({
     <>
       {loading ? (
         <div className="ai-planning-overlay">
-          <div className="ai-planning-grid" aria-hidden="true" />
           <div className="ai-planning-card">
             <div className="ai-planning-signal" aria-hidden="true">
               <span /><span /><span /><span /><span />
@@ -144,7 +144,7 @@ export default function AIComposerPanel({
       <div className={`ai-composer ${className}`}>
       <button className="ai-composer-head" onClick={() => setOpen(o => !o)}>
         <span className="ai-composer-title">AI Composer</span>
-        <span className="ai-composer-chevron">{open ? '▾' : '▸'}</span>
+        <span className="ai-composer-chevron">{open ? <IconCaretDown /> : <IconCaretRight />}</span>
       </button>
 
       {open && (
@@ -178,8 +178,8 @@ export default function AIComposerPanel({
             className="ai-composer-input"
             aria-label={effectiveMode === 'edit' ? 'Describe the change' : 'Describe what you want to hear'}
             placeholder={effectiveMode === 'edit'
-              ? 'Describe the change — e.g. “keep the bass and drums, make the lead warmer and give it a short echo.”'
-              : 'Describe what you want to hear — e.g. “warm deep house at 122 BPM: a restrained bass under one answering keys figure, with short echoes.”'}
+              ? 'Describe the change, e.g. “keep the bass and drums, make the lead warmer and give it a short echo.”'
+              : 'Describe what you want to hear, e.g. “warm deep house at 122 BPM: a restrained bass under one answering keys figure, with short echoes.”'}
             value={prompt}
             onChange={e => setPrompt(e.target.value)}
             onKeyDown={onKeyDown}
@@ -199,8 +199,8 @@ export default function AIComposerPanel({
             {usage.ai.remaining != null ? <span className="ai-composer-hint">{usage.ai.remaining} free</span> : null}
           </div>
 
-          {error && <div className="ai-composer-error">⚠ {error}</div>}
-          {applied && <div className="ai-composer-success">✓ {applied}</div>}
+          {error && <div className="ai-composer-error"><IconWarning /> {error}</div>}
+          {applied && <div className="ai-composer-success"><IconCheck /> {applied}</div>}
 
           {result && (
             <PlanPreview

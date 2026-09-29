@@ -440,7 +440,7 @@ export default function LaneSheet({
             return (
               <Field
                 label="Sidechain"
-                hint="Dips this lane every time the trigger fires — pick a drum pad to make it pump."
+                hint="Dips this lane every time the trigger fires. Pick a drum pad to make it pump."
               >
                 <select
                   value={sc.source}

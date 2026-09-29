@@ -82,8 +82,8 @@ export default function FirstRunNotice({ onDismiss }) {
         and drums.
       </p>
       <p className="intro-note">
-        The full instrument — EQ curves, automation drawing, per-stop note
-        editing — is on desktop.
+        The full instrument (EQ curves, automation drawing, per-stop note
+        editing) is on desktop.
       </p>
 
       {isIOS() && (

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { confirmDialog, promptDialog } from './Dialog.jsx'
 import { CITIES } from '@/lib/shared/cities.js'
 import './SongMenu.css'
+import { IconCaretDown, IconClose } from './icons.jsx'
 
 // Display name for a saved song's city id. Falls back to the raw id rather than
 // getCityEntry(), which resolves unknown ids to Budapest — wrong to show here.
@@ -138,7 +139,7 @@ export default function SongMenu({
         title="Song menu (Cmd/Ctrl+S to save)"
       >
         <span className="song-menu-label">{label}</span>
-        <span className="song-menu-caret">▾</span>
+        <span className="song-menu-caret"><IconCaretDown /></span>
       </button>
 
       <SaveIndicator
@@ -229,7 +230,7 @@ export default function SongMenu({
                 title="Delete"
                 aria-label={`Delete ${s.name}`}
                 onClick={() => handleDeleteSong(s.id, s.name)}
-              >✕</button>
+              ><IconClose /></button>
             </div>
           ))}
         </div>
@@ -258,7 +259,7 @@ function SaveIndicator({ currentSong, dirty, saving, saveError, autosaveOn, sign
 
   if (saveError) {
     tone = 'error'; dot = '▲'; text = 'Save failed'
-    title = saveError.message || 'Could not save. Your changes are still here — try again.'
+    title = saveError.message || 'Could not save. Your changes are still here, so try again.'
   } else if (saving) {
     tone = 'saving'; dot = '◌'; text = 'Saving…'
   } else if (dirty && !signedIn) {
@@ -266,10 +267,10 @@ function SaveIndicator({ currentSong, dirty, saving, saveError, autosaveOn, sign
     title = 'Signed-out sessions can\'t be saved. Sign in to keep this work.'
   } else if (dirty && !currentSong) {
     tone = 'dirty'; dot = '●'; text = 'Unsaved'
-    title = 'This session isn\'t attached to a song yet — Save As to keep it.'
+    title = 'This session isn\'t attached to a song yet. Use Save As to keep it.'
   } else if (dirty && !autosaveOn) {
     tone = 'dirty'; dot = '●'; text = 'Unsaved'
-    title = 'Autosave is off — press ⌘S to save.'
+    title = 'Autosave is off. Press ⌘S to save.'
   } else if (dirty) {
     tone = 'dirty'; dot = '●'; text = 'Unsaved'
   } else if (currentSong) {
@@ -292,7 +293,7 @@ function SaveIndicator({ currentSong, dirty, saving, saveError, autosaveOn, sign
 }
 
 function formatRelative(ts) {
-  if (!ts) return '—'
+  if (!ts) return 'Never'
   const diff = Date.now() - ts
   if (diff < 60_000) return 'just now'
   if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}m ago`

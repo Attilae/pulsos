@@ -15,6 +15,7 @@ import Turnstile, { turnstileEnabled } from './Turnstile.jsx'
 import { useSession } from '@/lib/auth-client.js'
 import { MESSAGE_MIN, MESSAGE_MAX, TURNSTILE_ACTION } from '@/lib/feedback.js'
 import './FeedbackForm.css'
+import { IconCaretDown, IconCaretRight } from './icons.jsx'
 
 const KINDS = [
   { id: 'bug', label: 'Bug', hint: 'Something is broken or sounds wrong' },
@@ -118,7 +119,7 @@ export default function FeedbackForm() {
   if (sent) {
     return (
       <div className="feedback-done" role="status">
-        <h2>Thanks — that reached us.</h2>
+        <h2>Thanks, that reached us.</h2>
         <p>
           We sent a copy to <strong>{email}</strong>. If we need more detail to reproduce it,
           we&rsquo;ll reply to that address.
@@ -206,13 +207,13 @@ export default function FeedbackForm() {
       {context && (
         <div className="feedback-context">
           <button type="button" onClick={() => setShowContext(v => !v)} aria-expanded={showContext}>
-            <span aria-hidden="true">{showContext ? '▾' : '▸'}</span> What we attach to this
+            {showContext ? <IconCaretDown /> : <IconCaretRight />} What we attach to this
           </button>
           {showContext && (
             <dl>
               <div><dt>Page</dt><dd>{context.href}</dd></div>
               <div><dt>Browser</dt><dd>{context.userAgent}</dd></div>
-              <div><dt>City</dt><dd>{context.cityId || '—'}</dd></div>
+              <div><dt>City</dt><dd>{context.cityId || 'None'}</dd></div>
               <div><dt>Window</dt><dd>{context.viewport}</dd></div>
             </dl>
           )}

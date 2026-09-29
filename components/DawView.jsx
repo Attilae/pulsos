@@ -21,6 +21,7 @@ import { NOTE_ROOTS, SCALE_TYPES } from '@/lib/harmony.js'
 import { getMasterBus } from '@/lib/masterBus.js'
 import { MASTER_CHAIN_DEFAULTS, MASTER_CHAIN_SPECS, MASTER_CHAIN_STAGES, isDefaultMasterChain } from '@/lib/masterChain.js'
 import './DawView.css'
+import { IconAdd, IconCaretDown, IconChangeLine, IconClose, IconDuplicate, IconPower, IconRepick, IconReset } from './icons.jsx'
 
 // Exported so the phone lane sheet offers exactly the same instruments.
 export { pickerSynthTypes } from '@/lib/soundSpecs.js'
@@ -59,13 +60,13 @@ export function SidechainSourceOptions({ sources = [], excludeId }) {
   )
 }
 export const SPEED_OPTIONS = [
-  { value: 0.25, label: '÷4',   title: '0.25× speed — one pass every 4 loops' },
-  { value: 0.5,  label: '÷2',   title: '0.5× speed — one pass every 2 loops' },
+  { value: 0.25, label: '÷4',   title: '0.25× speed: one pass every 4 loops' },
+  { value: 0.5,  label: '÷2',   title: '0.5× speed: one pass every 2 loops' },
   { value: 1,    label: '1×',   title: 'Normal speed' },
-  { value: 1.5,  label: '×1.5', title: '1.5× speed — 3:2 polyrhythm' },
-  { value: 2,    label: '×2',   title: '2× speed — two passes per loop' },
-  { value: 3,    label: '×3',   title: '3× speed — three passes per loop' },
-  { value: 4,    label: '×4',   title: '4× speed — four passes per loop' },
+  { value: 1.5,  label: '×1.5', title: '1.5× speed: 3:2 polyrhythm' },
+  { value: 2,    label: '×2',   title: '2× speed: two passes per loop' },
+  { value: 3,    label: '×3',   title: '3× speed: three passes per loop' },
+  { value: 4,    label: '×4',   title: '4× speed: four passes per loop' },
 ]
 
 // Arpeggiator display labels (values come from ARP_STYLES / ARP_RATES in engine/mappings)
@@ -80,10 +81,10 @@ export const ARP_RATE_LABELS = {
 // Pitch-contour display labels (values come from PITCH_CONTOURS in mappings)
 export const CONTOUR_LABELS = { geographic: 'Geo', demand: 'Demand', randomWalk: 'Walk', arch: 'Arch' }
 export const CONTOUR_TITLES = {
-  demand:     'Demand — more service or riders produces a higher note (default)',
-  geographic: 'Geographic — latitude traces the melody',
-  randomWalk: 'Random walk — seeded melodic drift through the scale',
-  arch:       'Arch — rises then falls along the stop sequence',
+  demand:     'Demand: more service or riders produces a higher note (default)',
+  geographic: 'Geographic: latitude traces the melody',
+  randomWalk: 'Random walk: seeded melodic drift through the scale',
+  arch:       'Arch: rises then falls along the stop sequence',
 }
 
 const FILTER_TYPES = ['lowpass', 'highpass', 'bandpass', 'notch']
@@ -352,7 +353,7 @@ export default function DawView({
               onClick={onRefetch}
               disabled={snapshotLoading || started}
             >
-              {snapshotLoading ? 'Fetching…' : '↺ Refetch'}
+              {snapshotLoading ? 'Fetching…' : <><IconReset /> Refetch</>}
             </button>
           </div>
         )}
@@ -388,7 +389,7 @@ export default function DawView({
                   onClick={() => onRepickType(type)}
                   disabled={started}
                   title={`Re-pick ${label} lines`}
-                >↻</button>
+                ><IconRepick /></button>
               )}
               {onAddLine && (
                 <button
@@ -396,7 +397,7 @@ export default function DawView({
                   onClick={() => setLinePicker({ mode: 'add', type })}
                   disabled={started}
                   title={`Add a ${label} line`}
-                >＋</button>
+                ><IconAdd /></button>
               )}
             </div>
             {routesByType[type].map(route => {
@@ -545,7 +546,7 @@ export default function DawView({
               onClick={() => setLinePicker({ mode: 'add' })}
               disabled={started}
               title="Add a transit line as a new lane"
-            >＋ Add line</button>
+            ><IconAdd /> Add line</button>
           </div>
         )}
 
@@ -728,12 +729,12 @@ function DrumLane({
           onClick={() => setRackOpen(o => !o)}
           aria-expanded={rackOpen}
           title="Mixer: filter, EQ, sends"
-        >FX <span className={`rack-chevron ${rackOpen ? 'up' : ''}`} aria-hidden="true">▾</span></button>
+        >FX <IconCaretDown className={`rack-chevron ${rackOpen ? 'up' : ''}`} /></button>
         <button
           className="drum-lane-master-btn"
           onClick={onClear}
           title="Remove drum lane"
-        >× Remove</button>
+        ><IconClose /> Remove</button>
       </div>
 
       {rackOpen && (
@@ -809,7 +810,7 @@ function DrumLane({
                       onClick={() => onToggleStep(pad.id, i)}
                       aria-label={`${pad.label} step ${i + 1}${v ? `, velocity ${Math.round(v * 100)}%` : ''}`}
                       aria-pressed={!!v}
-                      title={v ? `vel ${Math.round(v * 100)}% — click to cycle` : 'click to cycle velocity'}
+                      title={v ? `vel ${Math.round(v * 100)}%. Click to cycle` : 'click to cycle velocity'}
                     />
                   )
                 })}
@@ -903,7 +904,7 @@ function LineTrack({
             <span className="line-badge" style={{ background: route.color, color: route.textColor }}>
               {route.name}
             </span>
-            {isDuplicate && <span className="dup-badge" title="Chord copy — re-pitched within harmony">copy</span>}
+            {isDuplicate && <span className="dup-badge" title="Chord copy, re-pitched within harmony">copy</span>}
             {isMerged && <span className="dup-badge merged-badge" title="Merged PolySynth chord lane">merged</span>}
             {laneChance < 1 && (
               <span className="dup-badge gate-badge" title={`Each note plays with ${Math.round(laneChance * 100)}% chance`}>
@@ -949,7 +950,7 @@ function LineTrack({
         </div>
 
         <div className="lt-mix">
-          <button className={`disable-btn lane-icon-btn ${disabled ? 'active' : ''}`} onClick={onDisable} aria-pressed={!disabled} aria-label={`Enable ${route.name}`} data-tooltip={disabled ? 'Enable track' : 'Disable track'}>⏻</button>
+          <button className={`disable-btn lane-icon-btn ${disabled ? 'active' : ''}`} onClick={onDisable} aria-pressed={!disabled} aria-label={`Enable ${route.name}`} data-tooltip={disabled ? 'Enable track' : 'Disable track'}><IconPower /></button>
           <button className={`solo-btn lane-icon-btn ${isSoloed ? 'active' : ''}`} onClick={onSolo} aria-pressed={isSoloed} aria-label={`Solo ${route.name}`} data-tooltip="Solo · Cmd/Ctrl-click to add">S</button>
           <input type="range" min="-40" max="6" step="1"
             value={volDisp} onChange={e => onVolume(Number(e.target.value))}
@@ -996,7 +997,7 @@ function LineTrack({
             disabled={started}
             aria-label={`Change ${route.name} transit line`}
             data-tooltip="Change transit line"
-          >⇄</button>
+          ><IconChangeLine /></button>
         )}
         {!isMerged && (
           <button
@@ -1005,7 +1006,7 @@ function LineTrack({
             onClick={onDuplicate}
             aria-label={`Duplicate ${route.name}`}
             data-tooltip="Duplicate lane · stack a chord"
-          >⎘</button>
+          ><IconDuplicate /></button>
         )}
         {isDuplicate && (
           <button
@@ -1014,7 +1015,7 @@ function LineTrack({
             onClick={onRemoveDuplicate}
             aria-label={`Remove ${route.name} copy`}
             data-tooltip="Remove this copy"
-          >×</button>
+          ><IconClose /></button>
         )}
         {isMerged && (
           <button
@@ -1023,7 +1024,7 @@ function LineTrack({
             onClick={onUnmerge}
             aria-label={`Un-merge ${route.name}`}
             data-tooltip="Un-merge · restore original lanes"
-          >×</button>
+          ><IconClose /></button>
         )}
 
         <button
@@ -1033,7 +1034,7 @@ function LineTrack({
           aria-expanded={rackOpen}
         >
           DEVICE RACK
-          <span className={`rack-chevron ${rackOpen ? 'up' : ''}`}>▾</span>
+          <IconCaretDown className={`rack-chevron ${rackOpen ? 'up' : ''}`} />
         </button>
       </div>
 
@@ -1133,7 +1134,7 @@ function LineTrack({
                       onChange={e => onPitchVariety({ variety: parseFloat(e.target.value) })}
                       {...varietyReset}
                       className="glide-slider"
-                      title="Pitch variety — 0% keeps the selected contour pure; higher adds seeded jitter and gap accents"
+                      title="Pitch variety: 0% keeps the selected contour pure; higher adds seeded jitter and gap accents"
                     />
                     <span className="glide-val">{Math.round(pv.variety * 100)}%</span>
                   </div>
@@ -1181,7 +1182,7 @@ function LineTrack({
               <button
                 className={`legato-btn ${legato ? 'active' : ''}`}
                 onClick={() => onLegato(!legato)}
-                title={legato ? 'Legato on — click to disable' : 'Enable legato (hold + glide)'}
+                title={legato ? 'Legato on. Click to disable' : 'Enable legato (hold + glide)'}
                 style={legato ? { borderColor: route.color, color: route.color } : {}}
               >LEG</button>
             </div>
@@ -1226,7 +1227,7 @@ function LineTrack({
               <div
                 className="speed-btns"
                 title={legato || arp?.enabled || synthType === 'PluckSynth'
-                  ? 'Note length — no effect while legato, the arpeggiator or PluckSynth is in use'
+                  ? 'Note length has no effect while legato, the arpeggiator or PluckSynth is in use'
                   : 'How long each note is held before its release'}
               >
                 {NOTE_LENGTHS.map(len => {
@@ -1254,7 +1255,7 @@ function LineTrack({
                 onChange={e => onNoteChance(parseFloat(e.target.value))}
                 {...chanceReset}
                 className="glide-slider"
-                title="Note chance — each note rolls fresh dice every loop. Double-click for 100%"
+                title="Note chance: each note rolls fresh dice every loop. Double-click for 100%"
               />
               <span className="glide-val">{Math.round(laneChance * 100)}%</span>
             </div>
@@ -1281,7 +1282,7 @@ function LineTrack({
               {[
                 { key: 'play',   label: 'PLAY', min: 1, max: MAX_PATTERN_PLAY, title: 'Loops played in a row' },
                 { key: 'rest',   label: 'REST', min: 0, max: MAX_PATTERN_REST, title: 'Loops skipped after playing' },
-                { key: 'offset', label: 'SHIFT', min: 0, max: pattern.play + pattern.rest - 1, title: 'Shift which loop the pattern starts on — offset two lanes to make them take turns' },
+                { key: 'offset', label: 'SHIFT', min: 0, max: pattern.play + pattern.rest - 1, title: 'Shift which loop the pattern starts on. Offset two lanes to make them take turns' },
               ].map(f => (
                 <span key={f.key} className="loop-stepper" title={f.title}>
                   <span className="speed-label">{f.label}</span>
@@ -1306,7 +1307,7 @@ function LineTrack({
                   <button
                     className={`legato-btn ${arpOn ? 'active' : ''}`}
                     onClick={() => onArp({ enabled: !arpOn })}
-                    title={arpOn ? 'Arpeggiator on — click to disable' : 'Enable arpeggiator (stop note = root)'}
+                    title={arpOn ? 'Arpeggiator on. Click to disable' : 'Enable arpeggiator (stop note = root)'}
                     style={{ marginLeft: 'auto', ...(arpOn ? { borderColor: route.color, color: route.color } : {}) }}
                   >ARP</button>
                 </div>
@@ -1411,7 +1412,7 @@ function LineTrack({
                     className={`legato-btn ${grainOn ? 'active' : ''}`}
                     onClick={() => onGranular({ enabled: !grainOn })}
                     title={grainOn
-                      ? 'Granular layer on — click to disable'
+                      ? 'Granular layer on. Click to disable'
                       : 'Layer a grain cloud rendered from this track’s instrument'}
                     style={{ marginLeft: 'auto', ...(grainOn ? { borderColor: route.color, color: route.color } : {}) }}
                   >GRAIN</button>
@@ -1499,7 +1500,7 @@ function LineTrack({
                     onClick={() => onSidechain({ enabled: !sc.enabled })}
                     disabled={!sc.source}
                     title={sc.source
-                      ? (scOn ? 'Ducking on — click to disable' : 'Duck this lane when the trigger fires')
+                      ? (scOn ? 'Ducking on. Click to disable' : 'Duck this lane when the trigger fires')
                       : 'Pick a trigger source first'}
                     style={{ marginLeft: 'auto', ...(scOn ? { borderColor: route.color, color: route.color } : {}) }}
                   >SC</button>
@@ -1611,7 +1612,7 @@ function AutomationLane({ laneId, instRoute, laneCfg, allRoutes, activeFxTracks,
       <div className="auto-lane-controls">
         <select className="auto-select auto-select--source-line" value={sourceRouteId}
           onChange={e => onUpdate({ sourceRouteId: e.target.value })}>
-          <option value="">— pick line —</option>
+          <option value="">Pick a line</option>
           {pickableRoutes.map(r => {
             // Some cities (e.g. NYC/MTA) carry paragraph-length descriptions; native <option>
             // text can't be CSS-truncated, so cap it here or the dropdown popup overflows.
@@ -1635,7 +1636,7 @@ function AutomationLane({ laneId, instRoute, laneCfg, allRoutes, activeFxTracks,
           ))}
         </select>
 
-        <button className="auto-remove-btn" onClick={onRemove} title="Remove lane">×</button>
+        <button className="auto-remove-btn" onClick={onRemove} title="Remove lane" aria-label="Remove automation lane"><IconClose /></button>
 
         <div className="speed-row auto-speed-row">
           <span className="speed-label">SPEED</span>
@@ -1947,13 +1948,13 @@ function AutoCurveRail({ route, laneId, points, spec, started = false, visible =
             className="loop-handle loop-handle--start"
             style={{ left: `${startPct}%`, '--line-color': route.color }}
             {...handleProps('start')}
-            title={`Loop start · cell ${startCell}/${GRID_TOTAL_CELLS} — drag to move, double-click or long-press to reset`}
+            title={`Loop start · cell ${startCell}/${GRID_TOTAL_CELLS}. Drag to move, double-click or long-press to reset`}
           />
           <div
             className="loop-handle loop-handle--end"
             style={{ left: `${endPct}%`, '--line-color': route.color }}
             {...handleProps('end')}
-            title={`Loop end · cell ${endCell}/${GRID_TOTAL_CELLS} — drag to move, double-click or long-press to reset`}
+            title={`Loop end · cell ${endCell}/${GRID_TOTAL_CELLS}. Drag to move, double-click or long-press to reset`}
           />
         </>
       )}
@@ -2101,7 +2102,7 @@ function MasterChainCard({ settings, onChange }) {
           disabled={isDefault}
           title="Reset mastering to defaults"
           aria-label="Reset mastering to defaults"
-        >↺</button>
+        ><IconReset /></button>
         <button
           type="button"
           className={`master-chain-toggle ${enabled ? 'active' : ''}`}
@@ -2174,7 +2175,7 @@ function FxTrackCard({ bus, wet, muted, soloed, params, onWet, onMute, onSolo, o
           className="fx-track-wet-slider"
         />
         <span className="fx-track-wet-val">{Math.round(wet * 100)}%</span>
-        <button className="fx-track-remove-btn" onClick={onRemove} title="Remove FX track" aria-label={`Remove ${bus.label}`}>×</button>
+        <button className="fx-track-remove-btn" onClick={onRemove} title="Remove FX track" aria-label={`Remove ${bus.label}`}><IconClose /></button>
       </div>
       {specs.length > 0 && (
         <div className="fx-track-params">
@@ -2708,7 +2709,7 @@ function EqPanel({ getRuntime }) {
       <div className="sp-panel eq-weq8 eq-weq8--stub">
         <p className="eq-stub-note">
           This lane&rsquo;s EQ is still applied. Editing the curve needs a
-          pointer — open Leið on a desktop browser.
+          pointer. Open Leið on a desktop browser.
         </p>
       </div>
     )
@@ -2856,7 +2857,7 @@ function StopRail({
         const v = automationValues[stop.id] ?? 0.5
         return { ...stop, x, y: autoValueToY(v), noteName: `${Math.round(v * 100)}%` }
       }
-      const noteName = pitchMap[stop.originalIdx] ?? '—'
+      const noteName = pitchMap[stop.originalIdx] ?? '?'
       const midi     = noteToMidi(noteName)
       const y        = (PAD + (1 - (midi - midiMin) / midiRange) * (1 - PAD * 2)) * 100
       return { ...stop, x, y, noteName }
@@ -3064,7 +3065,7 @@ function StopRail({
             '--chance': chance,
           }}
           title={canEdit
-            ? `${stop.name} · ${stop.noteName}${velSuffix}${chanceSuffix} — click to edit pitch, velocity & chance`
+            ? `${stop.name} · ${stop.noteName}${velSuffix}${chanceSuffix}. Click to edit pitch, velocity & chance`
             : `${stop.name} · bar ${stop.bar + 1} beat ${stop.beat + 1} step ${stop.sixteenth + 1}${velSuffix}${chanceSuffix}`}
           {...(canEdit ? {
             role: 'button',
