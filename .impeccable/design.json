@@ -1,0 +1,251 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-29T23:18:00+00:00",
+  "title": "Design System: Leið",
+  "extensions": {
+    "colorMeta": {
+      "signal-lime": {
+        "role": "primary",
+        "displayName": "Signal Lime",
+        "canonical": "#b6d94c",
+        "tonalRamp": [
+          "#2c3510",
+          "#43521a",
+          "#5c7a1a",
+          "#7a9a2c",
+          "#9dbf3d",
+          "#b6d94c",
+          "#cfe68a",
+          "#e9f3c8"
+        ]
+      },
+      "night-ink": {
+        "role": "neutral",
+        "displayName": "Night Ink",
+        "canonical": "#0e0f11",
+        "tonalRamp": [
+          "#0a0a0b",
+          "#0e0f11",
+          "#17181b",
+          "#202226",
+          "#282b30",
+          "#34383f",
+          "#434850",
+          "#565c66"
+        ]
+      },
+      "timetable-white": {
+        "role": "neutral",
+        "displayName": "Timetable White",
+        "canonical": "#eef0f3",
+        "tonalRamp": [
+          "#6b7280",
+          "#868d99",
+          "#a4abb6",
+          "#bcc1cb",
+          "#d2d6dd",
+          "#e3e6eb",
+          "#eef0f3",
+          "#f7f8fa"
+        ]
+      },
+      "alarm-red": {
+        "role": "status",
+        "displayName": "Alarm Red",
+        "canonical": "#e5534b"
+      },
+      "amber-lamp": {
+        "role": "status",
+        "displayName": "Amber Lamp",
+        "canonical": "#e2a53b"
+      },
+      "go-green": {
+        "role": "status",
+        "displayName": "Go Green",
+        "canonical": "#4caf7d"
+      },
+      "route-blue": {
+        "role": "status",
+        "displayName": "Route Blue",
+        "canonical": "#5ab0e6"
+      }
+    },
+    "typographyMeta": {
+      "label": {
+        "displayName": "Label",
+        "purpose": "Uppercase tracked heads for rack cards and sections."
+      },
+      "readout": {
+        "displayName": "Readout",
+        "purpose": "Every changing number: dB, BPM, Hz, note names, event log."
+      }
+    },
+    "shadows": [
+      {
+        "name": "elevation-overlay",
+        "value": "0 8px 24px rgba(0,0,0,0.55)",
+        "purpose": "Menus, popovers, tooltips."
+      },
+      {
+        "name": "elevation-modal",
+        "value": "0 24px 64px rgba(0,0,0,0.6)",
+        "purpose": "Dialogs, editors, the paywall."
+      },
+      {
+        "name": "scrim",
+        "value": "rgba(0,0,0,0.55)",
+        "purpose": "Behind every modal, sheet and drawer."
+      }
+    ],
+    "motion": [
+      {
+        "name": "state",
+        "value": "0.12s ease",
+        "purpose": "Hover and pressed colour changes on controls."
+      },
+      {
+        "name": "playhead",
+        "value": "per-frame transform from lib/shared/playheadTicker.js",
+        "purpose": "Playheads and step highlights; never React state."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "phone-max",
+        "value": "767px"
+      },
+      {
+        "name": "tablet",
+        "value": "768px-1023px"
+      },
+      {
+        "name": "touch",
+        "value": "(pointer: coarse)"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Play Button",
+      "kind": "button",
+      "refersTo": "button-transport-play",
+      "description": "Transport play; swaps to red Stop while running.",
+      "html": "<button class=\"ds-btn-play\"><svg width=\"12\" height=\"12\" viewBox=\"0 0 256 256\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M240 128a15.74 15.74 0 0 1-7.6 13.51L88.32 229.65a16 16 0 0 1-16.2.3A15.86 15.86 0 0 1 64 216.13V39.87a15.86 15.86 0 0 1 8.12-13.82 16 16 0 0 1 16.2.3l144.08 88.14A15.74 15.74 0 0 1 240 128Z\"/></svg> Play</button>",
+      "css": ".ds-btn-play{display:inline-flex;align-items:center;gap:6px;padding:7px 20px;border:1px solid var(--accent,#b6d94c);background:var(--surface2,#202226);color:var(--accent,#b6d94c);font:inherit;font-size:.86rem;border-radius:3px;cursor:pointer;transition:background .12s}.ds-btn-play:hover{background:var(--hover-surface,#282b30)}.ds-btn-play:focus-visible{outline:2px solid var(--accent,#b6d94c);outline-offset:2px}"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Default action button (dialogs, menus).",
+      "html": "<button class=\"ds-btn\">Save As</button>",
+      "css": ".ds-btn{padding:7px 16px;border:1px solid var(--border,#282b30);background:var(--surface2,#202226);color:var(--text,#eef0f3);font:inherit;font-size:.78rem;border-radius:3px;cursor:pointer;transition:background .12s,border-color .12s}.ds-btn:hover{background:var(--hover-surface,#282b30)}.ds-btn:focus-visible{outline:2px solid var(--accent,#b6d94c);outline-offset:2px}"
+    },
+    {
+      "name": "Segmented Toggle",
+      "kind": "custom",
+      "refersTo": "segment",
+      "description": "Joined toggle (Map/DAW, Mock/Live).",
+      "html": "<div class=\"ds-seg\" role=\"group\" aria-label=\"View\"><button aria-pressed=\"false\">Map</button><button aria-pressed=\"true\" class=\"on\">DAW</button></div>",
+      "css": ".ds-seg{display:inline-flex;border:1px solid var(--border,#282b30);border-radius:3px;overflow:hidden}.ds-seg button{padding:5px 14px;border:0;border-right:1px solid var(--border,#282b30);background:var(--surface2,#202226);color:var(--muted,#868d99);font:inherit;font-size:.78rem;cursor:pointer}.ds-seg button:last-child{border-right:0}.ds-seg button.on{background:var(--hover-surface,#282b30);color:var(--accent,#b6d94c)}.ds-seg button:hover:not(.on){color:var(--text,#eef0f3)}"
+    },
+    {
+      "name": "Filter Chip",
+      "kind": "chip",
+      "refersTo": "chip",
+      "description": "Line-type filter in the line picker.",
+      "html": "<button class=\"ds-chip\">Tram</button><button class=\"ds-chip on\">Metro</button>",
+      "css": ".ds-chip{padding:3px 10px;margin-right:6px;border:1px solid var(--border,#282b30);background:transparent;color:var(--muted,#868d99);border-radius:999px;font:inherit;font-size:.68rem;letter-spacing:.06em;cursor:pointer}.ds-chip:hover{color:var(--text,#eef0f3)}.ds-chip.on{color:var(--text,#eef0f3);border-color:var(--accent,#b6d94c);background:var(--surface2,#202226)}"
+    },
+    {
+      "name": "Numeric Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "BPM and other number fields.",
+      "html": "<label class=\"ds-field\">BPM <input value=\"120\" inputmode=\"numeric\"></label>",
+      "css": ".ds-field{display:inline-flex;align-items:center;gap:6px;color:var(--muted,#868d99);font-size:.72rem}.ds-field input{width:52px;padding:4px 6px;background:var(--surface2,#202226);border:1px solid var(--border,#282b30);color:var(--text,#eef0f3);font-family:var(--font-mono,monospace);font-size:.72rem;border-radius:3px;text-align:center}.ds-field input:focus-visible{outline:2px solid var(--accent,#b6d94c);outline-offset:2px}"
+    },
+    {
+      "name": "Rack Card",
+      "kind": "card",
+      "refersTo": "rack-card",
+      "description": "Device rack card with its domain edge.",
+      "html": "<section class=\"ds-rack\"><h3>Filter</h3><p>lowpass · 20000 Hz</p></section>",
+      "css": ".ds-rack{--d:#b6d94c;background:var(--surface2,#202226);border:1px solid var(--border,#282b30);border-top-color:color-mix(in srgb,var(--d) 58%,var(--border,#282b30));box-shadow:inset 2px 0 0 color-mix(in srgb,var(--d) 72%,transparent);border-radius:5px;padding:8px 10px 10px;max-width:220px}.ds-rack h3{margin:0 0 6px;font-size:.62rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted,#868d99)}.ds-rack p{margin:0;font-family:var(--font-mono,monospace);font-size:.72rem;color:var(--text,#eef0f3)}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Night Timetable",
+    "overview": "Leið is a departures board after dark that you can play. The surfaces are the\nlow, cool greys of a station at night; the information on them is set with\ntimetable precision; and there is one signal colour, a desaturated lime, that\nbehaves like a platform indicator: it tells you what is live, selected or\nabout to happen, and nothing else. Transit lines bring their own colours into\nthe lanes, the way a network map does, and those colours are data, not\ndecoration.\n\nIt is an instrument first. Density is high and controls are small, because a\nmix of twelve lanes has to fit on a laptop screen, but hierarchy comes from\ntone and position rather than size: lanes and their melodic lines carry the\neye, controls step back until they are touched. It should feel like a DAW\n(Ableton, Bitwig), never like an analytics dashboard, and never like a\nmarketing page: no gradients, glows for their own sake, hero typography, or\ndecorative grids.\n\nLight theme is a full peer, not an afterthought: the same roles re-pointed to\na cool paper ramp, with the lime deepened so it still reads as the signal.",
+    "keyCharacteristics": [
+      "One signal colour (lime); transit line colours as the only other hues in the stage.",
+      "Flat, tonal depth: night ink, platform slate, carriage slate.",
+      "Small, dense, quiet controls; state shown by colour, not by growing.",
+      "Uppercase tracked micro-labels for structure, monospace for anything that is a number.",
+      "Every token has a light-theme counterpart; nothing is dark-only except the weq8 display."
+    ],
+    "rules": [
+      {
+        "name": "The Platform Indicator Rule",
+        "body": "Lime means \"live or selected\". It never decorates, never fills a large area, and never appears as a second, competing accent.",
+        "section": "colors"
+      },
+      {
+        "name": "The Line Colour Rule",
+        "body": "A transit line's colour appears only where that line is: its lane edge, its melodic polyline, its dots, its map route. Role tags get their own muted categorical palette (`lib/laneTags.js`) so they never masquerade as a line.",
+        "section": "colors"
+      },
+      {
+        "name": "The Contrast Floor Rule",
+        "body": "Any text is at least 4.5:1 on the surface it sits on, in both themes. `--muted` is the dimmest text token; `--muted-line` exists precisely so borders can be quieter than text.",
+        "section": "colors"
+      },
+      {
+        "name": "The Readable Floor Rule",
+        "body": "Nothing a person must read goes below `--fs-3xs` (0.62rem ≈ 8.7px). The one exception is `--fs-micro` (0.5rem), reserved for note names and bar numbers drawn inside a stop rail, where each value is also in the dot's accessible name, tooltip and editor.",
+        "section": "typography"
+      },
+      {
+        "name": "The Three Trackings Rule",
+        "body": "Letter-spacing is `--tracking-tight` (body), `--tracking-wide` (small labels) or `--tracking-caps` (uppercase labels). No other values.",
+        "section": "typography"
+      },
+      {
+        "name": "The Stage Rule",
+        "body": "The stop rails are the stage. Nothing permanent may overlap a rail, and no layout change at any width may make the track list scroll sideways.",
+        "section": "layout"
+      },
+      {
+        "name": "The Flat-At-Rest Rule",
+        "body": "Surfaces in the instrument are flat. A shadow means \"this is floating over the instrument and will go away\".",
+        "section": "elevation"
+      },
+      {
+        "name": "The Earned Glow Rule",
+        "body": "Coloured glows are allowed only on the playhead and on the stop that is sounding right now: light that marks time. Nothing static glows.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Hairline Rule",
+        "body": "Borders are 1px. A thicker edge must encode something (line, role, domain, automation); a decorative side stripe on a callout is not allowed.",
+        "section": "shapes"
+      }
+    ],
+    "dos": [
+      "**Do** use the semantic tokens (`--surface2`, `--muted`, `--accent`, `--fs-sm`, `--space-100`, `--z-sheet`…), never literals, so both themes work.",
+      "**Do** keep lime for live and selected state only (The Platform Indicator Rule).",
+      "**Do** set every changing number in the mono readout face.",
+      "**Do** give every icon-only control an `aria-label` that names its target (\"Mute Kick\", \"Remove M2 copy\").",
+      "**Do** animate playheads and meters with `transform`, driven from the shared ticker or a ref, not React state.",
+      "**Do** check a new surface in both themes and at 820px before calling it done."
+    ],
+    "donts": [
+      "**Don't** introduce a second accent colour, gradients, gradient text, or decorative glows.",
+      "**Don't** use Unicode glyphs (⏻ ⏹ ▶ ✕ ⋯) as icons; import from `components/icons.jsx`.",
+      "**Don't** put an em-dash in user-facing copy; use a colon, comma or period.",
+      "**Don't** add decorative grid backgrounds or side-stripe callouts; a hairline and a tint are enough.",
+      "**Don't** hide text with `opacity: 0` while it still takes layout; use `display` or create the content on demand.",
+      "**Don't** go below `--fs-3xs` for readable text, or use `--muted-line` for text."
+    ]
+  }
+}
