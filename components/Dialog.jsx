@@ -10,8 +10,9 @@
 // ProfilePanel, z-index 200) regardless of where the call originated.
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { useModal } from '@/lib/shared/useModal.js'
 import './Dialog.css'
 
 // ── Imperative API ───────────────────────────────────────────────────────────
@@ -79,6 +80,9 @@ function Dialog({ dialog, onDismiss }) {
   const [value, setValue] = useState(defaultValue)
   const inputRef = useRef(null)
   const confirmRef = useRef(null)
+  const panelRef = useRef(null)
+  const titleId = useId()
+  const messageId = useId()
 
   const isPrompt  = kind === 'prompt'
   const isConfirm = kind === 'confirm'
@@ -96,12 +100,8 @@ function Dialog({ dialog, onDismiss }) {
     return () => clearTimeout(t)
   }, [isPrompt])
 
-  // Esc cancels everywhere.
-  useEffect(() => {
-    function onKey(e) { if (e.key === 'Escape') { e.stopPropagation(); cancel() } }
-    document.addEventListener('keydown', onKey, true)
-    return () => document.removeEventListener('keydown', onKey, true)
-  }, [cancel])
+  // Esc cancels everywhere; Tab stays inside; focus returns to the opener.
+  useModal(true, panelRef, { onClose: cancel })
 
   const onSubmit = (e) => { e.preventDefault(); accept() }
 
@@ -110,14 +110,25 @@ function Dialog({ dialog, onDismiss }) {
 
   return createPortal(
     <div className="dlg-overlay" onPointerDown={isAlert || isConfirm || isPrompt ? cancel : undefined}>
-      <form className="dlg-panel" onPointerDown={e => e.stopPropagation()} onSubmit={onSubmit}>
-        <h2 className="dlg-title">{title ?? defaultTitle}</h2>
-        {message && <p className="dlg-message">{message}</p>}
+      <form
+        ref={panelRef}
+        className="dlg-panel"
+        role={isPrompt ? 'dialog' : 'alertdialog'}
+        aria-modal="true"
+        aria-labelledby={titleId}
+        aria-describedby={message ? messageId : undefined}
+        tabIndex={-1}
+        onPointerDown={e => e.stopPropagation()}
+        onSubmit={onSubmit}
+      >
+        <h2 id={titleId} className="dlg-title">{title ?? defaultTitle}</h2>
+        {message && <p id={messageId} className="dlg-message">{message}</p>}
 
         {isPrompt && (
           <input
             ref={inputRef}
             className="dlg-input"
+            aria-labelledby={titleId}
             type={inputType}
             value={value}
             onChange={e => setValue(e.target.value)}

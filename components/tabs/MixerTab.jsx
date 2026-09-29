@@ -2076,33 +2076,38 @@ export default function MixerTab({ active = true }) {
 
         <SongMenu {...song} />
 
-        <div className="view-toggle" data-tour="view">
+        <div className="view-toggle" data-tour="view" role="group" aria-label="View">
           <button
             className={`mode-btn ${view === 'map' ? 'active' : ''}`}
+            aria-pressed={view === 'map'}
             onClick={() => setView('map')}
           >Map</button>
           <button
             className={`mode-btn ${view === 'daw' ? 'active' : ''}`}
+            aria-pressed={view === 'daw'}
             onClick={() => setView('daw')}
           >DAW</button>
         </div>
 
-        <div className="mode-toggle">
+        <div className="mode-toggle" role="group" aria-label="Data source">
           <button
             className={`mode-btn ${mode === 'mock' ? 'active' : ''}`}
+            aria-pressed={mode === 'mock'}
             onClick={() => { if (started) { engineRef.current?.stopMock(); setStarted(false) }; setMode('mock') }}
           >Mock</button>
           {cityEntry.liveWsUrl && (
             <button
               className={`mode-btn ${mode === 'live' ? 'active' : ''}`}
+              aria-pressed={mode === 'live'}
               onClick={() => { if (started) { engineRef.current?.stopMock(); setStarted(false) }; setMode('live') }}
             >{cityEntry.name} Live</button>
           )}
         </div>
 
         <div className="harmony-control">
-          <label>Harmony</label>
+          <span className="harmony-label" aria-hidden="true">Harmony</span>
           <select
+            aria-label="Harmony root"
             className="scale-root-select"
             value={harmonyValue.root}
             onChange={e => handleGlobalHarmony({ ...harmonyValue, root: e.target.value })}
@@ -2110,6 +2115,7 @@ export default function MixerTab({ active = true }) {
             {NOTE_ROOTS.map(n => <option key={n} value={n}>{n}</option>)}
           </select>
           <select
+            aria-label="Harmony scale"
             className="scale-type-select"
             value={harmonyValue.scaleType}
             onChange={e => handleGlobalHarmony({ ...harmonyValue, scaleType: e.target.value })}
@@ -2151,8 +2157,9 @@ export default function MixerTab({ active = true }) {
         >{audioExporting ? `↓ WAV ${Math.round(audioProgress * 100)}%` : '↓ WAV'}</button>
 
         <div className="bpm-control">
-          <label>BPM</label>
+          <label htmlFor="mixer-bpm">BPM</label>
           <input
+            id="mixer-bpm"
             type="number" min="40" max="240"
             value={bpm}
             onChange={e => setBpm(Number(e.target.value))}
@@ -2182,6 +2189,12 @@ export default function MixerTab({ active = true }) {
             ▶ Tap to start audio
           </button>
         )}
+
+        {/* Transport state for screen readers: play/stop and "no output" are
+            otherwise only visual. */}
+        <span className="visually-hidden" role="status" aria-live="polite">
+          {started ? 'Playing' : 'Stopped'}{noOutput && !needsGesture ? '. Playing, but nothing is reaching the output.' : ''}
+        </span>
 
         {noOutput && !needsGesture && (
           <button

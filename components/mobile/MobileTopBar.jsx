@@ -16,7 +16,8 @@ export default function MobileTopBar({ cityName, songName, onSong, onMore, harmo
         ⋯
         {/* Desktop spells out "● Mixed" next to the harmony selects; here the
             same fact is a dot on the button that reveals them. */}
-        {harmonyMixed && <span className="mtopbar-dot" aria-label="Lanes use different keys" />}
+        {harmonyMixed && <span className="mtopbar-dot" aria-hidden="true" />}
+        {harmonyMixed && <span className="visually-hidden">, lanes use different keys</span>}
       </button>
     </header>
   )

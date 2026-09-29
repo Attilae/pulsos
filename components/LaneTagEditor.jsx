@@ -12,8 +12,9 @@
 // Apply button and no local draft to fall out of sync.
 'use client'
 
-import { useCallback, useEffect } from 'react'
+import { useCallback, useId, useRef } from 'react'
 import { createPortal } from 'react-dom'
+import { useModal } from '@/lib/shared/useModal.js'
 import { LANE_TAG_PRESETS, LANE_TAG_COLORS, LANE_TAG_MAX_LEN, normalizeLaneTag } from '@/lib/laneTags.js'
 import './LaneTagEditor.css'
 
@@ -82,20 +83,26 @@ export function LaneTagFields({ tag, onChange }) {
 }
 
 export default function LaneTagEditor({ routeName, tag, onChange, onClose }) {
-  useEffect(() => {
-    function onKey(e) { if (e.key === 'Escape') { e.stopPropagation(); onClose() } }
-    document.addEventListener('keydown', onKey, true)
-    return () => document.removeEventListener('keydown', onKey, true)
-  }, [onClose])
+  const panelRef = useRef(null)
+  const titleId = useId()
+  useModal(true, panelRef, { onClose })
 
   const handleChange = useCallback(patch => onChange(patch), [onChange])
 
   return createPortal(
     <div className="dlg-overlay" onPointerDown={onClose}>
-      <div className="lane-tag-editor" onPointerDown={e => e.stopPropagation()}>
+      <div
+        ref={panelRef}
+        className="lane-tag-editor"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        tabIndex={-1}
+        onPointerDown={e => e.stopPropagation()}
+      >
         <div className="lane-tag-editor-head">
-          <h2 className="dlg-title">Label · {routeName}</h2>
-          <button className="lane-tag-editor-close" onClick={onClose} title="Close">✕</button>
+          <h2 id={titleId} className="dlg-title">Label · {routeName}</h2>
+          <button className="lane-tag-editor-close" onClick={onClose} title="Close" aria-label="Close">✕</button>
         </div>
         <p className="lane-tag-editor-hint">
           Name this lane by what it plays. The colour marks the lane box.

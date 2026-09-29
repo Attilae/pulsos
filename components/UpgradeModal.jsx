@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useRef, useState } from 'react'
+import { useModal } from '@/lib/shared/useModal.js'
 import './UpgradeModal.css'
 
 const REASON_COPY = {
@@ -24,15 +25,12 @@ export default function UpgradeModal({ reason, signedIn, busy, onClose, onChecko
   const [period, setPeriod] = useState('annual')
   const [title, body] = REASON_COPY[reason] ?? REASON_COPY.upgrade
 
-  useEffect(() => {
-    const onKey = event => { if (event.key === 'Escape') onClose() }
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [onClose])
+  const panelRef = useRef(null)
+  useModal(true, panelRef, { onClose })
 
   return (
     <div className="upgrade-overlay" onPointerDown={onClose} role="presentation">
-      <section className="upgrade-panel" role="dialog" aria-modal="true" aria-labelledby="upgrade-title" onPointerDown={event => event.stopPropagation()}>
+      <section ref={panelRef} className="upgrade-panel" role="dialog" aria-modal="true" aria-labelledby="upgrade-title" tabIndex={-1} onPointerDown={event => event.stopPropagation()}>
         <div className="upgrade-signal" aria-hidden="true"><i /><i /><i /><i /><i /><i /></div>
         <button className="upgrade-close" onClick={onClose} aria-label="Close">×</button>
         <p className="upgrade-kicker">Leið Pro · full signal</p>

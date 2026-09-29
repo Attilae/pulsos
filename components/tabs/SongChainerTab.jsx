@@ -292,14 +292,16 @@ export default function SongChainerTab({ active = true }) {
         <h2 className="chain-title">Song</h2>
         <input
           className="chain-name"
+          aria-label="Song name"
           value={name}
           onChange={e => setName(e.target.value)}
           placeholder="Song name"
         />
 
         <div className="chain-field">
-          <label>BPM</label>
+          <label htmlFor="chain-bpm">BPM</label>
           <input
+            id="chain-bpm"
             type="number" min="40" max="240"
             value={bpm}
             onChange={e => setBpm(Math.max(40, Math.min(240, +e.target.value || 120)))}
@@ -425,9 +427,9 @@ export default function SongChainerTab({ active = true }) {
                   )}
 
                   <div className="chain-item-actions">
-                    <button className="chain-icon" onClick={() => moveItem(idx, -1)} disabled={idx === 0} title="Move up">↑</button>
-                    <button className="chain-icon" onClick={() => moveItem(idx, +1)} disabled={idx === items.length - 1} title="Move down">↓</button>
-                    <button className="chain-icon chain-icon--danger" onClick={() => removeItem(idx)} title="Remove">✕</button>
+                    <button className="chain-icon" onClick={() => moveItem(idx, -1)} disabled={idx === 0} title="Move up" aria-label={`Move ${it.presetName} up`}>↑</button>
+                    <button className="chain-icon" onClick={() => moveItem(idx, +1)} disabled={idx === items.length - 1} title="Move down" aria-label={`Move ${it.presetName} down`}>↓</button>
+                    <button className="chain-icon chain-icon--danger" onClick={() => removeItem(idx)} title="Remove" aria-label={`Remove ${it.presetName}`}>✕</button>
                   </div>
                 </div>
 

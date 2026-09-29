@@ -227,6 +227,7 @@ export default function SongMenu({
               <button
                 className="song-menu-row-del"
                 title="Delete"
+                aria-label={`Delete ${s.name}`}
                 onClick={() => handleDeleteSong(s.id, s.name)}
               >✕</button>
             </div>

@@ -53,6 +53,21 @@ export default function App() {
     setTabId(id)
   }
 
+  // Tablist keyboard: arrows move between tabs (and select them, since
+  // switching is instant), Home/End jump to the ends.
+  function onTabKey(e) {
+    const i = TABS.findIndex(t => t.id === tabId)
+    let next = null
+    if (e.key === 'ArrowRight') next = TABS[(i + 1) % TABS.length]
+    else if (e.key === 'ArrowLeft') next = TABS[(i - 1 + TABS.length) % TABS.length]
+    else if (e.key === 'Home') next = TABS[0]
+    else if (e.key === 'End') next = TABS[TABS.length - 1]
+    if (!next) return
+    e.preventDefault()
+    openTab(next.id)
+    document.getElementById(`tab-${next.id}`)?.focus()
+  }
+
   function startTour() {
     if (tabId !== 'mixer') { pendingTourRef.current = true; openTab('mixer') }
     else runProductTour({ phone: isPhone })
@@ -93,7 +108,7 @@ export default function App() {
     <CityProvider>
       <DrumClipboardProvider>
       <div className="app-shell">
-        <nav className="tab-bar">
+        <header className="tab-bar">
           <h1
             className="app-title"
             data-tour="title"
@@ -101,10 +116,15 @@ export default function App() {
           >
             Leið<span className="app-title-say">layth</span>
           </h1>
-          <div className="tab-bar-tabs" data-tour="tabs">
+          <div className="tab-bar-tabs" data-tour="tabs" role="tablist" aria-label="Views" onKeyDown={onTabKey}>
             {TABS.map(t => (
               <button
                 key={t.id}
+                id={`tab-${t.id}`}
+                role="tab"
+                aria-selected={tabId === t.id}
+                aria-controls={mounted.has(t.id) ? `tabpanel-${t.id}` : undefined}
+                tabIndex={tabId === t.id ? 0 : -1}
                 className={`tab-btn ${tabId === t.id ? 'active' : ''}`}
                 onClick={() => openTab(t.id)}
               >
@@ -117,11 +137,14 @@ export default function App() {
           {!isPhone && <CitySelect />}
           {!isPhone && <ThemeToggle />}
           <HeaderMenu startTour={startTour} showSessionControls={isPhone} />
-        </nav>
+        </header>
         <main className="tab-body">
           {TABS.filter(t => mounted.has(t.id)).map(t => (
             <div
               key={t.id}
+              id={`tabpanel-${t.id}`}
+              role="tabpanel"
+              aria-labelledby={`tab-${t.id}`}
               className="tab-pane"
               style={{ display: tabId === t.id ? undefined : 'none' }}
             >

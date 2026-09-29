@@ -9,6 +9,7 @@ import { openSoundCheck, hasSoundCheck } from '@/lib/shared/soundCheck.js'
 import { AccountSection, BillingSection, McpSection, PresetsSection, SecuritySection } from './ProfilePanel.jsx'
 import { useEntitlements } from '@/lib/shared/EntitlementsContext.jsx'
 import { signOut, useSession } from '../lib/auth-client.js'
+import { useModal } from '@/lib/shared/useModal.js'
 import './HeaderMenu.css'
 
 const LEGAL_ITEMS = [
@@ -23,6 +24,7 @@ export default function HeaderMenu({ startTour, showSessionControls = false }) {
   const [open, setOpen] = useState(false)
   const [view, setView] = useState('home')
   const triggerRef = useRef(null)
+  const drawerRef = useRef(null)
 
   const close = () => {
     setOpen(false)
@@ -30,14 +32,8 @@ export default function HeaderMenu({ startTour, showSessionControls = false }) {
     requestAnimationFrame(() => triggerRef.current?.focus())
   }
 
-  useEffect(() => {
-    if (!open) return
-    const onKeyDown = (event) => {
-      if (event.key === 'Escape') close()
-    }
-    document.addEventListener('keydown', onKeyDown)
-    return () => document.removeEventListener('keydown', onKeyDown)
-  }, [open])
+  // Esc closes, Tab stays inside the drawer while it's open.
+  useModal(open, drawerRef, { onClose: close })
 
   useEffect(() => {
     const showAuth = () => { setView('home'); setOpen(true) }
@@ -78,9 +74,13 @@ export default function HeaderMenu({ startTour, showSessionControls = false }) {
       {open && (
         <div className="header-menu-layer" onPointerDown={close}>
           <aside
+            ref={drawerRef}
             id="app-menu-drawer"
             className="header-menu-drawer"
+            role="dialog"
+            aria-modal="true"
             aria-label="Application menu"
+            tabIndex={-1}
             onPointerDown={event => event.stopPropagation()}
           >
             <header className="header-menu-drawer-header">
