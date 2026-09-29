@@ -120,7 +120,7 @@
 .drum-mini-btn:hover { background: var(--hover-surface); color: var(--text); }
 .drum-mini-btn:disabled { opacity: 0.3; cursor: not-allowed; }
 .drum-mini-btn.on {
-  background: rgba(240, 64, 64, 0.15);
+  background: var(--danger-tint-strong);
   color: var(--danger);
   border-color: var(--danger);
 }

@@ -3,8 +3,8 @@
 .sheet-overlay {
   position: fixed;
   inset: 0;
-  z-index: 1800;              /* above HeaderMenu (1500), below Dialog (2000) */
-  background: rgba(0, 0, 0, 0.55);
+  z-index: var(--z-sheet);              /* above HeaderMenu (1500), below Dialog (2000) */
+  background: var(--scrim);
   display: flex;
   align-items: flex-end;      /* bottom-anchored on phones */
   justify-content: center;

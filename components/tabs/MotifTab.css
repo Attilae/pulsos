@@ -110,7 +110,7 @@
   border-color: var(--danger);
   color: var(--danger);
 }
-.motif-btn--primary.on:hover { background: rgba(240, 64, 64, 0.1); }
+.motif-btn--primary.on:hover { background: var(--danger-tint); }
 
 /* ── Footer ───────────────────────────────────────────────────────────── */
 .motif-footer {

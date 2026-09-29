@@ -3,6 +3,10 @@
   width: 100%;
   height: 100%;
   min-height: 0;
+  /* Own stacking context: Leaflet's panes and controls (z 400-1000) and the
+     overlays below stay inside the map instead of competing with app layers
+     (they used to render over the upgrade modal). */
+  isolation: isolate;
 }
 
 .map-container {

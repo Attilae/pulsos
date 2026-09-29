@@ -2,7 +2,7 @@
   position: fixed;
   bottom: 16px;
   right: 16px;
-  z-index: 1001;
+  z-index: var(--z-floating);
   width: 340px;
   max-width: calc(100vw - 32px);
   background: var(--surface-overlay);
@@ -154,7 +154,7 @@
 .ai-planning-overlay {
   position: fixed;
   inset: 0;
-  z-index: 1700;
+  z-index: var(--z-busy);
   display: grid;
   place-items: center;
   overflow: hidden;
@@ -283,7 +283,7 @@
     bottom: 0;
     width: auto;
     max-width: none;
-    z-index: 1800;
+    z-index: var(--z-sheet);
     border: none;
     border-top: 1px solid var(--border);
     border-radius: var(--radius-lg) var(--radius-lg) 0 0;
