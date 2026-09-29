@@ -46,7 +46,16 @@ export default function SongChainerTab({ active = true }) {
 
   const [playing, setPlaying] = useState(false)
   const [currentIndex, setCurrentIndex] = useState(-1)
-  const [progress, setProgress] = useState(0)
+  // Section progress is written straight to the bar (transform: scaleX), not
+  // React state: the player reports it every animation frame, and state here
+  // re-rendered the whole tab at display rate.
+  const progressRef    = useRef(0)
+  const progressBarRef = useRef(null)
+  const setProgress = useCallback((frac) => {
+    progressRef.current = frac
+    const el = progressBarRef.current
+    if (el) el.style.transform = `scaleX(${frac})`
+  }, [])
 
   // ── Stable snapshot loader (cached) ──────────────────────────────────────
   const loadSnapshot = useCallback(async (presetId) => {
@@ -434,7 +443,11 @@ export default function SongChainerTab({ active = true }) {
                 />
 
                 {currentIndex === idx && (
-                  <span className="chain-item-progress" style={{ width: `${Math.round(progress * 100)}%` }} />
+                  <span
+                    ref={progressBarRef}
+                    className="chain-item-progress"
+                    style={{ transform: `scaleX(${progressRef.current})` }}
+                  />
                 )}
               </li>
             ))}
