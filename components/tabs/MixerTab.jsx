@@ -19,6 +19,8 @@ import AIComposerPanel from '../AIComposerPanel.jsx'
 import SongMenu from '../SongMenu.jsx'
 import { useSongPersistence } from '../../lib/useSongPersistence.js'
 import { applySnapshot, buildSnapshot } from '@/lib/songState.js'
+import { getMasterBus } from '@/lib/masterBus.js'
+import { normalizeMasterChain } from '@/lib/masterChain.js'
 import { describeSnapshot } from '@/lib/ai/planSnapshot.js'
 import {
   MidiSessionRecorder, exportRouteMidi, exportMixMidi,
@@ -233,6 +235,9 @@ export default function MixerTab({ active = true }) {
   const [activeFxTracks, setActiveFxTracks] = useState(() => DEFAULT_FX_TRACKS)
 
   const [masterVolume, setMasterVolume] = useState(0)
+  // Mastering card (DAW footer). Lives on the shared master bus, not the engine, so
+  // it survives engine rebuilds; the effect below is its only writer to the bus.
+  const [masterChain, setMasterChain] = useState(() => normalizeMasterChain(null))
 
   const [trackOctaves,    setTrackOctaves]    = useState({})
   // Per-lane chromatic transpose (semitones), set when a lane is duplicated with
@@ -1170,6 +1175,12 @@ export default function MixerTab({ active = true }) {
     Tone.getDestination().volume.value = db
   }, [])
 
+  const handleMasterChain = useCallback((patch) => {
+    setMasterChain(c => normalizeMasterChain({ ...c, ...patch }))
+  }, [])
+
+  useEffect(() => { getMasterBus().setSettings(masterChain) }, [masterChain])
+
   const handleOctaveShift = useCallback((routeId, shift) => {
     setTrackOctaves(o => ({ ...o, [routeId]: shift }))
     engineRef.current?.setOctaveShift(routeId, shift)
@@ -1836,7 +1847,7 @@ export default function MixerTab({ active = true }) {
     // the song — without them a load can't reproduce which lines were playing.
     cityId,
     routeIds: (routes ?? []).map(route => route.id),
-    bpm, mode, view, masterVolume, globalHarmony,
+    bpm, mode, view, masterVolume, masterChain, globalHarmony,
     volumes, disabledRoutes, pans, soloRoutes,
     trackSoundModes, trackScales, trackSynthTypes, trackADSRs,
     trackFilters, trackEqs,
@@ -1851,7 +1862,7 @@ export default function MixerTab({ active = true }) {
     })),
   }), [
     cityId, routes,
-    bpm, mode, view, masterVolume, globalHarmony,
+    bpm, mode, view, masterVolume, masterChain, globalHarmony,
     volumes, disabledRoutes, pans, soloRoutes,
     trackSoundModes, trackScales, trackSynthTypes, trackADSRs,
     trackFilters, trackEqs,
@@ -1900,12 +1911,12 @@ export default function MixerTab({ active = true }) {
     setDuplicates([]); setMerges([])
     pendingPublishedDrumRef.current = null
     setLocalDrumPattern(null); setDrumsMuted(false)
-    setBpm(120); setMasterVolume(0)
+    setBpm(120); setMasterVolume(0); setMasterChain(normalizeMasterChain(null))
     setGlobalHarmony({ root: 'C', scaleType: 'major' })
   }, [createEngine, setLocalDrumPattern])
 
   const songSetters = useMemo(() => ({
-    setBpm, setMode, setView, setMasterVolume, setGlobalHarmony,
+    setBpm, setMode, setView, setMasterVolume, setMasterChain, setGlobalHarmony,
     setVolumes, setDisabledRoutes, setPans, setSoloRoutes,
     setTrackSoundModes, setTrackScales, setTrackSynthTypes, setTrackADSRs,
     setTrackFilters, setTrackEqs,
@@ -2252,6 +2263,7 @@ export default function MixerTab({ active = true }) {
         fxBusWet={fxBusWet}
         activeFxTracks={activeFxTracks}
         masterVolume={masterVolume}
+        masterChain={masterChain}
         trackOctaves={trackOctaves}
         trackSemitones={trackSemitones}
         trackGlides={trackGlides}
@@ -2313,6 +2325,7 @@ export default function MixerTab({ active = true }) {
         onAddFxTrack={handleAddFxTrack}
         onRemoveFxTrack={handleRemoveFxTrack}
         onMasterVolume={handleMasterVolume}
+        onMasterChain={handleMasterChain}
         onOctaveShift={handleOctaveShift}
         onAddAutomationLane={handleAddAutomationLane}
         onRemoveAutomationLane={handleRemoveAutomationLane}
