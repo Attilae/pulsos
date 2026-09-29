@@ -8,6 +8,12 @@ import { trackProductEvent } from '@/lib/productAnalytics.js'
 import { unlockAudio } from '@/lib/audioSession.js'
 import './AIComposerPanel.css'
 
+// Tooltip for the preview's recipe tag, by selectRecipe()/resolveRecipe() source.
+const RECIPE_SOURCE_TITLE = {
+  auto:  () => 'Detected from your prompt',
+  model: ({ confidence }) => `Inferred from your prompt by Jev${confidence != null ? ` (${Math.round(confidence * 100)}% confident)` : ''}`,
+}
+
 // Natural-language composer overlay for the Map tab. The user describes the
 // sound they want; we ask the model for a structured plan, show a preview, and
 // only touch the app's controls when they click Apply.
@@ -87,7 +93,7 @@ export default function AIComposerPanel({
       const advisories = planAdvisories(validated.plan, { mode: effectiveMode, bpm: currentSong?.bpm })
       setResult({ ...validated, advisories, recipe, mode: effectiveMode })
       trackProductEvent('ai_plan_generated', {
-        city: cityId, mode: effectiveMode, recipe: recipe?.recipe.id ?? 'none', advisories: advisories.length,
+        city: cityId, mode: effectiveMode, recipe: recipe?.recipe.id ?? 'none', recipeSource: recipe?.source ?? 'none', advisories: advisories.length,
       })
       await refresh()
     } catch (e) {
@@ -229,7 +235,7 @@ function PlanPreview({ result, routeName, applied, applying, onApply, onDiscard 
       <div className="ai-preview-tags">
         <span className="ai-tag">{result.mode === 'edit' ? 'Edit' : 'New idea'}</span>
         {result.recipe && (
-          <span className="ai-tag" title={result.recipe.source === 'auto' ? 'Detected from your prompt' : 'Chosen genre'}>
+          <span className="ai-tag" title={RECIPE_SOURCE_TITLE[result.recipe.source]?.(result.recipe) ?? 'Chosen genre'}>
             Recipe: {result.recipe.recipe.label}{result.recipe.secondary ? ` + ${result.recipe.secondary.label}` : ''}
           </span>
         )}

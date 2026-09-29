@@ -85,6 +85,7 @@ call is injected through its `services` argument, so it still never touches Post
 `validatePlan`/`PLAN_INPUT_SCHEMA` and checks each tool it names is registered),
 `composer-guide` (pins the prompt's loop-window/FX-unit/fixed-IR facts and its example plan),
 `musical-policy` (`lib/ai/musicalPolicy.js` — genre recipe selection and prompt size),
+`recipe-classifier` (`lib/ai/recipeClassifier.js` — the Jev recipe request/answer shaping),
 `note-length` (`lib/noteLength.js` + its plan/advisory rules),
 `sound-policy` (`lib/ai/soundPolicy.js` — every sound recipe survives `validatePlan` and raises no
 advisory), `plan-advisories` (`lib/ai/planAdvisories.js`), `plan-snapshot` (`lib/ai/planSnapshot.js` — round-trips its output through the real
@@ -113,6 +114,12 @@ change as verified on a green build alone.
   trusting only `BETTER_AUTH_URL` made every sign-in from the other half fail with `INVALID_ORIGIN`.
 - `OPENROUTER_API_KEY` — required only for the AI Composer (`POST /api/compose`).
 - `OPENROUTER_MODEL` — optional override (default `anthropic/claude-sonnet-4.5`).
+- `JEV_RECIPE_ENABLED` / `NEXT_PUBLIC_JEV_RECIPE_ENABLED` + `TYPESAFE_API_KEY` — **prototype**, default
+  off. When no style keyword matches and no genre chip is chosen, `requestComposition` asks
+  `POST /api/compose/recipe` to infer the genre recipe with TypeSafe's Jev (a Choice over
+  `RECIPE_IDS` + `none`, `lib/ai/recipeClassifier.js`), gated by `JEV_RECIPE_MIN_CONFIDENCE`
+  (default 0.5). Every failure returns no recipe, i.e. the keyword-only behaviour.
+  `node scripts/jev_recipe_eval.js` compares keywords vs Jev on sample prompts.
 - `MCP_ENABLED` / `NEXT_PUBLIC_MCP_ENABLED` — default `false`; gate the Pro MCP server and its
   header-menu entry (see **MCP server** below). Apply the Drizzle migrations to the target database
   **before** flipping either on — Better Auth's MCP/OAuth plugins read tables that only exist after
