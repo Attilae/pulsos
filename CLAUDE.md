@@ -76,7 +76,7 @@ logic** — nothing boots Tone.js, React, or the DB: `billing-plans` (`lib/billi
 (`scripts/lib/stopSignals.js`), `ridership-adapters` (`scripts/ridership/`),
 `feedback-validate` (`lib/feedback.js`), `turnstile-hostnames` (`lib/turnstile.js`),
 `lane-cycles` (`lib/laneCycles.js`), `master-curves` (`lib/masterCurves.js`),
-`true-peak-limiter` (`public/worklets/true-peak-limiter.js`), `wav-pcm` (`lib/wavPcm.js` — dithered
+`true-peak-limiter` (`public/worklets/true-peak-limiter.js`), `master-chain` (`lib/masterChain.js`), `wav-pcm` (`lib/wavPcm.js` — dithered
 16-bit conversion for WAV export), `lane-gating` (`lib/laneGating.js`), `auth-origins`
 (`lib/authOrigins.js`), `mcp-tools`
 (`lib/server/mcpTools.js` — drives the real MCP SDK client/handler in-process, but every DB/billing
@@ -427,9 +427,18 @@ NetworkState (drone hum + hub-convergence chords) → AlertLayer input
   `TransitEngine` feeds, so the Song Chainer's two engines are limited as one sum. It sits
   *ahead of* `Destination` rather than in `Destination.chain()` because the master fader is
   `Destination.volume` — Destination's input — and must stay post-mastering. `legacy` mode
-  reproduces the old per-engine compressor+limiter for A/B; switch from the console with
-  `leidMaster.set('master'|'legacy')` (persisted to localStorage). Only TransitEngine feeds it —
-  the other tabs' engines still go straight to Destination.
+  reproduces the old per-engine compressor+limiter (still a safety limiter). Only TransitEngine
+  feeds it — the other tabs' engines still go straight to Destination.
+- **The Mastering card** (`MasterChainCard` in `DawView.jsx`, next to the Master strip in the
+  footer; desktop only) exposes a few narrow-range settings — low cut, low-mid, air, warmth, glue
+  threshold/ratio, limiter drive and ceiling — plus On/Off (Off = `legacy`) and live
+  gain-reduction meters polled from `getMasterBus().status()`. The settings live in
+  `lib/masterChain.js` (pure, tested: defaults, specs, `normalizeMasterChain`), are MixerTab state
+  (`masterChain`), and reach the bus through a single effect calling `setSettings`. They're **per
+  song**: `snapshot.masterChain`, sparse (null = defaults, no schema bump), and `applySnapshot`
+  *always* applies it so a song without the field resets rather than inheriting the last song's.
+  The Song Chainer passes no setters, so its sections play through whatever MixerTab has set.
+  `leidMaster.set/status/settings()` in the console are for debugging.
 - **The master limiter is an AudioWorklet** — `public/worklets/true-peak-limiter.js`, a
   5 ms-lookahead, 4×-oversampled true-peak brickwall at -1 dBTP. It lives in `public/` because
   worklet modules are fetched by URL and can't import from `lib/`; its DSP is the

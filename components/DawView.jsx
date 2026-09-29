@@ -16,6 +16,8 @@ import LaneTagEditor from './LaneTagEditor.jsx'
 import DuplicateLaneDialog from './DuplicateLaneDialog.jsx'
 import LinePicker from './LinePicker.jsx'
 import { NOTE_ROOTS, SCALE_TYPES } from '@/lib/harmony.js'
+import { getMasterBus } from '@/lib/masterBus.js'
+import { MASTER_CHAIN_DEFAULTS, MASTER_CHAIN_SPECS, MASTER_CHAIN_STAGES, isDefaultMasterChain } from '@/lib/masterChain.js'
 import './DawView.css'
 
 // Exported so the phone lane sheet offers exactly the same instruments.
@@ -114,7 +116,7 @@ export default function DawView({
   trackSoundModes, trackScales, trackSynthTypes, trackADSRs, trackFilters,
   getEqRuntime,
   sendMatrix, automationCfg, automationSourceIds,
-  fxBusWet, activeFxTracks, masterVolume, trackOctaves, trackSemitones, trackGlides, trackLegatos, trackArps, trackGranulars, trackSidechains, sidechainSources, trackSpeeds, trackLoopRegions,
+  fxBusWet, activeFxTracks, masterVolume, masterChain, onMasterChain, trackOctaves, trackSemitones, trackGlides, trackLegatos, trackArps, trackGranulars, trackSidechains, sidechainSources, trackSpeeds, trackLoopRegions,
   trackGridResolutions,
   trackPitchVariety, onPitchVariety,
   trackStopVelocities, onStopVelocity,
@@ -499,6 +501,8 @@ export default function DawView({
       <DawFooter
         activeFxTracks={activeFxTracks ?? []}
         masterVolume={masterVolume ?? 0}
+        masterChain={masterChain}
+        onMasterChain={onMasterChain}
         fxBusWet={fxBusWet}
         fxBusMuted={fxBusMuted}
         fxBusSoloed={fxBusSoloed}
@@ -1810,7 +1814,7 @@ function AutoCurveRail({ route, laneId, points, spec, started = false, speed = 1
 
 // ── DAW Footer ────────────────────────────────────────────────────────────────
 function DawFooter({
-  activeFxTracks, masterVolume,
+  activeFxTracks, masterVolume, masterChain, onMasterChain,
   fxBusWet, fxBusMuted, fxBusSoloed, fxBusParams,
   onMasterVolume, onFxBusWet, onFxBusMute, onFxBusSolo, onFxBusParam, onFxBusCustomIR,
   onAddFxTrack, onRemoveFxTrack,
@@ -1819,6 +1823,9 @@ function DawFooter({
     <footer className="daw-footer" data-tour="footer">
       <div className="daw-footer-inner">
         <MasterStrip volume={masterVolume} onVolume={onMasterVolume} />
+        {masterChain && onMasterChain && (
+          <MasterChainCard settings={masterChain} onChange={onMasterChain} />
+        )}
         {activeFxTracks.map(busId => {
           const bus = FX_BUSES.find(b => b.id === busId)
           if (!bus) return null
@@ -1859,6 +1866,98 @@ function MasterStrip({ volume, onVolume }) {
         />
         <span className="master-vol-val">{volume}dB</span>
       </div>
+    </div>
+  )
+}
+
+// The hidden master bus (lib/masterBus.js) made visible: what's on it, how hard
+// its two dynamics stages are working, and a few narrow-range controls
+// (lib/masterChain.js). "Off" falls back to the classic compressor + limiter, so
+// the output is never left unprotected.
+const MASTER_METER_POLL_MS = 100
+const MASTER_METER_RANGE_DB = 8
+
+function MasterChainCard({ settings, onChange }) {
+  const { enabled } = settings
+  const [meter, setMeter] = useState(null)
+
+  useEffect(() => {
+    if (!enabled) { setMeter(null); return }
+    const bus = getMasterBus()
+    const id = setInterval(() => {
+      if (document.hidden) return
+      setMeter(bus.status())
+    }, MASTER_METER_POLL_MS)
+    return () => clearInterval(id)
+  }, [enabled])
+
+  const isDefault = isDefaultMasterChain(settings)
+
+  return (
+    <div className={`fx-track-card master-chain-card ${enabled ? '' : 'fx-track-card--muted'}`}>
+      <div className="fx-track-card-header">
+        <span className="fx-track-name master-chain-name">Mastering</span>
+        <span className="master-chain-flow" aria-label="Signal chain">
+          {MASTER_CHAIN_STAGES.map((st, i) => (
+            <span key={st.id}>{i > 0 && <span className="master-chain-arrow">›</span>}{st.label}</span>
+          ))}
+        </span>
+        <button
+          type="button"
+          className="master-chain-reset"
+          onClick={() => onChange({ ...MASTER_CHAIN_DEFAULTS, enabled })}
+          disabled={isDefault}
+          title="Reset mastering to defaults"
+          aria-label="Reset mastering to defaults"
+        >↺</button>
+        <button
+          type="button"
+          className={`master-chain-toggle ${enabled ? 'active' : ''}`}
+          onClick={() => onChange({ enabled: !enabled })}
+          aria-pressed={enabled}
+          title={enabled ? 'Turn mastering off (keeps a safety limiter)' : 'Turn mastering on'}
+        >{enabled ? 'On' : 'Off'}</button>
+      </div>
+      <div className="fx-track-params master-chain-params">
+        {MASTER_CHAIN_SPECS.map(spec => (
+          <FxParamControl
+            key={spec.id}
+            spec={spec}
+            value={settings[spec.id]}
+            onChange={v => onChange({ [spec.id]: v })}
+            disabled={!enabled}
+            disabledText={null}
+          />
+        ))}
+      </div>
+      <div className="master-chain-meters">
+        {enabled ? (
+          <>
+            <GainReductionMeter label="Glue" db={meter?.glueReductionDb} />
+            <GainReductionMeter
+              label="Limit"
+              title={meter?.limiter === 'true-peak worklet' ? 'True-peak limiter gain reduction' : 'Limiter gain reduction'}
+              db={meter?.limiterReductionDb}
+            />
+          </>
+        ) : (
+          <span className="master-chain-off-note">Off: safety limiter only</span>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function GainReductionMeter({ label, db, title = `${label} gain reduction` }) {
+  const gr = Math.min(0, db ?? 0)
+  const frac = Math.min(1, -gr / MASTER_METER_RANGE_DB)
+  return (
+    <div className="gr-meter" title={title}>
+      <span className="fx-param-label">{label}</span>
+      <div className="gr-meter-track">
+        <div className="gr-meter-fill" style={{ width: `${frac * 100}%` }} />
+      </div>
+      <span className="fx-param-val">{gr === 0 ? '0.0' : gr.toFixed(1)} dB</span>
     </div>
   )
 }
@@ -1985,7 +2084,9 @@ function SamplerUploadRow({ onSamplerUpload }) {
   )
 }
 
-function FxParamControl({ spec, value, onChange, disabled = false }) {
+// `disabledText` replaces the value readout while disabled (a tempo-synced delay
+// time reads "synced"); null keeps showing the value.
+function FxParamControl({ spec, value, onChange, disabled = false, disabledText = 'synced' }) {
   if (spec.kind === 'enum') {
     return (
       <div className="fx-param-row">
@@ -2006,7 +2107,7 @@ function FxParamControl({ spec, value, onChange, disabled = false }) {
   const v = value ?? spec.min
   const scale = spec.displayScale ?? 1
   const displayVal = v * scale
-  const decimals = spec.step < 0.01 ? 3 : spec.step < 1 ? 2 : 0
+  const decimals = spec.decimals ?? (spec.step < 0.01 ? 3 : spec.step < 1 ? 2 : 0)
   return (
     <div className={`fx-param-row ${disabled ? 'fx-param-row--disabled' : ''}`}>
       <span className="fx-param-label">{spec.label}</span>
@@ -2021,7 +2122,7 @@ function FxParamControl({ spec, value, onChange, disabled = false }) {
         className="fx-param-slider"
       />
       <span className="fx-param-val">
-        {disabled ? 'synced' : `${displayVal.toFixed(decimals)}${spec.unit ? ` ${spec.unit}` : ''}`}
+        {disabled && disabledText != null ? disabledText : `${displayVal.toFixed(decimals)}${spec.unit ? ` ${spec.unit}` : ''}`}
       </span>
     </div>
   )
