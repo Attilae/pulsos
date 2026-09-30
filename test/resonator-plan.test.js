@@ -51,6 +51,20 @@ test('normalization fills defaults, clamps, and rejects junk from imported songs
   assert.deepEqual(SYNTH_DEFAULTS.Resonator, specs.RESONATOR_DEFAULTS)
 })
 
+test('automation targets are the four timbre params, 0..1, and each is a real lane param key', () => {
+  const targets = specs.RESONATOR_AUTOMATION_TARGETS
+  assert.deepEqual(targets.map(t => t.id), ['synth.resonatorStructure', 'synth.resonatorBrightness', 'synth.resonatorDamping', 'synth.resonatorPosition'])
+  for (const t of targets) {
+    assert.equal(t.min, 0)
+    assert.equal(t.max, 1)
+    assert.equal(t.curve, undefined, 'linear, like the knobs')
+    const key = t.id.slice('synth.'.length)
+    assert.ok(specs.RESONATOR_PARAM_KEYS.includes(key), key)
+    // The engine applies an automated value through set({ [key]: v }), which normalizes.
+    assert.equal(specs.normalizeResonatorParams({ [key]: 0.123 })[key], 0.123)
+  }
+})
+
 test('tone ↔ params mapping round-trips and never leaks onto other instruments', () => {
   const params = toneToSynthParams(TONE, 'Resonator')
   assert.deepEqual(params, {
