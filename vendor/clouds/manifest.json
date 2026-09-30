@@ -1,0 +1,98 @@
+{
+  "upstream": [
+    {
+      "name": "eurorack",
+      "url": "https://github.com/pichenettes/eurorack",
+      "commit": "08460a69a7e1f7a81c5a2abcc7189c9a6b7208d4",
+      "commitDate": "2023-08-16",
+      "license": "MIT (STM32F projects)",
+      "paths": "clouds/"
+    },
+    {
+      "name": "stmlib",
+      "url": "https://github.com/pichenettes/stmlib",
+      "commit": "e3bd7c9cc00e4364166f9905c0509b6ffd0535ec",
+      "commitDate": "2023-05-30",
+      "license": "MIT",
+      "paths": "stmlib/",
+      "note": "the submodule revision pinned by the eurorack commit above"
+    }
+  ],
+  "files": [
+    {
+      "path": "clouds/dsp/audio_buffer.h",
+      "sha256": "110c63276ec84cbb211f98a5897d075307471da25ae1845da82dac504d052657",
+      "patched": false
+    },
+    {
+      "path": "clouds/dsp/frame.h",
+      "sha256": "203a758cd626f7d5ca0d3bd70457ba15b36d2ddc9fea5a2c56eab3cdd15ec3b4",
+      "patched": false
+    },
+    {
+      "path": "clouds/dsp/grain.h",
+      "sha256": "08feb5ac5408e2cb30eb037a844f6ee187d8dedd53fee913d1b5ab2c74ebfac3",
+      "patched": false
+    },
+    {
+      "path": "clouds/dsp/mu_law.cc",
+      "sha256": "8bc0c3ff12760bd1bc839c5f862f4190ecf1bf54fe219081aaba9549573d2b20",
+      "patched": false
+    },
+    {
+      "path": "clouds/dsp/mu_law.h",
+      "sha256": "9c79d3ad8680cef63db102f70f54c00fb2a94077c880dc8b6250de058a138666",
+      "patched": false
+    },
+    {
+      "path": "clouds/resources.cc",
+      "sha256": "167b5371080dfd1c8c493cdbb9ea8170cada7153fafea333e6d5657dd70f3568",
+      "patched": false
+    },
+    {
+      "path": "clouds/resources.h",
+      "sha256": "5935cca20a9e4df6cfd73b93fd40477154e761e724901fc42d4853eb0945b634",
+      "patched": false
+    },
+    {
+      "path": "stmlib/dsp/dsp.h",
+      "sha256": "98b42900c4accbe9fbb2cfe2ec6fada024b57ec9a1becff008b0f35bd4fd8ddb",
+      "patched": false
+    },
+    {
+      "path": "stmlib/dsp/rsqrt.h",
+      "sha256": "da1483cd97e0bcfcb3734ff3bfea1c46fdcbd5a282abab7a3a4be9d5adbdeabb",
+      "patched": false
+    },
+    {
+      "path": "stmlib/dsp/units.cc",
+      "sha256": "0acbe230ffaa2d181ba285fce54f2fd0b2339b3ec163a1dd00c946e6bf82ea4a",
+      "patched": false
+    },
+    {
+      "path": "stmlib/dsp/units.h",
+      "sha256": "70cf104c06f0e34ada90416f121417a13d17b6736116f0fc07063c1cd2084877",
+      "patched": false
+    },
+    {
+      "path": "stmlib/stmlib.h",
+      "sha256": "3afc8589a951e882d9eea16b3eda8623dd6fb0079dd11dfbce817e65be6cfba9",
+      "patched": false
+    },
+    {
+      "path": "stmlib/utils/dsp.h",
+      "sha256": "c0fad7f6b5b20f053d184614a35baf595e41f1394db53f80ac742d7467dbbe1b",
+      "patched": false
+    },
+    {
+      "path": "stmlib/utils/random.cc",
+      "sha256": "145c4d7a30e373d001fd664ce6f97a475458f7dc8286252d24ca6f592e0cdb93",
+      "patched": false
+    },
+    {
+      "path": "stmlib/utils/random.h",
+      "sha256": "423f01e905fa279864878f34e42136ad1eb37a33dad58739affaaab06b793e5d",
+      "patched": false
+    }
+  ]
+}

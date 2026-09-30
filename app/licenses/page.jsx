@@ -155,13 +155,14 @@ export default function LicensesPage() {
           dependency tree control if this summary differs from a package’s own licence.
         </p>
         <p>
-          The Resonator instrument’s sound engine is compiled from open-source DSP code by Emilie
-          Gillet: the Rings resonator sources in{' '}
+          The Resonator instrument’s sound engine and the granular layer’s cloud engine are compiled
+          from open-source DSP code by Emilie Gillet: the Rings resonator and Clouds grain sources
+          in{' '}
           <a href="https://github.com/pichenettes/eurorack" target="_blank" rel="noreferrer">eurorack</a>{' '}
           and the supporting{' '}
           <a href="https://github.com/pichenettes/stmlib" target="_blank" rel="noreferrer">stmlib</a>{' '}
-          library, used under the MIT License. Leið’s Resonator is an independent adaptation and is
-          not affiliated with or endorsed by the original author. The notice below applies to that
+          library, used under the MIT License. Both are independent adaptations and are not
+          affiliated with or endorsed by the original author. The notice below applies to that
           code:
         </p>
         <p className={styles.notice}>
