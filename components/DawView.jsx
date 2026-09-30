@@ -2488,7 +2488,7 @@ function EnvPanel({ synthType, adsr, onADSR, onSamplerPreset, onDrumVoice, onSam
 
   if (synthType === 'Resonator') return (
     <div className="sp-panel">
-      <ResonatorControls params={p} onChange={onADSR} status={resonatorStatus} granularEnabled={granularEnabled} variant="rack" />
+      <ResonatorControls params={p} onChange={onADSR} status={resonatorStatus} granularEnabled={granularEnabled} variant="rack" autoTargets={autoTargets} />
     </div>
   )
 

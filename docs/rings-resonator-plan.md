@@ -42,9 +42,11 @@ Initial release includes:
 - Lane duplication/remapping, saved/shared songs, Song Chainer, MIDI and WAV export.
 - AI Composer and MCP plan vocabulary, using the same validated parameter definitions.
 
-Deferred: external audio excitation/routing, bonus and string-synth modes, new
-resonator-specific automation targets, sustained/legato playing, and granular
-layering. Existing lane mix/FX automation remains available. Live mode stays
+Deferred: external audio excitation/routing, bonus and string-synth modes,
+sustained/legato playing, and granular layering. Existing lane mix/FX automation
+remains available. Automation lanes can also target Structure, Brightness,
+Damping and Position (added after the first implementation); model and voice
+count stay manual. Live mode stays
 disabled app-wide; exercise its note-dispatch adapter without enabling feeds.
 
 Use the public name **Resonator** and internal synth type `Resonator`. Attribute
