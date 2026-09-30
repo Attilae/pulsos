@@ -1,22 +1,21 @@
-// Native reference renderer for the Clouds granular bridge. Compiled by
-// `node scripts/build_clouds.js --reference` with the host C++ compiler and the
-// same sources and flags (minus the wasm target) as the shipped module, so
+// Native reference renderer for the Texture (Clouds granular) bridge. Compiled
+// by `node scripts/build_clouds.js --reference` with the host C++ compiler and
+// the same sources and flags (minus the wasm target) as the shipped module, so
 // scripts/clouds_compare.js can compare it with public/wasm/clouds-granular-*.wasm
 // sample by sample.
 //
-// Usage: clouds-reference <scenario.txt> <source.f32> <out.f32>
+// Usage: clouds-reference <scenario.txt> <input.f32> <out.f32>
 //
-// source.f32: little-endian float32 mono samples at 32 kHz, loaded before block 0.
+// input.f32: little-endian float32 mono at 32 kHz, fed to both input channels
+// (silence after it ends).
 // Scenario file, one command per line:
 //   seed <u32>
-//   params <size> <density> <scan_rate> <win_start> <win_end> <jitter> <window_shape> <spread> <reverse>
-//   at <block> note <semitones>        (set pitch + seed a grain)
-//   at <block> pitch <semitones>       (set pitch only)
-//   at <block> params <9 values as above>
-//   at <block> reload                  (load the same source again, with fade)
-//   at <block> panic
+//   params <position> <size> <pitch_knob> <density> <texture> <dry_wet> <spread> <feedback> <reverb> <in_gain> <freeze>
+//   at <block> params <11 values as above>
+//   at <block> trig
+//   at <block> reset
 //   blocks <n>                         (render length; must come last)
-// Output: interleaved little-endian float32 L/R, 32 frames per block.
+// Output: interleaved little-endian float32 wetL, wetR, dryGain; 32 frames per block.
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -25,44 +24,43 @@
 
 extern "C" {
 void cg_init(unsigned seed);
-void cg_set_params(float, float, float, float, float, float, float, float, int);
-void cg_set_pitch(float semitones);
+void cg_set_params(float, float, float, float, float, float, float, float, float, float, int);
 void cg_trigger();
-void cg_panic();
-void cg_load(int len, int immediate);
+void cg_reset();
 void cg_render();
-float* cg_staging();
+float* cg_in_l();
+float* cg_in_r();
 float* cg_out_l();
 float* cg_out_r();
+float cg_dry_gain();
 int cg_block_size();
-int cg_max_source();
 }
 
 struct Event {
   long block;
-  char kind;   // n=note p=pitch P=params r=reload x=panic
-  float v[9];
+  char kind;   // P=params t=trig r=reset
+  float v[11];
 };
 
 static int ReadParams(const char* s, float* v) {
-  return sscanf(s, "%f %f %f %f %f %f %f %f %f",
-                &v[0], &v[1], &v[2], &v[3], &v[4], &v[5], &v[6], &v[7], &v[8]);
+  return sscanf(s, "%f %f %f %f %f %f %f %f %f %f %f",
+                &v[0], &v[1], &v[2], &v[3], &v[4], &v[5], &v[6], &v[7], &v[8], &v[9], &v[10]);
 }
 
 static void ApplyParams(const float* v) {
-  cg_set_params(v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7], static_cast<int>(v[8]));
+  cg_set_params(v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7], v[8], v[9], static_cast<int>(v[10]));
 }
 
 int main(int argc, char** argv) {
   if (argc != 4) {
-    fprintf(stderr, "usage: %s <scenario.txt> <source.f32> <out.f32>\n", argv[0]);
+    fprintf(stderr, "usage: %s <scenario.txt> <input.f32> <out.f32>\n", argv[0]);
     return 2;
   }
   FILE* in = fopen(argv[1], "r");
   if (!in) { perror(argv[1]); return 1; }
 
   unsigned seed = 1;
-  float params[9] = { 2880, 5, 1, 0, 1, 0, 0.75f, 0.5f, 0 };
+  float params[11] = { 0, 0.5f, 0.5f, 0.5f, 0.5f, 0, 0, 0, 0, 1, 0 };
   long blocks = 0;
   std::vector<Event> events;
 
@@ -76,11 +74,9 @@ int main(int argc, char** argv) {
       memset(&e, 0, sizeof(e));
       e.block = at;
       const char* rest = line + consumed;
-      if (!strcmp(cmd, "note")) { e.kind = 'n'; sscanf(rest, "%f", &e.v[0]); }
-      else if (!strcmp(cmd, "pitch")) { e.kind = 'p'; sscanf(rest, "%f", &e.v[0]); }
-      else if (!strcmp(cmd, "params")) { e.kind = 'P'; ReadParams(rest, e.v); }
-      else if (!strcmp(cmd, "reload")) e.kind = 'r';
-      else if (!strcmp(cmd, "panic")) e.kind = 'x';
+      if (!strcmp(cmd, "params")) { e.kind = 'P'; ReadParams(rest, e.v); }
+      else if (!strcmp(cmd, "trig")) e.kind = 't';
+      else if (!strcmp(cmd, "reset")) e.kind = 'r';
       else { fprintf(stderr, "unknown event: %s", line); return 2; }
       events.push_back(e);
     } else if (sscanf(line, "seed %u", &seed) == 1) {
@@ -93,38 +89,38 @@ int main(int argc, char** argv) {
 
   FILE* src = fopen(argv[2], "rb");
   if (!src) { perror(argv[2]); return 1; }
-  std::vector<float> source(cg_max_source());
-  size_t len = fread(source.data(), sizeof(float), source.size(), src);
+  std::vector<float> input;
+  float chunk[4096];
+  size_t got;
+  while ((got = fread(chunk, sizeof(float), 4096, src)) > 0) input.insert(input.end(), chunk, chunk + got);
   fclose(src);
 
   cg_init(seed);
   ApplyParams(params);
-  memcpy(cg_staging(), source.data(), len * sizeof(float));
-  cg_load(static_cast<int>(len), 1);
 
   FILE* out = fopen(argv[3], "wb");
   if (!out) { perror(argv[3]); return 1; }
   const int n = cg_block_size();
-  std::vector<float> frame(n * 2);
+  std::vector<float> frame(n * 3);
   size_t next = 0;
   for (long b = 0; b < blocks; ++b) {
     while (next < events.size() && events[next].block == b) {
       const Event& e = events[next++];
-      switch (e.kind) {
-        case 'n': cg_set_pitch(e.v[0]); cg_trigger(); break;
-        case 'p': cg_set_pitch(e.v[0]); break;
-        case 'P': ApplyParams(e.v); break;
-        case 'r':
-          memcpy(cg_staging(), source.data(), len * sizeof(float));
-          cg_load(static_cast<int>(len), 0);
-          break;
-        case 'x': cg_panic(); break;
-      }
+      if (e.kind == 'P') ApplyParams(e.v);
+      else if (e.kind == 't') cg_trigger();
+      else if (e.kind == 'r') cg_reset();
+    }
+    float* il = cg_in_l();
+    float* ir = cg_in_r();
+    for (int i = 0; i < n; ++i) {
+      size_t k = static_cast<size_t>(b) * n + i;
+      il[i] = ir[i] = k < input.size() ? input[k] : 0.0f;
     }
     cg_render();
     const float* l = cg_out_l();
     const float* r = cg_out_r();
-    for (int i = 0; i < n; ++i) { frame[2 * i] = l[i]; frame[2 * i + 1] = r[i]; }
+    const float dry = cg_dry_gain();
+    for (int i = 0; i < n; ++i) { frame[3 * i] = l[i]; frame[3 * i + 1] = r[i]; frame[3 * i + 2] = dry; }
     fwrite(frame.data(), sizeof(float), frame.size(), out);
   }
   fclose(out);

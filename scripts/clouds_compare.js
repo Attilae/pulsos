@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Native vs wasm comparison for the Clouds granular bridge. Needs the reference
+// Native vs wasm comparison for the Texture (Clouds granular) bridge. Needs the reference
 // renderer: `npm run compare:clouds` builds it first. Renders every scenario in
 // scripts/lib/cloudsScenarios.js through both, reports the largest sample
 // difference, and writes WAVs to dsp/clouds/.build/renders/ for listening.
@@ -8,7 +8,7 @@ import { execFileSync } from 'node:child_process'
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { CLOUDS_SCENARIOS, DSP_RATE, renderScenarioWasm, scenarioText, testSource } from './lib/cloudsScenarios.js'
+import { CLOUDS_SCENARIOS, DSP_RATE, renderScenarioWasm, scenarioText, testInput } from './lib/cloudsScenarios.js'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const build = join(root, 'dsp', 'clouds', '.build')
@@ -30,9 +30,9 @@ function wav(interleaved, rate) {
   return buf
 }
 
-const source = testSource()
-const srcFile = join(build, 'source.f32')
-writeFileSync(srcFile, Buffer.from(source.buffer))
+const input = testInput()
+const srcFile = join(build, 'input.f32')
+writeFileSync(srcFile, Buffer.from(input.buffer))
 
 let worst = 0
 for (const sc of CLOUDS_SCENARIOS) {
@@ -42,7 +42,7 @@ for (const sc of CLOUDS_SCENARIOS) {
   execFileSync(bin, [scFile, srcFile, outFile])
   const raw = readFileSync(outFile)
   const native = new Float32Array(raw.buffer, raw.byteOffset, raw.byteLength / 4)
-  const { out: wasm } = renderScenarioWasm(module, sc, source)
+  const { out: wasm } = renderScenarioWasm(module, sc, input)
   if (native.length !== wasm.length) throw new Error(`${sc.name}: length ${native.length} vs ${wasm.length}`)
   let maxDiff = 0, identical = true, peak = 0
   for (let i = 0; i < wasm.length; i++) {
@@ -51,7 +51,14 @@ for (const sc of CLOUDS_SCENARIOS) {
     peak = Math.max(peak, Math.abs(wasm[i]))
   }
   worst = Math.max(worst, maxDiff)
-  writeFileSync(join(renders, `${sc.name}.wasm.wav`), wav(wasm, DSP_RATE))
+  // Listenable mix: dry input × dry gain + wet, as the host plays it.
+  const mix = new Float32Array((wasm.length / 3) * 2)
+  for (let i = 0; i < wasm.length / 3; i++) {
+    const dry = (i < input.length ? input[i] : 0) * wasm[3 * i + 2]
+    mix[2 * i] = wasm[3 * i] + dry
+    mix[2 * i + 1] = wasm[3 * i + 1] + dry
+  }
+  writeFileSync(join(renders, `${sc.name}.wav`), wav(mix, DSP_RATE))
   console.log(`${sc.name.padEnd(22)} ${identical ? 'bit-identical' : `max |diff| ${maxDiff.toExponential(2)}`}  peak ${peak.toFixed(3)}`)
 }
 console.log(`renders → ${renders}`)

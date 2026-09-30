@@ -1,0 +1,206 @@
+/* Texture panel (components/TextureControls.jsx). Rack-card density; tokens
+   only, so both themes work. Lime marks only live/selected state: the focused
+   or dragged knob, FREEZE when latched, the selected BLEND function. Amber
+   marks a knob owned by an automation lane, as elsewhere in the rack. */
+
+.tx-card { gap: var(--space-100); }
+
+.tx-power.is-on {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.tx-card .rack-card-head .tx-power { margin-left: auto; }
+/* The TONE domain tag follows the power button rather than colliding with it. */
+.tx-card .rack-card-head::after { margin-left: var(--space-075); }
+
+.tx-status {
+  margin: 0;
+  padding: var(--space-050) var(--space-075);
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-2xs);
+  color: var(--text-subtle);
+  background: var(--hover-bg);
+}
+.tx-status--error {
+  color: var(--text);
+  background: var(--danger-tint);
+  border: 1px solid color-mix(in srgb, var(--danger) 40%, transparent);
+}
+
+.tx-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-100);
+  min-width: 0;
+}
+.tx-body.is-off { opacity: 0.5; }
+
+/* ── Button strip: FREEZE + the BLEND selector (the module's buttons A and B) ── */
+.tx-strip {
+  display: flex;
+  align-items: stretch;
+  gap: var(--space-075);
+}
+
+.tx-freeze {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-050);
+  padding: var(--space-050) var(--space-075);
+  font-size: var(--fs-3xs);
+  font-weight: 700;
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.tx-freeze:hover { color: var(--text); background: var(--hover-bg); }
+.tx-freeze.is-on {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-tint);
+}
+.tx-lamp {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  border: 1px solid var(--muted-line);
+  background: transparent;
+}
+.tx-freeze.is-on .tx-lamp { background: var(--accent); border-color: var(--accent); }
+
+.tx-blend-select {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  flex: 1;
+  min-width: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+.tx-blend-opt {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 3px;
+  min-width: 0;
+  padding: 3px var(--space-050) var(--space-050);
+  background: transparent;
+  border: none;
+  border-left: 1px solid var(--border);
+  color: var(--muted);
+  cursor: pointer;
+}
+.tx-blend-opt:first-child { border-left: none; }
+.tx-blend-opt:hover { color: var(--text); background: var(--hover-bg); }
+.tx-blend-opt.is-active { color: var(--accent); background: var(--hover-surface); }
+.tx-blend-name {
+  font-size: var(--fs-3xs);
+  font-weight: 700;
+  letter-spacing: var(--tracking-wide);
+  text-align: center;
+  white-space: nowrap;
+}
+/* The four blend "LEDs": each function's current value at a glance. */
+.tx-meter {
+  display: block;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--surface-sunken);
+  overflow: hidden;
+}
+.tx-meter-fill {
+  display: block;
+  height: 100%;
+  background: var(--text-subtle);
+  transform-origin: left center;
+}
+.tx-blend-opt.is-active .tx-meter-fill { background: var(--accent); }
+
+/* ── Knob rows ─────────────────────────────────────────────────────────────── */
+.tx-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-050);
+}
+.tx-row--foot {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+  align-items: center;
+}
+
+.tx-knob {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  min-width: 0;
+}
+.tx-knob-dial {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  cursor: ns-resize;
+  touch-action: none;
+  user-select: none;
+}
+.tx-knob--sm .tx-knob-dial { width: 30px; height: 30px; }
+.tx-knob-dial svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.tx-knob-dial.is-locked { cursor: not-allowed; }
+
+.tx-knob-track {
+  fill: none;
+  stroke: var(--border-strong);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+}
+.tx-knob-value {
+  fill: none;
+  stroke: var(--text-subtle);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+}
+.tx-knob-body {
+  fill: var(--surface);
+  stroke: var(--border-strong);
+  stroke-width: 1;
+}
+.tx-knob-pointer {
+  stroke: var(--text);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+.tx-knob-dial:hover .tx-knob-body { fill: var(--hover-surface); }
+.tx-knob-dial.is-active .tx-knob-value,
+.tx-knob-dial:focus-visible .tx-knob-value { stroke: var(--accent); }
+.tx-knob-dial.is-locked .tx-knob-value,
+.tx-knob-dial.is-locked .tx-knob-pointer { stroke: var(--automation); }
+
+.tx-knob-label {
+  font-size: var(--fs-3xs);
+  font-weight: 700;
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+.tx-knob-val {
+  font-family: var(--font-mono);
+  font-size: var(--fs-3xs);
+  color: var(--text-subtle);
+  white-space: nowrap;
+}
+.tx-knob-dial.is-locked ~ .tx-knob-val { color: var(--automation-text); }
+
+.tx-hint {
+  margin: 0;
+  font-size: var(--fs-2xs);
+  line-height: 1.4;
+  color: var(--muted);
+}

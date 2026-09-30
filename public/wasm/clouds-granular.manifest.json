@@ -1,7 +1,7 @@
 {
-  "asset": "clouds-granular-cc30b53a.wasm",
-  "sha256": "cc30b53a34d5e87b3137d3b59af05c596b09041264c490343a40a21487c19ed7",
-  "bytes": 34534,
+  "asset": "clouds-granular-026b0b04.wasm",
+  "sha256": "026b0b045e70c86f2c4848bd3a5d7bb4ee376acf7f8fdd0c6a56d599f89de60f",
+  "bytes": 44979,
   "toolchain": {
     "name": "wasi-sdk",
     "tag": "wasi-sdk-34",
@@ -56,7 +56,7 @@
   "sources": [
     {
       "path": "dsp/clouds/bridge.cc",
-      "sha256": "957a93014159c58c3e047e786c360837aab7d591c1dc7b32a0958ecec1f784ee"
+      "sha256": "4f2e7f31f9a70f70553006e8d9186a61a86e7c9ffb00f2b10d2ffa70fd10d949"
     },
     {
       "path": "vendor/clouds/src/clouds/resources.cc",
@@ -80,20 +80,16 @@
     "cg_init",
     "cg_block_size",
     "cg_sample_rate",
-    "cg_max_source",
-    "cg_max_grains",
-    "cg_staging",
+    "cg_buffer_samples",
+    "cg_in_l",
+    "cg_in_r",
     "cg_out_l",
     "cg_out_r",
+    "cg_dry_gain",
     "cg_fault_count",
-    "cg_crop_count",
-    "cg_source_length",
-    "cg_active_grains",
-    "cg_load",
     "cg_set_params",
-    "cg_set_pitch",
     "cg_trigger",
-    "cg_panic",
+    "cg_reset",
     "cg_render"
   ]
 }
