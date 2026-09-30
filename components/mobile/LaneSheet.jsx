@@ -146,7 +146,7 @@ export default function LaneSheet({
 
           {synthType === 'Resonator' && (
             <section className="lsheet-group lsheet-group--sound">
-              <GroupHead title="Resonator" description="Shape what the strike excites and how long it rings." />
+              <GroupHead title="Resonator" description="Shape what the strike excites, how long it rings, and optionally hold and bow each note." />
               <ResonatorControls
                 params={adsr}
                 onChange={patch => onADSR?.(route.id, patch)}
@@ -254,8 +254,10 @@ export default function LaneSheet({
 
             <Field
               label="Note length"
-              hint={synthType === 'Resonator'
-                ? 'The Resonator rings out on its own; Damping sets how long. Note length only shapes MIDI export.'
+              hint={synthType === 'Resonator' && !adsr?.resonatorEnvelope
+                ? 'The Resonator rings out on its own; Damping sets how long. Turn on its envelope to make note length hold and release each note.'
+                : synthType === 'Resonator'
+                ? 'How long each note is held before the Resonator envelope releases it.'
                 : 'How long each note is held before it releases. No effect with legato, the arpeggiator or PluckSynth.'}
             >
               <div className="lsheet-choice-grid lsheet-choice-grid--compact">

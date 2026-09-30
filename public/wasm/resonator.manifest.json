@@ -1,7 +1,7 @@
 {
-  "asset": "resonator-a9057a69.wasm",
-  "sha256": "a9057a69ed9b59aff6bf3f6599f07f2198dd9ffd52ac8b022535891e549e65b2",
-  "bytes": 61216,
+  "asset": "resonator-dbf437ea.wasm",
+  "sha256": "dbf437ea53116f15351f10bb8ca2b171aba536a72b43eb492ecb5e261437e82c",
+  "bytes": 65073,
   "toolchain": {
     "name": "wasi-sdk",
     "tag": "wasi-sdk-34",
@@ -56,7 +56,7 @@
   "sources": [
     {
       "path": "dsp/resonator/bridge.cc",
-      "sha256": "b50d6ddd123873f07dced08285029414dba1db1e7fd3c3ee30c2ea5eb0c3dee8"
+      "sha256": "ad892facc6fb4142af3d03fea5f412e92506b5db9d3cc35570ff4804751a4aac"
     },
     {
       "path": "vendor/rings/src/rings/dsp/part.cc",
@@ -100,7 +100,10 @@
     "rs_set_patch",
     "rs_set_model",
     "rs_panic",
+    "rs_trigger_held",
     "rs_trigger",
+    "rs_release",
+    "rs_set_envelope",
     "rs_active_voices",
     "rs_voice_note",
     "rs_voice_active",

@@ -74,8 +74,74 @@ test('tone ↔ params mapping round-trips and never leaks onto other instruments
   assert.deepEqual(specs.resonatorParamsToTone(params), TONE)
   assert.deepEqual(toneToSynthParams(TONE, 'Synth'), {})
   assert.deepEqual(toneToSynthParams({ resonance: 0.9, damping: 0.4 }, 'PluckSynth'), { resonance: 0.9 })
-  // Envelope keys are inert on the Resonator and aren't written into its params.
-  assert.deepEqual(trackSynthParams({ envelope: { attack: 1 }, tone: { damping: 0.2 } }, 'Resonator'), { resonatorDamping: 0.2 })
+  // A plan envelope lands on the Resonator's own keys and switches it on; the
+  // plain attack/decay/... keys (inert on it) are never written.
+  assert.deepEqual(trackSynthParams({ envelope: { attack: 1 }, tone: { damping: 0.2 } }, 'Resonator'), {
+    resonatorEnvelope: true, resonatorAttack: 1, resonatorDamping: 0.2,
+  })
+  // ...and an explicit tone.resonatorEnvelope false still wins.
+  assert.deepEqual(trackSynthParams({ envelope: { attack: 1 }, tone: { resonatorEnvelope: false } }, 'Resonator'), {
+    resonatorEnvelope: false, resonatorAttack: 1,
+  })
+  const bowed = toneToSynthParams({ resonatorEnvelope: true, bow: 0.6, strike: false }, 'Resonator')
+  assert.deepEqual(bowed, { resonatorEnvelope: true, resonatorBow: 0.6, resonatorStrike: false })
+  assert.deepEqual(toneToSynthParams({ bow: 0.6, strike: false }, 'Synth'), {})
+})
+
+test('the envelope is off by default and round-trips through tone + envelope', () => {
+  const off = specs.normalizeResonatorParams({})
+  assert.equal(off.resonatorEnvelope, false)
+  assert.equal(specs.resonatorParamsToEnvelope(off), null)
+  assert.equal(specs.resonatorParamsToTone(off).bow, undefined, 'no envelope keys while off')
+  assert.equal(specs.resonatorCapabilities(off).envelope, false)
+  assert.equal(specs.resonatorCapabilities(off).noteLengthGate, false)
+  // Stale plain ADSR keys left by another synth never switch it on.
+  assert.equal(specs.normalizeResonatorParams({ attack: 2, sustain: 1 }).resonatorEnvelope, false)
+
+  const on = specs.normalizeResonatorParams({
+    resonatorEnvelope: true, resonatorAttack: 9, resonatorSustain: -1, resonatorRelease: '2', resonatorBow: 0.4, resonatorStrike: false,
+  })
+  assert.equal(on.resonatorAttack, 4, 'clamped to the DSP range')
+  assert.equal(on.resonatorSustain, 0)
+  assert.equal(on.resonatorRelease, 2)
+  assert.deepEqual(specs.resonatorEnvelopePatch(on), {
+    enabled: true, attack: 4, decay: 0.3, sustain: 0, release: 2, bow: 0.4, strike: false,
+  })
+  assert.deepEqual(specs.resonatorParamsToEnvelope(on), { attack: 4, decay: 0.3, sustain: 0, release: 2 })
+  assert.equal(specs.resonatorCapabilities(on).noteLengthGate, true)
+  assert.equal(specs.resonatorCapabilities(on).legato, false)
+  const back = specs.normalizeResonatorParams({
+    ...toneToSynthParams(specs.resonatorParamsToTone(on), 'Resonator'),
+    ...specs.resonatorEnvelopeToParams(specs.resonatorParamsToEnvelope(on)),
+  })
+  assert.deepEqual(back, on)
+})
+
+test('an enveloped Resonator plan validates, applies and describes itself back', () => {
+  const tone = { ...TONE, bow: 0.7, strike: false }
+  const envelope = { attack: 0.8, decay: 0.3, sustain: 0.8, release: 1.2 }
+  const { plan, dropped } = validatePlan({ tracks: [{ routeId: 'M1', synthType: 'Resonator', tone, envelope, noteLength: '1n' }] }, CITY)
+  assert.deepEqual(dropped, [])
+  assert.ok(PLAN_INPUT_SCHEMA.safeParse({ tracks: [{ routeId: 'M1', synthType: 'Resonator', tone, envelope }] }).success)
+  const { snapshot } = applyPlanToSnapshot(defaultSnapshot('budapest'), withNewCompositionBaseline(plan))
+  const adsr = snapshot.trackADSRs.M1
+  assert.equal(adsr.resonatorEnvelope, true)
+  assert.equal(adsr.resonatorAttack, 0.8)
+  assert.equal(adsr.resonatorBow, 0.7)
+  assert.equal(adsr.resonatorStrike, false)
+  assert.equal(adsr.attack, undefined)
+  assert.deepEqual(adsr, { ...SYNTH_DEFAULTS.Resonator, ...trackSynthParams(plan.tracks[0], 'Resonator') })
+  const lane = describeSnapshot(snapshot, CITY, { detail: true }).lanes.find(l => l.routeId === 'M1')
+  assert.deepEqual(lane.envelope, envelope)
+  assert.deepEqual(lane.tone, { ...TONE, resonatorEnvelope: true, bow: 0.7, strike: false })
+  assert.deepEqual(roundTrip(snapshot, CITY), snapshot)
+  assert.deepEqual(planAdvisories(plan), [], 'a held, bowed note is a coherent plan')
+
+  // An edit can switch it back off without restating the envelope.
+  const off = validatePlan({ tracks: [{ routeId: 'M1', tone: { resonatorEnvelope: false } }] }, CITY).plan
+  const edited = applyPlanToSnapshot(snapshot, off).snapshot
+  assert.equal(edited.trackADSRs.M1.resonatorEnvelope, false)
+  assert.equal(describeSnapshot(edited, CITY, { detail: true }).lanes.find(l => l.routeId === 'M1').envelope, undefined)
 })
 
 test('released: the plan vocabulary, schema and guide offer the Resonator', () => {
@@ -143,25 +209,50 @@ test('advisories flag inert settings and the voice budget, and stay quiet on a c
   assert.deepEqual(planAdvisories(clean), [])
   const noisy = validatePlan({ tracks: [{
     routeId: 'M1', synthType: 'Resonator', legato: true, glide: 0.2, noteLength: '2n',
-    envelope: { attack: 1, decay: 0.1, sustain: 1, release: 1 },
+    tone: { bow: 0.5 },
     granular: { enabled: true, mix: 0.5 },
   }] }, CITY).plan
-  const [msg, ...rest] = planAdvisories(noisy)
-  assert.equal(rest.length, 0, 'one consolidated advisory, not the generic envelope/granular ones')
-  for (const word of ['envelope', 'noteLength', 'legato', 'glide', 'granular']) assert.ok(msg.includes(word), word)
+  const [msg, bowMsg, ...rest] = planAdvisories(noisy)
+  assert.equal(rest.length, 0, 'the consolidated advisory and the bow one, not the generic granular ones')
+  for (const word of ['noteLength', 'legato', 'glide', 'granular']) assert.ok(msg.includes(word), word)
+  assert.match(bowMsg, /tone\.bow but its envelope is off/)
+
+  // With an envelope, note length and envelope timing are real, so the usual
+  // attack-vs-note-length check applies and noteLength isn't reported inert.
+  const enveloped = validatePlan({ tracks: [{
+    routeId: 'M1', synthType: 'Resonator', noteLength: '8n', legato: true,
+    envelope: { attack: 1, decay: 0.1, sustain: 1, release: 1 },
+  }] }, CITY).plan
+  const advice = planAdvisories(enveloped)
+  assert.ok(advice.some(a => a.includes('1 s attack')), advice.join(' | '))
+  assert.ok(!advice.some(a => a.includes('noteLength (only MIDI')))
+  assert.ok(advice.some(a => a.includes('legato')))
+
+  const silent = validatePlan({ tracks: [{ routeId: 'M1', synthType: 'Resonator', envelope: { attack: 0.1 }, tone: { strike: false } }] }, CITY).plan
+  assert.ok(planAdvisories(silent).some(a => a.includes('it is silent')))
+
+  // An edit that says nothing about the envelope doesn't guess the lane's state.
+  const edit = validatePlan({ tracks: [{ routeId: 'M1', noteLength: '2n' }] }, CITY).plan
+  edit.tracks[0].synthType = 'Resonator'
+  assert.deepEqual(planAdvisories(edit, { mode: 'edit' }), [])
   const heavy = validatePlan({ tracks: ['M1', 'M2', '4'].map(routeId => ({ routeId, synthType: 'Resonator', tone: { resonatorVoices: 4 } })) }, CITY).plan
   heavy.tracks.push(...heavy.tracks.map(t => ({ ...t, routeId: `${t.routeId}b` })))
   assert.ok(planAdvisories(heavy).some(a => a.includes('24 Resonator voices')))
 })
 
-test('the Resonator sound recipe validates untouched and raises no advisory', () => {
-  const r = SOUND_RECIPES.find(s => s.synthType === 'Resonator')
-  assert.ok(r)
-  const track = soundRecipeTrack(r, 'M1')
-  const { plan, dropped } = validatePlan({ tracks: [track] }, CITY)
-  assert.deepEqual(dropped, [])
-  assert.deepEqual(plan.tracks[0].tone, track.tone)
-  assert.deepEqual(planAdvisories(plan), [])
+test('every Resonator sound recipe validates untouched and raises no advisory', () => {
+  const recipes = SOUND_RECIPES.filter(s => s.synthType === 'Resonator')
+  assert.deepEqual(recipes.map(r => r.id), ['R16', 'R17'], 'a struck and a bowed recipe')
+  for (const r of recipes) {
+    const track = soundRecipeTrack(r, 'M1')
+    const { plan, dropped } = validatePlan({ tracks: [track] }, CITY)
+    assert.deepEqual(dropped, [], r.id)
+    assert.deepEqual(plan.tracks[0].tone, track.tone, r.id)
+    assert.deepEqual(planAdvisories(plan), [], r.id)
+  }
+  const bowed = trackSynthParams(soundRecipeTrack(recipes[1], 'M1'), 'Resonator')
+  assert.equal(bowed.resonatorEnvelope, true)
+  assert.equal(bowed.resonatorStrike, false)
 })
 
 test('unreleased: plans cannot pick the Resonator, but an edit to an existing Resonator lane still applies', () => {

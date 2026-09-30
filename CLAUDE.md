@@ -738,11 +738,26 @@ way. Status and open release gates: `docs/rings-resonator-plan.md`. Build and me
   `snapshotPlayer.prepareSnapshotSounds` in the Song Chainer). `startMock`/`startLive`
   throw if they skip it, and `setSynthType` keeps the old voice and reports through
   `engine.onSoundError`. A failed load never falls back to another instrument.
-- Notes decay naturally: no envelope, note-off, legato, glide or granular layer
-  (`supportsGranular`). Saved grain settings are kept, not played. Note length only
-  shapes MIDI export.
+- **The envelope is opt-in** (`resonatorEnvelope`, default `false`). Off, every note is a
+  strike that rings out on its own and note length only shapes MIDI export. The DSP's
+  envelope-off render path is bit-identical to the pre-envelope build (pinned by
+  `test/resonator-dsp.test.js`), so older songs are unchanged. On, each voice runs an
+  ADSR inside `bridge.cc` that scales its output (Release caps the tail) and drives a
+  noise "bow" into the resonator (`resonatorBow`), so notes can swell and sustain; the
+  strike pulse becomes optional (`resonatorStrike`). A note is held for its note length
+  (sent as `hold` with the note) or until `triggerRelease`. The keys are
+  `resonator*`-namespaced so stale `attack`/`decay` values left by another synth type are
+  never read. A voice keeps the mode it was struck in, so toggling never re-levels a
+  sounding note, and releases are always forwarded to the DSP, which ignores them for
+  envelope-less voices. The worklet never drops a late release (a late *note* is still
+  dropped), or a held note would hang.
+- No legato (the engine routes Resonator lanes past `_triggerLegatoNote`), glide or
+  granular layer (`supportsGranular`). Saved grain settings are kept, not played.
 - Plan `tone` keys: `resonatorModel`, `structure`, `brightness`, `damping` (higher rings
-  longer), `position`, `resonatorVoices`.
+  longer), `position`, `resonatorVoices`, `resonatorEnvelope`, `bow`, `strike`. A plan
+  `envelope` on a Resonator track maps to the `resonator*` envelope keys and switches the
+  envelope on (`trackSynthParams`); `describeSnapshot` only reports one while it's on.
+  The envelope and bow aren't automatable yet.
 - Automation lanes can target Structure, Brightness, Damping and Position
   (`RESONATOR_AUTOMATION_TARGETS`, ids `synth.resonator*`). Model and voice count are
   discrete and aren't automatable. Unlike other `synth.*` targets, removing the lane restores

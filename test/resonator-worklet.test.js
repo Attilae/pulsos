@@ -138,3 +138,67 @@ test('output is stereo, mono-compatible and finite', () => {
   assert.ok(diff > 0, 'channels differ (stereo)')
   assert.ok(sum > diff, 'the mono sum carries more energy than the side signal')
 })
+
+// ── Envelope: hold, release, settings ─────────────────────────────────────────
+
+const ENVELOPE = { enabled: true, attack: 0.005, decay: 0.1, sustain: 1, release: 0.02, bow: 0.8, strike: false }
+
+// Seconds at which the signal (in `win`-sample RMS windows) last exceeds `floor`.
+function lastAudible(sig, sampleRate, floor = 1e-3, win = 240) {
+  let last = -1
+  for (let i = 0; i + win <= sig.length; i += win) {
+    let acc = 0
+    for (let j = i; j < i + win; j++) acc += sig[j] * sig[j]
+    if (Math.sqrt(acc / win) > floor) last = i + win
+  }
+  return last / sampleRate
+}
+
+test('envelope settings from processorOptions reach the DSP', () => {
+  const quiet = makeHost(48000, { envelope: { ...ENVELOPE, bow: 0, strike: false } })
+  quiet.note({ time: 0.01, midi: 60, velocity: 1, gen: 0 })
+  assert.ok(run(quiet, 48000, 0.3).L.every(v => v === 0), 'no strike, no bow: silent')
+  const loud = makeHost(48000)
+  loud.setEnvelope({ ...ENVELOPE })
+  loud.note({ time: 0.01, midi: 60, velocity: 1, gen: 0 })
+  assert.ok(run(loud, 48000, 0.3).L.some(v => Math.abs(v) > 0.01))
+})
+
+test('`hold` ends a note on time, at any host rate', () => {
+  for (const sr of [44100, 48000]) {
+    const host = makeHost(sr, { envelope: ENVELOPE, voices: 1 })
+    host.note({ time: 0.05, midi: 60, velocity: 1, gen: 0, hold: 0.3 })
+    const end = lastAudible(run(host, sr, 0.8).L, sr)
+    // Released at 0.35 s; a 20 ms release falls below -60 dB well within 30 ms.
+    assert.ok(end > 0.34 && end < 0.4, `${sr} Hz: last audible at ${end.toFixed(3)} s`)
+  }
+})
+
+test('a release event is ordered with the notes and hits only its pitch', () => {
+  const sr = 48000
+  const host = makeHost(sr, { envelope: ENVELOPE, voices: 2 })
+  host.release({ time: 0.3, midi: 64, gen: 0 })          // arrives first, scheduled later
+  host.note({ time: 0.05, midi: 60, velocity: 1, gen: 0 })
+  host.note({ time: 0.05, midi: 64, velocity: 1, gen: 0 })
+  assert.deepEqual(host.queue.map(e => e.kind), ['note', 'note', 'release'])
+  run(host, sr, 0.5)
+  assert.equal(host.x.rs_active_voices(), 1)
+  assert.equal(host.x.rs_voice_note(0), 60)
+  host.release({ time: 0.5, gen: 0 }, 0.5 * sr)          // no midi: everything
+  run(host, sr, 0.3, { startFrame: 0.5 * sr })
+  assert.equal(host.x.rs_active_voices(), 0)
+})
+
+test('releases obey generation cancel, but a late release is never dropped', () => {
+  const sr = 48000
+  const host = makeHost(sr, { envelope: ENVELOPE, voices: 1 })
+  host.release({ time: 0.2, midi: 60, gen: 0 })
+  host.cancel(1)
+  assert.equal(host.queue.length, 0, 'cancelled with its generation')
+  host.note({ time: 0.01, midi: 60, velocity: 1, gen: 1 })
+  run(host, sr, 0.5)
+  host.release({ time: 0.1, midi: 60, gen: 1 }, 0.5 * sr)   // 400 ms late
+  run(host, sr, 0.3, { startFrame: 0.5 * sr })
+  assert.equal(host.stats.dropped, 0)
+  assert.equal(host.x.rs_active_voices(), 0, 'the late release still ended the note')
+})

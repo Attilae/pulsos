@@ -24,6 +24,9 @@
 //   - Every note carries a generation id. `cancel`/`panic` raise the floor, and
 //     queued notes from an older generation are discarded — a stop/rebuild can't
 //     leak notes into whatever plays next.
+//   - With the envelope on, a note may carry `hold` (seconds until it releases)
+//     and `release` events share the note queue, so a note-off lands on the same
+//     block grid, in the same order, as the notes around it.
 
 const DSP_RATE = 48000
 const BLOCK = 24
@@ -35,7 +38,7 @@ const PROCESSOR_NAME = 'leid-resonator'
 
 class ResonatorHost {
   // exports: the wasm instance's exports; sampleRate: the context rate.
-  constructor(exports, sampleRate, { seed = 1, voices = 2, model = 0, patch = null } = {}) {
+  constructor(exports, sampleRate, { seed = 1, voices = 2, model = 0, patch = null, envelope = null } = {}) {
     this.x = exports
     this.sampleRate = sampleRate
     this.ratio = DSP_RATE / sampleRate
@@ -52,6 +55,7 @@ class ResonatorHost {
     exports.rs_set_voices(voices)
     exports.rs_set_model(model, 1)
     if (patch) exports.rs_set_patch(patch.structure, patch.brightness, patch.damping, patch.position, 1)
+    if (envelope) this.setEnvelope(envelope)
     const mem = exports.memory.buffer
     this.outL = new Float32Array(mem, exports.rs_out_l(), BLOCK)
     this.outR = new Float32Array(mem, exports.rs_out_r(), BLOCK)
@@ -65,17 +69,37 @@ class ResonatorHost {
     return Math.round(dspIndex / BLOCK)
   }
 
-  // Queue a note: { time, midi, velocity, gen }.
+  // Queue a note: { time, midi, velocity, gen, hold? } — hold in seconds.
   note(msg, frameHint = 0) {
+    if (!Number.isFinite(msg.midi)) return false
+    const hold = Number.isFinite(msg.hold) && msg.hold >= 0
+      ? Math.max(1, Math.min(0x7fffffff, Math.round(msg.hold * DSP_RATE)))
+      : -1
+    return this._enqueue(msg, frameHint, {
+      kind: 'note',
+      midi: msg.midi,
+      velocity: Number.isFinite(msg.velocity) ? msg.velocity : 1,
+      hold,
+    })
+  }
+
+  // Queue a note-off: { time, midi, gen } — midi null/absent releases every voice.
+  release(msg, frameHint = 0) {
+    return this._enqueue(msg, frameHint, {
+      kind: 'release',
+      midi: Number.isFinite(msg.midi) ? msg.midi : -1,
+    })
+  }
+
+  _enqueue(msg, frameHint, fields) {
     if ((msg.gen ?? 0) < this.gen) { this.stats.cancelled++; return false }
-    if (!Number.isFinite(msg.time) || !Number.isFinite(msg.midi)) return false
+    if (!Number.isFinite(msg.time)) return false
     if (this.queue.length >= MAX_QUEUE) { this.stats.overflow++; return false }
     const ev = {
       block: this.blockForTime(msg.time, frameHint),
       seq: this.seq++,
-      midi: msg.midi,
-      velocity: Number.isFinite(msg.velocity) ? msg.velocity : 1,
       gen: msg.gen ?? 0,
+      ...fields,
     }
     // Binary insert keeps (block, seq) order; simultaneous notes keep arrival order.
     let lo = 0, hi = this.queue.length
@@ -105,6 +129,14 @@ class ResonatorHost {
     this.x.rs_set_patch(p.structure, p.brightness, p.damping, p.position, immediate ? 1 : 0)
   }
 
+  // { enabled, attack, decay, sustain, release, bow, strike } — seconds / 0..1.
+  setEnvelope(e) {
+    this.x.rs_set_envelope(
+      e.enabled ? 1 : 0, +e.attack, +e.decay, +e.sustain, +e.release, +e.bow,
+      e.strike === false ? 0 : 1,
+    )
+  }
+
   setModel(model, immediate = false) { this.x.rs_set_model(model, immediate ? 1 : 0) }
   setVoices(n) { this.x.rs_set_voices(n) }
 
@@ -114,10 +146,13 @@ class ResonatorHost {
     while (this.queue.length && this.queue[0].block <= block) {
       const ev = this.queue.shift()
       if (ev.block < block) {
-        if (block - ev.block > staleBlocks) { this.stats.dropped++; continue }
+        // A stale note is dropped; a stale release still applies, or the note it
+        // ends would hold forever.
+        if (ev.kind !== 'release' && block - ev.block > staleBlocks) { this.stats.dropped++; continue }
         this.stats.late++
       }
-      this.x.rs_trigger(ev.midi, ev.velocity)
+      if (ev.kind === 'release') this.x.rs_release(ev.midi)
+      else this.x.rs_trigger_held(ev.midi, ev.velocity, ev.hold)
     }
     this.x.rs_render()
     const base = block * BLOCK
@@ -197,6 +232,8 @@ if (typeof registerProcessor === 'function') {
       switch (m.type) {
         case 'note':   h.note(m, currentFrame); break
         case 'notes':  for (const n of m.notes) h.note(n, currentFrame); break
+        case 'release': h.release(m, currentFrame); break
+        case 'envelope': h.setEnvelope(m); break
         case 'patch':  h.setPatch(m, m.immediate); break
         case 'model':  h.setModel(m.model, m.immediate); break
         case 'voices': h.setVoices(m.voices); break

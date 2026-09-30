@@ -6,6 +6,8 @@ export const BLOCK = 24
 export const DSP_RATE = 48000
 const sec = (s) => Math.round((s * DSP_RATE) / BLOCK)
 
+const samples = (s) => Math.round(s * DSP_RATE)
+
 const arpeggio = (start, notes, stepSec, velocity = 0.9) =>
   notes.map((note, i) => ({ at: sec(start + i * stepSec), kind: 'trigger', note, velocity }))
 
@@ -50,14 +52,51 @@ export const RESONATOR_SCENARIOS = [
       { at: sec(1.8), kind: 'panic' },
     ],
   },
+  // Envelope scenarios. `envelope` is [on, attack, decay, sustain, release, bow, strike].
+  {
+    name: 'env-modal-strike-held', seed: 2, voices: 2, model: 0,
+    patch: [0.4, 0.5, 0.9, 0.4], blocks: sec(3),
+    envelope: [1, 0.005, 0.2, 0.6, 0.3, 0, 1],
+    events: [
+      { at: sec(0), kind: 'held', note: 60, velocity: 1, hold: samples(0.5) },
+      { at: sec(0.8), kind: 'held', note: 67, velocity: 0.7, hold: samples(1) },
+    ],
+  },
+  {
+    name: 'env-string-bowed', seed: 6, voices: 2, model: 2,
+    patch: [0.3, 0.6, 0.8, 0.3], blocks: sec(3.5),
+    envelope: [1, 0.8, 0.3, 0.8, 0.6, 0.8, 0],
+    events: [
+      { at: sec(0), kind: 'trigger', note: 55, velocity: 0.9 },
+      { at: sec(0.3), kind: 'trigger', note: 62, velocity: 0.9 },
+      { at: sec(1.6), kind: 'release', note: 55 },
+      { at: sec(2.2), kind: 'release', note: -1 },
+    ],
+  },
+  {
+    name: 'env-sympathetic-steal-toggle', seed: 8, voices: 2, model: 1,
+    patch: [0.5, 0.5, 0.7, 0.4], blocks: sec(3),
+    envelope: [1, 0.05, 0.4, 0.5, 0.4, 0.5, 1],
+    events: [
+      ...[48, 52, 55, 59].map((note, i) => ({ at: sec(i * 0.2), kind: 'held', note, velocity: 0.8, hold: samples(0.6) })),
+      { at: sec(1.2), kind: 'envelope', envelope: [0, 0.05, 0.4, 0.5, 0.4, 0.5, 1] },
+      { at: sec(1.3), kind: 'trigger', note: 60, velocity: 0.8 },
+      { at: sec(1.4), kind: 'envelope', envelope: [1, 0.01, 0.1, 0.3, 0.2, 0, 1] },
+      { at: sec(1.5), kind: 'held', note: 64, velocity: 0.8, hold: samples(0.3) },
+    ],
+  },
 ]
 
 export function scenarioToText(sc) {
   const lines = [
     `seed ${sc.seed}`, `voices ${sc.voices}`, `model ${sc.model}`, `patch ${sc.patch.join(' ')}`,
   ]
+  if (sc.envelope) lines.push(`envelope ${sc.envelope.join(' ')}`)
   for (const e of [...sc.events].sort((a, b) => a.at - b.at)) {
     if (e.kind === 'trigger') lines.push(`at ${e.at} trigger ${e.note} ${e.velocity}`)
+    else if (e.kind === 'held') lines.push(`at ${e.at} held ${e.note} ${e.velocity} ${e.hold}`)
+    else if (e.kind === 'release') lines.push(`at ${e.at} release ${e.note}`)
+    else if (e.kind === 'envelope') lines.push(`at ${e.at} envelope ${e.envelope.join(' ')}`)
     else if (e.kind === 'model') lines.push(`at ${e.at} model ${e.model}`)
     else if (e.kind === 'patch') lines.push(`at ${e.at} patch ${e.patch.join(' ')}`)
     else if (e.kind === 'panic') lines.push(`at ${e.at} panic`)
@@ -75,6 +114,7 @@ export function renderScenarioWasm(module, sc) {
   x.rs_set_voices(sc.voices)
   x.rs_set_model(sc.model, 1)
   x.rs_set_patch(...sc.patch, 1)
+  if (sc.envelope) x.rs_set_envelope(...sc.envelope)
   const events = [...sc.events].sort((a, b) => a.at - b.at)
   const out = new Float32Array(sc.blocks * BLOCK * 2)
   const l = new Float32Array(x.memory.buffer, x.rs_out_l(), BLOCK)
@@ -84,6 +124,9 @@ export function renderScenarioWasm(module, sc) {
     while (next < events.length && events[next].at === b) {
       const e = events[next++]
       if (e.kind === 'trigger') x.rs_trigger(e.note, e.velocity)
+      else if (e.kind === 'held') x.rs_trigger_held(e.note, e.velocity, e.hold)
+      else if (e.kind === 'release') x.rs_release(e.note)
+      else if (e.kind === 'envelope') x.rs_set_envelope(...e.envelope)
       else if (e.kind === 'model') x.rs_set_model(e.model, 0)
       else if (e.kind === 'patch') x.rs_set_patch(...e.patch, 0)
       else if (e.kind === 'panic') x.rs_panic()
