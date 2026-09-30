@@ -28,14 +28,14 @@ export function AuthForm({ onDone, className = '', callbackURL = '/' }) {
   return (
     <div className={`auth-pop auth-form ${className}`}>
       <div className="auth-tabs">
-        <button className={mode === 'signin' ? 'active' : ''} onClick={() => setMode('signin')}>Sign in</button>
-        <button className={mode === 'signup' ? 'active' : ''} onClick={() => setMode('signup')}>Sign up</button>
+        <button className={mode === 'signin' ? 'active' : ''} aria-pressed={mode === 'signin'} onClick={() => setMode('signin')}>Sign in</button>
+        <button className={mode === 'signup' ? 'active' : ''} aria-pressed={mode === 'signup'} onClick={() => setMode('signup')}>Sign up</button>
       </div>
       {mode === 'signup' && (
-        <input placeholder="name" value={name} onChange={e => setName(e.target.value)} />
+        <input placeholder="name" aria-label="Name" autoComplete="name" value={name} onChange={e => setName(e.target.value)} />
       )}
-      <input placeholder="email" type="email" autoComplete="email" value={email} onChange={e => setEmail(e.target.value)} />
-      <input placeholder="password" type="password" value={password} onChange={e => setPassword(e.target.value)} />
+      <input placeholder="email" aria-label="Email" type="email" autoComplete="email" value={email} onChange={e => setEmail(e.target.value)} />
+      <input placeholder="password" aria-label="Password" type="password" autoComplete={mode === 'signup' ? 'new-password' : 'current-password'} value={password} onChange={e => setPassword(e.target.value)} />
       {mode === 'signin' ? (
         <button className="auth-btn" onClick={() => run('signin', (addr) => authClient.signIn.email({ email: addr, password }), '')}>
           Sign in
@@ -54,7 +54,7 @@ export function AuthForm({ onDone, className = '', callbackURL = '/' }) {
       )}
       <button
         className="auth-btn auth-btn--ghost"
-        onClick={() => run('magic', (addr) => authClient.signIn.magicLink({ email: addr, callbackURL }), 'Magic link sent — check your email.')}
+        onClick={() => run('magic', (addr) => authClient.signIn.magicLink({ email: addr, callbackURL }), 'Magic link sent. Check your email.')}
       >
         Email me a magic link
       </button>

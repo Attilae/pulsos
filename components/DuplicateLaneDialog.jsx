@@ -4,8 +4,9 @@
 // reusing the shared .dlg-* classes (Dialog.css) and .stop-editor-step stepper.
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { useModal } from '@/lib/shared/useModal.js'
 import './Dialog.css'
 import './StopEditor.css'
 
@@ -16,15 +17,22 @@ export default function DuplicateLaneDialog({ routeName, onConfirm, onClose }) {
 
   const confirm = useCallback(() => { onConfirm?.(semitones) }, [semitones, onConfirm])
 
-  // Esc closes; Enter confirms.
+  const panelRef = useRef(null)
+  const titleId = useId()
+  const messageId = useId()
+  useModal(true, panelRef, { onClose })
+
+  // Enter confirms, except on a focused button: that activates the button
+  // itself (Enter on "−" steps the shift; it shouldn't also duplicate).
   useEffect(() => {
     function onKey(e) {
-      if (e.key === 'Escape') { e.stopPropagation(); onClose() }
-      else if (e.key === 'Enter') { e.stopPropagation(); confirm() }
+      if (e.key !== 'Enter' || e.target?.closest?.('button')) return
+      e.stopPropagation()
+      confirm()
     }
     document.addEventListener('keydown', onKey, true)
     return () => document.removeEventListener('keydown', onKey, true)
-  }, [onClose, confirm])
+  }, [confirm])
 
   const step = useCallback((delta) => {
     setSemitones(v => Math.max(-SEMI_LIMIT, Math.min(SEMI_LIMIT, v + delta)))
@@ -36,18 +44,27 @@ export default function DuplicateLaneDialog({ routeName, onConfirm, onClose }) {
 
   return createPortal(
     <div className="dlg-overlay" onPointerDown={onClose}>
-      <div className="dlg-panel" onPointerDown={e => e.stopPropagation()}>
-        <div className="dlg-title">Duplicate lane</div>
-        <div className="dlg-message">
+      <div
+        ref={panelRef}
+        className="dlg-panel"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        aria-describedby={messageId}
+        tabIndex={-1}
+        onPointerDown={e => e.stopPropagation()}
+      >
+        <h2 id={titleId} className="dlg-title">Duplicate lane</h2>
+        <div id={messageId} className="dlg-message">
           Copy “{routeName}” into a new lane{semitones === 0 ? '.' : ', transposing the whole lane.'}
         </div>
 
         <div className="stop-editor-row">
           <span className="stop-editor-label">Shift</span>
           <div className="stop-editor-control">
-            <button className="stop-editor-step" onClick={() => step(-1)} title="Down a semitone">−</button>
-            <span className="stop-editor-note">{semitones > 0 ? '+' : ''}{semitones}</span>
-            <button className="stop-editor-step" onClick={() => step(1)} title="Up a semitone">+</button>
+            <button className="stop-editor-step" onClick={() => step(-1)} title="Down a semitone" aria-label="Down a semitone">−</button>
+            <span className="stop-editor-note" aria-live="polite">{semitones > 0 ? '+' : ''}{semitones}</span>
+            <button className="stop-editor-step" onClick={() => step(1)} title="Up a semitone" aria-label="Up a semitone">+</button>
             <span className="stop-editor-meta">{hint}</span>
           </div>
           <button className="stop-editor-reset" onClick={() => setSemitones(0)} disabled={semitones === 0}>Reset</button>

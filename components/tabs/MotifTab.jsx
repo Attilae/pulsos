@@ -196,7 +196,7 @@ export default function MotifTab({ active = true }) {
 
       <footer className="motif-footer">
         <div className="motif-hint">
-          Each motif is a window into the line's geography — Reroll shifts the
+          Each motif is a window into the line's geography. Reroll shifts the
           starting point along the route. Drop the MIDI into your DAW.
         </div>
       </footer>
@@ -231,7 +231,7 @@ function MotifRoll({ motif, playStep }) {
           const black = [1, 3, 6, 8, 10].includes(midi % 12)
           return (
             <rect key={`r${i}`} x={0} y={i * rowH} width={W} height={rowH}
-              fill={black ? '#161616' : '#1d1d1d'} />
+              style={{ fill: black ? 'var(--surface-sunken)' : 'var(--surface)' }} />
           )
         })}
         {/* Beat lines */}
@@ -240,7 +240,7 @@ function MotifRoll({ motif, playStep }) {
           const isBar = ((i + 1) % 4) === 0
           return (
             <line key={`bl${i}`} x1={x} x2={x} y1={0} y2={H}
-              stroke={isBar ? '#444' : '#2a2a2a'} strokeWidth={isBar ? 1 : 0.5} />
+              style={{ stroke: isBar ? 'var(--border-strong)' : 'var(--border)' }} strokeWidth={isBar ? 1 : 0.5} />
           )
         })}
         {/* Notes */}
@@ -254,7 +254,7 @@ function MotifRoll({ motif, playStep }) {
               x={x + 0.5} y={y + 1}
               width={w} height={Math.max(3, rowH - 2)}
               rx={1.5}
-              fill="#c8f040"
+              style={{ fill: 'var(--accent)' }}
               opacity="0.92"
             >
               <title>{`step ${n.step} · ${midiToName(n.midi)} · ${n.stop || ''}`}</title>
@@ -267,14 +267,14 @@ function MotifRoll({ motif, playStep }) {
             x1={playStep * stepW + stepW / 2}
             x2={playStep * stepW + stepW / 2}
             y1={0} y2={H}
-            stroke="#fff" strokeWidth="1.2" opacity="0.7"
+            style={{ stroke: 'var(--text)' }} strokeWidth="1.2" opacity="0.7"
           />
         )}
         {/* Bar number labels */}
         {Array.from({ length: bars }).map((_, i) => {
           const x = i * STEPS_PER_BAR * stepW + 4
           return (
-            <text key={`bn${i}`} x={x} y={12} fill="#555" fontSize="9" fontFamily="monospace">
+            <text key={`bn${i}`} x={x} y={12} style={{ fill: 'var(--muted)' }} fontSize="9" fontFamily="monospace">
               {i + 1}
             </text>
           )

@@ -21,6 +21,7 @@ import { confirmDialog } from './Dialog.jsx'
 import { useEntitlements } from '@/lib/shared/EntitlementsContext.jsx'
 import { trackProductEvent } from '@/lib/productAnalytics.js'
 import './ProfilePanel.css'
+import { IconClose } from './icons.jsx'
 
 export default function ProfilePanel({ onClose }) {
   const { data: session } = useSession()
@@ -40,7 +41,7 @@ export default function ProfilePanel({ onClose }) {
       <div className="profile-panel" onPointerDown={e => e.stopPropagation()}>
         <header className="profile-header">
           <h2>Profile</h2>
-          <button className="profile-close" onClick={onClose} aria-label="Close">✕</button>
+          <button className="profile-close" onClick={onClose} aria-label="Close"><IconClose /></button>
         </header>
 
         <div className="profile-scroll">
@@ -240,9 +241,11 @@ export function AccountSection({ user }) {
     <section className="profile-section">
       <h3>Account</h3>
       <div className="profile-field">
-        <label>Display name</label>
+        <label htmlFor="profile-display-name">Display name</label>
         <div className="profile-inline">
           <input
+            id="profile-display-name"
+            autoComplete="name"
             value={name}
             onChange={e => setName(e.target.value)}
             placeholder="Your name"
@@ -253,12 +256,12 @@ export function AccountSection({ user }) {
         </div>
       </div>
       <div className="profile-field">
-        <label>Email</label>
-        <div className="profile-readonly">{user.email}</div>
+        <span className="profile-field-label" id="profile-email-label">Email</span>
+        <div className="profile-readonly" aria-labelledby="profile-email-label">{user.email}</div>
       </div>
       <div className="profile-field">
-        <label>Member since</label>
-        <div className="profile-readonly">{formatDate(user.createdAt)}</div>
+        <span className="profile-field-label" id="profile-since-label">Member since</span>
+        <div className="profile-readonly" aria-labelledby="profile-since-label">{formatDate(user.createdAt)}</div>
       </div>
       {msg && <p className="profile-msg">{msg}</p>}
     </section>
@@ -401,16 +404,16 @@ export function SecuritySection() {
     <section className="profile-section">
       <h3>Change password</h3>
       <div className="profile-field">
-        <label>Current password</label>
-        <input type="password" value={current} onChange={e => setCurrent(e.target.value)} autoComplete="current-password" />
+        <label htmlFor="pw-current">Current password</label>
+        <input id="pw-current" type="password" value={current} onChange={e => setCurrent(e.target.value)} autoComplete="current-password" />
       </div>
       <div className="profile-field">
-        <label>New password</label>
-        <input type="password" value={next} onChange={e => setNext(e.target.value)} autoComplete="new-password" />
+        <label htmlFor="pw-new">New password</label>
+        <input id="pw-new" type="password" value={next} onChange={e => setNext(e.target.value)} autoComplete="new-password" />
       </div>
       <div className="profile-field">
-        <label>Confirm new password</label>
-        <input type="password" value={confirm} onChange={e => setConfirm(e.target.value)} autoComplete="new-password" />
+        <label htmlFor="pw-confirm">Confirm new password</label>
+        <input id="pw-confirm" type="password" value={confirm} onChange={e => setConfirm(e.target.value)} autoComplete="new-password" />
       </div>
       <label className="profile-checkbox">
         <input type="checkbox" checked={revokeOthers} onChange={e => setRevokeOthers(e.target.checked)} />
@@ -427,14 +430,14 @@ export function SecuritySection() {
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 function formatDate(d) {
-  if (!d) return '—'
+  if (!d) return 'Unknown'
   const date = d instanceof Date ? d : new Date(d)
-  if (Number.isNaN(date.getTime())) return '—'
+  if (Number.isNaN(date.getTime())) return 'Unknown'
   return date.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })
 }
 
 function formatRelative(ts) {
-  if (!ts) return '—'
+  if (!ts) return 'Unknown'
   const diff = Date.now() - ts
   if (diff < 60_000) return 'just now'
   if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}m ago`

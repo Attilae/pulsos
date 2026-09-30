@@ -7,7 +7,7 @@
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 6px;
-  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.6);
+  box-shadow: var(--elevation-modal);
   padding: 16px 18px 18px;
   font-family: inherit;
   display: flex;
@@ -26,7 +26,7 @@
   background: transparent;
   border: none;
   color: var(--muted);
-  font-size: 0.9rem;
+  font-size: var(--fs-md);
   cursor: pointer;
   padding: 2px 4px;
   line-height: 1;
@@ -41,8 +41,8 @@
 
 .stop-editor-label {
   flex: 0 0 58px;
-  font-size: 0.7rem;
-  letter-spacing: 0.08em;
+  font-size: var(--fs-2xs);
+  letter-spacing: var(--tracking-wide);
   text-transform: uppercase;
   color: var(--muted);
 }
@@ -62,7 +62,7 @@
   background: var(--surface2);
   color: var(--accent);
   border-radius: 3px;
-  font-size: 1rem;
+  font-size: var(--fs-base);
   line-height: 1;
   cursor: pointer;
   transition: background 0.12s, border-color 0.12s;
@@ -72,7 +72,7 @@
 .stop-editor-note {
   min-width: 42px;
   text-align: center;
-  font-size: 0.95rem;
+  font-size: var(--fs-base);
   font-variant-numeric: tabular-nums;
   color: var(--text);
 }
@@ -85,7 +85,7 @@
 }
 
 .stop-editor-meta {
-  font-size: 0.66rem;
+  font-size: var(--fs-2xs);
   color: var(--muted);
   white-space: nowrap;
   overflow: hidden;
@@ -99,7 +99,7 @@
   background: transparent;
   color: var(--muted);
   border-radius: 3px;
-  font-size: 0.68rem;
+  font-size: var(--fs-2xs);
   cursor: pointer;
   transition: color 0.12s, border-color 0.12s;
 }

@@ -9,6 +9,7 @@ import {
 } from '@/lib/engines/drumEngine.js'
 import { trackProductEvent } from '@/lib/productAnalytics.js'
 import './DrumMachineTab.css'
+import { IconCheck, IconClear, IconDownload, IconForward, IconPlay, IconRepick, IconStop } from '../icons.jsx'
 
 const PAD_MIDI_NOTES = {
   kick:  36,
@@ -317,8 +318,9 @@ export default function DrumMachineTab({ active = true }) {
         <h2 className="drum-title">Drum Machine</h2>
 
         <div className="drum-bpm">
-          <label>BPM</label>
+          <label htmlFor="drum-bpm">BPM</label>
           <input
+            id="drum-bpm"
             type="number" min="40" max="240"
             value={bpm}
             onChange={e => handleBpm(e.target.value)}
@@ -327,18 +329,18 @@ export default function DrumMachineTab({ active = true }) {
         </div>
 
         <button className="drum-btn drum-btn--ghost" onClick={handleClearAll}>Clear</button>
-        <button className="drum-btn drum-btn--ghost" onClick={handleExportMidi}>↓ MIDI</button>
+        <button className="drum-btn drum-btn--ghost" onClick={handleExportMidi}><IconDownload /> MIDI</button>
         <button
           className={`drum-btn drum-btn--ghost ${sent ? 'is-sent' : ''}`}
           onClick={handleSendToMap}
           title="Send this pattern to the Map/DAW tab"
-        >{sent ? '✓ Sent' : 'Send to Map ▶'}</button>
+        >{sent ? <><IconCheck /> Sent</> : <>Send to Map <IconForward /></>}</button>
 
         <button
           className={`drum-btn drum-btn--transport ${started ? 'stop' : 'play'}`}
           onClick={handlePlayStop}
         >
-          {started ? '⏹ Stop' : '▶ Play'}
+          {started ? <><IconStop /> Stop</> : <><IconPlay /> Play</>}
         </button>
       </header>
 
@@ -371,19 +373,23 @@ export default function DrumMachineTab({ active = true }) {
                 <button
                   className={`drum-mini-btn ${isMuted ? 'on' : ''}`}
                   onClick={() => handleMute(pad.id)}
+                  aria-pressed={isMuted}
+                  aria-label={`Mute ${pad.label}`}
                   title="Mute"
                 >M</button>
                 <button
                   className="drum-mini-btn"
                   onClick={() => handleRegenerate(pad.id)}
                   title="Regenerate from line"
+                  aria-label={`Regenerate ${pad.label} from line`}
                   disabled={!routeId}
-                >↻</button>
+                ><IconRepick /></button>
                 <button
                   className="drum-mini-btn"
                   onClick={() => handleClear(pad.id)}
                   title="Clear row"
-                >⌫</button>
+                  aria-label={`Clear ${pad.label}`}
+                ><IconClear /></button>
               </div>
 
               <div className="drum-offset">
@@ -392,6 +398,7 @@ export default function DrumMachineTab({ active = true }) {
                   min="0" max={SOURCE_STEPS - 1} step="1"
                   value={offset}
                   onChange={e => handleOffset(pad.id, +e.target.value)}
+                  aria-label={`${pad.label} offset`}
                   title={`Offset: ${offset} / ${SOURCE_STEPS - 1}`}
                 />
                 <span className="drum-offset-value">{String(offset).padStart(2, '0')}</span>
@@ -404,7 +411,7 @@ export default function DrumMachineTab({ active = true }) {
                   const level    = !vel ? '' : vel >= 0.85 ? 'vel-accent' : vel >= 0.55 ? 'vel-norm' : 'vel-soft'
                   const stopList = stops[srcIdx] ?? []
                   const tip      = (stopList.length ? stopList.join(' · ') : `(empty · slot ${srcIdx})`)
-                    + (vel ? ` — vel ${Math.round(vel * 100)}%` : '')
+                    + (vel ? `, vel ${Math.round(vel * 100)}%` : '')
                   return (
                     <button
                       key={i}
@@ -417,6 +424,8 @@ export default function DrumMachineTab({ active = true }) {
                       ].filter(Boolean).join(' ')}
                       onClick={() => handleToggleStep(pad.id, i)}
                       title={tip}
+                      aria-label={`${pad.label} step ${i + 1}${vel ? `, velocity ${Math.round(vel * 100)}%` : ''}`}
+                      aria-pressed={!!vel}
                     />
                   )
                 })}

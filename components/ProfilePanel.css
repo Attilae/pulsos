@@ -3,8 +3,8 @@
 .profile-overlay {
   position: fixed;
   inset: 0;
-  z-index: 200;
-  background: rgba(0, 0, 0, 0.6);
+  z-index: var(--z-drawer);
+  background: var(--scrim);
   display: flex;
   align-items: flex-start;
   justify-content: center;
@@ -20,7 +20,7 @@
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 6px;
-  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.6);
+  box-shadow: var(--elevation-modal);
   font-family: inherit;
 }
 
@@ -32,8 +32,8 @@
   border-bottom: 1px solid var(--border);
 }
 .profile-header h2 {
-  font-size: 0.95rem;
-  letter-spacing: 0.12em;
+  font-size: var(--fs-base);
+  letter-spacing: var(--tracking-caps);
   color: var(--accent);
   text-transform: uppercase;
 }
@@ -42,7 +42,7 @@
   border: none;
   color: var(--muted);
   font-family: inherit;
-  font-size: 0.9rem;
+  font-size: var(--fs-md);
   cursor: pointer;
   padding: 4px 8px;
   border-radius: 3px;
@@ -61,9 +61,9 @@
 }
 .profile-section:last-child { border-bottom: none; }
 .profile-section h3 {
-  font-size: 0.72rem;
+  font-size: var(--fs-xs);
   text-transform: uppercase;
-  letter-spacing: 0.12em;
+  letter-spacing: var(--tracking-caps);
   color: var(--muted);
   margin-bottom: 12px;
   display: flex;
@@ -72,16 +72,17 @@
 }
 .profile-count {
   color: var(--accent);
-  font-size: 0.7rem;
+  font-size: var(--fs-2xs);
   border: 1px solid var(--border);
   border-radius: 10px;
   padding: 1px 8px;
 }
 
 .profile-field { margin-bottom: 10px; }
-.profile-field label {
+.profile-field label,
+.profile-field-label {
   display: block;
-  font-size: 0.68rem;
+  font-size: var(--fs-2xs);
   color: var(--muted);
   margin-bottom: 4px;
 }
@@ -96,7 +97,7 @@
   border: 1px solid var(--border);
   color: var(--text);
   font-family: inherit;
-  font-size: 0.8rem;
+  font-size: var(--fs-sm);
   border-radius: 3px;
   outline: none;
 }
@@ -107,7 +108,7 @@
   background: var(--bg);
   border: 1px solid var(--border);
   border-radius: 3px;
-  font-size: 0.8rem;
+  font-size: var(--fs-sm);
   color: var(--text);
 }
 
@@ -118,7 +119,7 @@
   border: 1px solid var(--accent);
   border-radius: 3px;
   font-family: inherit;
-  font-size: 0.78rem;
+  font-size: var(--fs-sm);
   cursor: pointer;
   white-space: nowrap;
   transition: background 0.12s, opacity 0.12s;
@@ -132,28 +133,28 @@ a.profile-btn { display: inline-block; text-decoration: none; }
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 0.74rem;
+  font-size: var(--fs-xs);
   color: var(--muted);
   margin: 4px 0 12px;
   cursor: pointer;
 }
 .profile-checkbox input { accent-color: var(--accent); cursor: pointer; }
 
-.profile-msg { font-size: 0.72rem; color: var(--muted); margin-top: 8px; }
+.profile-msg { font-size: var(--fs-xs); color: var(--muted); margin-top: 8px; }
 .profile-msg--err { color: var(--danger); }
-.profile-empty { font-size: 0.76rem; color: var(--muted); font-style: italic; }
+.profile-empty { font-size: var(--fs-sm); color: var(--muted); font-style: italic; }
 
 /* ── Billing signal ─────────────────────────────────────────────────────── */
 .billing-heading { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
 .billing-heading h3 { margin: 0; }
-.billing-plan { padding: 3px 8px; border: 1px solid var(--border); border-radius: 2px; color: var(--muted); font-size: .64rem; letter-spacing: .12em; text-transform: uppercase; }
+.billing-plan { padding: 3px 8px; border: 1px solid var(--border); border-radius: 2px; color: var(--muted); font-size: var(--fs-3xs); letter-spacing: var(--tracking-caps); text-transform: uppercase; }
 .billing-plan--pro { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 50%, var(--border)); background: color-mix(in srgb, var(--accent) 7%, transparent); }
 .billing-meters { display: grid; gap: 8px; margin-bottom: 11px; }
-.billing-meter > div { display: flex; justify-content: space-between; gap: 14px; margin-bottom: 4px; font-size: .66rem; color: var(--muted); }
+.billing-meter > div { display: flex; justify-content: space-between; gap: 14px; margin-bottom: 4px; font-size: var(--fs-2xs); color: var(--muted); }
 .billing-meter strong { color: var(--text); font-weight: normal; }
 .billing-meter > i { display: block; height: 3px; overflow: hidden; background: var(--bg); }
 .billing-meter > i > b { display: block; height: 100%; background: var(--accent); }
-.billing-renewal { margin: 0 0 10px; color: var(--muted); font-size: .68rem; }
+.billing-renewal { margin: 0 0 10px; color: var(--muted); font-size: var(--fs-2xs); }
 
 /* ── Preset list ───────────────────────────────────────────────────────── */
 .preset-list { list-style: none; display: flex; flex-direction: column; gap: 6px; }
@@ -169,14 +170,14 @@ a.profile-btn { display: inline-block; text-decoration: none; }
 }
 .preset-info { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .preset-name {
-  font-size: 0.84rem;
+  font-size: var(--fs-md);
   color: var(--text);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .preset-meta {
-  font-size: 0.68rem;
+  font-size: var(--fs-2xs);
   color: var(--muted);
   display: flex;
   align-items: center;
@@ -187,8 +188,8 @@ a.profile-btn { display: inline-block; text-decoration: none; }
   border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
   border-radius: 8px;
   padding: 0 6px;
-  font-size: 0.6rem;
-  letter-spacing: 0.06em;
+  font-size: var(--fs-3xs);
+  letter-spacing: var(--tracking-wide);
   text-transform: uppercase;
 }
 
@@ -200,13 +201,13 @@ a.profile-btn { display: inline-block; text-decoration: none; }
   border: 1px solid var(--border);
   border-radius: 3px;
   font-family: inherit;
-  font-size: 0.7rem;
+  font-size: var(--fs-2xs);
   cursor: pointer;
   white-space: nowrap;
   transition: color 0.12s, border-color 0.12s, background 0.12s;
 }
 .preset-action:hover { color: var(--text); border-color: var(--muted); background: var(--hover-surface); }
-.preset-action--danger:hover { color: var(--danger); border-color: var(--danger); background: rgba(240, 64, 64, 0.08); }
+.preset-action--danger:hover { color: var(--danger); border-color: var(--danger); background: var(--danger-tint); }
 
 @media (max-width: 520px) {
   .preset-row { flex-direction: column; align-items: stretch; }

@@ -1,5 +1,5 @@
 import * as Tone from 'tone'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { SYNTH_DEFAULTS, availableAutomationTargets, findTargetSpec, SAMPLER_PRESET_LIST, SAMPLER_PRESETS, DRUM_VOICES, DRUM_VOICE_LICENSE, DEFAULT_GRANULAR, DEFAULT_SIDECHAIN, ARP_STYLES, ARP_RATES, DEFAULT_ARP, DRUMS_ROUTE_ID } from '@/lib/engine.js'
 import { FX_BUSES, AUTOMATION_TARGETS, FX_PARAM_SPECS, FX_SYNC_TARGETS } from '@/lib/fxTrack.js'
 import { PAD_DEFS as DRUM_PAD_DEFS, STEPS as DRUM_STEPS, SOURCE_STEPS as DRUM_SOURCE_STEPS, emptyPattern as emptyDrumPattern } from '@/lib/engines/drumEngine.js'
@@ -9,6 +9,8 @@ import { pickerSynthTypes, OSC_TYPES } from '@/lib/soundSpecs.js'
 import { NOTE_LENGTHS, NOTE_LENGTH_LABELS, DEFAULT_NOTE_LENGTH } from '@/lib/noteLength.js'
 import { useResetGesture } from '@/lib/shared/useResetGesture.js'
 import { useIsPhone } from '@/lib/shared/useViewport.js'
+import { subscribePlayhead } from '@/lib/shared/playheadTicker.js'
+import { subscribeEvents, getEvents } from '@/lib/shared/eventLogStore.js'
 import { normalizeLaneTag } from '@/lib/laneTags.js'
 import { LOOP_PATTERN_PRESETS, MAX_PATTERN_PLAY, MAX_PATTERN_REST, normalizeLoopPattern, normalizeNoteChance, formatLoopPattern, loopIndexAt, loopPlays } from '@/lib/laneGating.js'
 import StopEditor from './StopEditor.jsx'
@@ -19,6 +21,7 @@ import { NOTE_ROOTS, SCALE_TYPES } from '@/lib/harmony.js'
 import { getMasterBus } from '@/lib/masterBus.js'
 import { MASTER_CHAIN_DEFAULTS, MASTER_CHAIN_SPECS, MASTER_CHAIN_STAGES, isDefaultMasterChain } from '@/lib/masterChain.js'
 import './DawView.css'
+import { IconAdd, IconCaretDown, IconChangeLine, IconClose, IconDuplicate, IconPower, IconRepick, IconReset } from './icons.jsx'
 
 // Exported so the phone lane sheet offers exactly the same instruments.
 export { pickerSynthTypes } from '@/lib/soundSpecs.js'
@@ -57,13 +60,13 @@ export function SidechainSourceOptions({ sources = [], excludeId }) {
   )
 }
 export const SPEED_OPTIONS = [
-  { value: 0.25, label: '÷4',   title: '0.25× speed — one pass every 4 loops' },
-  { value: 0.5,  label: '÷2',   title: '0.5× speed — one pass every 2 loops' },
+  { value: 0.25, label: '÷4',   title: '0.25× speed: one pass every 4 loops' },
+  { value: 0.5,  label: '÷2',   title: '0.5× speed: one pass every 2 loops' },
   { value: 1,    label: '1×',   title: 'Normal speed' },
-  { value: 1.5,  label: '×1.5', title: '1.5× speed — 3:2 polyrhythm' },
-  { value: 2,    label: '×2',   title: '2× speed — two passes per loop' },
-  { value: 3,    label: '×3',   title: '3× speed — three passes per loop' },
-  { value: 4,    label: '×4',   title: '4× speed — four passes per loop' },
+  { value: 1.5,  label: '×1.5', title: '1.5× speed: 3:2 polyrhythm' },
+  { value: 2,    label: '×2',   title: '2× speed: two passes per loop' },
+  { value: 3,    label: '×3',   title: '3× speed: three passes per loop' },
+  { value: 4,    label: '×4',   title: '4× speed: four passes per loop' },
 ]
 
 // Arpeggiator display labels (values come from ARP_STYLES / ARP_RATES in engine/mappings)
@@ -78,10 +81,10 @@ export const ARP_RATE_LABELS = {
 // Pitch-contour display labels (values come from PITCH_CONTOURS in mappings)
 export const CONTOUR_LABELS = { geographic: 'Geo', demand: 'Demand', randomWalk: 'Walk', arch: 'Arch' }
 export const CONTOUR_TITLES = {
-  demand:     'Demand — more service or riders produces a higher note (default)',
-  geographic: 'Geographic — latitude traces the melody',
-  randomWalk: 'Random walk — seeded melodic drift through the scale',
-  arch:       'Arch — rises then falls along the stop sequence',
+  demand:     'Demand: more service or riders produces a higher note (default)',
+  geographic: 'Geographic: latitude traces the melody',
+  randomWalk: 'Random walk: seeded melodic drift through the scale',
+  arch:       'Arch: rises then falls along the stop sequence',
 }
 
 const FILTER_TYPES = ['lowpass', 'highpass', 'bandpass', 'notch']
@@ -102,9 +105,109 @@ function resolvePlayhead(route, lat, lng) {
   return { pct: (nearest.dist / route.totalDist) * 100, stopId: nearest.id }
 }
 
+// ── Loop-region handles (note rail + automation rail) ───────────────────────
+// Pointer: capture on the handle itself, so the drag follows the pointer
+// anywhere and ends on up, cancel (a scroll or OS gesture took the touch) or
+// lost capture. The old window listeners ran permanently on every rail and a
+// cancelled touch left the handle "stuck" to the next move.
+// Keyboard: each handle is a slider. Arrows move one grid cell, Shift+arrows a
+// beat, PageUp/PageDown a bar, Home/End to the limit.
+const CELLS_PER_BEAT = GRID_STEPS_PER_BAR / 4
+
+function describeCell(cell) {
+  const bar  = Math.floor(cell / GRID_STEPS_PER_BAR) + 1
+  const step = (cell % GRID_STEPS_PER_BAR) + 1
+  return `bar ${bar}, step ${step}`
+}
+
+function useLoopHandles({ railRef, startCell, endCell, onLoopRegion }) {
+  const dragRef   = useRef(null)  // 'start' | 'end' | null
+  const latestRef = useRef({ startCell, endCell, onLoopRegion })
+  latestRef.current = { startCell, endCell, onLoopRegion }
+
+  const moveEdge = useCallback((edge, cell) => {
+    const { startCell: s0, endCell: e0, onLoopRegion: set } = latestRef.current
+    if (!set) return
+    if (edge === 'start') {
+      const next = Math.max(0, Math.min(e0 - 1, cell))
+      if (next !== s0) set({ startCell: next, endCell: e0 })
+    } else {
+      const next = Math.max(s0 + 1, Math.min(GRID_TOTAL_CELLS, cell))
+      if (next !== e0) set({ startCell: s0, endCell: next })
+    }
+  }, [])
+
+  return useCallback((edge) => {
+    const isStart = edge === 'start'
+    const value   = isStart ? startCell : endCell
+    const end = (e) => {
+      if (dragRef.current !== edge) return
+      dragRef.current = null
+      if (e.currentTarget.hasPointerCapture?.(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId)
+    }
+    return {
+      role: 'slider',
+      tabIndex: onLoopRegion ? 0 : -1,
+      'aria-label': isStart ? 'Loop start' : 'Loop end',
+      'aria-orientation': 'horizontal',
+      'aria-valuemin': isStart ? 0 : startCell + 1,
+      'aria-valuemax': isStart ? endCell - 1 : GRID_TOTAL_CELLS,
+      'aria-valuenow': value,
+      'aria-valuetext': isStart
+        ? `Starts at ${describeCell(startCell)}`
+        : `Ends after ${describeCell(endCell - 1)}`,
+      onPointerDown: (e) => {
+        if (!onLoopRegion) return
+        e.preventDefault()
+        e.stopPropagation()
+        e.currentTarget.setPointerCapture?.(e.pointerId)
+        dragRef.current = edge
+      },
+      onPointerMove: (e) => {
+        if (dragRef.current !== edge) return
+        const rect = railRef.current?.getBoundingClientRect()
+        if (!rect || rect.width === 0) return
+        const frac = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width))
+        moveEdge(edge, Math.round(frac * GRID_TOTAL_CELLS))
+      },
+      onPointerUp: end,
+      onPointerCancel: end,
+      onLostPointerCapture: end,
+      onKeyDown: (e) => {
+        if (!onLoopRegion) return
+        const small = e.shiftKey ? CELLS_PER_BEAT : 1
+        let next = null
+        switch (e.key) {
+          case 'ArrowLeft': case 'ArrowDown': next = value - small; break
+          case 'ArrowRight': case 'ArrowUp':  next = value + small; break
+          case 'PageDown': next = value - GRID_STEPS_PER_BAR; break
+          case 'PageUp':   next = value + GRID_STEPS_PER_BAR; break
+          case 'Home': next = isStart ? 0 : startCell + 1; break
+          case 'End':  next = isStart ? endCell - 1 : GRID_TOTAL_CELLS; break
+          default: return
+        }
+        e.preventDefault()
+        e.stopPropagation()
+        moveEdge(edge, next)
+      },
+    }
+  }, [startCell, endCell, onLoopRegion, railRef, moveEdge])
+}
+
+// Call two handler maps' same-named handlers in order (a then b).
+function mergeHandlers(a, b) {
+  const out = { ...a, ...b }
+  for (const key of Object.keys(a)) {
+    if (key.startsWith('on') && typeof a[key] === 'function' && typeof b[key] === 'function') {
+      out[key] = (e) => { a[key](e); b[key](e) }
+    }
+  }
+  return out
+}
+
 export default function DawView({
   className = '',
-  mode, started, events, routes, allRoutes, onRepickType,
+  visible = true, mode, started, routes, allRoutes, onRepickType,
   onAddLine, onChangeLine, onRemoveLine,
   onDuplicateTrack, onRemoveDuplicate, onStopPitch, perStopStepsById,
   onMergeLanes, onUnmerge, mergedConsumedIds,
@@ -136,9 +239,6 @@ export default function DawView({
   const tracksRef             = useRef(null)
   const animRef               = useRef(null)
   const lastProgressRef       = useRef(0)
-  const lastProgressUpdateRef = useRef(0)
-  const [playheadProgress, setPlayheadProgress] = useState(0)
-  const [drumStep, setDrumStep] = useState(-1)
   // Stop-editor modal: the stop currently open for pitch/velocity editing, or null.
   const [editingStop, setEditingStop] = useState(null)
   // Duplicate-lane modal: { routeId, routeName } of the lane being duplicated, or null.
@@ -182,14 +282,13 @@ export default function DawView({
     return map
   }, [liveSnapshot])
 
+  // Live mode: fire a note when a vehicle crosses the 4-bar visual cycle.
+  // This drives audio, not display, so it runs whether or not the DAW view is
+  // visible. Playheads and step highlights draw themselves from the shared
+  // ticker (lib/shared/playheadTicker.js) without touching React state.
   useEffect(() => {
-    if (!started) {
-      cancelAnimationFrame(animRef.current)
-      setPlayheadProgress(0)
-      setDrumStep(-1)
-      lastProgressRef.current = 0
-      return
-    }
+    lastProgressRef.current = 0
+    if (!started || mode !== 'live' || !routes || !liveSnapshot) return
 
     const tick = () => {
       // The global Transport no longer loops (each Part self-loops for polyrhythm), so
@@ -198,30 +297,17 @@ export default function DawView({
       const loopSec = (16 / bpm) * 60
       const progress = (Tone.getTransport().seconds % loopSec) / loopSec
 
-      const now = performance.now()
-      if (now - lastProgressUpdateRef.current > 66) {
-        setPlayheadProgress(progress)
-        // Drum sequencer step (16th-note loop of DRUM_STEPS cells). The drum loop
-        // is shorter than the 16-beat visual cycle, so derive it independently.
-        // bpm is fixed while started (the input is disabled), so the prop is safe here.
-        const stepDur = (60 / (bpm || 120)) / 4
-        setDrumStep(Math.floor(Tone.getTransport().seconds / stepDur) % DRUM_STEPS)
-        lastProgressUpdateRef.current = now
-      }
-
-      if (mode === 'live' && routes && liveSnapshot) {
-        const prev = lastProgressRef.current
-        for (const route of routes) {
-          const vehicles = vehiclesByRoute[route.name] ?? []
-          for (const v of vehicles) {
-            const ph2 = resolvePlayhead(route, v.lat, v.lng)
-            if (!ph2) continue
-            const vPct   = ph2.pct / 100
-            const crossed = progress >= prev
-              ? (prev < vPct && vPct <= progress)
-              : (prev < vPct || vPct <= progress)
-            if (crossed) onVehicleCrossed(route.id, route.type, v.lat, ph2.stopId)
-          }
+      const prev = lastProgressRef.current
+      for (const route of routes) {
+        const vehicles = vehiclesByRoute[route.name] ?? []
+        for (const v of vehicles) {
+          const ph2 = resolvePlayhead(route, v.lat, v.lng)
+          if (!ph2) continue
+          const vPct   = ph2.pct / 100
+          const crossed = progress >= prev
+            ? (prev < vPct && vPct <= progress)
+            : (prev < vPct || vPct <= progress)
+          if (crossed) onVehicleCrossed(route.id, route.type, v.lat, ph2.stopId)
         }
       }
 
@@ -251,7 +337,7 @@ export default function DawView({
 
   return (
     <div className={`daw-body${className ? ` ${className}` : ''}`}>
-      <main className="daw-tracks" ref={tracksRef}>
+      <section className="daw-tracks" ref={tracksRef} aria-label="Tracks">
 
         {!routes && <div className="daw-loading">Loading line data…</div>}
 
@@ -267,7 +353,7 @@ export default function DawView({
               onClick={onRefetch}
               disabled={snapshotLoading || started}
             >
-              {snapshotLoading ? 'Fetching…' : '↺ Refetch'}
+              {snapshotLoading ? 'Fetching…' : <><IconReset /> Refetch</>}
             </button>
           </div>
         )}
@@ -303,7 +389,7 @@ export default function DawView({
                   onClick={() => onRepickType(type)}
                   disabled={started}
                   title={`Re-pick ${label} lines`}
-                >↻</button>
+                ><IconRepick /></button>
               )}
               {onAddLine && (
                 <button
@@ -311,7 +397,7 @@ export default function DawView({
                   onClick={() => setLinePicker({ mode: 'add', type })}
                   disabled={started}
                   title={`Add a ${label} line`}
-                >＋</button>
+                ><IconAdd /></button>
               )}
             </div>
             {routesByType[type].map(route => {
@@ -338,7 +424,7 @@ export default function DawView({
                     route={route}
                     mode={mode}
                     started={started}
-                    progress={playheadProgress}
+                    visible={visible}
                     volume={volumes[route.id] ?? 0}
                     disabled={disabled[route.id] ?? false}
                     pan={pans[route.id] ?? 0}
@@ -439,6 +525,7 @@ export default function DawView({
                       synthType={trackSynthTypes?.[route.id] ?? 'Synth'}
                       granularEnabled={!!trackGranulars?.[route.id]?.enabled}
                       started={started}
+                      visible={visible}
                       srcLoopRegion={trackLoopRegions?.[laneCfg.sourceRouteId]}
                       srcGridResolution={trackGridResolutions?.[laneCfg.sourceRouteId]}
                       onUpdate={cfg => onUpdateAutomationLane(route.id, laneId, cfg)}
@@ -459,7 +546,7 @@ export default function DawView({
               onClick={() => setLinePicker({ mode: 'add' })}
               disabled={started}
               title="Add a transit line as a new lane"
-            >＋ Add line</button>
+            ><IconAdd /> Add line</button>
           </div>
         )}
 
@@ -467,7 +554,8 @@ export default function DawView({
           <DrumLane
             pattern={drumPattern}
             muted={drumsMuted}
-            activeStep={drumStep}
+            started={started}
+            visible={visible}
             onToggleStep={onToggleDrumStep}
             onTogglePadMute={onToggleDrumPadMute}
             onToggleMute={onToggleDrumsMute}
@@ -483,20 +571,9 @@ export default function DawView({
           />
         )}
 
-      </main>
+      </section>
 
-      <aside className="event-log">
-        <h2>Event Log</h2>
-        <ul>
-          {events.slice(0, 24).map((ev, i) => (
-            <li key={i}>
-              <span className="ev-line">{ev.routeShortName ?? ev.lineId}</span>
-              <span className="ev-stop">{ev.stopName}</span>
-              <span className="ev-note">{ev.note}</span>
-            </li>
-          ))}
-        </ul>
-      </aside>
+      <EventLog visible={visible} />
 
       <DawFooter
         activeFxTracks={activeFxTracks ?? []}
@@ -572,12 +649,59 @@ export default function DawView({
 // A mini 6-pad step sequencer pinned to the bottom of the track list. Each pad
 // shows the 16 visible steps (its 64-slot buffer windowed by the pad's offset);
 // clicking a cell toggles it live. Mirrors DrumMachineTab's grid, DAW-scoped.
+// ── Event log ────────────────────────────────────────────────────────────────
+// Subscribes to the note feed itself (lib/shared/eventLogStore.js), so a note
+// burst re-renders this list and nothing above it. Hidden → no subscription.
+const noSubscribe = () => () => {}
+function EventLog({ visible }) {
+  const events = useSyncExternalStore(visible ? subscribeEvents : noSubscribe, getEvents, getEvents)
+  return (
+    <aside className="event-log">
+      <h2>Event Log</h2>
+      <ul>
+        {events.slice(0, 24).map((ev, i) => (
+          <li key={i}>
+            <span className="ev-line">{ev.routeShortName ?? ev.lineId}</span>
+            <span className="ev-stop">{ev.stopName}</span>
+            <span className="ev-note">{ev.note}</span>
+          </li>
+        ))}
+      </ul>
+    </aside>
+  )
+}
+
 function DrumLane({
-  pattern, muted, activeStep, onToggleStep, onTogglePadMute, onToggleMute, onClear,
+  pattern, muted, started = false, visible = true, onToggleStep, onTogglePadMute, onToggleMute, onClear,
   volume = 0, filter, onVolume, onFilter, onSendLevel, getEqRuntime,
   activeFxTracks = [], sendMatrix = {},
 }) {
   const [rackOpen, setRackOpen] = useState(false)
+  // Playing-step highlight, drawn on the DOM from the shared ticker instead of
+  // re-rendering the lane every step. After any render React may have rewritten
+  // the step classNames, so forget the applied step and let the next frame redo it.
+  const stepsRef = useRef(null)
+  const playingStepRef = useRef(-1)
+  useLayoutEffect(() => { playingStepRef.current = -1 })
+  useEffect(() => {
+    const root = stepsRef.current
+    const clear = () => {
+      root?.querySelectorAll('.drum-lane-step.playing').forEach(el => el.classList.remove('playing'))
+      playingStepRef.current = -1
+    }
+    if (!started || !visible || !root) { clear(); return undefined }
+    const unsubscribe = subscribePlayhead(() => {
+      // Drum sequencer step (16th-note loop of DRUM_STEPS cells). The drum loop
+      // is shorter than the 16-beat visual cycle, so derive it independently.
+      const stepDur = (60 / (Tone.Transport.bpm.value || 120)) / 4
+      const step = Math.floor(Tone.getTransport().seconds / stepDur) % DRUM_STEPS
+      if (step === playingStepRef.current) return
+      root.querySelectorAll('.drum-lane-step.playing').forEach(el => el.classList.remove('playing'))
+      root.querySelectorAll(`.drum-lane-step[data-step="${step}"]`).forEach(el => el.classList.add('playing'))
+      playingStepRef.current = step
+    })
+    return () => { unsubscribe(); clear() }
+  }, [started, visible])
   const vol = Number.isFinite(volume) ? volume : 0
   return (
     <div className={`daw-section drum-section ${rackOpen ? 'drum-section--open' : ''}`}>
@@ -585,6 +709,8 @@ function DrumLane({
         <span>Drums</span>
         <button
           className={`drum-lane-master-btn ${muted ? 'on' : ''}`}
+          aria-pressed={muted}
+          aria-label="Mute drums"
           onClick={onToggleMute}
           title={muted ? 'Unmute drums' : 'Mute drums'}
         >{muted ? 'Muted' : 'Mute'}</button>
@@ -593,6 +719,7 @@ function DrumLane({
           <input
             type="range" min="-40" max="6" step="1"
             value={vol} onChange={e => onVolume?.(Number(e.target.value))}
+            aria-label="Drum lane volume" aria-valuetext={`${vol} dB`}
             className="volume-slider" title="Drum lane volume"
           />
           <span className="volume-val">{vol}dB</span>
@@ -600,13 +727,14 @@ function DrumLane({
         <button
           className={`rack-toggle ${rackOpen ? 'active' : ''}`}
           onClick={() => setRackOpen(o => !o)}
+          aria-expanded={rackOpen}
           title="Mixer: filter, EQ, sends"
-        >FX <span className={`rack-chevron ${rackOpen ? 'up' : ''}`}>▾</span></button>
+        >FX <IconCaretDown className={`rack-chevron ${rackOpen ? 'up' : ''}`} /></button>
         <button
           className="drum-lane-master-btn"
           onClick={onClear}
           title="Remove drum lane"
-        >× Remove</button>
+        ><IconClose /> Remove</button>
       </div>
 
       {rackOpen && (
@@ -633,6 +761,8 @@ function DrumLane({
                         type="range" min="0" max="1" step="0.01"
                         value={level}
                         onChange={e => onSendLevel?.(busId, parseFloat(e.target.value))}
+                        aria-label={`Drums send to ${bus?.label ?? busId}`}
+                        aria-valuetext={`${Math.round(level * 100)}%`}
                         className="line-send-slider"
                       />
                       <span className="line-send-val">{Math.round(level * 100)}%</span>
@@ -645,7 +775,7 @@ function DrumLane({
         </div>
       )}
 
-      <div className={`drum-lane ${muted ? 'drum-lane--muted' : ''}`}>
+      <div ref={stepsRef} className={`drum-lane ${muted ? 'drum-lane--muted' : ''}`}>
         {DRUM_PAD_DEFS.map(pad => {
           const padPat   = pattern.patterns?.[pad.id] ?? emptyDrumPattern()
           const offset   = pattern.offsets?.[pad.id] ?? 0
@@ -656,6 +786,8 @@ function DrumLane({
               <button
                 className={`drum-lane-mute ${padMuted ? 'on' : ''}`}
                 onClick={() => onTogglePadMute(pad.id)}
+                aria-pressed={padMuted}
+                aria-label={`Mute ${pad.label}`}
                 title="Mute pad"
               >M</button>
               <div className="drum-lane-steps">
@@ -668,15 +800,17 @@ function DrumLane({
                   return (
                     <button
                       key={i}
+                      data-step={i}
                       className={[
                         'drum-lane-step',
                         v ? 'on' : '',
                         level,
-                        activeStep === i ? 'playing' : '',
                         i % 4 === 0 ? 'beat' : '',
                       ].filter(Boolean).join(' ')}
                       onClick={() => onToggleStep(pad.id, i)}
-                      title={v ? `vel ${Math.round(v * 100)}% — click to cycle` : 'click to cycle velocity'}
+                      aria-label={`${pad.label} step ${i + 1}${v ? `, velocity ${Math.round(v * 100)}%` : ''}`}
+                      aria-pressed={!!v}
+                      title={v ? `vel ${Math.round(v * 100)}%. Click to cycle` : 'click to cycle velocity'}
                     />
                   )
                 })}
@@ -691,7 +825,7 @@ function DrumLane({
 
 // ── Individual instrument track row ──────────────────────────────────────────
 function LineTrack({
-  route, mode, started, progress, volume, disabled, pan, isSoloed,
+  route, mode, started, visible = true, volume, disabled, pan, isSoloed,
   vehicles, soundMode, trackScale, synthType, adsr,
   filter, getEqRuntime,
   droneMode, droneRoot,
@@ -770,7 +904,7 @@ function LineTrack({
             <span className="line-badge" style={{ background: route.color, color: route.textColor }}>
               {route.name}
             </span>
-            {isDuplicate && <span className="dup-badge" title="Chord copy — re-pitched within harmony">copy</span>}
+            {isDuplicate && <span className="dup-badge" title="Chord copy, re-pitched within harmony">copy</span>}
             {isMerged && <span className="dup-badge merged-badge" title="Merged PolySynth chord lane">merged</span>}
             {laneChance < 1 && (
               <span className="dup-badge gate-badge" title={`Each note plays with ${Math.round(laneChance * 100)}% chance`}>
@@ -816,10 +950,11 @@ function LineTrack({
         </div>
 
         <div className="lt-mix">
-          <button className={`disable-btn lane-icon-btn ${disabled ? 'active' : ''}`} onClick={onDisable} aria-pressed={!disabled} aria-label={disabled ? `Enable ${route.name}` : `Disable ${route.name}`} data-tooltip={disabled ? 'Enable track' : 'Disable track'}>⏻</button>
+          <button className={`disable-btn lane-icon-btn ${disabled ? 'active' : ''}`} onClick={onDisable} aria-pressed={!disabled} aria-label={`Enable ${route.name}`} data-tooltip={disabled ? 'Enable track' : 'Disable track'}><IconPower /></button>
           <button className={`solo-btn lane-icon-btn ${isSoloed ? 'active' : ''}`} onClick={onSolo} aria-pressed={isSoloed} aria-label={`Solo ${route.name}`} data-tooltip="Solo · Cmd/Ctrl-click to add">S</button>
           <input type="range" min="-40" max="6" step="1"
             value={volDisp} onChange={e => onVolume(Number(e.target.value))}
+            aria-label={`${route.name} volume`} aria-valuetext={`${volDisp} dB`}
             disabled={aVol.disabled} className="volume-slider" />
           <span className="volume-val">{volDisp}dB</span>
           <span className="lt-mix-sep" />
@@ -827,6 +962,8 @@ function LineTrack({
           <input type="range" min="-1" max="1" step="0.01"
             value={panDisp} onChange={e => onPan(parseFloat(e.target.value))}
             {...panReset}
+            aria-label={`${route.name} pan`}
+            aria-valuetext={panDisp === 0 ? 'center' : panDisp < 0 ? `left ${Math.round(-panDisp * 100)}` : `right ${Math.round(panDisp * 100)}`}
             disabled={aPan.disabled} className="pan-slider" />
           <span className="pan-val">
             {panDisp === 0 ? 'C' : panDisp < 0 ? `L${Math.round(-panDisp * 100)}` : `R${Math.round(panDisp * 100)}`}
@@ -860,7 +997,7 @@ function LineTrack({
             disabled={started}
             aria-label={`Change ${route.name} transit line`}
             data-tooltip="Change transit line"
-          >⇄</button>
+          ><IconChangeLine /></button>
         )}
         {!isMerged && (
           <button
@@ -869,7 +1006,7 @@ function LineTrack({
             onClick={onDuplicate}
             aria-label={`Duplicate ${route.name}`}
             data-tooltip="Duplicate lane · stack a chord"
-          >⎘</button>
+          ><IconDuplicate /></button>
         )}
         {isDuplicate && (
           <button
@@ -878,7 +1015,7 @@ function LineTrack({
             onClick={onRemoveDuplicate}
             aria-label={`Remove ${route.name} copy`}
             data-tooltip="Remove this copy"
-          >×</button>
+          ><IconClose /></button>
         )}
         {isMerged && (
           <button
@@ -887,22 +1024,23 @@ function LineTrack({
             onClick={onUnmerge}
             aria-label={`Un-merge ${route.name}`}
             data-tooltip="Un-merge · restore original lanes"
-          >×</button>
+          ><IconClose /></button>
         )}
 
         <button
           className={`rack-toggle ${rackOpen ? 'active' : ''}`}
           onClick={() => setRackOpen(o => !o)}
           title={rackOpen ? 'Collapse device rack' : 'Expand device rack'}
+          aria-expanded={rackOpen}
         >
           DEVICE RACK
-          <span className={`rack-chevron ${rackOpen ? 'up' : ''}`}>▾</span>
+          <IconCaretDown className={`rack-chevron ${rackOpen ? 'up' : ''}`} />
         </button>
       </div>
 
       <StopRail
         route={route}
-        progress={progress}
+        visible={visible}
         speed={speed ?? 1}
         started={started}
         mode={mode}
@@ -991,10 +1129,12 @@ function LineTrack({
                     <input
                       type="range" min="0" max="1" step="0.01"
                       value={pv.variety}
+                      aria-label={`${route.name} pitch variety`}
+                      aria-valuetext={`${Math.round(pv.variety * 100)}%`}
                       onChange={e => onPitchVariety({ variety: parseFloat(e.target.value) })}
                       {...varietyReset}
                       className="glide-slider"
-                      title="Pitch variety — 0% keeps the selected contour pure; higher adds seeded jitter and gap accents"
+                      title="Pitch variety: 0% keeps the selected contour pure; higher adds seeded jitter and gap accents"
                     />
                     <span className="glide-val">{Math.round(pv.variety * 100)}%</span>
                   </div>
@@ -1031,6 +1171,8 @@ function LineTrack({
               <input
                 type="range" min="0" max="1" step="0.01"
                 value={gliDisp}
+                aria-label={`${route.name} glide`}
+                aria-valuetext={`${Math.round(gliDisp * 100)}%`}
                 onChange={e => onGlide(parseFloat(e.target.value))}
                 {...glideReset}
                 disabled={aGli.disabled}
@@ -1040,7 +1182,7 @@ function LineTrack({
               <button
                 className={`legato-btn ${legato ? 'active' : ''}`}
                 onClick={() => onLegato(!legato)}
-                title={legato ? 'Legato on — click to disable' : 'Enable legato (hold + glide)'}
+                title={legato ? 'Legato on. Click to disable' : 'Enable legato (hold + glide)'}
                 style={legato ? { borderColor: route.color, color: route.color } : {}}
               >LEG</button>
             </div>
@@ -1085,7 +1227,7 @@ function LineTrack({
               <div
                 className="speed-btns"
                 title={legato || arp?.enabled || synthType === 'PluckSynth'
-                  ? 'Note length — no effect while legato, the arpeggiator or PluckSynth is in use'
+                  ? 'Note length has no effect while legato, the arpeggiator or PluckSynth is in use'
                   : 'How long each note is held before its release'}
               >
                 {NOTE_LENGTHS.map(len => {
@@ -1108,10 +1250,12 @@ function LineTrack({
               <input
                 type="range" min="0" max="1" step="0.05"
                 value={laneChance}
+                aria-label={`${route.name} note chance`}
+                aria-valuetext={`${Math.round(laneChance * 100)}%`}
                 onChange={e => onNoteChance(parseFloat(e.target.value))}
                 {...chanceReset}
                 className="glide-slider"
-                title="Note chance — each note rolls fresh dice every loop. Double-click for 100%"
+                title="Note chance: each note rolls fresh dice every loop. Double-click for 100%"
               />
               <span className="glide-val">{Math.round(laneChance * 100)}%</span>
             </div>
@@ -1138,7 +1282,7 @@ function LineTrack({
               {[
                 { key: 'play',   label: 'PLAY', min: 1, max: MAX_PATTERN_PLAY, title: 'Loops played in a row' },
                 { key: 'rest',   label: 'REST', min: 0, max: MAX_PATTERN_REST, title: 'Loops skipped after playing' },
-                { key: 'offset', label: 'SHIFT', min: 0, max: pattern.play + pattern.rest - 1, title: 'Shift which loop the pattern starts on — offset two lanes to make them take turns' },
+                { key: 'offset', label: 'SHIFT', min: 0, max: pattern.play + pattern.rest - 1, title: 'Shift which loop the pattern starts on. Offset two lanes to make them take turns' },
               ].map(f => (
                 <span key={f.key} className="loop-stepper" title={f.title}>
                   <span className="speed-label">{f.label}</span>
@@ -1163,7 +1307,7 @@ function LineTrack({
                   <button
                     className={`legato-btn ${arpOn ? 'active' : ''}`}
                     onClick={() => onArp({ enabled: !arpOn })}
-                    title={arpOn ? 'Arpeggiator on — click to disable' : 'Enable arpeggiator (stop note = root)'}
+                    title={arpOn ? 'Arpeggiator on. Click to disable' : 'Enable arpeggiator (stop note = root)'}
                     style={{ marginLeft: 'auto', ...(arpOn ? { borderColor: route.color, color: route.color } : {}) }}
                   >ARP</button>
                 </div>
@@ -1221,6 +1365,8 @@ function LineTrack({
                   <input
                     type="range" min="0.05" max="2" step="0.05"
                     value={ag.gate}
+                    aria-label={`${route.name} arpeggiator gate`}
+                    aria-valuetext={`${Math.round(ag.gate * 100)}%`}
                     onChange={e => onArp({ gate: parseFloat(e.target.value) })}
                     {...arpGateReset}
                     className="glide-slider"
@@ -1247,6 +1393,8 @@ function LineTrack({
                     type="range" min={min} max={max} step={step}
                     value={val}
                     disabled={a.disabled}
+                    aria-label={`${route.name} grain ${label}`}
+                    aria-valuetext={a.disabled ? 'automated' : String(fmt(val))}
                     onChange={e => onGranular({ [key]: parseFloat(e.target.value) })}
                     className="glide-slider"
                   />
@@ -1264,7 +1412,7 @@ function LineTrack({
                     className={`legato-btn ${grainOn ? 'active' : ''}`}
                     onClick={() => onGranular({ enabled: !grainOn })}
                     title={grainOn
-                      ? 'Granular layer on — click to disable'
+                      ? 'Granular layer on. Click to disable'
                       : 'Layer a grain cloud rendered from this track’s instrument'}
                     style={{ marginLeft: 'auto', ...(grainOn ? { borderColor: route.color, color: route.color } : {}) }}
                   >GRAIN</button>
@@ -1299,6 +1447,8 @@ function LineTrack({
                   <input
                     type="range" min="0" max="2" step="0.005"
                     value={gg.attack}
+                    aria-label={`${route.name} grain attack`}
+                    aria-valuetext={String(ms(gg.attack))}
                     onChange={e => onGranular({ attack: parseFloat(e.target.value) })}
                     className="glide-slider"
                   />
@@ -1309,6 +1459,8 @@ function LineTrack({
                   <input
                     type="range" min="0.01" max="6" step="0.01"
                     value={gg.release}
+                    aria-label={`${route.name} grain release`}
+                    aria-valuetext={`${Number(gg.release).toFixed(2)} s`}
                     onChange={e => onGranular({ release: parseFloat(e.target.value) })}
                     className="glide-slider"
                   />
@@ -1330,6 +1482,8 @@ function LineTrack({
                 <input
                   type="range" min={min} max={max} step={step}
                   value={sc[key]}
+                  aria-label={`${route.name} sidechain ${label}`}
+                  aria-valuetext={String(fmt(sc[key]))}
                   onChange={e => onSidechain({ [key]: parseFloat(e.target.value) })}
                   className="glide-slider"
                 />
@@ -1346,7 +1500,7 @@ function LineTrack({
                     onClick={() => onSidechain({ enabled: !sc.enabled })}
                     disabled={!sc.source}
                     title={sc.source
-                      ? (scOn ? 'Ducking on — click to disable' : 'Duck this lane when the trigger fires')
+                      ? (scOn ? 'Ducking on. Click to disable' : 'Duck this lane when the trigger fires')
                       : 'Pick a trigger source first'}
                     style={{ marginLeft: 'auto', ...(scOn ? { borderColor: route.color, color: route.color } : {}) }}
                   >SC</button>
@@ -1391,6 +1545,8 @@ function LineTrack({
                         type="range" min="0" max="1" step="0.01"
                         value={level}
                         onChange={e => onSendLevel(busId, parseFloat(e.target.value))}
+                        aria-label={`${route.name} send to ${bus?.label ?? busId}`}
+                        aria-valuetext={`${Math.round(level * 100)}%`}
                         disabled={aSend.disabled}
                         className="line-send-slider"
                       />
@@ -1409,7 +1565,7 @@ function LineTrack({
 }
 
 // ── Automation lane (sub-row below instrument track) ─────────────────────────
-function AutomationLane({ laneId, instRoute, laneCfg, allRoutes, activeFxTracks, disabled, soloRoutes, synthType = 'Synth', granularEnabled = false, started = false, srcLoopRegion, srcGridResolution, onUpdate, onRemove, onLiveValue }) {
+function AutomationLane({ laneId, instRoute, laneCfg, allRoutes, activeFxTracks, disabled, soloRoutes, synthType = 'Synth', granularEnabled = false, started = false, visible = true, srcLoopRegion, srcGridResolution, onUpdate, onRemove, onLiveValue }) {
   const sourceRouteId = laneCfg?.sourceRouteId ?? ''
   const paramTarget   = laneCfg?.paramTarget   ?? 'volume'
   const points        = laneCfg?.points        ?? {}
@@ -1456,7 +1612,7 @@ function AutomationLane({ laneId, instRoute, laneCfg, allRoutes, activeFxTracks,
       <div className="auto-lane-controls">
         <select className="auto-select auto-select--source-line" value={sourceRouteId}
           onChange={e => onUpdate({ sourceRouteId: e.target.value })}>
-          <option value="">— pick line —</option>
+          <option value="">Pick a line</option>
           {pickableRoutes.map(r => {
             // Some cities (e.g. NYC/MTA) carry paragraph-length descriptions; native <option>
             // text can't be CSS-truncated, so cap it here or the dropdown popup overflows.
@@ -1480,7 +1636,7 @@ function AutomationLane({ laneId, instRoute, laneCfg, allRoutes, activeFxTracks,
           ))}
         </select>
 
-        <button className="auto-remove-btn" onClick={onRemove} title="Remove lane">×</button>
+        <button className="auto-remove-btn" onClick={onRemove} title="Remove lane" aria-label="Remove automation lane"><IconClose /></button>
 
         <div className="speed-row auto-speed-row">
           <span className="speed-label">SPEED</span>
@@ -1504,6 +1660,8 @@ function AutomationLane({ laneId, instRoute, laneCfg, allRoutes, activeFxTracks,
           <input
             type="range" min="0" max="1" step="0.01"
             value={glide}
+            aria-label="Automation glide"
+            aria-valuetext={`${Math.round(glide * 100)}%`}
             onChange={e => onUpdate({ glide: parseFloat(e.target.value) })}
             {...useResetGesture(() => onUpdate({ glide: 0 }))}
             className="glide-slider"
@@ -1519,6 +1677,7 @@ function AutomationLane({ laneId, instRoute, laneCfg, allRoutes, activeFxTracks,
         points={points}
         spec={findTargetSpec(paramTarget, synthType)}
         started={started}
+        visible={visible}
         speed={speed}
         loopRegion={effectiveRegion}
         gridResolution={srcGridResolution}
@@ -1564,7 +1723,7 @@ function AutomationSourceTrack({ srcRoute, instRoute, automationCfg, srcGridReso
           )}
         </div>
       </div>
-      <StopRail route={srcRoute} progress={0} mode="mock" vehicles={[]} automationValues={automationValues} gridResolution={srcGridResolution} />
+      <StopRail route={srcRoute} mode="mock" vehicles={[]} automationValues={automationValues} gridResolution={srcGridResolution} />
     </div>
   )
 }
@@ -1603,7 +1762,7 @@ function autoCtl(autoTargets, ids, { divide = 1 } = {}) {
 
 // Draggable per-stop automation curve. X = the chosen line's stops (snapped to the
 // same grid as instrument notes); Y = the authored value (override or hash default).
-function AutoCurveRail({ route, laneId, points, spec, started = false, speed = 1, loopRegion, gridResolution, onLoopRegion, onUpdate, onActiveValue }) {
+function AutoCurveRail({ route, laneId, points, spec, started = false, visible = true, speed = 1, loopRegion, gridResolution, onLoopRegion, onUpdate, onActiveValue }) {
   const noteStepsPerBar = GRID_RESOLUTION_STEPS_PER_BAR[gridResolution ?? DEFAULT_GRID_RESOLUTION] ?? GRID_STEPS_PER_BAR
   const noteTotalCells  = GRID_BARS * noteStepsPerBar
   const railRef = useRef(null)
@@ -1619,85 +1778,77 @@ function AutoCurveRail({ route, laneId, points, spec, started = false, speed = 1
   const startPct  = (startCell / GRID_TOTAL_CELLS) * 100
   const endPct    = (endCell   / GRID_TOTAL_CELLS) * 100
 
+  // Dot elements + their x, cached after each render rather than queried per
+  // frame. A render may also have rewritten the dots' classNames, so drop the
+  // applied highlight and let the next frame reapply it.
+  const dotsRef       = useRef([])
+  const lastActiveRef = useRef(-1)
+  useLayoutEffect(() => {
+    dotsRef.current = railRef.current
+      ? [...railRef.current.querySelectorAll('.auto-dot')].map(el => ({ el, x: parseFloat(el.dataset.x) }))
+      : []
+    lastActiveRef.current = -2  // forces a reapply without re-reporting the same value
+  })
+
   useEffect(() => {
     const el = needleRef.current
-    if (!el) return
-    const dots = () => (railRef.current ? [...railRef.current.querySelectorAll('.auto-dot')] : [])
-    const clearActive = () => dots().forEach(d => d.classList.remove('active'))
-    if (!started) { el.style.left = `${startPct}%`; clearActive(); onActiveValue?.(null); return }
-    let rafId
-    let lastActive = -1
-    const tick = () => {
+    if (!el) return undefined
+    const clearActive = () => dotsRef.current.forEach(d => d.el.classList.remove('active'))
+    if (!started || !visible) {
+      el.style.transform = `translateX(${startPct}%)`
+      clearActive()
+      lastActiveRef.current = -1
+      if (!started) onActiveValue?.(null)
+      return undefined
+    }
+    let reported = -1
+    const unsubscribe = subscribePlayhead(() => {
       const bpm = Tone.Transport.bpm.value || 120
       const loopSec = (16 / bpm) * 60
       const partLoopSec = (regionLen / GRID_TOTAL_CELLS) * loopSec / (speed || 1)
       const t = Tone.getTransport().seconds
       const local = partLoopSec > 0 ? ((t % partLoopSec) + partLoopSec) % partLoopSec / partLoopSec : 0
       const playLeft = startPct + local * (endPct - startPct)
-      el.style.left = `${playLeft}%`
+      el.style.transform = `translateX(${playLeft}%)`
       // Highlight the point currently in effect: the last dot the needle has passed.
-      const ds = dots()
+      const ds = dotsRef.current
       let active = -1
       for (let i = 0; i < ds.length; i++) {
-        if (parseFloat(ds[i].dataset.x) <= playLeft) active = i
+        if (ds[i].x <= playLeft) active = i
       }
-      if (active !== lastActive) {
-        ds.forEach((d, i) => d.classList.toggle('active', i === active))
-        lastActive = active
+      if (active !== lastActiveRef.current) {
+        ds.forEach((d, i) => d.el.classList.toggle('active', i === active))
+        lastActiveRef.current = active
+      }
+      if (active !== reported) {
+        reported = active
         // Surface the value now in effect so the parent can drive the instrument control.
         onActiveValue?.(active >= 0 ? (stopPointsRef.current[active]?.value ?? null) : null)
       }
-      rafId = requestAnimationFrame(tick)
-    }
-    rafId = requestAnimationFrame(tick)
-    return () => { cancelAnimationFrame(rafId); clearActive(); onActiveValue?.(null) }
-  }, [started, speed, startPct, endPct, regionLen, onActiveValue])
+    })
+    return () => { unsubscribe(); clearActive(); lastActiveRef.current = -1; onActiveValue?.(null) }
+  }, [started, visible, speed, startPct, endPct, regionLen, onActiveValue])
 
-  // ── Loop-handle drag (mirrors StopRail) ───────────────────────────────────
-  const cellFromClientX = useCallback((clientX) => {
-    const rect = railRef.current?.getBoundingClientRect()
-    if (!rect || rect.width === 0) return 0
-    const frac = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width))
-    return Math.round(frac * GRID_TOTAL_CELLS)
-  }, [])
-
-  const dragRef = useRef(null)  // 'start' | 'end' | null
-  useEffect(() => {
-    const onMove = (e) => {
-      if (!dragRef.current || !onLoopRegion) return
-      const cell = cellFromClientX(e.clientX)
-      if (dragRef.current === 'start') {
-        const newStart = Math.max(0, Math.min(endCell - 1, cell))
-        if (newStart !== startCell) onLoopRegion({ startCell: newStart, endCell })
-      } else {
-        const newEnd = Math.max(startCell + 1, Math.min(GRID_TOTAL_CELLS, cell))
-        if (newEnd !== endCell) onLoopRegion({ startCell, endCell: newEnd })
-      }
-    }
-    const onUp = () => { dragRef.current = null }
-    window.addEventListener('pointermove', onMove)
-    window.addEventListener('pointerup',   onUp)
-    return () => {
-      window.removeEventListener('pointermove', onMove)
-      window.removeEventListener('pointerup',   onUp)
-    }
-  }, [startCell, endCell, cellFromClientX, onLoopRegion])
-
-  const handlePointerDown = (which) => (e) => {
-    e.preventDefault()
-    e.stopPropagation()
-    dragRef.current = which
-  }
+  // ── Loop handles (shared with StopRail) ───────────────────────────────────
+  const loopHandleProps = useLoopHandles({ railRef, startCell, endCell, onLoopRegion })
   // Double-click a handle clears the per-lane override → inherit the source region.
   const handleReset = (e) => { e?.preventDefault?.(); e?.stopPropagation?.(); onLoopRegion?.(null) }
-  // Loop handles are drag targets *and* reset targets, so both the drag start
-  // and the long-press detector have to see pointerdown — spreading the gesture
-  // props alone would silently replace the drag handler.
+  // Loop handles are drag targets *and* reset targets, so the drag and the
+  // long-press detector both have to see every pointer event — spreading one
+  // set of props over the other would silently drop a handler. Delete or
+  // Backspace is the keyboard reset.
   const resetGesture = useResetGesture(handleReset)
-  const handleProps = (edge) => ({
-    ...resetGesture,
-    onPointerDown: (e) => { resetGesture.onPointerDown(e); handlePointerDown(edge)(e) },
-  })
+  const handleProps = (edge) => {
+    const merged = mergeHandlers(resetGesture, loopHandleProps(edge))
+    const onKeyDown = merged.onKeyDown
+    return {
+      ...merged,
+      onKeyDown: (e) => {
+        if (e.key === 'Delete' || e.key === 'Backspace') { handleReset(e); return }
+        onKeyDown(e)
+      },
+    }
+  }
 
   const stopPoints = useMemo(() => {
     if (!route?.stops?.length) return []
@@ -1735,11 +1886,33 @@ function AutoCurveRail({ route, laneId, points, spec, started = false, speed = 1
   }, [dragId, points, onUpdate, valueFromEvent])
   const onDotUp = useCallback((e, stopId) => {
     if (dragId !== stopId) return
-    e.currentTarget.releasePointerCapture?.(e.pointerId)
+    if (e.currentTarget.hasPointerCapture?.(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId)
     setDragId(null)
   }, [dragId])
 
   const unit = spec?.unit ?? ''
+  // The point's value as the parameter reads it (Hz, dB, %…), for tooltips and
+  // screen readers alike.
+  const formatValue = (v) => (spec
+    ? `${(spec.curve === 'exp' ? denormalizeExp(v, spec.min, spec.max) : denormalizeToRange(v, spec.min, spec.max)).toFixed(2)}${unit}`
+    : `${Math.round(v * 100)}%`)
+  // Keyboard: Up/Down nudge 5%, Shift 1%, PageUp/PageDown 25%, Home/End to the limits.
+  const onDotKey = (e, p) => {
+    const fine = e.shiftKey ? 0.01 : 0.05
+    let next = null
+    switch (e.key) {
+      case 'ArrowUp': case 'ArrowRight': next = p.value + fine; break
+      case 'ArrowDown': case 'ArrowLeft': next = p.value - fine; break
+      case 'PageUp': next = p.value + 0.25; break
+      case 'PageDown': next = p.value - 0.25; break
+      case 'Home': next = 0; break
+      case 'End': next = 1; break
+      default: return
+    }
+    e.preventDefault()
+    e.stopPropagation()
+    onUpdate({ points: { ...points, [p.id]: Math.max(0, Math.min(1, next)) } })
+  }
   const maxLabel = spec ? `${spec.max}${unit}` : ''
   const minLabel = spec ? `${spec.min}${unit}` : ''
 
@@ -1775,13 +1948,13 @@ function AutoCurveRail({ route, laneId, points, spec, started = false, speed = 1
             className="loop-handle loop-handle--start"
             style={{ left: `${startPct}%`, '--line-color': route.color }}
             {...handleProps('start')}
-            title={`Loop start · cell ${startCell}/${GRID_TOTAL_CELLS} — drag to move, double-click or long-press to reset`}
+            title={`Loop start · cell ${startCell}/${GRID_TOTAL_CELLS}. Drag to move, double-click or long-press to reset`}
           />
           <div
             className="loop-handle loop-handle--end"
             style={{ left: `${endPct}%`, '--line-color': route.color }}
             {...handleProps('end')}
-            title={`Loop end · cell ${endCell}/${GRID_TOTAL_CELLS} — drag to move, double-click or long-press to reset`}
+            title={`Loop end · cell ${endCell}/${GRID_TOTAL_CELLS}. Drag to move, double-click or long-press to reset`}
           />
         </>
       )}
@@ -1790,10 +1963,11 @@ function AutoCurveRail({ route, laneId, points, spec, started = false, speed = 1
         <polyline points={polylinePoints} fill="none" stroke={route.color} strokeWidth="1.5" opacity="0.45" />
       </svg>
       <div
-        ref={needleRef}
         className={`lane-playhead auto-playhead ${started ? 'active' : ''}`}
         style={{ '--line-color': route.color }}
-      />
+      >
+        <div ref={needleRef} className="lane-playhead-track" />
+      </div>
       {stopPoints.map((p) => (
         <button
           key={p.id}
@@ -1801,11 +1975,20 @@ function AutoCurveRail({ route, laneId, points, spec, started = false, speed = 1
           data-x={p.x}
           className={`auto-dot ${dragId === p.id ? 'dragging' : ''}`}
           style={{ left: `${p.x}%`, top: `${p.y}%`, '--line-color': route.color }}
-          title={`${p.name} · ${spec ? `${(spec.curve === 'exp' ? denormalizeExp(p.value, spec.min, spec.max) : denormalizeToRange(p.value, spec.min, spec.max)).toFixed(2)}${unit}` : `${Math.round(p.value * 100)}%`}`}
+          title={`${p.name} · ${formatValue(p.value)}`}
+          role="slider"
+          aria-label={`Automation at ${p.name}`}
+          aria-orientation="vertical"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={Math.round(p.value * 100)}
+          aria-valuetext={formatValue(p.value)}
+          onKeyDown={e => onDotKey(e, p)}
           onPointerDown={e => onDotDown(e, p.id)}
           onPointerMove={e => onDotMove(e, p.id)}
           onPointerUp={e => onDotUp(e, p.id)}
           onPointerCancel={e => onDotUp(e, p.id)}
+          onLostPointerCapture={e => onDotUp(e, p.id)}
         />
       ))}
     </div>
@@ -1862,6 +2045,8 @@ function MasterStrip({ volume, onVolume }) {
           type="range" min="-40" max="0" step="1"
           value={volume}
           onChange={e => onVolume(Number(e.target.value))}
+          aria-label="Master volume"
+          aria-valuetext={`${volume} dB`}
           className="master-vol-slider"
         />
         <span className="master-vol-val">{volume}dB</span>
@@ -1886,7 +2071,15 @@ function MasterChainCard({ settings, onChange }) {
     const bus = getMasterBus()
     const id = setInterval(() => {
       if (document.hidden) return
-      setMeter(bus.status())
+      const next = bus.status()
+      // Only re-render when the shown reading (0.1 dB) actually moves; an idle
+      // master otherwise re-rendered this card ten times a second for nothing.
+      setMeter(prev => (
+        prev
+        && prev.limiter === next.limiter
+        && Math.round((prev.glueReductionDb ?? 0) * 10) === Math.round((next.glueReductionDb ?? 0) * 10)
+        && Math.round((prev.limiterReductionDb ?? 0) * 10) === Math.round((next.limiterReductionDb ?? 0) * 10)
+      ) ? prev : next)
     }, MASTER_METER_POLL_MS)
     return () => clearInterval(id)
   }, [enabled])
@@ -1909,7 +2102,7 @@ function MasterChainCard({ settings, onChange }) {
           disabled={isDefault}
           title="Reset mastering to defaults"
           aria-label="Reset mastering to defaults"
-        >↺</button>
+        ><IconReset /></button>
         <button
           type="button"
           className={`master-chain-toggle ${enabled ? 'active' : ''}`}
@@ -1955,7 +2148,7 @@ function GainReductionMeter({ label, db, title = `${label} gain reduction` }) {
     <div className="gr-meter" title={title}>
       <span className="fx-param-label">{label}</span>
       <div className="gr-meter-track">
-        <div className="gr-meter-fill" style={{ width: `${frac * 100}%` }} />
+        <div className="gr-meter-fill" style={{ transform: `scaleX(${frac})` }} />
       </div>
       <span className="fx-param-val">{gr === 0 ? '0.0' : gr.toFixed(1)} dB</span>
     </div>
@@ -1971,16 +2164,18 @@ function FxTrackCard({ bus, wet, muted, soloed, params, onWet, onMute, onSolo, o
     <div className={`fx-track-card ${muted ? 'fx-track-card--muted' : ''}`}>
       <div className="fx-track-card-header">
         <span className="fx-track-name">{bus.label}</span>
-        <button className={`mute-btn ${muted ? 'active' : ''}`} onClick={onMute} title="Mute">M</button>
-        <button className={`solo-btn ${soloed ? 'active' : ''}`} onClick={onSolo} aria-pressed={soloed} aria-label="Solo this FX bus" title="Solo">S</button>
+        <button className={`mute-btn ${muted ? 'active' : ''}`} onClick={onMute} aria-pressed={muted} aria-label={`Mute ${bus.label}`} title="Mute">M</button>
+        <button className={`solo-btn ${soloed ? 'active' : ''}`} onClick={onSolo} aria-pressed={soloed} aria-label={`Solo ${bus.label}`} title="Solo">S</button>
         <input
           type="range" min="0" max="1" step="0.01"
           value={wet}
           onChange={e => onWet(parseFloat(e.target.value))}
+          aria-label={`${bus.label} return level`}
+          aria-valuetext={`${Math.round(wet * 100)}%`}
           className="fx-track-wet-slider"
         />
         <span className="fx-track-wet-val">{Math.round(wet * 100)}%</span>
-        <button className="fx-track-remove-btn" onClick={onRemove} title="Remove FX track">×</button>
+        <button className="fx-track-remove-btn" onClick={onRemove} title="Remove FX track" aria-label={`Remove ${bus.label}`}><IconClose /></button>
       </div>
       {specs.length > 0 && (
         <div className="fx-track-params">
@@ -2117,6 +2312,7 @@ function FxParamControl({ spec, value, onChange, disabled = false, disabledText 
         max={spec.max}
         step={spec.step}
         value={v}
+        aria-label={spec.label}
         disabled={disabled}
         onChange={e => onChange(parseFloat(e.target.value))}
         className="fx-param-slider"
@@ -2187,6 +2383,7 @@ function SpSlider({ label, min, max, step, value, onChange, unit, disabled = fal
       <div className="sp-track">
         <div className="sp-fill" style={{ width: `${Math.max(0, Math.min(100, pct))}%` }} />
         <input type="range" min={min} max={max} step={step} value={value} disabled={disabled}
+          aria-label={typeof label === 'string' ? label : undefined}
           className="sp-slider" onChange={e => onChange(Number(e.target.value))} />
       </div>
       <span className="sp-val">{Number(value).toFixed(decimals)}{unit ?? ''}</span>
@@ -2223,6 +2420,7 @@ function SpSliderWithCurve({ label, min, max, step, value, onChange, curveValue,
       <div className="sp-track">
         <div className="sp-fill" style={{ width: `${Math.max(0, Math.min(100, pct))}%` }} />
         <input type="range" min={min} max={max} step={step} value={value} disabled={disabled}
+          aria-label={typeof label === 'string' ? label : undefined}
           className="sp-slider" onChange={e => onChange(Number(e.target.value))} />
       </div>
       <span className="sp-val">{Number(value).toFixed(decimals)}</span>
@@ -2511,7 +2709,7 @@ function EqPanel({ getRuntime }) {
       <div className="sp-panel eq-weq8 eq-weq8--stub">
         <p className="eq-stub-note">
           This lane&rsquo;s EQ is still applied. Editing the curve needs a
-          pointer — open Leið on a desktop browser.
+          pointer. Open Leið on a desktop browser.
         </p>
       </div>
     )
@@ -2534,7 +2732,7 @@ const BAR_LABELS = Array.from({ length: GRID_BARS }, (_, i) => ({
 
 // ── Stop rail: stops quantized to 4-bar × 16th-note grid (64 cells) ──────────
 function StopRail({
-  route, progress = 0, speed = 1, started = false, mode = 'mock', vehicles = [],
+  route, visible = true, speed = 1, started = false, mode = 'mock', vehicles = [],
   trackScale = { root: 'C', scaleType: 'major' }, octaveShift = 0, semitoneShift = 0,
   loopRegion, onLoopRegion, gridResolution, automationValues = null,
   pitchVariety = null,
@@ -2552,24 +2750,52 @@ function StopRail({
   const startPct  = (startCell / GRID_TOTAL_CELLS) * 100
   const endPct    = (endCell   / GRID_TOTAL_CELLS) * 100
 
+  // Active-stop highlight targets: in-region stops (or merged chord cells) with
+  // their position inside the loop, ascending. Rebuilt on each render (below);
+  // the ticker toggles `.active` on the DOM so playback never re-renders the rail.
+  // After any render React may have rewritten the dots' classNames, so forget
+  // the applied key and let the next frame put the highlight back.
+  const activeTargetsRef = useRef([])
+  const activeKeyRef     = useRef(null)
+  useLayoutEffect(() => { activeKeyRef.current = null })
+
   // Drive the playhead from the track's local part progress so a shrunk
   // section visibly loops at its own (faster) rate.
   useEffect(() => {
-    const el = needleRef.current
-    if (!el) return
-    if (!started) {
-      el.style.left = `${startPct}%`
-      return
+    const el   = needleRef.current
+    const rail = railRef.current
+    if (!el || !rail) return undefined
+    const setActive = (key) => {
+      if (key === activeKeyRef.current) return
+      rail.querySelectorAll('.stop-dot.active').forEach(d => d.classList.remove('active'))
+      if (key != null) {
+        rail.querySelectorAll(`.stop-dot[data-akey="${CSS.escape(key)}"]`).forEach(d => d.classList.add('active'))
+      }
+      activeKeyRef.current = key
     }
-    let rafId
-    const tick = () => {
+    if (!started || !visible) {
+      el.style.transform = `translateX(${startPct}%)`
+      setActive(null)
+      return undefined
+    }
+    const unsubscribe = subscribePlayhead(() => {
       const bpm = Tone.Transport.bpm.value || 120
       const loopSec = (16 / bpm) * 60  // 4 bars
       const partLoopSec = (regionLen / GRID_TOTAL_CELLS) * loopSec / (speed || 1)
       const t = Tone.getTransport().seconds
       const local = partLoopSec > 0 ? ((t % partLoopSec) + partLoopSec) % partLoopSec / partLoopSec : 0
       const x = startPct + local * (endPct - startPct)
-      el.style.left = `${x}%`
+      // The needle is a full-width track, so translateX(x%) is x% of the rail.
+      el.style.transform = `translateX(${x}%)`
+      // Active stop: the last in-region target whose loop position <= local progress.
+      if (mode === 'mock') {
+        let key = null
+        for (const target of activeTargetsRef.current) {
+          if (target.rel <= local) key = target.key
+          else break
+        }
+        setActive(key)
+      }
       // Dim the rail while its loop pattern sits this pass out. Toggled on the
       // DOM, not via state, so the per-frame tick doesn't re-render the rail.
       // Counted in ticks like the engine's _laneGate (a Part's loop is fixed in
@@ -2581,52 +2807,18 @@ function StopRail({
         rail.classList.toggle('stop-rail--resting',
           !loopPlays(loopIndexAt(transport.ticks, 0, loopTicks), loopPattern))
       } else {
-        rail?.classList.remove('stop-rail--resting')
+        rail.classList.remove('stop-rail--resting')
       }
-      rafId = requestAnimationFrame(tick)
-    }
-    rafId = requestAnimationFrame(tick)
+    })
     return () => {
-      cancelAnimationFrame(rafId)
-      railRef.current?.classList.remove('stop-rail--resting')
+      unsubscribe()
+      setActive(null)
+      rail.classList.remove('stop-rail--resting')
     }
-  }, [started, speed, startPct, endPct, regionLen, loopPattern])
+  }, [started, visible, mode, speed, startPct, endPct, regionLen, loopPattern])
 
-  // ── Loop-handle drag ──────────────────────────────────────────────────────
-  const cellFromClientX = useCallback((clientX) => {
-    const rect = railRef.current?.getBoundingClientRect()
-    if (!rect || rect.width === 0) return 0
-    const frac = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width))
-    return Math.round(frac * GRID_TOTAL_CELLS)
-  }, [])
-
-  const dragRef = useRef(null)  // 'start' | 'end' | null
-  useEffect(() => {
-    const onMove = (e) => {
-      if (!dragRef.current || !onLoopRegion) return
-      const cell = cellFromClientX(e.clientX)
-      if (dragRef.current === 'start') {
-        const newStart = Math.max(0, Math.min(endCell - 1, cell))
-        if (newStart !== startCell) onLoopRegion({ startCell: newStart, endCell })
-      } else {
-        const newEnd = Math.max(startCell + 1, Math.min(GRID_TOTAL_CELLS, cell))
-        if (newEnd !== endCell) onLoopRegion({ startCell, endCell: newEnd })
-      }
-    }
-    const onUp = () => { dragRef.current = null }
-    window.addEventListener('pointermove', onMove)
-    window.addEventListener('pointerup',   onUp)
-    return () => {
-      window.removeEventListener('pointermove', onMove)
-      window.removeEventListener('pointerup',   onUp)
-    }
-  }, [startCell, endCell, cellFromClientX, onLoopRegion])
-
-  const handlePointerDown = (which) => (e) => {
-    e.preventDefault()
-    e.stopPropagation()
-    dragRef.current = which
-  }
+  // ── Loop handles (pointer + keyboard, shared with AutoCurveRail) ─────────
+  const loopHandleProps = useLoopHandles({ railRef, startCell, endCell, onLoopRegion })
 
   if (!route.stops.length) return <div className="stop-rail stop-rail--empty" />
 
@@ -2665,7 +2857,7 @@ function StopRail({
         const v = automationValues[stop.id] ?? 0.5
         return { ...stop, x, y: autoValueToY(v), noteName: `${Math.round(v * 100)}%` }
       }
-      const noteName = pitchMap[stop.originalIdx] ?? '—'
+      const noteName = pitchMap[stop.originalIdx] ?? '?'
       const midi     = noteToMidi(noteName)
       const y        = (PAD + (1 - (midi - midiMin) / midiRange) * (1 - PAD * 2)) * 100
       return { ...stop, x, y, noteName }
@@ -2722,31 +2914,39 @@ function StopRail({
     }))
   })() : null
 
-  // Per-track local progress (0..1) inside the loop region — wraps at the
-  // shrunken loop length so a 1-bar section completes a cycle in 1 bar.
-  const bpm = Tone.Transport.bpm.value || 120
-  const loopSec = (16 / bpm) * 60
-  const partLoopSec = (regionLen / GRID_TOTAL_CELLS) * loopSec / (speed || 1)
-  const transportSec = started ? Tone.getTransport().seconds : 0
-  const localProgress = partLoopSec > 0
-    ? ((transportSec % partLoopSec) + partLoopSec) % partLoopSec / partLoopSec
-    : 0
+  // Highlight targets for the ticker: a stop id (every dot sharing it lights), or
+  // on a merged lane the chord cell (every stacked dot at that cell lights).
+  const inRegion = (cellIdx) => cellIdx >= startCell && cellIdx < endCell
+  const activeKeyOf = (p) => (mergedPoints ? `c${p.cellIdx}` : String(p.id))
+  const targetsByKey = new Map()
+  for (const p of (mergedPoints ?? stopPoints)) {
+    if (!inRegion(p.cellIdx)) continue
+    const key = activeKeyOf(p)
+    if (!targetsByKey.has(key)) targetsByKey.set(key, { key, rel: (p.cellIdx - startCell) / regionLen })
+  }
+  activeTargetsRef.current = [...targetsByKey.values()].sort((a, b) => a.rel - b.rel)
 
-  // Active stop: last in-region stop whose relative position <= local progress
-  const activeStopId = mode === 'mock'
-    ? [...stopPoints]
-        .filter(s => s.cellIdx >= startCell && s.cellIdx < endCell)
-        .reverse()
-        .find(s => ((s.cellIdx - startCell) / regionLen) <= localProgress)?.id
-    : null
-
-  // Merged lane: the cell of the chord currently sounding (highlights every stacked dot there).
-  const mergedActiveCell = (isMergedRail && mergedPoints && mode === 'mock')
-    ? [...new Set(mergedPoints.map(p => p.cellIdx))]
-        .filter(c => c >= startCell && c < endCell)
-        .sort((a, b) => b - a)
-        .find(c => ((c - startCell) / regionLen) <= localProgress) ?? null
-    : null
+  // Keyboard for editable stop dots: Enter/Space opens the editor (same as a
+  // click); arrows move focus along the rail, Home/End to either end.
+  const onStopDotKey = (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault()
+      e.currentTarget.click()
+      return
+    }
+    const dots = [...(railRef.current?.querySelectorAll('.stop-dot--editable') ?? [])]
+    const i = dots.indexOf(e.currentTarget)
+    let next = null
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') next = dots[i + 1]
+    else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') next = dots[i - 1]
+    else if (e.key === 'Home') next = dots[0]
+    else if (e.key === 'End') next = dots[dots.length - 1]
+    else return
+    e.preventDefault()
+    if (!next) return
+    dots.forEach(d => { d.tabIndex = d === next ? 0 : -1 })
+    next.focus()
+  }
 
   const vehicleMarkers = mode === 'live'
     ? vehicles.map(v => {
@@ -2785,21 +2985,22 @@ function StopRail({
       <div
         className="loop-handle loop-handle--start"
         style={{ left: `${startPct}%`, '--line-color': route.color }}
-        onPointerDown={handlePointerDown('start')}
+        {...loopHandleProps('start')}
         title={`Loop start · cell ${startCell}/${GRID_TOTAL_CELLS}`}
       />
       <div
         className="loop-handle loop-handle--end"
         style={{ left: `${endPct}%`, '--line-color': route.color }}
-        onPointerDown={handlePointerDown('end')}
+        {...loopHandleProps('end')}
         title={`Loop end · cell ${endCell}/${GRID_TOTAL_CELLS}`}
       />
 
       <div
-        ref={needleRef}
         className={`lane-playhead ${started ? 'active' : ''}`}
         style={{ '--line-color': route.color }}
-      />
+      >
+        <div ref={needleRef} className="lane-playhead-track" />
+      </div>
 
       {/* Bar number labels */}
       {BAR_LABELS.map(({ bar, pct }) => (
@@ -2832,7 +3033,8 @@ function StopRail({
         ? mergedPoints.map((p) => (
             <div
               key={p.key}
-              className={`stop-dot stop-dot--merged ${p.cellIdx === mergedActiveCell ? 'active' : ''}`}
+              data-akey={activeKeyOf(p)}
+              className="stop-dot stop-dot--merged"
               style={{ '--pos': `${p.x}%`, '--y-pos': `${p.y}%`, '--line-color': p.color }}
               title={`${p.srcName} · ${p.stopName} · ${p.noteName}`}
             >
@@ -2848,9 +3050,9 @@ function StopRail({
         return (
         <div
           key={`${stop.id}_${i}`}
+          data-akey={activeKeyOf(stop)}
           className={[
             'stop-dot',
-            stop.id === activeStopId ? 'active' : '',
             mode === 'live' ? 'stop-dot--ref' : '',
             canEdit ? 'stop-dot--editable' : '',
             chance < 1 ? 'stop-dot--chance' : '',
@@ -2863,8 +3065,15 @@ function StopRail({
             '--chance': chance,
           }}
           title={canEdit
-            ? `${stop.name} · ${stop.noteName}${velSuffix}${chanceSuffix} — click to edit pitch, velocity & chance`
+            ? `${stop.name} · ${stop.noteName}${velSuffix}${chanceSuffix}. Click to edit pitch, velocity & chance`
             : `${stop.name} · bar ${stop.bar + 1} beat ${stop.beat + 1} step ${stop.sixteenth + 1}${velSuffix}${chanceSuffix}`}
+          {...(canEdit ? {
+            role: 'button',
+            // Roving tabindex: one Tab stop per rail, arrows walk the stops.
+            tabIndex: i === 0 ? 0 : -1,
+            'aria-label': `${stop.name}, ${stop.noteName}${velSuffix}${chanceSuffix}. Edit pitch, velocity and chance`,
+            onKeyDown: onStopDotKey,
+          } : {})}
           onClick={canEdit
             ? () => onStopOpen({
                 routeId: route.id,

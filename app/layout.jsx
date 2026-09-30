@@ -15,7 +15,7 @@ const themeInit = `(function(){try{var t=localStorage.getItem('leid-theme');if(t
 const siteUrl =
   process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
 
-const title = 'Leið — sonify the city'
+const title = 'Leið · sonify the city'
 const description =
   'Leið turns public transport data into music: every line becomes a track and every stop becomes a note. A browser DAW for playing seven cities as generative music.'
 

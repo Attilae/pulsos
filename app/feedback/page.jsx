@@ -4,7 +4,7 @@ import { LEGAL_DETAILS } from '@/lib/legal.js'
 
 export const metadata = {
   title: 'Feedback & Bug Reports',
-  description: 'Report a bug or send feedback about Leið — the transit-driven web DAW.',
+  description: 'Report a bug or send feedback about Leið, the transit-driven web DAW.',
   alternates: { canonical: '/feedback' },
 }
 
@@ -14,7 +14,7 @@ export default function FeedbackPage() {
       current="/feedback"
       kicker="Support"
       title="Feedback & bug reports"
-      summary="Something broken, something missing, or something you want? Tell us here — it reaches a person, and you get a copy by email."
+      summary="Something broken, something missing, or something you want? Tell us here. It reaches a person, and you get a copy by email."
     >
       <LegalSection number={1} title="Send us a report">
         <FeedbackForm />
@@ -23,7 +23,7 @@ export default function FeedbackPage() {
       <LegalSection number={2} title="What happens next">
         <p>
           Every report is stored and emailed to us, and you get an immediate copy of what you
-          sent. There is no ticket queue and no bot in between — a person reads it. If we need
+          sent. There is no ticket queue and no bot in between: a person reads it. If we need
           more detail to reproduce a bug, we reply to the address you gave.
         </p>
         <p>
@@ -35,7 +35,7 @@ export default function FeedbackPage() {
         </p>
         <p>
           Bug reports travel much further with three things: what you did, what you expected,
-          and what happened instead. If it is about sound, the city and line names help — the
+          and what happened instead. If it is about sound, the city and line names help, as the
           audio engine behaves differently per line type.
         </p>
       </LegalSection>

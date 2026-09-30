@@ -8,7 +8,7 @@
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 6px;
-  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.6);
+  box-shadow: var(--elevation-modal);
   padding: 16px 18px 18px;
   font-family: inherit;
   display: flex;
@@ -27,7 +27,7 @@
   background: transparent;
   border: none;
   color: var(--muted);
-  font-size: 0.9rem;
+  font-size: var(--fs-md);
   cursor: pointer;
   padding: 2px 4px;
   line-height: 1;
@@ -36,7 +36,7 @@
 
 .lane-tag-editor-hint {
   margin: 0;
-  font-size: 0.68rem;
+  font-size: var(--fs-2xs);
   color: var(--muted);
   line-height: 1.4;
 }
@@ -62,7 +62,7 @@
   background: color-mix(in srgb, var(--lane-tag-color) 12%, transparent);
   color: var(--lane-tag-color);
   font-family: inherit;
-  font-size: 0.7rem;
+  font-size: var(--fs-2xs);
   font-weight: 600;
   cursor: pointer;
   transition: background 0.12s, box-shadow 0.12s;
@@ -81,7 +81,7 @@
   background: var(--surface2);
   color: var(--text);
   font-family: inherit;
-  font-size: 0.8rem;
+  font-size: var(--fs-sm);
 }
 .lane-tag-input:focus { outline: none; border-color: var(--accent); }
 
@@ -125,7 +125,7 @@
   background: transparent;
   color: var(--muted);
   font-family: inherit;
-  font-size: 0.68rem;
+  font-size: var(--fs-2xs);
   cursor: pointer;
   transition: color 0.12s, border-color 0.12s;
 }

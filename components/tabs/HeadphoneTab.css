@@ -65,7 +65,7 @@
   width: 130px;
   height: 130px;
   border-radius: 50%;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid color-mix(in srgb, var(--text) 12%, transparent);
   background:
     radial-gradient(circle at 50% 35%, var(--surface2) 0%, var(--surface) 100%);
   color: var(--text);
@@ -75,7 +75,7 @@
   align-items: center;
   justify-content: center;
   transition: transform 0.12s, background 0.2s, border-color 0.2s, box-shadow 0.3s;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--elevation-overlay);
 }
 .phones-play:hover {
   border-color: color-mix(in srgb, var(--accent) 40%, transparent);
@@ -83,7 +83,7 @@
 }
 .phones-play.on {
   border-color: color-mix(in srgb, var(--accent) 60%, transparent);
-  box-shadow: 0 0 32px color-mix(in srgb, var(--accent) 35%, transparent), 0 8px 24px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 0 32px color-mix(in srgb, var(--accent) 35%, transparent), var(--elevation-overlay);
 }
 .phones-play-glyph {
   display: inline-block;
@@ -102,27 +102,27 @@
   gap: 6px;
 }
 .phones-caption-big {
-  font-size: 1.15rem;
+  font-size: var(--fs-lg);
   color: var(--text);
-  letter-spacing: 0.04em;
+  letter-spacing: var(--tracking-wide);
 }
 .phones-caption-sub {
-  font-size: 0.78rem;
+  font-size: var(--fs-sm);
   color: var(--muted);
-  letter-spacing: 0.02em;
+  letter-spacing: var(--tracking-tight);
 }
 
 /* ── Now-playing card ─────────────────────────────────────────────────── */
 .phones-card {
   width: 100%;
-  background: rgba(20, 24, 34, 0.7);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: color-mix(in srgb, var(--surface) 70%, transparent);
+  border: 1px solid color-mix(in srgb, var(--text) 6%, transparent);
   border-radius: 12px;
   padding: 16px 20px;
 }
 .phones-card-head {
-  font-size: 0.66rem;
-  letter-spacing: 0.16em;
+  font-size: var(--fs-2xs);
+  letter-spacing: var(--tracking-caps);
   text-transform: uppercase;
   color: var(--muted);
   margin-bottom: 12px;
@@ -140,18 +140,18 @@
   align-items: center;
   gap: 10px;
   padding: 6px 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  border-bottom: 1px solid color-mix(in srgb, var(--text) 4%, transparent);
   transition: background 0.15s;
 }
 .phones-voice:last-child { border-bottom: none; }
 .phones-voice-line {
-  font-weight: bold;
-  font-size: 0.92rem;
+  font-weight: 700;
+  font-size: var(--fs-md);
   color: var(--accent);
-  letter-spacing: 0.06em;
+  letter-spacing: var(--tracking-wide);
 }
 .phones-voice-role {
-  font-size: 0.82rem;
+  font-size: var(--fs-sm);
   color: var(--text-subtle);
 }
 .phones-voice-dot {
@@ -176,14 +176,14 @@
 }
 .phones-toggle {
   padding: 8px 16px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: color-mix(in srgb, var(--text) 4%, transparent);
+  border: 1px solid color-mix(in srgb, var(--text) 10%, transparent);
   color: var(--text-subtle);
   border-radius: 999px;
   font-family: inherit;
-  font-size: 0.82rem;
+  font-size: var(--fs-sm);
   cursor: pointer;
-  letter-spacing: 0.04em;
+  letter-spacing: var(--tracking-wide);
   transition: background 0.15s, color 0.15s, border-color 0.15s;
 }
 .phones-toggle:hover { color: var(--text); }
@@ -202,7 +202,7 @@
 }
 .phones-volume-icon {
   color: var(--muted);
-  font-size: 1rem;
+  font-size: var(--fs-base);
 }
 .phones-volume input[type="range"] {
   flex: 1;

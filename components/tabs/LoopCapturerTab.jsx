@@ -193,7 +193,7 @@ export default function LoopCapturerTab({ active = true }) {
       {/* ── Live recorder ───────────────────────────────────────────────── */}
       <section className="loop-live">
         <div className="loop-live-meta">
-          <span className="loop-live-label">Recording — {BARS} bars</span>
+          <span className="loop-live-label">Recording {BARS} bars</span>
           <span className="loop-live-count">{liveNotes.length} notes</span>
           <button
             className={`loop-mini-btn ${liveMute ? 'on' : ''}`}
@@ -210,7 +210,7 @@ export default function LoopCapturerTab({ active = true }) {
         <PianoRoll
           notes={liveNotes}
           currentStep={step}
-          color="#c8f040"
+          color="var(--accent)"
           height={84}
         />
         <div className="loop-bar-strip">
@@ -336,7 +336,7 @@ function PianoRoll({ notes, currentStep, color, height = 64, dim = false }) {
         {/* Bar dividers */}
         {Array.from({ length: BARS - 1 }).map((_, i) => {
           const x = ((i + 1) * STEPS_PER_BAR) * noteW
-          return <line key={`b${i}`} x1={x} x2={x} y1={0} y2={H} stroke="#333" strokeWidth="1" />
+          return <line key={`b${i}`} x1={x} x2={x} y1={0} y2={H} style={{ stroke: 'var(--border)' }} strokeWidth="1" />
         })}
         {/* Notes */}
         {notes.map((n, i) => {
@@ -350,7 +350,7 @@ function PianoRoll({ notes, currentStep, color, height = 64, dim = false }) {
               width={Math.max(2, noteW * 1.6)}
               height={4}
               rx={1}
-              fill={color}
+              style={{ fill: color }}
               opacity={dim ? 0.35 : 0.95}
             >
               <title>{`step ${n.step} · ${midiToName(n.midi)} · ${n.stop || ''}`}</title>
@@ -363,7 +363,7 @@ function PianoRoll({ notes, currentStep, color, height = 64, dim = false }) {
             x1={currentStep * noteW + noteW / 2}
             x2={currentStep * noteW + noteW / 2}
             y1={0} y2={H}
-            stroke="#fff" strokeWidth="1" opacity="0.55"
+            style={{ stroke: 'var(--text)' }} strokeWidth="1" opacity="0.55"
           />
         )}
       </svg>

@@ -1,3 +1,4 @@
+import dynamic from 'next/dynamic'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import * as Tone from 'tone'
 import { TransitEngine, SYNTH_DEFAULTS, availableAutomationTargets, DEFAULT_ARP, DEFAULT_GRANULAR, DEFAULT_SIDECHAIN, SIDECHAIN_ANY_DRUM, SIDECHAIN_PAD_SOURCES, DEFAULT_PITCH_VARIETY, DRUMS_ROUTE_ID } from '@/lib/engine.js'
@@ -14,7 +15,6 @@ import { normalizeNoteLength } from '@/lib/noteLength.js'
 import { useDrumClipboard } from '@/lib/shared/DrumClipboardContext.jsx'
 import { cycleStepValue } from '@/lib/engines/drumEngine.js'
 import DawView, { NOTE_ROOTS, SCALE_TYPES } from '../DawView.jsx'
-import MapView from '../MapView.jsx'
 import AIComposerPanel from '../AIComposerPanel.jsx'
 import SongMenu from '../SongMenu.jsx'
 import { useSongPersistence } from '../../lib/useSongPersistence.js'
@@ -33,9 +33,15 @@ import { buildReplacementLaneState, sendsToClear, trackSynthParams } from '@/lib
 import { trackProductEvent } from '@/lib/productAnalytics.js'
 import { unlockAudio, releaseAudioSession, probeOutputPeak } from '@/lib/audioSession.js'
 import { registerSoundCheck } from '@/lib/shared/soundCheck.js'
+import { pushEvents, clearEvents } from '@/lib/shared/eventLogStore.js'
 import AudioTroubleshooter from '../AudioTroubleshooter.jsx'
 import MobileDaw from '../mobile/MobileDaw.jsx'
 import { useIsPhone } from '@/lib/shared/useViewport.js'
+import { IconClose, IconDownload, IconMusic, IconPlay, IconRepick, IconStop } from '../icons.jsx'
+
+// Leaflet + maplibre-gl are the heaviest client deps after Tone, and the DAW view
+// is the default, so the map ships as its own chunk. ssr:false matches the page.
+const MapView = dynamic(() => import('../MapView.jsx'), { ssr: false })
 
 const MAX_EVENTS = 80
 
@@ -179,7 +185,6 @@ export default function MixerTab({ active = true }) {
   // pattern as cityIdRef/limitsRef.
   const isPhoneRef = useRef(isPhone)
   useEffect(() => { isPhoneRef.current = isPhone }, [isPhone])
-  const [events,  setEvents]  = useState([])
 
   const [volumes, setVolumes] = useState({})
   const [disabledRoutes, setDisabledRoutes] = useState({})
@@ -649,7 +654,7 @@ export default function MixerTab({ active = true }) {
     pendingEventsRef.current = []
     // Newest first (matches the old [ev, ...prev] order); buffer is oldest-first.
     buffered.reverse()
-    setEvents(prev => [...buffered, ...prev].slice(0, MAX_EVENTS))
+    pushEvents(buffered, MAX_EVENTS)
   }, [])
 
   // Build a fresh engine + MIDI recorder and stash them on the refs. Used both
@@ -1887,7 +1892,7 @@ export default function MixerTab({ active = true }) {
     const engine = createEngine()
     try { Tone.getDestination().volume.value = 0 } catch {}
     setStarted(false)
-    setEvents([])
+    clearEvents()
 
     setVolumes({}); setDisabledRoutes(allDisabledMap(laneRoutes)); setPans({}); setSoloRoutes(new Set())
     for (const r of laneRoutes) engine.setRouteDisabled(r.id, true)
@@ -2062,7 +2067,7 @@ export default function MixerTab({ active = true }) {
             className="preset-warning-close"
             onClick={() => setPresetWarning(null)}
             aria-label="Dismiss"
-          >×</button>
+          ><IconClose /></button>
         </div>
       )}
       {!isPhone && (
@@ -2072,33 +2077,38 @@ export default function MixerTab({ active = true }) {
 
         <SongMenu {...song} />
 
-        <div className="view-toggle" data-tour="view">
+        <div className="view-toggle" data-tour="view" role="group" aria-label="View">
           <button
             className={`mode-btn ${view === 'map' ? 'active' : ''}`}
+            aria-pressed={view === 'map'}
             onClick={() => setView('map')}
           >Map</button>
           <button
             className={`mode-btn ${view === 'daw' ? 'active' : ''}`}
+            aria-pressed={view === 'daw'}
             onClick={() => setView('daw')}
           >DAW</button>
         </div>
 
-        <div className="mode-toggle">
+        <div className="mode-toggle" role="group" aria-label="Data source">
           <button
             className={`mode-btn ${mode === 'mock' ? 'active' : ''}`}
+            aria-pressed={mode === 'mock'}
             onClick={() => { if (started) { engineRef.current?.stopMock(); setStarted(false) }; setMode('mock') }}
           >Mock</button>
           {cityEntry.liveWsUrl && (
             <button
               className={`mode-btn ${mode === 'live' ? 'active' : ''}`}
+              aria-pressed={mode === 'live'}
               onClick={() => { if (started) { engineRef.current?.stopMock(); setStarted(false) }; setMode('live') }}
             >{cityEntry.name} Live</button>
           )}
         </div>
 
         <div className="harmony-control">
-          <label>Harmony</label>
+          <span className="harmony-label" aria-hidden="true">Harmony</span>
           <select
+            aria-label="Harmony root"
             className="scale-root-select"
             value={harmonyValue.root}
             onChange={e => handleGlobalHarmony({ ...harmonyValue, root: e.target.value })}
@@ -2106,6 +2116,7 @@ export default function MixerTab({ active = true }) {
             {NOTE_ROOTS.map(n => <option key={n} value={n}>{n}</option>)}
           </select>
           <select
+            aria-label="Harmony scale"
             className="scale-type-select"
             value={harmonyValue.scaleType}
             onChange={e => handleGlobalHarmony({ ...harmonyValue, scaleType: e.target.value })}
@@ -2117,8 +2128,8 @@ export default function MixerTab({ active = true }) {
           {harmonyMixed && (
             <span
               className="harmony-mixed-indicator"
-              title="Lanes are not all in the same harmony — pick a value to re-sync them all"
-            >● Mixed</span>
+              title="Lanes are not all in the same harmony. Pick a value to re-sync them all"
+            ><span className="harmony-mixed-dot" aria-hidden="true" /> Mixed</span>
           )}
         </div>
 
@@ -2128,7 +2139,7 @@ export default function MixerTab({ active = true }) {
           onClick={handleRepickAll}
           disabled={started || !routes}
           title="Randomly re-select all tram, trolley and bus lines"
-        >↻ Re-pick all</button>
+        ><IconRepick /> Re-pick all</button>
 
         <button
           type="button"
@@ -2136,19 +2147,20 @@ export default function MixerTab({ active = true }) {
           onClick={handleExportMixMidi}
           disabled={!canExportMix}
           title="Download multi-track MIDI (session if recorded, else 4-bar loop of audible lines)"
-        >↓ MIDI</button>
+        ><IconDownload /> MIDI</button>
 
         <button
           type="button"
           className="midi-export-btn midi-export-btn--global"
           onClick={handleExportMixAudio}
           disabled={!started || audioExporting}
-          title="Record the live mix to a WAV file (real-time capture — play first)"
-        >{audioExporting ? `↓ WAV ${Math.round(audioProgress * 100)}%` : '↓ WAV'}</button>
+          title="Record the live mix to a WAV file (real-time capture, so play first)"
+        ><IconDownload /> {audioExporting ? `WAV ${Math.round(audioProgress * 100)}%` : 'WAV'}</button>
 
         <div className="bpm-control">
-          <label>BPM</label>
+          <label htmlFor="mixer-bpm">BPM</label>
           <input
+            id="mixer-bpm"
             type="number" min="40" max="240"
             value={bpm}
             onChange={e => setBpm(Number(e.target.value))}
@@ -2162,7 +2174,7 @@ export default function MixerTab({ active = true }) {
             className="drums-import-btn"
             onClick={handleImportDrums}
             title="Add the pattern sent from the Drum Machine tab"
-          >♪ {drumPattern ? 'Update drums' : 'Add drums'}</button>
+          ><IconMusic /> {drumPattern ? 'Update drums' : 'Add drums'}</button>
         ) : null}
 
         <button
@@ -2170,7 +2182,7 @@ export default function MixerTab({ active = true }) {
           data-tour="transport"
           onClick={handlePlayPause}
         >
-          {started ? '⏹ Stop' : '▶ Play'}
+          {started ? <><IconStop /> Stop</> : <><IconPlay /> Play</>}
         </button>
 
         {needsGesture && (
@@ -2178,6 +2190,12 @@ export default function MixerTab({ active = true }) {
             ▶ Tap to start audio
           </button>
         )}
+
+        {/* Transport state for screen readers: play/stop and "no output" are
+            otherwise only visual. */}
+        <span className="visually-hidden" role="status" aria-live="polite">
+          {started ? 'Playing' : 'Stopped'}{noOutput && !needsGesture ? '. Playing, but nothing is reaching the output.' : ''}
+        </span>
 
         {noOutput && !needsGesture && (
           <button
@@ -2216,9 +2234,9 @@ export default function MixerTab({ active = true }) {
       {!isPhone && (
       <DawView
         className={view !== 'daw' ? 'view-hidden' : ''}
+        visible={view === 'daw'}
         mode={mode}
         started={started}
-        events={events}
         routes={mergedRoutes}
         allRoutes={allRoutesRef.current}
         onRepickType={handleRepickType}

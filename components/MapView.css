@@ -3,6 +3,10 @@
   width: 100%;
   height: 100%;
   min-height: 0;
+  /* Own stacking context: Leaflet's panes and controls (z 400-1000) and the
+     overlays below stay inside the map instead of competing with app layers
+     (they used to render over the upgrade modal). */
+  isolation: isolate;
 }
 
 .map-container {
@@ -17,7 +21,7 @@
   align-items: center;
   justify-content: center;
   color: var(--muted);
-  font-size: 0.8rem;
+  font-size: var(--fs-sm);
   font-family: var(--font-mono);
   z-index: 1000;
   background: var(--bg);
@@ -44,7 +48,7 @@
   align-items: center;
   gap: 5px;
   font-family: var(--font-mono);
-  font-size: 0.68rem;
+  font-size: var(--fs-2xs);
   color: var(--text);
   transition: opacity 0.2s;
   padding: 3px 6px;
@@ -87,16 +91,16 @@
 
 .map-status-name {
   flex: 1;
-  letter-spacing: 0.04em;
+  letter-spacing: var(--tracking-wide);
 }
 
 /* Role label ("Bass", "Pad") mirrored from the DAW lane header. */
 .map-status-tag {
   flex-shrink: 0;
-  font-size: 0.56rem;
+  font-size: var(--fs-3xs);
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: var(--tracking-wide);
   padding: 1px 4px;
   border-radius: 2px;
   border: 1px solid var(--border);
@@ -109,18 +113,18 @@
 }
 
 .map-status-badge {
-  font-size: 0.58rem;
-  font-weight: bold;
+  font-size: var(--fs-3xs);
+  font-weight: 700;
   padding: 1px 4px;
   border-radius: 2px;
   line-height: 1.4;
-  letter-spacing: 0.06em;
+  letter-spacing: var(--tracking-wide);
 }
 
 .map-status-badge--disabled {
   background: color-mix(in srgb, var(--warning) 18%, transparent);
   border: 1px solid var(--warning);
-  color: var(--warning);
+  color: var(--warning-text);
 }
 
 .map-status-badge--solo {
@@ -159,7 +163,7 @@
 
 .leaflet-control-layers label {
   color: var(--text) !important;
-  font-size: 0.78rem;
+  font-size: var(--fs-sm);
 }
 
 .leaflet-control-layers-toggle {
@@ -208,7 +212,7 @@
   border-radius: 4px;
   padding: 3px 7px;
   font-family: var(--font-mono);
-  font-size: 0.62rem;
+  font-size: var(--fs-3xs);
   color: var(--muted);
 }
 .map-attribution a { color: var(--text-subtle); text-decoration: none; }

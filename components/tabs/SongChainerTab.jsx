@@ -13,6 +13,7 @@ import { SongChainPlayer } from '@/lib/songChainPlayer.js'
 import ChainItemLoops from './ChainItemLoops.jsx'
 import { confirmDialog } from '../Dialog.jsx'
 import './SongChainerTab.css'
+import { IconClose, IconMoveDown, IconMoveUp, IconPlay, IconStop } from '../icons.jsx'
 
 const DEFAULT_BARS = 8
 
@@ -46,7 +47,16 @@ export default function SongChainerTab({ active = true }) {
 
   const [playing, setPlaying] = useState(false)
   const [currentIndex, setCurrentIndex] = useState(-1)
-  const [progress, setProgress] = useState(0)
+  // Section progress is written straight to the bar (transform: scaleX), not
+  // React state: the player reports it every animation frame, and state here
+  // re-rendered the whole tab at display rate.
+  const progressRef    = useRef(0)
+  const progressBarRef = useRef(null)
+  const setProgress = useCallback((frac) => {
+    progressRef.current = frac
+    const el = progressBarRef.current
+    if (el) el.style.transform = `scaleX(${frac})`
+  }, [])
 
   // ── Stable snapshot loader (cached) ──────────────────────────────────────
   const loadSnapshot = useCallback(async (presetId) => {
@@ -283,14 +293,16 @@ export default function SongChainerTab({ active = true }) {
         <h2 className="chain-title">Song</h2>
         <input
           className="chain-name"
+          aria-label="Song name"
           value={name}
           onChange={e => setName(e.target.value)}
           placeholder="Song name"
         />
 
         <div className="chain-field">
-          <label>BPM</label>
+          <label htmlFor="chain-bpm">BPM</label>
           <input
+            id="chain-bpm"
             type="number" min="40" max="240"
             value={bpm}
             onChange={e => setBpm(Math.max(40, Math.min(240, +e.target.value || 120)))}
@@ -307,7 +319,7 @@ export default function SongChainerTab({ active = true }) {
           onClick={handlePlayStop}
           disabled={!items.length}
         >
-          {playing ? '⏹ Stop' : '▶ Play'}
+          {playing ? <><IconStop /> Stop</> : <><IconPlay /> Play</>}
         </button>
 
         <div className="chain-menu">
@@ -336,7 +348,7 @@ export default function SongChainerTab({ active = true }) {
       )}
       {cityMismatch && (
         <div className="chain-notice chain-notice--warn">
-          This song was made for a different city — its presets reference routes that
+          This song was made for a different city: its presets reference routes that
           aren't loaded now, so it may play silently. Switch back to the original city.
         </div>
       )}
@@ -416,9 +428,9 @@ export default function SongChainerTab({ active = true }) {
                   )}
 
                   <div className="chain-item-actions">
-                    <button className="chain-icon" onClick={() => moveItem(idx, -1)} disabled={idx === 0} title="Move up">↑</button>
-                    <button className="chain-icon" onClick={() => moveItem(idx, +1)} disabled={idx === items.length - 1} title="Move down">↓</button>
-                    <button className="chain-icon chain-icon--danger" onClick={() => removeItem(idx)} title="Remove">✕</button>
+                    <button className="chain-icon" onClick={() => moveItem(idx, -1)} disabled={idx === 0} title="Move up" aria-label={`Move ${it.presetName} up`}><IconMoveUp /></button>
+                    <button className="chain-icon" onClick={() => moveItem(idx, +1)} disabled={idx === items.length - 1} title="Move down" aria-label={`Move ${it.presetName} down`}><IconMoveDown /></button>
+                    <button className="chain-icon chain-icon--danger" onClick={() => removeItem(idx)} title="Remove" aria-label={`Remove ${it.presetName}`}><IconClose /></button>
                   </div>
                 </div>
 
@@ -434,7 +446,11 @@ export default function SongChainerTab({ active = true }) {
                 />
 
                 {currentIndex === idx && (
-                  <span className="chain-item-progress" style={{ width: `${Math.round(progress * 100)}%` }} />
+                  <span
+                    ref={progressBarRef}
+                    className="chain-item-progress"
+                    style={{ transform: `scaleX(${progressRef.current})` }}
+                  />
                 )}
               </li>
             ))}

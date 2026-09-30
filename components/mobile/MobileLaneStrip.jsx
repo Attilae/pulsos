@@ -14,6 +14,7 @@
 
 import { memo } from 'react'
 import { normalizeLaneTag } from '@/lib/laneTags.js'
+import { IconMore, IconPower } from '../icons.jsx'
 
 function MobileLaneStrip({
   route,
@@ -66,9 +67,11 @@ function MobileLaneStrip({
           type="button"
           className={`mlane-btn ${disabled ? '' : 'is-on'}`}
           onClick={() => onDisable(route.id)}
+          // Fixed name + pressed state ("Enable M1, pressed"): a label that
+          // flips as well announced the state twice and contradicted itself.
           aria-pressed={!disabled}
-          aria-label={disabled ? `Enable ${label}` : `Disable ${label}`}
-        >⏻</button>
+          aria-label={`Enable ${label}`}
+        ><IconPower /></button>
 
         <button
           type="button"
@@ -95,7 +98,7 @@ function MobileLaneStrip({
           className="mlane-btn mlane-more"
           onClick={() => onOpen(route.id)}
           aria-label={`${label} settings`}
-        >⋯</button>
+        ><IconMore /></button>
       </div>
     </li>
   )

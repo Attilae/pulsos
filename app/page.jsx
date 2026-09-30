@@ -17,7 +17,7 @@ const App = dynamic(() => import('@/components/App.jsx'), {
       background: 'var(--bg)', color: 'var(--accent)',
       fontFamily: 'var(--font-mono)', letterSpacing: '0.14em',
     }}>
-      LEIÐ — loading…
+      LEIÐ · loading…
     </div>
   ),
 })

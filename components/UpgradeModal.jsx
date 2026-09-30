@@ -1,7 +1,9 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useRef, useState } from 'react'
+import { useModal } from '@/lib/shared/useModal.js'
 import './UpgradeModal.css'
+import { IconClose, IconDownload } from './icons.jsx'
 
 const REASON_COPY = {
   lane_limit: ['Six lines are playing', 'Free sessions can run six instrument lanes at once. Keep this set, or unlock a larger network.'],
@@ -24,17 +26,14 @@ export default function UpgradeModal({ reason, signedIn, busy, onClose, onChecko
   const [period, setPeriod] = useState('annual')
   const [title, body] = REASON_COPY[reason] ?? REASON_COPY.upgrade
 
-  useEffect(() => {
-    const onKey = event => { if (event.key === 'Escape') onClose() }
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [onClose])
+  const panelRef = useRef(null)
+  useModal(true, panelRef, { onClose })
 
   return (
     <div className="upgrade-overlay" onPointerDown={onClose} role="presentation">
-      <section className="upgrade-panel" role="dialog" aria-modal="true" aria-labelledby="upgrade-title" onPointerDown={event => event.stopPropagation()}>
+      <section ref={panelRef} className="upgrade-panel" role="dialog" aria-modal="true" aria-labelledby="upgrade-title" tabIndex={-1} onPointerDown={event => event.stopPropagation()}>
         <div className="upgrade-signal" aria-hidden="true"><i /><i /><i /><i /><i /><i /></div>
-        <button className="upgrade-close" onClick={onClose} aria-label="Close">×</button>
+        <button className="upgrade-close" onClick={onClose} aria-label="Close"><IconClose /></button>
         <p className="upgrade-kicker">Leið Pro · full signal</p>
         <h2 id="upgrade-title">{title}</h2>
         <p className="upgrade-copy">{body}</p>
@@ -42,7 +41,7 @@ export default function UpgradeModal({ reason, signedIn, busy, onClose, onChecko
         <ul className="upgrade-features">
           <li><strong>∞</strong><span>active instrument lanes</span></li>
           <li><strong>∞</strong><span>presets in every Song chain</span></li>
-          <li><strong>↓</strong><span>unlimited MIDI + WAV exports</span></li>
+          <li><strong><IconDownload /></strong><span>unlimited MIDI + WAV exports</span></li>
           <li><strong>50</strong><span>AI compositions each month</span></li>
         </ul>
 

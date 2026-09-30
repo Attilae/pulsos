@@ -23,16 +23,16 @@
   display: flex;
   align-items: baseline;
   gap: 7px;
-  font-size: 0.95rem;
-  letter-spacing: 0.14em;
+  font-size: var(--fs-base);
+  letter-spacing: var(--tracking-caps);
   color: var(--accent);
   white-space: nowrap;
   margin-right: 12px;
   cursor: default;
 }
 .app-title-say {
-  font-size: 0.62rem;
-  letter-spacing: 0.08em;
+  font-size: var(--fs-3xs);
+  letter-spacing: var(--tracking-wide);
   color: var(--muted);
   text-transform: lowercase;
 }
@@ -45,7 +45,7 @@
   border: none;
   border-bottom: 2px solid transparent;
   font-family: inherit;
-  font-size: 0.82rem;
+  font-size: var(--fs-sm);
   cursor: pointer;
   transition: color 0.12s, border-color 0.12s, background 0.12s;
 }
@@ -78,7 +78,7 @@
   margin-left: auto;
   color: var(--muted);
 }
-.city-select-icon { font-size: 0.8rem; color: var(--accent); }
+.city-select-icon { font-size: var(--fs-sm); color: var(--accent); }
 .city-select-input {
   background: var(--surface2);
   color: var(--text);
@@ -86,7 +86,7 @@
   border-radius: 4px;
   padding: 4px 8px;
   font-family: inherit;
-  font-size: 0.8rem;
+  font-size: var(--fs-sm);
   cursor: pointer;
 }
 .city-select-input:hover { border-color: var(--accent); }
@@ -97,7 +97,7 @@
   position: absolute;
   right: 0;
   top: calc(100% + 6px);
-  z-index: 100;
+  z-index: var(--z-popover);
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 4px;
@@ -114,7 +114,7 @@
   border: 1px solid var(--border);
   color: var(--text);
   font-family: inherit;
-  font-size: 0.78rem;
+  font-size: var(--fs-sm);
   border-radius: 3px;
   outline: none;
 }
@@ -127,7 +127,7 @@
   border: none;
   border-bottom: 2px solid transparent;
   font-family: inherit;
-  font-size: 0.74rem;
+  font-size: var(--fs-xs);
   cursor: pointer;
 }
 .auth-tabs button.active { color: var(--accent); border-bottom-color: var(--accent); }
@@ -138,15 +138,15 @@
   border: 1px solid var(--accent);
   border-radius: 3px;
   font-family: inherit;
-  font-size: 0.78rem;
+  font-size: var(--fs-sm);
   cursor: pointer;
 }
 .auth-btn:hover { background: var(--hover-surface); }
 .auth-btn--ghost { color: var(--muted); border-color: var(--border); }
-.auth-msg { color: var(--muted); font-size: 0.7rem; }
+.auth-msg { color: var(--muted); font-size: var(--fs-2xs); }
 .auth-legal {
   color: var(--muted);
-  font-size: 0.62rem;
+  font-size: var(--fs-3xs);
   line-height: 1.5;
 }
 .auth-legal a { color: var(--text); text-underline-offset: 2px; }
@@ -161,7 +161,7 @@
   color: var(--muted);
   gap: 12px;
 }
-.tab-placeholder h2 { color: var(--text); font-size: 1.4rem; letter-spacing: 0.06em; }
+.tab-placeholder h2 { color: var(--text); font-size: 1.4rem; letter-spacing: var(--tracking-wide); }
 
 /* ── Layout ─────────────────────────────────────────────────────────────── */
 .daw {
@@ -174,8 +174,8 @@
   flex: 1;
 }
 .daw-subtitle {
-  font-size: 0.95rem;
-  letter-spacing: 0.1em;
+  font-size: var(--fs-base);
+  letter-spacing: var(--tracking-caps);
   color: var(--accent);
   white-space: nowrap;
 }
@@ -194,7 +194,7 @@
   grid-area: header;
   position: sticky;
   top: 0;
-  z-index: 50;
+  z-index: var(--z-sticky);
   background: var(--surface);
   border-bottom: 1px solid var(--border);
   padding: 12px 20px;
@@ -203,8 +203,8 @@
   gap: 14px;
   flex-wrap: wrap;
 }
-.daw-header h1 { font-size: 1.2rem; letter-spacing: 0.1em; color: var(--accent); white-space: nowrap; }
-.daw-sub { color: var(--muted); font-size: 0.75rem; flex: 1; min-width: 0; }
+.daw-header h1 { font-size: var(--fs-lg); letter-spacing: var(--tracking-caps); color: var(--accent); white-space: nowrap; }
+.daw-sub { color: var(--muted); font-size: var(--fs-sm); flex: 1; min-width: 0; }
 
 .view-toggle { display: flex; border: 1px solid var(--border); border-radius: 3px; overflow: hidden; }
 .mode-toggle { display: flex; border: 1px solid var(--border); border-radius: 3px; overflow: hidden; }
@@ -214,7 +214,7 @@
   color: var(--muted);
   border: none;
   font-family: inherit;
-  font-size: 0.78rem;
+  font-size: var(--fs-sm);
   cursor: pointer;
   border-right: 1px solid var(--border);
   transition: background 0.12s, color 0.12s;
@@ -223,33 +223,43 @@
 .mode-btn.active { background: var(--hover-surface); color: var(--accent); }
 .mode-btn:hover:not(.active) { background: var(--hover-surface); color: var(--text); }
 
-.ws-status { font-size: 0.72rem; }
-.ws-status--connected    { color: var(--success); }
-.ws-status--disconnected { color: var(--warning); }
+.ws-status { font-size: var(--fs-xs); }
+.ws-status--connected    { color: var(--success-text); }
+.ws-status--disconnected { color: var(--warning-text); }
 .ws-status--error        { color: var(--danger); }
 
 .bpm-control {
-  display: flex; align-items: center; gap: 6px; font-size: 0.72rem; color: var(--muted);
+  display: flex; align-items: center; gap: 6px; font-size: var(--fs-xs); color: var(--muted);
 }
 .bpm-control input {
   width: 52px; padding: 4px 6px;
   background: var(--surface2); border: 1px solid var(--border);
-  color: var(--text); font-family: inherit; font-size: 0.72rem;
+  color: var(--text); font-family: inherit; font-size: var(--fs-xs);
   border-radius: 3px; text-align: center; outline: none;
 }
 .bpm-control input:disabled { opacity: 0.5; }
 
 .harmony-control {
   display: flex; align-items: center; gap: 6px;
-  font-size: 0.72rem; color: var(--muted);
+  font-size: var(--fs-xs); color: var(--muted);
 }
-.harmony-control .scale-root-select { font-size: 0.72rem; width: 46px; }
-.harmony-control .scale-type-select { font-size: 0.72rem; flex: 0 0 auto; width: 90px; }
+.harmony-control .scale-root-select { font-size: var(--fs-xs); width: 46px; }
+.harmony-control .scale-type-select { font-size: var(--fs-xs); flex: 0 0 auto; width: 90px; }
 .harmony-mixed-indicator {
-  font-size: 0.66rem;
+  font-size: var(--fs-2xs);
   color: var(--accent);
   white-space: nowrap;
-  letter-spacing: 0.02em;
+  letter-spacing: var(--tracking-tight);
+}
+/* Real state (lanes disagree on key), so a status dot is earned here. */
+.harmony-mixed-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 4px;
+  border-radius: var(--radius-pill);
+  background: currentColor;
+  vertical-align: 0.05em;
 }
 
 .transport-btn {
@@ -258,7 +268,7 @@
   background: var(--surface2);
   color: var(--text);
   font-family: inherit;
-  font-size: 0.88rem;
+  font-size: var(--fs-md);
   cursor: pointer;
   border-radius: 3px;
   transition: background 0.12s;
@@ -279,7 +289,7 @@
   border: 1px solid var(--accent);
   border-radius: var(--radius-sm);
   font-family: inherit;
-  font-size: 0.82rem;
+  font-size: var(--fs-sm);
   font-weight: 600;
   cursor: pointer;
   animation: audio-gesture-pulse 1.6s ease-in-out infinite;
@@ -295,12 +305,12 @@
   padding: 5px 12px;
   min-height: 32px;
   background: color-mix(in srgb, var(--warning) 14%, transparent);
-  color: var(--warning);
+  color: var(--warning-text);
   border: 1px solid var(--warning);
   border-radius: var(--radius-pill);
   font-family: inherit;
-  font-size: 0.72rem;
-  letter-spacing: 0.04em;
+  font-size: var(--fs-xs);
+  letter-spacing: var(--tracking-wide);
   cursor: pointer;
   white-space: nowrap;
 }
@@ -317,7 +327,7 @@
   background: transparent;
   color: var(--accent);
   font-family: inherit;
-  font-size: 0.82rem;
+  font-size: var(--fs-sm);
   cursor: pointer;
   border-radius: 3px;
   transition: background 0.12s;
@@ -328,7 +338,7 @@
 /* Drums lane in the DAW track list (mini 6-pad step sequencer) */
 .drum-section .daw-section-label { display: flex; align-items: center; gap: 10px; }
 .drum-lane-vol { display: inline-flex; align-items: center; gap: 6px; }
-.drum-lane-vol-label { font-size: 0.66rem; color: var(--muted); letter-spacing: 0.06em; }
+.drum-lane-vol-label { font-size: var(--fs-2xs); color: var(--muted); letter-spacing: var(--tracking-wide); }
 .drum-rack { margin: 4px 8px 8px; }
 .drum-lane-master-btn {
   padding: 2px 8px;
@@ -338,7 +348,7 @@
   border-radius: 3px;
   cursor: pointer;
   font-family: inherit;
-  font-size: 0.72rem;
+  font-size: var(--fs-xs);
 }
 .drum-lane-master-btn:hover { color: var(--text); }
 .drum-lane-master-btn.on { border-color: var(--danger); color: var(--danger); }
@@ -359,7 +369,7 @@
 .drum-lane-name {
   width: 44px;
   flex: none;
-  font-size: 0.74rem;
+  font-size: var(--fs-xs);
   color: var(--muted);
   text-align: right;
 }
@@ -374,7 +384,7 @@
   border-radius: 3px;
   cursor: pointer;
   font-family: inherit;
-  font-size: 0.72rem;
+  font-size: var(--fs-xs);
 }
 .drum-lane-mute:hover { color: var(--text); }
 .drum-lane-mute.on { border-color: var(--danger); color: var(--danger); }
@@ -434,8 +444,8 @@
   flex-direction: column;
   gap: 2px;
 }
-.track-name { font-weight: bold; font-size: 0.92rem; }
-.track-type { color: var(--muted); font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.08em; }
+.track-name { font-weight: 700; font-size: var(--fs-md); }
+.track-type { color: var(--muted); font-size: var(--fs-2xs); text-transform: uppercase; letter-spacing: var(--tracking-wide); }
 
 .track-controls { display: flex; align-items: center; gap: 8px; }
 
@@ -445,12 +455,12 @@
   background: var(--surface2);
   color: var(--muted);
   font-family: inherit;
-  font-size: 0.68rem;
+  font-size: var(--fs-2xs);
   cursor: pointer;
   border-radius: 3px;
   flex-shrink: 0;
 }
-.mute-btn.active { background: color-mix(in srgb, var(--warning) 16%, transparent); border-color: var(--warning); color: var(--warning); }
+.mute-btn.active { background: color-mix(in srgb, var(--warning) 16%, transparent); border-color: var(--warning); color: var(--warning-text); }
 
 .disable-btn {
   width: 30px; height: 30px;
@@ -458,12 +468,12 @@
   background: var(--surface2);
   color: var(--muted);
   font-family: inherit;
-  font-size: 0.9rem;
+  font-size: var(--fs-md);
   cursor: pointer;
   border-radius: 3px;
   flex-shrink: 0;
 }
-.disable-btn.active { background: color-mix(in srgb, var(--warning) 16%, transparent); border-color: var(--warning); color: var(--warning); }
+.disable-btn.active { background: color-mix(in srgb, var(--warning) 16%, transparent); border-color: var(--warning); color: var(--warning-text); }
 
 .volume-slider {
   -webkit-appearance: none;
@@ -480,13 +490,13 @@
   background: var(--accent);
   cursor: pointer;
 }
-.volume-val { color: var(--muted); font-size: 0.7rem; width: 42px; text-align: right; }
+.volume-val { color: var(--muted); font-size: var(--fs-2xs); width: 42px; text-align: right; }
 
 .pan-label {
-  font-size: 0.58rem;
+  font-size: var(--fs-3xs);
   color: var(--muted);
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: var(--tracking-wide);
   flex-shrink: 0;
   width: 26px;
   text-align: center;
@@ -510,7 +520,7 @@
 }
 .pan-val {
   color: var(--muted);
-  font-size: 0.7rem;
+  font-size: var(--fs-2xs);
   width: 42px;
   text-align: right;
   font-variant-numeric: tabular-nums;
@@ -530,7 +540,7 @@
   align-items: center;
   padding: 0 12px;
   color: var(--muted);
-  font-size: 0.72rem;
+  font-size: var(--fs-xs);
   font-style: italic;
 }
 
@@ -551,7 +561,7 @@
 }
 
 .mock-subrow-label {
-  font-size: 0.62rem;
+  font-size: var(--fs-3xs);
   width: 28px;
   flex-shrink: 0;
   text-align: right;
@@ -581,7 +591,7 @@
   transform: translate(-50%, -50%) scale(1.25);
   z-index: 2;
 }
-.stop-note { font-size: 0.55rem; color: var(--muted); pointer-events: none; white-space: nowrap; }
+.stop-note { font-size: var(--fs-3xs); color: var(--muted); pointer-events: none; white-space: nowrap; }
 .stop-block.active .stop-note { color: var(--text); }
 
 /* ── Live lane ──────────────────────────────────────────────────────────── */
@@ -599,7 +609,7 @@
   position: absolute;
   left: 12px;
   color: var(--muted);
-  font-size: 0.72rem;
+  font-size: var(--fs-xs);
   font-style: italic;
 }
 
@@ -610,14 +620,14 @@
   justify-content: center;
   width: 36px;
   height: 34px;
-  border: 1px solid var(--color, var(--muted));
-  background: color-mix(in srgb, var(--color, var(--muted)) 15%, transparent);
+  border: 1px solid var(--color, var(--muted-line));
+  background: color-mix(in srgb, var(--color, var(--muted-line)) 15%, transparent);
   border-radius: 3px;
   flex-shrink: 0;
   transition: opacity 0.3s;
 }
-.chip-route { font-size: 0.6rem; color: var(--color, var(--text)); font-weight: bold; }
-.chip-note  { font-size: 0.58rem; color: var(--muted); }
+.chip-route { font-size: var(--fs-3xs); color: var(--color, var(--text)); font-weight: 700; }
+.chip-note  { font-size: var(--fs-3xs); color: var(--muted); }
 
 /* ── Event log ──────────────────────────────────────────────────────────── */
 .event-log {
@@ -628,14 +638,14 @@
   overflow-y: auto;
 }
 .event-log h2 {
-  font-size: 0.75rem;
+  font-size: var(--fs-sm);
   color: var(--muted);
   text-transform: uppercase;
-  letter-spacing: 0.1em;
+  letter-spacing: var(--tracking-caps);
   margin-bottom: 10px;
 }
 .event-log ul  { list-style: none; display: flex; flex-direction: column; gap: 3px; }
-.event-log li  { font-size: 0.7rem; display: flex; gap: 6px; align-items: baseline; }
+.event-log li  { font-size: var(--fs-2xs); display: flex; gap: 6px; align-items: baseline; }
 .ev-line { color: var(--accent); width: 52px; flex-shrink: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ev-stop { color: var(--muted); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ev-note { color: var(--text);  width: 28px; text-align: right; flex-shrink: 0; }
@@ -644,8 +654,8 @@
 /* MIDI export — header + per-track */
 .repick-btn {
   font-family: inherit;
-  font-size: 0.68rem;
-  letter-spacing: 0.06em;
+  font-size: var(--fs-2xs);
+  letter-spacing: var(--tracking-wide);
   padding: 5px 10px;
   border: 1px solid var(--border);
   border-radius: 3px;
@@ -657,7 +667,7 @@
 }
 .repick-btn:hover:not(:disabled) {
   color: var(--accent);
-  border-color: var(--muted);
+  border-color: var(--muted-line);
 }
 .repick-btn:disabled {
   opacity: 0.35;
@@ -666,8 +676,8 @@
 
 .midi-export-btn {
   font-family: inherit;
-  font-size: 0.68rem;
-  letter-spacing: 0.06em;
+  font-size: var(--fs-2xs);
+  letter-spacing: var(--tracking-wide);
   padding: 5px 10px;
   border: 1px solid var(--border);
   border-radius: 3px;
@@ -679,7 +689,7 @@
 }
 .midi-export-btn:hover:not(:disabled) {
   color: var(--text);
-  border-color: var(--muted);
+  border-color: var(--muted-line);
 }
 .midi-export-btn:disabled {
   opacity: 0.35;
@@ -706,9 +716,9 @@
 .lt-mix .lane-export-btn {
   min-width: 38px;
   padding-inline: 6px;
-  font-size: 0.48rem;
-  font-weight: 750;
-  letter-spacing: 0.06em;
+  font-size: var(--fs-3xs);
+  font-weight: 700;
+  letter-spacing: var(--tracking-wide);
 }
 .wav-export-btn:hover:not(:disabled) {
   color: var(--accent);

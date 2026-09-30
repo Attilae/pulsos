@@ -11,9 +11,11 @@
 // each route is { id, name, type, color, textColor, desc, stops:[…] }.
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useId, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { useModal } from '@/lib/shared/useModal.js'
 import './LinePicker.css'
+import { IconClose } from './icons.jsx'
 
 const SECTIONS = [
   { type: 'metro',   label: 'Metro' },
@@ -36,12 +38,9 @@ export default function LinePicker({
   const [query, setQuery] = useState('')
   const [typeFilter, setTypeFilter] = useState(currentType ?? 'all')
 
-  // Esc closes.
-  useEffect(() => {
-    function onKey(e) { if (e.key === 'Escape') { e.stopPropagation(); onClose?.() } }
-    document.addEventListener('keydown', onKey, true)
-    return () => document.removeEventListener('keydown', onKey, true)
-  }, [onClose])
+  const panelRef = useRef(null)
+  const titleId = useId()
+  useModal(true, panelRef, { onClose })
 
   // Only routes with stops are playable (same guard the startup picker uses).
   const grouped = useMemo(() => {
@@ -68,16 +67,25 @@ export default function LinePicker({
 
   return createPortal(
     <div className="dlg-overlay" onPointerDown={onClose}>
-      <div className="line-picker" onPointerDown={e => e.stopPropagation()}>
+      <div
+        ref={panelRef}
+        className="line-picker"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        tabIndex={-1}
+        onPointerDown={e => e.stopPropagation()}
+      >
         <div className="line-picker-head">
-          <h2 className="dlg-title">{title}</h2>
-          <button className="line-picker-close" onClick={onClose} title="Close">✕</button>
+          <h2 id={titleId} className="dlg-title">{title}</h2>
+          <button className="line-picker-close" onClick={onClose} title="Close" aria-label="Close"><IconClose /></button>
         </div>
 
         <div className="line-picker-controls">
           <input
             className="line-picker-search"
-            type="text"
+            type="search"
+            aria-label="Search lines"
             placeholder="Search lines…"
             value={query}
             autoFocus
@@ -86,12 +94,14 @@ export default function LinePicker({
           <div className="line-picker-types">
             <button
               className={`lp-type-chip ${typeFilter === 'all' ? 'active' : ''}`}
+              aria-pressed={typeFilter === 'all'}
               onClick={() => setTypeFilter('all')}
             >All</button>
             {SECTIONS.map(({ type, label }) => (
               <button
                 key={type}
                 className={`lp-type-chip ${typeFilter === type ? 'active' : ''}`}
+                aria-pressed={typeFilter === type}
                 onClick={() => setTypeFilter(type)}
               >{label}</button>
             ))}

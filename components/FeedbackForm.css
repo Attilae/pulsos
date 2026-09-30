@@ -20,7 +20,7 @@
   border: 1px solid var(--legal-border, var(--border));
   border-radius: 2px;
   font: inherit;
-  font-size: 0.82rem;
+  font-size: var(--fs-sm);
 }
 
 .feedback-form input:focus,
@@ -43,8 +43,8 @@
 .feedback-field label {
   padding: 0;
   margin-bottom: 8px;
-  font-size: 0.64rem;
-  letter-spacing: 0.1em;
+  font-size: var(--fs-3xs);
+  letter-spacing: var(--tracking-caps);
   text-transform: uppercase;
   color: var(--legal-muted, var(--muted));
 }
@@ -75,13 +75,13 @@
   pointer-events: none;
 }
 
-.feedback-kind strong { font-size: 0.8rem; font-weight: 600; }
-.feedback-kind small { font-size: 0.68rem; color: var(--legal-muted, var(--muted)); line-height: 1.4; }
+.feedback-kind strong { font-size: var(--fs-sm); font-weight: 600; }
+.feedback-kind small { font-size: var(--fs-2xs); color: var(--legal-muted, var(--muted)); line-height: 1.4; }
 .feedback-kind:hover { border-color: var(--legal-accent, var(--accent)); }
 
 .feedback-kind--on {
   border-color: var(--legal-accent, var(--accent));
-  box-shadow: inset 3px 0 0 var(--legal-accent, var(--accent));
+  background: var(--accent-tint);
 }
 
 .feedback-kind:focus-within {
@@ -96,7 +96,7 @@
 .feedback-field small {
   display: block;
   margin-top: 6px;
-  font-size: 0.68rem;
+  font-size: var(--fs-2xs);
   color: var(--legal-muted, var(--muted));
 }
 
@@ -123,7 +123,7 @@
   cursor: pointer;
   color: var(--legal-muted, var(--muted));
   font: inherit;
-  font-size: 0.7rem;
+  font-size: var(--fs-2xs);
 }
 
 .feedback-context button:hover { color: var(--legal-accent, var(--accent)); }
@@ -135,7 +135,7 @@
   padding: 12px;
   background: var(--legal-surface, var(--surface));
   border: 1px solid var(--legal-border, var(--border));
-  font-size: 0.68rem;
+  font-size: var(--fs-2xs);
 }
 
 .feedback-context dl div {
@@ -156,7 +156,7 @@
 
 .feedback-captcha-note {
   margin: 0;
-  font-size: 0.66rem;
+  font-size: var(--fs-2xs);
   color: var(--legal-muted, var(--muted));
 }
 
@@ -176,8 +176,8 @@
   border: 1px solid var(--legal-accent, var(--accent));
   border-radius: 2px;
   font: inherit;
-  font-size: 0.74rem;
-  letter-spacing: 0.08em;
+  font-size: var(--fs-xs);
+  letter-spacing: var(--tracking-wide);
   text-transform: uppercase;
 }
 
@@ -189,18 +189,18 @@
   border-color: var(--legal-border, var(--border));
 }
 
-.feedback-msg { margin: 0; font-size: 0.72rem; color: var(--legal-muted, var(--muted)); }
+.feedback-msg { margin: 0; font-size: var(--fs-xs); color: var(--legal-muted, var(--muted)); }
 .feedback-msg--err { color: var(--danger); }
 
 /* ── Sent ────────────────────────────────────────────────────────────────── */
 
 .feedback-done { max-width: 62ch; font-family: var(--font-mono); }
-.feedback-done h2 { margin: 0 0 10px; font-size: 1.05rem; }
-.feedback-done p { margin: 0 0 20px; font-size: 0.82rem; line-height: 1.7; color: var(--legal-muted, var(--muted)); }
+.feedback-done h2 { margin: 0 0 10px; font-size: var(--fs-base); }
+.feedback-done p { margin: 0 0 20px; font-size: var(--fs-sm); line-height: 1.7; color: var(--legal-muted, var(--muted)); }
 
 /* Phone: 767px is PHONE_MAX in lib/shared/breakpoints.js. */
 @media (max-width: 767px) {
   .feedback-kind-row { grid-template-columns: 1fr; }
   .feedback-form input,
-  .feedback-form textarea { font-size: 16px; } /* below 16px iOS zooms on focus */
+  .feedback-form textarea { font-size: var(--fs-lg); } /* below 16px iOS zooms on focus */
 }

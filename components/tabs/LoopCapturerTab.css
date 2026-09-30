@@ -18,8 +18,8 @@
   flex-wrap: wrap;
 }
 .loop-title {
-  font-size: 1.05rem;
-  letter-spacing: 0.12em;
+  font-size: var(--fs-base);
+  letter-spacing: var(--tracking-caps);
   color: var(--accent);
   white-space: nowrap;
   margin-right: auto;
@@ -28,7 +28,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 0.72rem;
+  font-size: var(--fs-xs);
   color: var(--muted);
 }
 .loop-field select,
@@ -38,7 +38,7 @@
   border: 1px solid var(--border);
   border-radius: 3px;
   font-family: inherit;
-  font-size: 0.78rem;
+  font-size: var(--fs-sm);
   padding: 5px 6px;
   outline: none;
 }
@@ -52,7 +52,7 @@
   background: var(--surface2);
   color: var(--text);
   font-family: inherit;
-  font-size: 0.82rem;
+  font-size: var(--fs-sm);
   cursor: pointer;
   border-radius: 3px;
   transition: background 0.12s, color 0.12s, border-color 0.12s;
@@ -65,9 +65,9 @@
   border-color: var(--danger);
   color: var(--danger);
   padding: 5px 10px;
-  font-size: 0.74rem;
+  font-size: var(--fs-xs);
 }
-.loop-btn--cap:hover:not(:disabled) { background: rgba(240, 64, 64, 0.12); }
+.loop-btn--cap:hover:not(:disabled) { background: var(--danger-tint); }
 
 .loop-mini-btn {
   width: 28px;
@@ -78,13 +78,13 @@
   cursor: pointer;
   border-radius: 3px;
   font-family: inherit;
-  font-size: 0.78rem;
+  font-size: var(--fs-sm);
   transition: background 0.1s, color 0.1s, border-color 0.1s;
 }
 .loop-mini-btn:hover:not(:disabled) { background: var(--hover-surface); color: var(--text); }
 .loop-mini-btn:disabled { opacity: 0.3; cursor: not-allowed; }
 .loop-mini-btn.on {
-  background: rgba(240, 64, 64, 0.15);
+  background: var(--danger-tint-strong);
   color: var(--danger);
   border-color: var(--danger);
 }
@@ -109,13 +109,13 @@
   gap: 10px;
 }
 .loop-live-label {
-  font-size: 0.78rem;
-  letter-spacing: 0.08em;
+  font-size: var(--fs-sm);
+  letter-spacing: var(--tracking-wide);
   color: var(--text);
-  font-weight: bold;
+  font-weight: 700;
 }
 .loop-live-count {
-  font-size: 0.72rem;
+  font-size: var(--fs-xs);
   color: var(--muted);
   margin-right: auto;
 }
@@ -182,13 +182,13 @@
   gap: 10px;
 }
 .loop-slot-id {
-  font-size: 1.1rem;
-  font-weight: bold;
-  letter-spacing: 0.1em;
+  font-size: var(--fs-lg);
+  font-weight: 700;
+  letter-spacing: var(--tracking-caps);
   width: 18px;
 }
 .loop-slot-count {
-  font-size: 0.7rem;
+  font-size: var(--fs-2xs);
   color: var(--muted);
   margin-right: auto;
 }
@@ -205,7 +205,7 @@
   background: var(--surface);
 }
 .loop-hint {
-  font-size: 0.72rem;
+  font-size: var(--fs-xs);
   color: var(--muted);
   text-align: center;
 }
