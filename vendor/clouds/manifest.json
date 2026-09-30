@@ -30,8 +30,28 @@
       "patched": false
     },
     {
+      "path": "clouds/dsp/fx/diffuser.h",
+      "sha256": "e411e3fd0df62d556942286b3c957ab594c5d45e1b16ec416cd6b21e09d650c9",
+      "patched": false
+    },
+    {
+      "path": "clouds/dsp/fx/fx_engine.h",
+      "sha256": "8bd367622b97247a371f70871446971b63191df51b7d2a4e06163c86f3408641",
+      "patched": false
+    },
+    {
+      "path": "clouds/dsp/fx/reverb.h",
+      "sha256": "0073b0535623a008d0619f508e4e813ac6087ebd9a02f22d856f49ac2ce458be",
+      "patched": false
+    },
+    {
       "path": "clouds/dsp/grain.h",
       "sha256": "08feb5ac5408e2cb30eb037a844f6ee187d8dedd53fee913d1b5ab2c74ebfac3",
+      "patched": false
+    },
+    {
+      "path": "clouds/dsp/granular_sample_player.h",
+      "sha256": "1cabcbe9d39b5d9eeeaf31d9c71783d9349bf63f0ec9e92167ee181ccd22a406",
       "patched": false
     },
     {
@@ -45,6 +65,11 @@
       "patched": false
     },
     {
+      "path": "clouds/dsp/parameters.h",
+      "sha256": "1d41ec7d86063204ef8f2301ee62170df0cf5933a955545be37e9ab400c46e64",
+      "patched": false
+    },
+    {
       "path": "clouds/resources.cc",
       "sha256": "167b5371080dfd1c8c493cdbb9ea8170cada7153fafea333e6d5657dd70f3568",
       "patched": false
@@ -55,8 +80,23 @@
       "patched": false
     },
     {
+      "path": "stmlib/dsp/atan.h",
+      "sha256": "e386018f41ddb81acda4c56503dd38eee45a5e7d54c7328dbe07ebf362f2b333",
+      "patched": false
+    },
+    {
+      "path": "stmlib/dsp/cosine_oscillator.h",
+      "sha256": "a7f6429e8bca85aa19ce91e3f1908fd7fb1fdf378a61fe2c87717a94d6f30a97",
+      "patched": false
+    },
+    {
       "path": "stmlib/dsp/dsp.h",
       "sha256": "98b42900c4accbe9fbb2cfe2ec6fada024b57ec9a1becff008b0f35bd4fd8ddb",
+      "patched": false
+    },
+    {
+      "path": "stmlib/dsp/filter.h",
+      "sha256": "f4bbf97ac8dfdea255b8a37e179ba0286978c01a12ad8d3362eaa5862cf7c326",
       "patched": false
     },
     {

@@ -2,27 +2,35 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { createHash } from 'node:crypto'
-import {
-  BLOCK, CLOUDS_SCENARIOS, DSP_RATE, renderScenarioWasm, testSource,
-} from '../scripts/lib/cloudsScenarios.js'
+import { BLOCK, CLOUDS_SCENARIOS, DSP_RATE, NEUTRAL, renderScenarioWasm, testInput } from '../scripts/lib/cloudsScenarios.js'
 
-// Runs the committed Clouds granular wasm (public/wasm) directly — no worklet,
-// no Tone. Native-vs-wasm lives in scripts/clouds_compare.js (needs a host
-// compiler); these are the properties the shipped artifact must have everywhere.
+// Runs the committed Texture (Clouds granular) wasm directly: no worklet, no
+// Tone. Native-vs-wasm lives in scripts/clouds_compare.js (needs a host
+// compiler); these are properties the shipped artifact must have everywhere.
 
 const manifest = JSON.parse(readFileSync(new URL('../public/wasm/clouds-granular.manifest.json', import.meta.url), 'utf8'))
 const bytes = readFileSync(new URL(`../public/wasm/${manifest.asset}`, import.meta.url))
 const module = new WebAssembly.Module(bytes)
 
-const mono = (interleaved) => {
-  const out = new Float32Array(interleaved.length / 2)
-  for (let i = 0; i < out.length; i++) out[i] = 0.5 * (interleaved[2 * i] + interleaved[2 * i + 1])
-  return out
+// params: [position, size, pitchKnob, density, texture, dryWet, spread, feedback, reverb, inGain, freeze]
+const P = (over = {}) => {
+  const keys = ['position', 'size', 'pitch', 'density', 'texture', 'dryWet', 'spread', 'feedback', 'reverb', 'inGain', 'freeze']
+  return keys.map((k, i) => (k in over ? over[k] : NEUTRAL[i]))
 }
-const rms = (a) => Math.sqrt(a.reduce((s, v) => s + v * v, 0) / Math.max(1, a.length))
+const wetMono = (out, from = 0, to = out.length / 3) => {
+  const s = new Float32Array(to - from)
+  for (let i = from; i < to; i++) s[i - from] = 0.5 * (out[3 * i] + out[3 * i + 1])
+  return s
+}
+const rms = a => Math.sqrt(a.reduce((s, v) => s + v * v, 0) / Math.max(1, a.length))
+const sine = (hz, seconds, amp = 0.3) => {
+  const n = Math.round(seconds * DSP_RATE), s = new Float32Array(n)
+  for (let i = 0; i < n; i++) s[i] = amp * Math.sin(2 * Math.PI * hz * i / DSP_RATE)
+  return s
+}
 
 // Fundamental by normalized autocorrelation: first strong peak.
-function pitchHz(signal, sampleRate, minHz = 60, maxHz = 1500) {
+function pitchHz(signal, sampleRate, minHz = 60, maxHz = 2000) {
   const minLag = Math.floor(sampleRate / maxHz), maxLag = Math.ceil(sampleRate / minHz)
   const n = signal.length - maxLag
   const corr = new Float64Array(maxLag + 2)
@@ -39,8 +47,14 @@ function pitchHz(signal, sampleRate, minHz = 60, maxHz = 1500) {
   const a = corr[bestLag - 1], b = corr[bestLag], c = corr[bestLag + 1]
   return sampleRate / (bestLag + (a - c) / (2 * (a - 2 * b + c)))
 }
-
 const cents = (hz, ref) => 1200 * Math.log2(hz / ref)
+// Pure-sine inputs stay near-sinusoidal through the grains, so rising zero
+// crossings are a robust pitch estimate across the whole ±24 st range.
+const zeroCrossHz = (sig) => {
+  let zc = 0
+  for (let i = 1; i < sig.length; i++) if (sig[i - 1] < 0 && sig[i] >= 0) zc++
+  return zc / (sig.length / DSP_RATE)
+}
 
 test('the committed artifact matches its manifest and has no imports', () => {
   assert.equal(createHash('sha256').update(bytes).digest('hex'), manifest.sha256)
@@ -48,90 +62,78 @@ test('the committed artifact matches its manifest and has no imports', () => {
   const x = new WebAssembly.Instance(module, {}).exports
   assert.equal(x.cg_block_size(), BLOCK)
   assert.equal(x.cg_sample_rate(), DSP_RATE)
+  assert.equal(x.cg_buffer_samples(), 32704)   // upstream's stereo HQ buffer
 })
 
-test('every scenario renders finite, non-silent, bounded audio', () => {
-  const source = testSource()
+test('every scenario renders finite, bounded audio without faults', () => {
+  const input = testInput()
   for (const sc of CLOUDS_SCENARIOS) {
-    const { out, exports } = renderScenarioWasm(module, sc, source)
+    const { out, exports } = renderScenarioWasm(module, sc, input)
     let peak = 0
     for (const v of out) {
       assert.ok(Number.isFinite(v), `${sc.name}: non-finite sample`)
       peak = Math.max(peak, Math.abs(v))
     }
-    assert.ok(peak > 0.01, `${sc.name}: silent (peak ${peak})`)
-    assert.ok(peak < 2, `${sc.name}: runaway level (peak ${peak})`)
+    assert.ok(peak > 0.01, `${sc.name}: silent`)
+    assert.ok(peak < 2.5, `${sc.name}: runaway level (peak ${peak})`)
     assert.equal(exports.cg_fault_count(), 0, `${sc.name}: DSP faults`)
   }
 })
 
 test('renders are deterministic for a given seed', () => {
-  const source = testSource()
-  const sc = CLOUDS_SCENARIOS.find(s => s.name === 'dense-jittered')
-  const a = renderScenarioWasm(module, sc, source).out
-  const b = renderScenarioWasm(module, sc, source).out
-  assert.deepEqual(a, b)
+  const input = testInput()
+  const sc = CLOUDS_SCENARIOS.find(s => s.name === 'feedback-reverb')
+  assert.deepEqual(renderScenarioWasm(module, sc, input).out, renderScenarioWasm(module, sc, input).out)
 })
 
-test('note pitch transposes the grains relative to the source', () => {
-  const source = testSource(2, 220)
-  for (const semis of [0, 7, -12, 12]) {
-    const sc = { name: 'p', seed: 9, params: [2880, 3.1, 1, 0.1, 0.5, 0, 0.75, 0, 0], events: [[0, 'note', semis]], blocks: 600 }
-    const sig = mono(renderScenarioWasm(module, sc, source).out).subarray(200 * BLOCK)
+test('BLEND dry/wet: fully dry has no grains and unity dry gain, fully wet no dry', () => {
+  const input = testInput(2)
+  const dry = renderScenarioWasm(module, { name: 'd', seed: 1, params: P({ dryWet: 0 }), events: [], blocks: 1500 }, input).out
+  assert.ok(rms(wetMono(dry, 500 * BLOCK)) < 1e-4)
+  assert.ok(Math.abs(dry[dry.length - 1] - 1) < 1e-3)
+  const wet = renderScenarioWasm(module, { name: 'w', seed: 1, params: P({ dryWet: 1 }), events: [], blocks: 1500 }, input).out
+  assert.ok(rms(wetMono(wet, 500 * BLOCK)) > 0.02)
+  assert.ok(wet[wet.length - 1] < 1e-3)
+})
+
+test('DENSITY at centre makes grains only on TRIG', () => {
+  const input = sine(330, 2)
+  const quiet = renderScenarioWasm(module, { name: 'q', seed: 2, params: P({ density: 0.5, dryWet: 1, reverb: 0 }), events: [], blocks: 1500 }, input).out
+  assert.ok(rms(wetMono(quiet, 300 * BLOCK)) < 1e-4, 'no TRIG: no grains')
+  const trig = renderScenarioWasm(module, { name: 't', seed: 2, params: P({ density: 0.5, dryWet: 1, reverb: 0 }), events: [[600, 'trig']], blocks: 1500 }, input).out
+  assert.ok(rms(wetMono(trig, 600 * BLOCK, 700 * BLOCK)) > 0.01, 'TRIG seeds a grain')
+  assert.ok(rms(wetMono(trig, 300 * BLOCK, 599 * BLOCK)) < 1e-4, 'nothing before it')
+})
+
+test('PITCH transposes the grains along upstream’s quantized knob curve', () => {
+  const input = sine(220, 3)
+  for (const [knob, semis] of [[0.5, 0], [0.8, 4], [0.2, -4], [1, 24], [0, -24]]) {
+    const sc = { name: 'p', seed: 3, params: P({ pitch: knob, density: 0.8, texture: 0.6, dryWet: 1, spread: 0 }), events: [], blocks: 2500 }
+    const sig = wetMono(renderScenarioWasm(module, sc, input).out, 1200 * BLOCK, 2400 * BLOCK)
     const expected = 220 * 2 ** (semis / 12)
-    const got = pitchHz(sig, DSP_RATE)
-    assert.ok(Math.abs(cents(got, expected)) < 15, `${semis} st: ${got.toFixed(1)} Hz, expected ${expected.toFixed(1)}`)
+    const got = zeroCrossHz(sig)
+    assert.ok(Math.abs(cents(got, expected)) < 25, `knob ${knob}: ${got.toFixed(1)} Hz, expected ${expected.toFixed(1)}`)
   }
 })
 
-test('grains stay inside the loop window', () => {
-  // Silent first half, tone second half.
-  const tone = testSource()
-  const source = new Float32Array(tone.length)
-  source.set(tone.subarray(tone.length / 2 - 8000, tone.length - 8000), tone.length / 2)
-  const run = (winStart, winEnd, reverse = 0, jitter = 0) => {
-    const sc = { name: 'w', seed: 5, params: [1600, 4, 1, winStart, winEnd, jitter, 0.75, 0.5, reverse], events: [[0, 'note', 0]], blocks: 1500 }
-    return rms(mono(renderScenarioWasm(module, sc, source).out).subarray(100 * BLOCK))
-  }
-  assert.ok(run(0, 0.45) < 1e-4, 'window over the silent half must be silent')
-  assert.ok(run(0.55, 1) > 0.05, 'window over the tone must sound')
-  assert.ok(run(0, 0.45, 1) < 1e-4, 'reverse mirrors the same window')
-  assert.ok(run(0.55, 1, 1) > 0.05, 'reverse over the tone must sound')
-  assert.ok(run(0, 0.45, 0, 1) < 1e-4, 'jitter never leaves the window')
+test('FREEZE stops recording: grains keep the frozen material', () => {
+  // 220 Hz for 1.5 s, then 440 Hz. Frozen at 1.4 s, grains must stay at 220.
+  const a = sine(220, 1.5), b = sine(440, 1.5)
+  const input = new Float32Array(a.length + b.length)
+  input.set(a); input.set(b, a.length)
+  const frozenAt = Math.round(1.4 * DSP_RATE / BLOCK)
+  const base = { position: 0.3, density: 0.8, texture: 0.6, dryWet: 1, spread: 0 }
+  const sc = { name: 'f', seed: 4, params: P(base), events: [[frozenAt, 'params', ...P({ ...base, freeze: 1 })]], blocks: 2800 }
+  const sig = wetMono(renderScenarioWasm(module, sc, input).out, 2000 * BLOCK, 2800 * BLOCK)
+  assert.ok(Math.abs(cents(pitchHz(sig, DSP_RATE, 50, 1500), 220)) < 20, 'frozen buffer still plays 220 Hz')
+  const live = { ...sc, events: [] }
+  const sig2 = wetMono(renderScenarioWasm(module, live, input).out, 2000 * BLOCK, 2800 * BLOCK)
+  assert.ok(Math.abs(cents(pitchHz(sig2, DSP_RATE, 50, 1500), 440)) < 20, 'unfrozen buffer follows the input')
 })
 
-test('reverse plays the source backwards', () => {
-  // A rising ramp of level: forwards scan hears it get louder, reverse quieter.
-  const n = 64000
-  const source = new Float32Array(n)
-  for (let i = 0; i < n; i++) source[i] = (i / n) * Math.sin(2 * Math.PI * 330 * i / DSP_RATE)
-  const env = (reverse) => {
-    const sc = { name: 'r', seed: 3, params: [1600, 4, 1, 0, 1, 0, 0.75, 0.5, reverse], events: [[0, 'note', 0]], blocks: 1000 }
-    const sig = mono(renderScenarioWasm(module, sc, source).out)
-    return [rms(sig.subarray(100 * BLOCK, 300 * BLOCK)), rms(sig.subarray(700 * BLOCK, 900 * BLOCK))]
-  }
-  const [f0, f1] = env(0)
-  const [r0, r1] = env(1)
-  assert.ok(f1 > f0 * 1.5, `forwards should rise: ${f0} → ${f1}`)
-  assert.ok(r0 > r1 * 1.5, `reverse should fall: ${r0} → ${r1}`)
-})
-
-test('an over-long source is cropped and reported, never overrun', () => {
-  const x = new WebAssembly.Instance(module, {}).exports
-  x.cg_init(1)
-  const max = x.cg_max_source()
-  const staging = new Float32Array(x.memory.buffer, x.cg_staging(), max)
-  staging.fill(0.1)
-  x.cg_load(max + 1000, 1)
-  assert.equal(x.cg_source_length(), max)
-  assert.equal(x.cg_crop_count(), 1)
-})
-
-test('panic fades the cloud out and it restarts on the next note', () => {
-  const source = testSource()
-  const sc = { name: 'x', seed: 2, params: [2880, 3.1, 1, 0, 1, 0, 0.75, 0.5, 0], events: [[0, 'note', 0], [300, 'panic']], blocks: 600 }
-  const { exports: x } = renderScenarioWasm(module, sc, source)
-  // Right after the fade the grain pool is empty; it refills as the clock runs.
-  assert.ok(x.cg_active_grains() <= 4)
-  assert.equal(x.cg_fault_count(), 0)
+test('reset forgets the recording', () => {
+  const input = sine(330, 0.5)
+  const sc = { name: 'r', seed: 5, params: P({ dryWet: 1, reverb: 0, feedback: 0 }), events: [[700, 'reset']], blocks: 1200 }
+  const out = renderScenarioWasm(module, sc, input).out
+  assert.ok(rms(wetMono(out, 900 * BLOCK)) < 1e-4)
 })
