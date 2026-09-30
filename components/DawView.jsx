@@ -14,6 +14,8 @@ import { subscribeEvents, getEvents } from '@/lib/shared/eventLogStore.js'
 import { normalizeLaneTag } from '@/lib/laneTags.js'
 import { LOOP_PATTERN_PRESETS, MAX_PATTERN_PLAY, MAX_PATTERN_REST, normalizeLoopPattern, normalizeNoteChance, formatLoopPattern, loopIndexAt, loopPlays } from '@/lib/laneGating.js'
 import StopEditor from './StopEditor.jsx'
+import TextureControls from './TextureControls.jsx'
+import { TEXTURE_ENABLED } from '@/lib/granularEngine.js'
 import ResonatorControls from './ResonatorControls.jsx'
 import { useResonatorStatus } from '@/lib/shared/useResonatorStatus.js'
 import LaneTagEditor from './LaneTagEditor.jsx'
@@ -1149,7 +1151,7 @@ function LineTrack({
 
           <div className="rack-card rack-card--sound">
             <div className="rack-card-head">{synthType}</div>
-            <EnvPanel synthType={synthType} adsr={adsr} onADSR={onADSR} onSamplerPreset={onSamplerPreset} onDrumVoice={onDrumVoice} onSamplerUpload={onSamplerUpload} autoTargets={autoTargets} granularEnabled={!!granular?.enabled} />
+            <EnvPanel synthType={synthType} adsr={adsr} onADSR={onADSR} onSamplerPreset={onSamplerPreset} onDrumVoice={onDrumVoice} onSamplerUpload={onSamplerUpload} autoTargets={autoTargets} granularEnabled={!!granular?.enabled && !supportsGranular(synthType)} />
           </div>
 
           <div className="rack-card rack-card--sound">
@@ -1383,7 +1385,11 @@ function LineTrack({
             )
           })()}
 
-          {!supportsGranular(synthType) ? (
+          {TEXTURE_ENABLED ? (
+            // NEXT_PUBLIC_GRANULAR_ENGINE=clouds: the Texture insert replaces the
+            // GrainPlayer layer's card (lib/granularEngine.js).
+            <TextureControls cfg={granular} onChange={onGranular} autoTargets={autoTargets} laneName={route.name} />
+          ) : !supportsGranular(synthType) ? (
             <div className="rack-card rack-card--sound">
               <div className="rack-card-head">Granular</div>
               <p className="rack-card-note">
