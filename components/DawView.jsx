@@ -1,6 +1,6 @@
 import * as Tone from 'tone'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
-import { SYNTH_DEFAULTS, availableAutomationTargets, findTargetSpec, SAMPLER_PRESET_LIST, SAMPLER_PRESETS, DRUM_VOICES, DRUM_VOICE_LICENSE, DEFAULT_GRANULAR, DEFAULT_SIDECHAIN, ARP_STYLES, ARP_RATES, DEFAULT_ARP, DRUMS_ROUTE_ID } from '@/lib/engine.js'
+import { SYNTH_DEFAULTS, supportsGranular, availableAutomationTargets, findTargetSpec, SAMPLER_PRESET_LIST, SAMPLER_PRESETS, DRUM_VOICES, DRUM_VOICE_LICENSE, DEFAULT_GRANULAR, DEFAULT_SIDECHAIN, ARP_STYLES, ARP_RATES, DEFAULT_ARP, DRUMS_ROUTE_ID } from '@/lib/engine.js'
 import { FX_BUSES, AUTOMATION_TARGETS, FX_PARAM_SPECS, FX_SYNC_TARGETS } from '@/lib/fxTrack.js'
 import { PAD_DEFS as DRUM_PAD_DEFS, STEPS as DRUM_STEPS, SOURCE_STEPS as DRUM_SOURCE_STEPS, emptyPattern as emptyDrumPattern } from '@/lib/engines/drumEngine.js'
 import { generatePitchMap, shiftOctaveNote, shiftSemitones, noteToMidi, SCALES, hashStopValue, snapStopsToGrid, GRID_TOTAL_CELLS, GRID_BARS, GRID_STEPS_PER_BAR, GRID_RESOLUTION_STEPS_PER_BAR, DEFAULT_GRID_RESOLUTION, denormalizeToRange, denormalizeExp, transposeNoteInScale, PITCH_CONTOURS, DEFAULT_PITCH_VARIETY } from '@/lib/mappings.js'
@@ -14,6 +14,8 @@ import { subscribeEvents, getEvents } from '@/lib/shared/eventLogStore.js'
 import { normalizeLaneTag } from '@/lib/laneTags.js'
 import { LOOP_PATTERN_PRESETS, MAX_PATTERN_PLAY, MAX_PATTERN_REST, normalizeLoopPattern, normalizeNoteChance, formatLoopPattern, loopIndexAt, loopPlays } from '@/lib/laneGating.js'
 import StopEditor from './StopEditor.jsx'
+import ResonatorControls from './ResonatorControls.jsx'
+import { useResonatorStatus } from '@/lib/shared/useResonatorStatus.js'
 import LaneTagEditor from './LaneTagEditor.jsx'
 import DuplicateLaneDialog from './DuplicateLaneDialog.jsx'
 import LinePicker from './LinePicker.jsx'
@@ -975,7 +977,9 @@ function LineTrack({
             onClick={() => onExportRouteMidi?.(route.id)}
             disabled={!route.stops?.length}
             aria-label={`Download ${route.name} as MIDI`}
-            data-tooltip="Download MIDI"
+            data-tooltip={synthType === 'Resonator'
+              ? 'Download MIDI · notes and velocity only, not the Resonator sound or its ring-out'
+              : 'Download MIDI'}
           >MIDI</button>
           <button
             type="button"
@@ -1145,7 +1149,7 @@ function LineTrack({
 
           <div className="rack-card rack-card--sound">
             <div className="rack-card-head">{synthType}</div>
-            <EnvPanel synthType={synthType} adsr={adsr} onADSR={onADSR} onSamplerPreset={onSamplerPreset} onDrumVoice={onDrumVoice} onSamplerUpload={onSamplerUpload} autoTargets={autoTargets} />
+            <EnvPanel synthType={synthType} adsr={adsr} onADSR={onADSR} onSamplerPreset={onSamplerPreset} onDrumVoice={onDrumVoice} onSamplerUpload={onSamplerUpload} autoTargets={autoTargets} granularEnabled={!!granular?.enabled} />
           </div>
 
           <div className="rack-card rack-card--sound">
@@ -1166,7 +1170,7 @@ function LineTrack({
               <span className="octave-val">{octaveShift >= 0 ? `+${octaveShift}` : octaveShift}</span>
               <button className="octave-btn" onClick={() => onOctaveShift(Math.min(2, octaveShift + 1))}>+</button>
             </div>
-            <div className="glide-row">
+            {synthType !== 'Resonator' && <div className="glide-row">
               <span className="glide-label">GLIDE</span>
               <input
                 type="range" min="0" max="1" step="0.01"
@@ -1185,7 +1189,7 @@ function LineTrack({
                 title={legato ? 'Legato on. Click to disable' : 'Enable legato (hold + glide)'}
                 style={legato ? { borderColor: route.color, color: route.color } : {}}
               >LEG</button>
-            </div>
+            </div>}
           </div>
 
           <div className="rack-card rack-card--rhythm">
@@ -1226,7 +1230,9 @@ function LineTrack({
               <span className="speed-label">LENGTH</span>
               <div
                 className="speed-btns"
-                title={legato || arp?.enabled || synthType === 'PluckSynth'
+                title={synthType === 'Resonator'
+                  ? 'The Resonator rings out on its own (Damping sets how long). Note length only shapes MIDI export'
+                  : legato || arp?.enabled || synthType === 'PluckSynth'
                   ? 'Note length has no effect while legato, the arpeggiator or PluckSynth is in use'
                   : 'How long each note is held before its release'}
               >
@@ -1377,7 +1383,15 @@ function LineTrack({
             )
           })()}
 
-          {(() => {
+          {!supportsGranular(synthType) ? (
+            <div className="rack-card rack-card--sound">
+              <div className="rack-card-head">Granular</div>
+              <p className="rack-card-note">
+                Not available on the {synthType} yet.
+                {granular?.enabled ? ' Its grain settings are kept for when you switch back.' : ''}
+              </p>
+            </div>
+          ) : (() => {
             const gg = { ...DEFAULT_GRANULAR, ...granular }
             const grainOn = !!gg.enabled
             const dim = grainOn ? {} : { opacity: 0.4, pointerEvents: 'none' }
@@ -2431,7 +2445,8 @@ function SpSliderWithCurve({ label, min, max, step, value, onChange, curveValue,
 
 const AMP_ENV_KEYS = new Set(['attack', 'decay', 'sustain', 'release'])
 
-function EnvPanel({ synthType, adsr, onADSR, onSamplerPreset, onDrumVoice, onSamplerUpload, autoTargets = {} }) {
+function EnvPanel({ synthType, adsr, onADSR, onSamplerPreset, onDrumVoice, onSamplerUpload, autoTargets = {}, granularEnabled = false }) {
+  const resonatorStatus = useResonatorStatus()
   const def = SYNTH_DEFAULTS[synthType] ?? SYNTH_DEFAULTS['Synth']
   const p = { ...def, ...adsr }
 
@@ -2470,6 +2485,12 @@ function EnvPanel({ synthType, adsr, onADSR, onSamplerPreset, onDrumVoice, onSam
     </div>
     )
   }
+
+  if (synthType === 'Resonator') return (
+    <div className="sp-panel">
+      <ResonatorControls params={p} onChange={onADSR} status={resonatorStatus} granularEnabled={granularEnabled} variant="rack" />
+    </div>
+  )
 
   if (synthType === 'Sampler') {
     const presetId = p.samplerPreset ?? 'piano'

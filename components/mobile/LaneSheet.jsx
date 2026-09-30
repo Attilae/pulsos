@@ -22,6 +22,8 @@ import {
   CONTOUR_LABELS, CONTOUR_TITLES,
 } from '../DawView.jsx'
 import { LaneTagFields } from '../LaneTagEditor.jsx'
+import ResonatorControls from '../ResonatorControls.jsx'
+import { useResonatorStatus } from '@/lib/shared/useResonatorStatus.js'
 import { ARP_RATES, ARP_STYLES, DEFAULT_ARP, DEFAULT_SIDECHAIN } from '@/lib/engine.js'
 import { DEFAULT_GRID_RESOLUTION, DEFAULT_PITCH_VARIETY, PITCH_CONTOURS } from '@/lib/mappings.js'
 import { NOTE_LENGTHS, NOTE_LENGTH_LABELS, DEFAULT_NOTE_LENGTH } from '@/lib/noteLength.js'
@@ -49,6 +51,8 @@ export default function LaneSheet({
   disabled = false,
   soloed = false,
   synthType,
+  adsr,
+  granular,
   scale,
   octave = 0,
   semitone = 0,
@@ -68,12 +72,13 @@ export default function LaneSheet({
   sidechainSources = [],
   tag,
   // handlers — the same ones the desktop rack calls
-  onVolume, onPan, onDisable, onSolo, onSynthType, onScale, onOctaveShift,
+  onVolume, onPan, onDisable, onSolo, onSynthType, onADSR, onScale, onOctaveShift,
   onPitchVariety, onTrackSpeed, onGridResolution, onArp,
   onSendLevel, onSidechain, onStopPitch, onStopVelocity, onLaneTag,
   onNoteChance, onStopChance, onLoopPattern, onNoteLength,
 }) {
   const [segment, setSegment] = useState('sound')
+  const resonatorStatus = useResonatorStatus()
 
   const trackScale = scale ?? { root: 'C', scaleType: 'major' }
   const pv = { ...DEFAULT_PITCH_VARIETY, ...pitchVariety }
@@ -137,6 +142,19 @@ export default function LaneSheet({
               <LaneTagFields tag={tag} onChange={patch => onLaneTag(route.id, patch)} />
             </Field>
           </section>
+
+          {synthType === 'Resonator' && (
+            <section className="lsheet-group lsheet-group--sound">
+              <GroupHead title="Resonator" description="Shape what the strike excites and how long it rings." />
+              <ResonatorControls
+                params={adsr}
+                onChange={patch => onADSR?.(route.id, patch)}
+                status={resonatorStatus}
+                granularEnabled={!!granular?.enabled}
+                variant="sheet"
+              />
+            </section>
+          )}
 
           <section className="lsheet-group lsheet-group--sound">
             <GroupHead title="Pitch map" description="Turn route data into melody." />
@@ -233,7 +251,12 @@ export default function LaneSheet({
               </div>
             </Field>
 
-            <Field label="Note length" hint="How long each note is held before it releases. No effect with legato, the arpeggiator or PluckSynth.">
+            <Field
+              label="Note length"
+              hint={synthType === 'Resonator'
+                ? 'The Resonator rings out on its own; Damping sets how long. Note length only shapes MIDI export.'
+                : 'How long each note is held before it releases. No effect with legato, the arpeggiator or PluckSynth.'}
+            >
               <div className="lsheet-choice-grid lsheet-choice-grid--compact">
                 {NOTE_LENGTHS.map(len => {
                   const on = (noteLength ?? DEFAULT_NOTE_LENGTH) === len

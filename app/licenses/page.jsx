@@ -1,4 +1,5 @@
 import { DataTable, LegalSection, LegalShell } from '@/components/legal/LegalShell.jsx'
+import styles from '@/components/legal/LegalShell.module.css'
 
 export const metadata = {
   title: 'Licences & Credits',
@@ -152,6 +153,31 @@ export default function LicensesPage() {
           Drizzle ORM, and their dependencies. Each package remains licensed by its authors under
           the licence distributed with that package. Source-package notices in the deployed
           dependency tree control if this summary differs from a package’s own licence.
+        </p>
+        <p>
+          The Resonator instrument’s sound engine is compiled from open-source DSP code by Emilie
+          Gillet: the Rings resonator sources in{' '}
+          <a href="https://github.com/pichenettes/eurorack" target="_blank" rel="noreferrer">eurorack</a>{' '}
+          and the supporting{' '}
+          <a href="https://github.com/pichenettes/stmlib" target="_blank" rel="noreferrer">stmlib</a>{' '}
+          library, used under the MIT License. Leið’s Resonator is an independent adaptation and is
+          not affiliated with or endorsed by the original author. The notice below applies to that
+          code:
+        </p>
+        <p className={styles.notice}>
+          Copyright 2012–2015 Emilie Gillet. Permission is hereby granted, free of charge, to any
+          person obtaining a copy of this software and associated documentation files (the
+          “Software”), to deal in the Software without restriction, including without limitation
+          the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+          copies of the Software, and to permit persons to whom the Software is furnished to do so,
+          subject to the following conditions: The above copyright notice and this permission
+          notice shall be included in all copies or substantial portions of the Software. THE
+          SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING
+          BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE
+          AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+          CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+          ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+          THE SOFTWARE.
         </p>
       </LegalSection>
 

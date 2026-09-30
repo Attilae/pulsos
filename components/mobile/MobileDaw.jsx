@@ -81,6 +81,8 @@ export default function MobileDaw({ controls, lanes }) {
         disabled={!!lanes.disabled?.[openLaneId]}
         soloed={!!lanes.soloRoutes?.has(openLaneId)}
         synthType={lanes.synthTypes?.[openLaneId]}
+        adsr={lanes.adsrs?.[openLaneId]}
+        granular={lanes.granulars?.[openLaneId]}
         scale={lanes.scales?.[openLaneId]}
         octave={lanes.octaves?.[openLaneId] ?? 0}
         semitone={lanes.semitones?.[openLaneId] ?? 0}
@@ -104,6 +106,7 @@ export default function MobileDaw({ controls, lanes }) {
         onDisable={lanes.onDisable}
         onSolo={lanes.onSolo}
         onSynthType={lanes.onSynthType}
+        onADSR={lanes.onADSR}
         onScale={lanes.onScale}
         onOctaveShift={lanes.onOctaveShift}
         onPitchVariety={lanes.onPitchVariety}

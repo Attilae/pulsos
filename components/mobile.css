@@ -211,6 +211,13 @@
   /* Enlarged hit areas for the precision rail controls. The *visual* size is
      unchanged: the loop handle's line is a ::before, and the dots grow an
      invisible ::after, so the desktop look survives on a touchscreen. */
+  /* Resonator editor (components/ResonatorControls.jsx) — rack and sheet. */
+  .res-choice, .res-param-reset { min-height: var(--tap-min); }
+  .res-param-reset { min-width: var(--tap-min); }
+  .res-param-slider { min-height: var(--tap-min); }
+  .res-param-slider::-webkit-slider-thumb { width: 22px; height: 22px; }
+  .res-param-slider::-moz-range-thumb { width: 22px; height: 22px; }
+
   .loop-handle { width: var(--tap-min); }
   .auto-dot::after,
   .stop-dot--editable::after {

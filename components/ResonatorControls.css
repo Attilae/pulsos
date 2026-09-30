@@ -1,0 +1,130 @@
+/* Resonator editor (components/ResonatorControls.jsx). Desktop density here;
+   phone touch sizing lives in components/mobile.css (see its Resonator block),
+   which loads later and wins at equal specificity. */
+
+.res-controls {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-100);
+  min-width: 0;
+}
+
+.res-status {
+  margin: 0;
+  padding: var(--space-050) var(--space-075);
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-2xs);
+  color: var(--text-subtle);
+  background: var(--hover-bg);
+}
+.res-status--error {
+  color: var(--text);
+  background: var(--danger-tint);
+  border: 1px solid color-mix(in srgb, var(--danger) 40%, transparent);
+}
+
+.res-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-050);
+}
+
+.res-group-label,
+.res-param-label {
+  font-size: var(--fs-3xs);
+  font-weight: 700;
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.res-choices {
+  display: flex;
+  gap: var(--space-050);
+}
+
+.res-choice {
+  flex: 1;
+  min-width: 0;
+  padding: var(--space-050) var(--space-075);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text-subtle);
+  font-size: var(--fs-2xs);
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.res-choice:hover { color: var(--text); background: var(--hover-bg); }
+.res-choice.is-active {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-tint);
+}
+.res-choice:focus-visible,
+.res-param-reset:focus-visible,
+.res-param-slider:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.res-group-hint,
+.res-param-hint,
+.res-note {
+  margin: 0;
+  font-size: var(--fs-3xs);
+  line-height: 1.4;
+  color: var(--muted);
+}
+
+.res-param {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-025);
+}
+
+.res-param-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-075);
+}
+
+.res-param-val {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: var(--fs-3xs);
+  color: var(--text-subtle);
+}
+
+.res-param-reset {
+  padding: 0 var(--space-050);
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font-size: var(--fs-3xs);
+  cursor: pointer;
+}
+.res-param-reset:hover:not(:disabled) { color: var(--text); }
+.res-param-reset:disabled { opacity: 0.4; cursor: default; }
+
+.res-param-slider {
+  width: 100%;
+  accent-color: var(--accent);
+}
+
+.res-note {
+  padding-top: var(--space-050);
+  border-top: 1px solid var(--border);
+}
+
+.res-controls--sheet .res-group-label,
+.res-controls--sheet .res-param-label {
+  font-size: var(--fs-2xs);
+}
+.res-controls--sheet .res-group-hint,
+.res-controls--sheet .res-param-hint,
+.res-controls--sheet .res-note {
+  font-size: var(--fs-2xs);
+}
