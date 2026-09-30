@@ -176,6 +176,7 @@ export default function AIComposerPanel({
 
           <textarea
             className="ai-composer-input"
+            aria-label={effectiveMode === 'edit' ? 'Describe the change' : 'Describe what you want to hear'}
             placeholder={effectiveMode === 'edit'
               ? 'Describe the change — e.g. “keep the bass and drums, make the lead warmer and give it a short echo.”'
               : 'Describe what you want to hear — e.g. “warm deep house at 122 BPM: a restrained bass under one answering keys figure, with short echoes.”'}

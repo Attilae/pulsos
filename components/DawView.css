@@ -1783,3 +1783,22 @@
 .loop-stepper { display: inline-flex; align-items: center; gap: 3px; }
 .loop-stepper .speed-label { width: auto; }
 .loop-stepper .octave-btn:disabled { opacity: 0.35; cursor: default; }
+
+/* ── Keyboard focus for the rail's draggable/clickable parts ───────────────
+   These became focusable (loop handles and automation points are sliders,
+   stop dots open the editor); a ring on the element itself would be clipped
+   or lost against the lane colour, so the handle's line and the dots get an
+   offset ring in the text colour. */
+.loop-handle:focus-visible {
+  outline: none;
+}
+.loop-handle:focus-visible::before {
+  width: 3px;
+  box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--text);
+}
+.stop-dot:focus-visible,
+.auto-dot:focus-visible {
+  outline: 2px solid var(--text);
+  outline-offset: 2px;
+  z-index: 6;
+}

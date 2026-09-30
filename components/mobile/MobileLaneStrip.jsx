@@ -66,8 +66,10 @@ function MobileLaneStrip({
           type="button"
           className={`mlane-btn ${disabled ? '' : 'is-on'}`}
           onClick={() => onDisable(route.id)}
+          // Fixed name + pressed state ("Enable M1, pressed"): a label that
+          // flips as well announced the state twice and contradicted itself.
           aria-pressed={!disabled}
-          aria-label={disabled ? `Enable ${label}` : `Disable ${label}`}
+          aria-label={`Enable ${label}`}
         >⏻</button>
 
         <button

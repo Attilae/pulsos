@@ -104,6 +104,106 @@ function resolvePlayhead(route, lat, lng) {
   return { pct: (nearest.dist / route.totalDist) * 100, stopId: nearest.id }
 }
 
+// ── Loop-region handles (note rail + automation rail) ───────────────────────
+// Pointer: capture on the handle itself, so the drag follows the pointer
+// anywhere and ends on up, cancel (a scroll or OS gesture took the touch) or
+// lost capture. The old window listeners ran permanently on every rail and a
+// cancelled touch left the handle "stuck" to the next move.
+// Keyboard: each handle is a slider. Arrows move one grid cell, Shift+arrows a
+// beat, PageUp/PageDown a bar, Home/End to the limit.
+const CELLS_PER_BEAT = GRID_STEPS_PER_BAR / 4
+
+function describeCell(cell) {
+  const bar  = Math.floor(cell / GRID_STEPS_PER_BAR) + 1
+  const step = (cell % GRID_STEPS_PER_BAR) + 1
+  return `bar ${bar}, step ${step}`
+}
+
+function useLoopHandles({ railRef, startCell, endCell, onLoopRegion }) {
+  const dragRef   = useRef(null)  // 'start' | 'end' | null
+  const latestRef = useRef({ startCell, endCell, onLoopRegion })
+  latestRef.current = { startCell, endCell, onLoopRegion }
+
+  const moveEdge = useCallback((edge, cell) => {
+    const { startCell: s0, endCell: e0, onLoopRegion: set } = latestRef.current
+    if (!set) return
+    if (edge === 'start') {
+      const next = Math.max(0, Math.min(e0 - 1, cell))
+      if (next !== s0) set({ startCell: next, endCell: e0 })
+    } else {
+      const next = Math.max(s0 + 1, Math.min(GRID_TOTAL_CELLS, cell))
+      if (next !== e0) set({ startCell: s0, endCell: next })
+    }
+  }, [])
+
+  return useCallback((edge) => {
+    const isStart = edge === 'start'
+    const value   = isStart ? startCell : endCell
+    const end = (e) => {
+      if (dragRef.current !== edge) return
+      dragRef.current = null
+      if (e.currentTarget.hasPointerCapture?.(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId)
+    }
+    return {
+      role: 'slider',
+      tabIndex: onLoopRegion ? 0 : -1,
+      'aria-label': isStart ? 'Loop start' : 'Loop end',
+      'aria-orientation': 'horizontal',
+      'aria-valuemin': isStart ? 0 : startCell + 1,
+      'aria-valuemax': isStart ? endCell - 1 : GRID_TOTAL_CELLS,
+      'aria-valuenow': value,
+      'aria-valuetext': isStart
+        ? `Starts at ${describeCell(startCell)}`
+        : `Ends after ${describeCell(endCell - 1)}`,
+      onPointerDown: (e) => {
+        if (!onLoopRegion) return
+        e.preventDefault()
+        e.stopPropagation()
+        e.currentTarget.setPointerCapture?.(e.pointerId)
+        dragRef.current = edge
+      },
+      onPointerMove: (e) => {
+        if (dragRef.current !== edge) return
+        const rect = railRef.current?.getBoundingClientRect()
+        if (!rect || rect.width === 0) return
+        const frac = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width))
+        moveEdge(edge, Math.round(frac * GRID_TOTAL_CELLS))
+      },
+      onPointerUp: end,
+      onPointerCancel: end,
+      onLostPointerCapture: end,
+      onKeyDown: (e) => {
+        if (!onLoopRegion) return
+        const small = e.shiftKey ? CELLS_PER_BEAT : 1
+        let next = null
+        switch (e.key) {
+          case 'ArrowLeft': case 'ArrowDown': next = value - small; break
+          case 'ArrowRight': case 'ArrowUp':  next = value + small; break
+          case 'PageDown': next = value - GRID_STEPS_PER_BAR; break
+          case 'PageUp':   next = value + GRID_STEPS_PER_BAR; break
+          case 'Home': next = isStart ? 0 : startCell + 1; break
+          case 'End':  next = isStart ? endCell - 1 : GRID_TOTAL_CELLS; break
+          default: return
+        }
+        e.preventDefault()
+        e.stopPropagation()
+        moveEdge(edge, next)
+      },
+    }
+  }, [startCell, endCell, onLoopRegion, railRef, moveEdge])
+}
+
+// Call two handler maps' same-named handlers in order (a then b).
+function mergeHandlers(a, b) {
+  const out = { ...a, ...b }
+  for (const key of Object.keys(a)) {
+    if (key.startsWith('on') && typeof a[key] === 'function' && typeof b[key] === 'function') {
+      out[key] = (e) => { a[key](e); b[key](e) }
+    }
+  }
+  return out
+}
+
 export default function DawView({
   className = '',
   visible = true, mode, started, routes, allRoutes, onRepickType,
@@ -236,7 +336,7 @@ export default function DawView({
 
   return (
     <div className={`daw-body${className ? ` ${className}` : ''}`}>
-      <main className="daw-tracks" ref={tracksRef}>
+      <section className="daw-tracks" ref={tracksRef} aria-label="Tracks">
 
         {!routes && <div className="daw-loading">Loading line data…</div>}
 
@@ -470,7 +570,7 @@ export default function DawView({
           />
         )}
 
-      </main>
+      </section>
 
       <EventLog visible={visible} />
 
@@ -608,6 +708,8 @@ function DrumLane({
         <span>Drums</span>
         <button
           className={`drum-lane-master-btn ${muted ? 'on' : ''}`}
+          aria-pressed={muted}
+          aria-label="Mute drums"
           onClick={onToggleMute}
           title={muted ? 'Unmute drums' : 'Mute drums'}
         >{muted ? 'Muted' : 'Mute'}</button>
@@ -616,6 +718,7 @@ function DrumLane({
           <input
             type="range" min="-40" max="6" step="1"
             value={vol} onChange={e => onVolume?.(Number(e.target.value))}
+            aria-label="Drum lane volume" aria-valuetext={`${vol} dB`}
             className="volume-slider" title="Drum lane volume"
           />
           <span className="volume-val">{vol}dB</span>
@@ -623,8 +726,9 @@ function DrumLane({
         <button
           className={`rack-toggle ${rackOpen ? 'active' : ''}`}
           onClick={() => setRackOpen(o => !o)}
+          aria-expanded={rackOpen}
           title="Mixer: filter, EQ, sends"
-        >FX <span className={`rack-chevron ${rackOpen ? 'up' : ''}`}>▾</span></button>
+        >FX <span className={`rack-chevron ${rackOpen ? 'up' : ''}`} aria-hidden="true">▾</span></button>
         <button
           className="drum-lane-master-btn"
           onClick={onClear}
@@ -656,6 +760,8 @@ function DrumLane({
                         type="range" min="0" max="1" step="0.01"
                         value={level}
                         onChange={e => onSendLevel?.(busId, parseFloat(e.target.value))}
+                        aria-label={`Drums send to ${bus?.label ?? busId}`}
+                        aria-valuetext={`${Math.round(level * 100)}%`}
                         className="line-send-slider"
                       />
                       <span className="line-send-val">{Math.round(level * 100)}%</span>
@@ -679,6 +785,8 @@ function DrumLane({
               <button
                 className={`drum-lane-mute ${padMuted ? 'on' : ''}`}
                 onClick={() => onTogglePadMute(pad.id)}
+                aria-pressed={padMuted}
+                aria-label={`Mute ${pad.label}`}
                 title="Mute pad"
               >M</button>
               <div className="drum-lane-steps">
@@ -699,6 +807,8 @@ function DrumLane({
                         i % 4 === 0 ? 'beat' : '',
                       ].filter(Boolean).join(' ')}
                       onClick={() => onToggleStep(pad.id, i)}
+                      aria-label={`${pad.label} step ${i + 1}${v ? `, velocity ${Math.round(v * 100)}%` : ''}`}
+                      aria-pressed={!!v}
                       title={v ? `vel ${Math.round(v * 100)}% — click to cycle` : 'click to cycle velocity'}
                     />
                   )
@@ -839,10 +949,11 @@ function LineTrack({
         </div>
 
         <div className="lt-mix">
-          <button className={`disable-btn lane-icon-btn ${disabled ? 'active' : ''}`} onClick={onDisable} aria-pressed={!disabled} aria-label={disabled ? `Enable ${route.name}` : `Disable ${route.name}`} data-tooltip={disabled ? 'Enable track' : 'Disable track'}>⏻</button>
+          <button className={`disable-btn lane-icon-btn ${disabled ? 'active' : ''}`} onClick={onDisable} aria-pressed={!disabled} aria-label={`Enable ${route.name}`} data-tooltip={disabled ? 'Enable track' : 'Disable track'}>⏻</button>
           <button className={`solo-btn lane-icon-btn ${isSoloed ? 'active' : ''}`} onClick={onSolo} aria-pressed={isSoloed} aria-label={`Solo ${route.name}`} data-tooltip="Solo · Cmd/Ctrl-click to add">S</button>
           <input type="range" min="-40" max="6" step="1"
             value={volDisp} onChange={e => onVolume(Number(e.target.value))}
+            aria-label={`${route.name} volume`} aria-valuetext={`${volDisp} dB`}
             disabled={aVol.disabled} className="volume-slider" />
           <span className="volume-val">{volDisp}dB</span>
           <span className="lt-mix-sep" />
@@ -850,6 +961,8 @@ function LineTrack({
           <input type="range" min="-1" max="1" step="0.01"
             value={panDisp} onChange={e => onPan(parseFloat(e.target.value))}
             {...panReset}
+            aria-label={`${route.name} pan`}
+            aria-valuetext={panDisp === 0 ? 'center' : panDisp < 0 ? `left ${Math.round(-panDisp * 100)}` : `right ${Math.round(panDisp * 100)}`}
             disabled={aPan.disabled} className="pan-slider" />
           <span className="pan-val">
             {panDisp === 0 ? 'C' : panDisp < 0 ? `L${Math.round(-panDisp * 100)}` : `R${Math.round(panDisp * 100)}`}
@@ -917,6 +1030,7 @@ function LineTrack({
           className={`rack-toggle ${rackOpen ? 'active' : ''}`}
           onClick={() => setRackOpen(o => !o)}
           title={rackOpen ? 'Collapse device rack' : 'Expand device rack'}
+          aria-expanded={rackOpen}
         >
           DEVICE RACK
           <span className={`rack-chevron ${rackOpen ? 'up' : ''}`}>▾</span>
@@ -1014,6 +1128,8 @@ function LineTrack({
                     <input
                       type="range" min="0" max="1" step="0.01"
                       value={pv.variety}
+                      aria-label={`${route.name} pitch variety`}
+                      aria-valuetext={`${Math.round(pv.variety * 100)}%`}
                       onChange={e => onPitchVariety({ variety: parseFloat(e.target.value) })}
                       {...varietyReset}
                       className="glide-slider"
@@ -1054,6 +1170,8 @@ function LineTrack({
               <input
                 type="range" min="0" max="1" step="0.01"
                 value={gliDisp}
+                aria-label={`${route.name} glide`}
+                aria-valuetext={`${Math.round(gliDisp * 100)}%`}
                 onChange={e => onGlide(parseFloat(e.target.value))}
                 {...glideReset}
                 disabled={aGli.disabled}
@@ -1131,6 +1249,8 @@ function LineTrack({
               <input
                 type="range" min="0" max="1" step="0.05"
                 value={laneChance}
+                aria-label={`${route.name} note chance`}
+                aria-valuetext={`${Math.round(laneChance * 100)}%`}
                 onChange={e => onNoteChance(parseFloat(e.target.value))}
                 {...chanceReset}
                 className="glide-slider"
@@ -1244,6 +1364,8 @@ function LineTrack({
                   <input
                     type="range" min="0.05" max="2" step="0.05"
                     value={ag.gate}
+                    aria-label={`${route.name} arpeggiator gate`}
+                    aria-valuetext={`${Math.round(ag.gate * 100)}%`}
                     onChange={e => onArp({ gate: parseFloat(e.target.value) })}
                     {...arpGateReset}
                     className="glide-slider"
@@ -1270,6 +1392,8 @@ function LineTrack({
                     type="range" min={min} max={max} step={step}
                     value={val}
                     disabled={a.disabled}
+                    aria-label={`${route.name} grain ${label}`}
+                    aria-valuetext={a.disabled ? 'automated' : String(fmt(val))}
                     onChange={e => onGranular({ [key]: parseFloat(e.target.value) })}
                     className="glide-slider"
                   />
@@ -1322,6 +1446,8 @@ function LineTrack({
                   <input
                     type="range" min="0" max="2" step="0.005"
                     value={gg.attack}
+                    aria-label={`${route.name} grain attack`}
+                    aria-valuetext={String(ms(gg.attack))}
                     onChange={e => onGranular({ attack: parseFloat(e.target.value) })}
                     className="glide-slider"
                   />
@@ -1332,6 +1458,8 @@ function LineTrack({
                   <input
                     type="range" min="0.01" max="6" step="0.01"
                     value={gg.release}
+                    aria-label={`${route.name} grain release`}
+                    aria-valuetext={`${Number(gg.release).toFixed(2)} s`}
                     onChange={e => onGranular({ release: parseFloat(e.target.value) })}
                     className="glide-slider"
                   />
@@ -1353,6 +1481,8 @@ function LineTrack({
                 <input
                   type="range" min={min} max={max} step={step}
                   value={sc[key]}
+                  aria-label={`${route.name} sidechain ${label}`}
+                  aria-valuetext={String(fmt(sc[key]))}
                   onChange={e => onSidechain({ [key]: parseFloat(e.target.value) })}
                   className="glide-slider"
                 />
@@ -1414,6 +1544,8 @@ function LineTrack({
                         type="range" min="0" max="1" step="0.01"
                         value={level}
                         onChange={e => onSendLevel(busId, parseFloat(e.target.value))}
+                        aria-label={`${route.name} send to ${bus?.label ?? busId}`}
+                        aria-valuetext={`${Math.round(level * 100)}%`}
                         disabled={aSend.disabled}
                         className="line-send-slider"
                       />
@@ -1527,6 +1659,8 @@ function AutomationLane({ laneId, instRoute, laneCfg, allRoutes, activeFxTracks,
           <input
             type="range" min="0" max="1" step="0.01"
             value={glide}
+            aria-label="Automation glide"
+            aria-valuetext={`${Math.round(glide * 100)}%`}
             onChange={e => onUpdate({ glide: parseFloat(e.target.value) })}
             {...useResetGesture(() => onUpdate({ glide: 0 }))}
             className="glide-slider"
@@ -1694,51 +1828,26 @@ function AutoCurveRail({ route, laneId, points, spec, started = false, visible =
     return () => { unsubscribe(); clearActive(); lastActiveRef.current = -1; onActiveValue?.(null) }
   }, [started, visible, speed, startPct, endPct, regionLen, onActiveValue])
 
-  // ── Loop-handle drag (mirrors StopRail) ───────────────────────────────────
-  const cellFromClientX = useCallback((clientX) => {
-    const rect = railRef.current?.getBoundingClientRect()
-    if (!rect || rect.width === 0) return 0
-    const frac = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width))
-    return Math.round(frac * GRID_TOTAL_CELLS)
-  }, [])
-
-  const dragRef = useRef(null)  // 'start' | 'end' | null
-  useEffect(() => {
-    const onMove = (e) => {
-      if (!dragRef.current || !onLoopRegion) return
-      const cell = cellFromClientX(e.clientX)
-      if (dragRef.current === 'start') {
-        const newStart = Math.max(0, Math.min(endCell - 1, cell))
-        if (newStart !== startCell) onLoopRegion({ startCell: newStart, endCell })
-      } else {
-        const newEnd = Math.max(startCell + 1, Math.min(GRID_TOTAL_CELLS, cell))
-        if (newEnd !== endCell) onLoopRegion({ startCell, endCell: newEnd })
-      }
-    }
-    const onUp = () => { dragRef.current = null }
-    window.addEventListener('pointermove', onMove)
-    window.addEventListener('pointerup',   onUp)
-    return () => {
-      window.removeEventListener('pointermove', onMove)
-      window.removeEventListener('pointerup',   onUp)
-    }
-  }, [startCell, endCell, cellFromClientX, onLoopRegion])
-
-  const handlePointerDown = (which) => (e) => {
-    e.preventDefault()
-    e.stopPropagation()
-    dragRef.current = which
-  }
+  // ── Loop handles (shared with StopRail) ───────────────────────────────────
+  const loopHandleProps = useLoopHandles({ railRef, startCell, endCell, onLoopRegion })
   // Double-click a handle clears the per-lane override → inherit the source region.
   const handleReset = (e) => { e?.preventDefault?.(); e?.stopPropagation?.(); onLoopRegion?.(null) }
-  // Loop handles are drag targets *and* reset targets, so both the drag start
-  // and the long-press detector have to see pointerdown — spreading the gesture
-  // props alone would silently replace the drag handler.
+  // Loop handles are drag targets *and* reset targets, so the drag and the
+  // long-press detector both have to see every pointer event — spreading one
+  // set of props over the other would silently drop a handler. Delete or
+  // Backspace is the keyboard reset.
   const resetGesture = useResetGesture(handleReset)
-  const handleProps = (edge) => ({
-    ...resetGesture,
-    onPointerDown: (e) => { resetGesture.onPointerDown(e); handlePointerDown(edge)(e) },
-  })
+  const handleProps = (edge) => {
+    const merged = mergeHandlers(resetGesture, loopHandleProps(edge))
+    const onKeyDown = merged.onKeyDown
+    return {
+      ...merged,
+      onKeyDown: (e) => {
+        if (e.key === 'Delete' || e.key === 'Backspace') { handleReset(e); return }
+        onKeyDown(e)
+      },
+    }
+  }
 
   const stopPoints = useMemo(() => {
     if (!route?.stops?.length) return []
@@ -1776,11 +1885,33 @@ function AutoCurveRail({ route, laneId, points, spec, started = false, visible =
   }, [dragId, points, onUpdate, valueFromEvent])
   const onDotUp = useCallback((e, stopId) => {
     if (dragId !== stopId) return
-    e.currentTarget.releasePointerCapture?.(e.pointerId)
+    if (e.currentTarget.hasPointerCapture?.(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId)
     setDragId(null)
   }, [dragId])
 
   const unit = spec?.unit ?? ''
+  // The point's value as the parameter reads it (Hz, dB, %…), for tooltips and
+  // screen readers alike.
+  const formatValue = (v) => (spec
+    ? `${(spec.curve === 'exp' ? denormalizeExp(v, spec.min, spec.max) : denormalizeToRange(v, spec.min, spec.max)).toFixed(2)}${unit}`
+    : `${Math.round(v * 100)}%`)
+  // Keyboard: Up/Down nudge 5%, Shift 1%, PageUp/PageDown 25%, Home/End to the limits.
+  const onDotKey = (e, p) => {
+    const fine = e.shiftKey ? 0.01 : 0.05
+    let next = null
+    switch (e.key) {
+      case 'ArrowUp': case 'ArrowRight': next = p.value + fine; break
+      case 'ArrowDown': case 'ArrowLeft': next = p.value - fine; break
+      case 'PageUp': next = p.value + 0.25; break
+      case 'PageDown': next = p.value - 0.25; break
+      case 'Home': next = 0; break
+      case 'End': next = 1; break
+      default: return
+    }
+    e.preventDefault()
+    e.stopPropagation()
+    onUpdate({ points: { ...points, [p.id]: Math.max(0, Math.min(1, next)) } })
+  }
   const maxLabel = spec ? `${spec.max}${unit}` : ''
   const minLabel = spec ? `${spec.min}${unit}` : ''
 
@@ -1843,11 +1974,20 @@ function AutoCurveRail({ route, laneId, points, spec, started = false, visible =
           data-x={p.x}
           className={`auto-dot ${dragId === p.id ? 'dragging' : ''}`}
           style={{ left: `${p.x}%`, top: `${p.y}%`, '--line-color': route.color }}
-          title={`${p.name} · ${spec ? `${(spec.curve === 'exp' ? denormalizeExp(p.value, spec.min, spec.max) : denormalizeToRange(p.value, spec.min, spec.max)).toFixed(2)}${unit}` : `${Math.round(p.value * 100)}%`}`}
+          title={`${p.name} · ${formatValue(p.value)}`}
+          role="slider"
+          aria-label={`Automation at ${p.name}`}
+          aria-orientation="vertical"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={Math.round(p.value * 100)}
+          aria-valuetext={formatValue(p.value)}
+          onKeyDown={e => onDotKey(e, p)}
           onPointerDown={e => onDotDown(e, p.id)}
           onPointerMove={e => onDotMove(e, p.id)}
           onPointerUp={e => onDotUp(e, p.id)}
           onPointerCancel={e => onDotUp(e, p.id)}
+          onLostPointerCapture={e => onDotUp(e, p.id)}
         />
       ))}
     </div>
@@ -1904,6 +2044,8 @@ function MasterStrip({ volume, onVolume }) {
           type="range" min="-40" max="0" step="1"
           value={volume}
           onChange={e => onVolume(Number(e.target.value))}
+          aria-label="Master volume"
+          aria-valuetext={`${volume} dB`}
           className="master-vol-slider"
         />
         <span className="master-vol-val">{volume}dB</span>
@@ -2021,16 +2163,18 @@ function FxTrackCard({ bus, wet, muted, soloed, params, onWet, onMute, onSolo, o
     <div className={`fx-track-card ${muted ? 'fx-track-card--muted' : ''}`}>
       <div className="fx-track-card-header">
         <span className="fx-track-name">{bus.label}</span>
-        <button className={`mute-btn ${muted ? 'active' : ''}`} onClick={onMute} title="Mute">M</button>
-        <button className={`solo-btn ${soloed ? 'active' : ''}`} onClick={onSolo} aria-pressed={soloed} aria-label="Solo this FX bus" title="Solo">S</button>
+        <button className={`mute-btn ${muted ? 'active' : ''}`} onClick={onMute} aria-pressed={muted} aria-label={`Mute ${bus.label}`} title="Mute">M</button>
+        <button className={`solo-btn ${soloed ? 'active' : ''}`} onClick={onSolo} aria-pressed={soloed} aria-label={`Solo ${bus.label}`} title="Solo">S</button>
         <input
           type="range" min="0" max="1" step="0.01"
           value={wet}
           onChange={e => onWet(parseFloat(e.target.value))}
+          aria-label={`${bus.label} return level`}
+          aria-valuetext={`${Math.round(wet * 100)}%`}
           className="fx-track-wet-slider"
         />
         <span className="fx-track-wet-val">{Math.round(wet * 100)}%</span>
-        <button className="fx-track-remove-btn" onClick={onRemove} title="Remove FX track">×</button>
+        <button className="fx-track-remove-btn" onClick={onRemove} title="Remove FX track" aria-label={`Remove ${bus.label}`}>×</button>
       </div>
       {specs.length > 0 && (
         <div className="fx-track-params">
@@ -2167,6 +2311,7 @@ function FxParamControl({ spec, value, onChange, disabled = false, disabledText 
         max={spec.max}
         step={spec.step}
         value={v}
+        aria-label={spec.label}
         disabled={disabled}
         onChange={e => onChange(parseFloat(e.target.value))}
         className="fx-param-slider"
@@ -2237,6 +2382,7 @@ function SpSlider({ label, min, max, step, value, onChange, unit, disabled = fal
       <div className="sp-track">
         <div className="sp-fill" style={{ width: `${Math.max(0, Math.min(100, pct))}%` }} />
         <input type="range" min={min} max={max} step={step} value={value} disabled={disabled}
+          aria-label={typeof label === 'string' ? label : undefined}
           className="sp-slider" onChange={e => onChange(Number(e.target.value))} />
       </div>
       <span className="sp-val">{Number(value).toFixed(decimals)}{unit ?? ''}</span>
@@ -2273,6 +2419,7 @@ function SpSliderWithCurve({ label, min, max, step, value, onChange, curveValue,
       <div className="sp-track">
         <div className="sp-fill" style={{ width: `${Math.max(0, Math.min(100, pct))}%` }} />
         <input type="range" min={min} max={max} step={step} value={value} disabled={disabled}
+          aria-label={typeof label === 'string' ? label : undefined}
           className="sp-slider" onChange={e => onChange(Number(e.target.value))} />
       </div>
       <span className="sp-val">{Number(value).toFixed(decimals)}</span>
@@ -2669,41 +2816,8 @@ function StopRail({
     }
   }, [started, visible, mode, speed, startPct, endPct, regionLen, loopPattern])
 
-  // ── Loop-handle drag ──────────────────────────────────────────────────────
-  const cellFromClientX = useCallback((clientX) => {
-    const rect = railRef.current?.getBoundingClientRect()
-    if (!rect || rect.width === 0) return 0
-    const frac = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width))
-    return Math.round(frac * GRID_TOTAL_CELLS)
-  }, [])
-
-  const dragRef = useRef(null)  // 'start' | 'end' | null
-  useEffect(() => {
-    const onMove = (e) => {
-      if (!dragRef.current || !onLoopRegion) return
-      const cell = cellFromClientX(e.clientX)
-      if (dragRef.current === 'start') {
-        const newStart = Math.max(0, Math.min(endCell - 1, cell))
-        if (newStart !== startCell) onLoopRegion({ startCell: newStart, endCell })
-      } else {
-        const newEnd = Math.max(startCell + 1, Math.min(GRID_TOTAL_CELLS, cell))
-        if (newEnd !== endCell) onLoopRegion({ startCell, endCell: newEnd })
-      }
-    }
-    const onUp = () => { dragRef.current = null }
-    window.addEventListener('pointermove', onMove)
-    window.addEventListener('pointerup',   onUp)
-    return () => {
-      window.removeEventListener('pointermove', onMove)
-      window.removeEventListener('pointerup',   onUp)
-    }
-  }, [startCell, endCell, cellFromClientX, onLoopRegion])
-
-  const handlePointerDown = (which) => (e) => {
-    e.preventDefault()
-    e.stopPropagation()
-    dragRef.current = which
-  }
+  // ── Loop handles (pointer + keyboard, shared with AutoCurveRail) ─────────
+  const loopHandleProps = useLoopHandles({ railRef, startCell, endCell, onLoopRegion })
 
   if (!route.stops.length) return <div className="stop-rail stop-rail--empty" />
 
@@ -2811,6 +2925,28 @@ function StopRail({
   }
   activeTargetsRef.current = [...targetsByKey.values()].sort((a, b) => a.rel - b.rel)
 
+  // Keyboard for editable stop dots: Enter/Space opens the editor (same as a
+  // click); arrows move focus along the rail, Home/End to either end.
+  const onStopDotKey = (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault()
+      e.currentTarget.click()
+      return
+    }
+    const dots = [...(railRef.current?.querySelectorAll('.stop-dot--editable') ?? [])]
+    const i = dots.indexOf(e.currentTarget)
+    let next = null
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') next = dots[i + 1]
+    else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') next = dots[i - 1]
+    else if (e.key === 'Home') next = dots[0]
+    else if (e.key === 'End') next = dots[dots.length - 1]
+    else return
+    e.preventDefault()
+    if (!next) return
+    dots.forEach(d => { d.tabIndex = d === next ? 0 : -1 })
+    next.focus()
+  }
+
   const vehicleMarkers = mode === 'live'
     ? vehicles.map(v => {
         const ph = resolvePlayhead(route, v.lat, v.lng)
@@ -2848,13 +2984,13 @@ function StopRail({
       <div
         className="loop-handle loop-handle--start"
         style={{ left: `${startPct}%`, '--line-color': route.color }}
-        onPointerDown={handlePointerDown('start')}
+        {...loopHandleProps('start')}
         title={`Loop start · cell ${startCell}/${GRID_TOTAL_CELLS}`}
       />
       <div
         className="loop-handle loop-handle--end"
         style={{ left: `${endPct}%`, '--line-color': route.color }}
-        onPointerDown={handlePointerDown('end')}
+        {...loopHandleProps('end')}
         title={`Loop end · cell ${endCell}/${GRID_TOTAL_CELLS}`}
       />
 
@@ -2930,6 +3066,13 @@ function StopRail({
           title={canEdit
             ? `${stop.name} · ${stop.noteName}${velSuffix}${chanceSuffix} — click to edit pitch, velocity & chance`
             : `${stop.name} · bar ${stop.bar + 1} beat ${stop.beat + 1} step ${stop.sixteenth + 1}${velSuffix}${chanceSuffix}`}
+          {...(canEdit ? {
+            role: 'button',
+            // Roving tabindex: one Tab stop per rail, arrows walk the stops.
+            tabIndex: i === 0 ? 0 : -1,
+            'aria-label': `${stop.name}, ${stop.noteName}${velSuffix}${chanceSuffix}. Edit pitch, velocity and chance`,
+            onKeyDown: onStopDotKey,
+          } : {})}
           onClick={canEdit
             ? () => onStopOpen({
                 routeId: route.id,

@@ -13,6 +13,7 @@
 
 import { useCallback, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
+import { useModal } from '@/lib/shared/useModal.js'
 import './Sheet.css'
 
 const DISMISS_DISTANCE = 90   // px dragged down before a release closes the sheet
@@ -33,18 +34,13 @@ export default function Sheet({
 }) {
   const panelRef = useRef(null)
   const dragRef = useRef(null)     // { startY, startT, dy } while a drag is live
-  const restoreFocusRef = useRef(null)
 
   const close = useCallback(() => { onClose?.() }, [onClose])
 
-  // Esc closes. Capture phase + stopPropagation matches Dialog.jsx so a sheet
-  // opened over another overlay doesn't dismiss both at once.
-  useEffect(() => {
-    if (!open) return undefined
-    function onKey(e) { if (e.key === 'Escape') { e.stopPropagation(); close() } }
-    document.addEventListener('keydown', onKey, true)
-    return () => document.removeEventListener('keydown', onKey, true)
-  }, [open, close])
+  // Esc closes, Tab stays inside, focus moves in on open and back on close.
+  // Shared with every other overlay so stacked ones (a confirm over a sheet)
+  // only ever dismiss the top one.
+  useModal(open, panelRef, { onClose: close })
 
   // Lock the page behind the sheet: without this, scrolling past the end of the
   // sheet's own content scrolls the DAW underneath it on iOS.
@@ -53,25 +49,6 @@ export default function Sheet({
     const prev = document.body.style.overflow
     document.body.style.overflow = 'hidden'
     return () => { document.body.style.overflow = prev }
-  }, [open])
-
-  // Move focus in on open, hand it back on close.
-  useEffect(() => {
-    if (!open) return undefined
-    restoreFocusRef.current = document.activeElement
-    const t = setTimeout(() => {
-      const panel = panelRef.current
-      if (!panel) return
-      const first = panel.querySelector(
-        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
-      )
-      ;(first ?? panel).focus?.()
-    }, 0)
-    return () => {
-      clearTimeout(t)
-      restoreFocusRef.current?.focus?.()
-      restoreFocusRef.current = null
-    }
   }, [open])
 
   // ── Drag-down-to-dismiss ──────────────────────────────────────────────────
@@ -94,14 +71,17 @@ export default function Sheet({
     panel.style.transform = `translateY(${drag.dy}px)`
   }
 
+  // A cancelled gesture (the OS or a scroll took the pointer) snaps back and
+  // never dismisses; only a real release is judged as a flick.
   const endDrag = (e) => {
     const drag = dragRef.current
     const panel = panelRef.current
     dragRef.current = null
     if (!drag || !panel) return
-    e.currentTarget.releasePointerCapture?.(e.pointerId)
+    if (e.currentTarget.hasPointerCapture?.(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId)
     panel.style.transition = ''
     panel.style.transform = ''
+    if (e.type !== 'pointerup') return
     const velocity = drag.dy / Math.max(1, performance.now() - drag.startT)
     if (drag.dy > DISMISS_DISTANCE || velocity > DISMISS_VELOCITY) close()
   }
@@ -131,6 +111,7 @@ export default function Sheet({
           onPointerMove={onGrabberMove}
           onPointerUp={endDrag}
           onPointerCancel={endDrag}
+          onLostPointerCapture={endDrag}
           aria-hidden="true"
         >
           <span className="sheet-grabber-bar" />

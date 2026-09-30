@@ -11,8 +11,9 @@
 // applies its diatonic edit first, then the lane's chromatic transpose.
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { useModal } from '@/lib/shared/useModal.js'
 import { shiftSemitones, transposeNoteInScale } from '@/lib/mappings.js'
 import './StopEditor.css'
 
@@ -25,12 +26,9 @@ export default function StopEditor({ editingStop, onClose, onPitch, onVelocity, 
   const laneChance = editingStop.laneChance ?? 1
   const [chance, setChance] = useState(editingStop.chance ?? null)
 
-  // Esc closes.
-  useEffect(() => {
-    function onKey(e) { if (e.key === 'Escape') { e.stopPropagation(); onClose() } }
-    document.addEventListener('keydown', onKey, true)
-    return () => document.removeEventListener('keydown', onKey, true)
-  }, [onClose])
+  const panelRef = useRef(null)
+  const titleId = useId()
+  useModal(true, panelRef, { onClose })
 
   const stepPitch = useCallback((delta) => {
     const next = Math.max(-DEGREE_LIMIT, Math.min(DEGREE_LIMIT, degrees + delta))
@@ -76,18 +74,26 @@ export default function StopEditor({ editingStop, onClose, onPitch, onVelocity, 
 
   return createPortal(
     <div className="dlg-overlay" onPointerDown={onClose}>
-      <div className="stop-editor" onPointerDown={e => e.stopPropagation()}>
+      <div
+        ref={panelRef}
+        className="stop-editor"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        tabIndex={-1}
+        onPointerDown={e => e.stopPropagation()}
+      >
         <div className="stop-editor-head">
-          <h2 className="dlg-title">{stopName || 'Stop'}</h2>
-          <button className="stop-editor-close" onClick={onClose} title="Close">✕</button>
+          <h2 id={titleId} className="dlg-title">{stopName || 'Stop'}</h2>
+          <button className="stop-editor-close" onClick={onClose} title="Close" aria-label="Close">✕</button>
         </div>
 
         <div className="stop-editor-row">
           <span className="stop-editor-label">Pitch</span>
           <div className="stop-editor-control">
-            <button className="stop-editor-step" onClick={() => stepPitch(-1)} title="Down a scale degree">−</button>
-            <span className="stop-editor-note">{currentNote}</span>
-            <button className="stop-editor-step" onClick={() => stepPitch(1)} title="Up a scale degree">+</button>
+            <button className="stop-editor-step" onClick={() => stepPitch(-1)} title="Down a scale degree" aria-label="Pitch down a scale degree">−</button>
+            <span className="stop-editor-note" aria-live="polite">{currentNote}</span>
+            <button className="stop-editor-step" onClick={() => stepPitch(1)} title="Up a scale degree" aria-label="Pitch up a scale degree">+</button>
             <span className="stop-editor-meta">
               {degrees === 0 ? 'geographic' : `${degrees > 0 ? '+' : ''}${degrees} · was ${baseNote}`}
             </span>
@@ -101,6 +107,8 @@ export default function StopEditor({ editingStop, onClose, onPitch, onVelocity, 
             <input
               className="stop-editor-slider"
               type="range" min="20" max="100" step="1"
+              aria-label="Velocity"
+              aria-valuetext={`${velPct}%`}
               value={velPct}
               onChange={e => changeVelocity(Number(e.target.value))}
             />
@@ -116,6 +124,8 @@ export default function StopEditor({ editingStop, onClose, onPitch, onVelocity, 
               <input
                 className="stop-editor-slider"
                 type="range" min="0" max="100" step="5"
+                aria-label="Chance"
+                aria-valuetext={`${chancePct}%${chance == null ? ', from lane' : ''}`}
                 value={chancePct}
                 onChange={e => changeChance(Number(e.target.value))}
                 title="How likely this note is to play on each loop"
