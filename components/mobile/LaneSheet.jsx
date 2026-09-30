@@ -16,6 +16,7 @@
 
 import { useMemo, useState } from 'react'
 import Sheet from '../Sheet.jsx'
+import { IconReset } from '../icons.jsx'
 import {
   NOTE_ROOTS, SCALE_TYPES, pickerSynthTypes, SidechainSourceOptions,
   SPEED_OPTIONS, ARP_STYLE_LABELS, ARP_RATE_LABELS,
@@ -519,18 +520,15 @@ export default function LaneSheet({
       {segment === 'notes' && (
         <div className="lsheet-body">
           <p className="lsheet-note">
-            One row per stop, in travel order. ± moves the note within the
-            lane&rsquo;s scale; the sliders set how hard it&rsquo;s struck and
-            how likely it is to play.
+            One row per stop, in travel order. &plusmn; moves the note within
+            the lane&rsquo;s scale. Chance follows the lane until you move it;
+            the reset button hands it back.
           </p>
           <ul className="lsheet-notes">
             {noteRows.map(row => (
               <li className="lsheet-noterow" key={row.id}>
                 <div className="lsheet-noterow-head">
                   <span className="lsheet-stop">{row.name}</span>
-                  <span className="lsheet-note-name mono">{row.note}</span>
-                </div>
-                <div className="lsheet-noterow-controls">
                   <div className="lsheet-stepper lsheet-stepper--sm">
                     <button
                       type="button"
@@ -544,31 +542,39 @@ export default function LaneSheet({
                       aria-label={`${row.name}: up one step`}
                     >+</button>
                   </div>
+                  <span className="lsheet-note-name mono">{row.note}</span>
+                </div>
+                <div className="lsheet-noterow-param">
+                  <span className="lsheet-noterow-label">Velocity</span>
                   <input
                     type="range" min={0.2} max={1} step={0.05}
                     value={row.velocity}
                     onChange={e => onStopVelocity(route.id, row.id, Number(e.target.value))}
                     aria-label={`${row.name}: velocity`}
                   />
+                  <span className="lsheet-noterow-value mono">{Math.round(row.velocity * 100)}%</span>
+                  <span aria-hidden="true" />
                 </div>
-                <div className="lsheet-noterow-controls">
-                  <span className="lsheet-note-chance mono">
-                    {Math.round(row.chance * 100)}%{row.chanceOverride ? '' : ' · lane'}
-                  </span>
+                <div className="lsheet-noterow-param">
+                  <span className="lsheet-noterow-label">Chance</span>
                   <input
                     type="range" min={0} max={1} step={0.05}
                     value={row.chance}
                     onChange={e => onStopChance(route.id, row.id, Number(e.target.value))}
-                    aria-label={`${row.name}: chance`}
+                    aria-label={`${row.name}: chance${row.chanceOverride ? '' : ', following the lane'}`}
                   />
-                  {row.chanceOverride && (
+                  <span
+                    className={`lsheet-noterow-value mono${row.chanceOverride ? '' : ' is-inherited'}`}
+                  >{Math.round(row.chance * 100)}%</span>
+                  {row.chanceOverride ? (
                     <button
                       type="button"
-                      className="lsheet-note-chance-reset"
+                      className="lsheet-noterow-reset"
                       onClick={() => onStopChance(route.id, row.id, null)}
                       aria-label={`${row.name}: follow lane chance`}
-                    >Lane</button>
-                  )}
+                      title="Follow lane chance"
+                    ><IconReset size={16} /></button>
+                  ) : <span aria-hidden="true" />}
                 </div>
               </li>
             ))}

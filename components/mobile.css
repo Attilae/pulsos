@@ -227,8 +227,20 @@
   }
 }
 
-/* driver.js anchors its popover to the highlighted element, which overflows a
-   390px viewport whenever the anchor is near an edge. */
-.leid-tour--mobile {
-  max-width: calc(100vw - 24px) !important;
+/* driver.js places its popover beside the highlighted element and writes that
+   position as inline `inset`. On a 390px viewport that maths fails for edge
+   anchors: the title step landed at left: 366px, fully off screen. On a phone
+   the card docks to the bottom edge instead (the top edge for steps whose
+   anchor is down there), full width, and the arrow goes since it no longer
+   points at anything. !important is what beats the inline style. */
+.driver-popover.leid-tour--mobile {
+  position: fixed !important;
+  inset: auto 12px calc(12px + env(safe-area-inset-bottom)) 12px !important;
+  width: auto !important;
+  min-width: 0 !important;
+  max-width: none !important;
 }
+.driver-popover.leid-tour--mobile.leid-tour--dock-top {
+  inset: calc(12px + env(safe-area-inset-top)) 12px auto 12px !important;
+}
+.driver-popover.leid-tour--mobile .driver-popover-arrow { display: none; }

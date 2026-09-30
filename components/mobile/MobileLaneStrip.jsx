@@ -46,6 +46,8 @@ function MobileLaneStrip({
         laneTag.color ? 'mlane--tagged' : '',
       ].filter(Boolean).join(' ')}
       style={laneTag.color ? { '--lane-tag-color': laneTag.color } : undefined}
+      // Tour anchor, as on the desktop lane; the tour highlights the first one.
+      data-tour="lane"
     >
       <button type="button" className="mlane-id" onClick={() => onOpen(route.id)}>
         <span className="mlane-color" style={{ background: route.color }} aria-hidden="true" />
