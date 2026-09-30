@@ -3,8 +3,8 @@
 .profile-overlay {
   position: fixed;
   inset: 0;
-  z-index: 200;
-  background: rgba(0, 0, 0, 0.6);
+  z-index: var(--z-drawer);
+  background: var(--scrim);
   display: flex;
   align-items: flex-start;
   justify-content: center;
@@ -20,7 +20,7 @@
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 6px;
-  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.6);
+  box-shadow: var(--elevation-modal);
   font-family: inherit;
 }
 
@@ -207,7 +207,7 @@ a.profile-btn { display: inline-block; text-decoration: none; }
   transition: color 0.12s, border-color 0.12s, background 0.12s;
 }
 .preset-action:hover { color: var(--text); border-color: var(--muted); background: var(--hover-surface); }
-.preset-action--danger:hover { color: var(--danger); border-color: var(--danger); background: rgba(240, 64, 64, 0.08); }
+.preset-action--danger:hover { color: var(--danger); border-color: var(--danger); background: var(--danger-tint); }
 
 @media (max-width: 520px) {
   .preset-row { flex-direction: column; align-items: stretch; }

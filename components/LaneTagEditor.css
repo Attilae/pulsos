@@ -8,7 +8,7 @@
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 6px;
-  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.6);
+  box-shadow: var(--elevation-modal);
   padding: 16px 18px 18px;
   font-family: inherit;
   display: flex;

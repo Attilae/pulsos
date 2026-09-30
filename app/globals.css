@@ -38,6 +38,19 @@
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --safe-left: env(safe-area-inset-left, 0px);
   --safe-right: env(safe-area-inset-right, 0px);
+  /* Layers (app-level stacking only; values under 20 inside a component are
+     local and stay literal). The map is `isolation: isolate`, so Leaflet's own
+     400-1000 panes can't rise above these. */
+  --z-sticky: 50;      /* DAW header */
+  --z-popover: 100;    /* anchored menus (song menu, auth pop) */
+  --z-tooltip: 600;
+  --z-banner: 900;     /* city-switch / preset warnings over the stage */
+  --z-floating: 1000;  /* AI composer panel */
+  --z-drawer: 1500;    /* header drawer, profile overlay */
+  --z-busy: 1700;      /* AI planning overlay */
+  --z-sheet: 1800;     /* bottom sheets, phone composer */
+  --z-modal: 1900;     /* upgrade paywall (can open from a sheet or the drawer) */
+  --z-dialog: 2000;    /* alert/confirm/prompt: always on top */
   /* Touch — the iOS/Material minimum, and the phone chrome heights. The two bar
      heights are tokens because the phone map is positioned by insetting from
      them; a magic number in one place and not the other lets the map creep over
@@ -104,9 +117,20 @@
   --success-text: var(--success);
   --automation-text: var(--automation);
 
+  /* Tints for hover/pressed states on danger and warning controls */
+  --danger-tint: color-mix(in srgb, var(--danger) 10%, transparent);
+  --danger-tint-strong: color-mix(in srgb, var(--danger) 16%, transparent);
+  --warning-tint: color-mix(in srgb, var(--warning) 8%, transparent);
+
   --grid-line: rgba(255,255,255,0.05);
+  --shadow-color: rgba(0,0,0,0.42);
   --elevation-raised: 0 1px 2px rgba(0,0,0,0.5);
   --elevation-overlay: 0 8px 24px rgba(0,0,0,0.55);
+  --elevation-modal: 0 24px 64px rgba(0,0,0,0.6);
+  /* Behind every modal/sheet/drawer, and over the part of a rail outside
+     its loop region. */
+  --scrim: rgba(0,0,0,0.55);
+  --region-dim: rgba(0,0,0,0.45);
 
   font-size: 14px;
   color-scheme: dark;
@@ -144,8 +168,12 @@
   --automation-text: #8f5d12;  /* automation is amber */
 
   --grid-line: rgba(9,15,25,0.07);
+  --shadow-color: rgba(20,25,35,0.16);
   --elevation-raised: 0 1px 2px rgba(20,25,35,0.12);
   --elevation-overlay: 0 8px 24px rgba(20,25,35,0.18);
+  --elevation-modal: 0 24px 64px rgba(20,25,35,0.24);
+  --scrim: rgba(20,25,35,0.38);
+  --region-dim: rgba(20,25,35,0.12);
 
   color-scheme: light;
 }

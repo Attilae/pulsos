@@ -1,11 +1,11 @@
 .upgrade-overlay {
   position: fixed;
   inset: 0;
-  z-index: 500;
+  z-index: var(--z-modal);
   display: grid;
   place-items: center;
   padding: 20px;
-  background: rgba(2, 3, 2, 0.78);
+  background: var(--scrim);
 }
 
 .upgrade-panel {
@@ -34,7 +34,7 @@
 .upgrade-panel h2 { max-width: 430px; margin: 0; color: var(--text); font-size: 1.65rem; line-height: 1.12; letter-spacing: -.035em; }
 .upgrade-copy { max-width: 440px; margin: 12px 0 22px; color: var(--muted); font-size: var(--fs-sm); line-height: 1.65; }
 .upgrade-features { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin: 0 0 22px; padding: 0; list-style: none; }
-.upgrade-features li { display: flex; align-items: center; gap: 10px; min-height: 54px; padding: 9px 11px; border: 1px solid var(--border); background: rgba(0,0,0,.18); }
+.upgrade-features li { display: flex; align-items: center; gap: 10px; min-height: 54px; padding: 9px 11px; border: 1px solid var(--border); background: color-mix(in srgb, var(--surface-sunken) 60%, transparent); }
 .upgrade-features strong { min-width: 26px; color: var(--accent); font-size: var(--fs-base); text-align: center; }
 .upgrade-features span { color: var(--text-subtle); font-size: var(--fs-2xs); line-height: 1.35; }
 .upgrade-period { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 8px; }

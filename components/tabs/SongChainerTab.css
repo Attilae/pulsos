@@ -88,7 +88,7 @@
 }
 .chain-btn--primary:hover:not(:disabled) { background: var(--accent-tint); }
 .chain-btn--primary.on { border-color: var(--danger); color: var(--danger); }
-.chain-btn--primary.on:hover { background: rgba(240, 64, 64, 0.1); }
+.chain-btn--primary.on:hover { background: var(--danger-tint); }
 .chain-btn--danger { border-color: var(--danger); color: var(--danger); }
 .chain-open {
   background: var(--surface2);
@@ -112,7 +112,7 @@
 }
 .chain-notice--warn {
   color: var(--warning-text);
-  background: rgba(230, 180, 80, 0.08);
+  background: var(--warning-tint);
 }
 
 /* ── Body: picker + chain ─────────────────────────────────────────────── */

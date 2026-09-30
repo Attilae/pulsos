@@ -97,7 +97,7 @@
   position: absolute;
   right: 0;
   top: calc(100% + 6px);
-  z-index: 100;
+  z-index: var(--z-popover);
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 4px;
@@ -194,7 +194,7 @@
   grid-area: header;
   position: sticky;
   top: 0;
-  z-index: 50;
+  z-index: var(--z-sticky);
   background: var(--surface);
   border-bottom: 1px solid var(--border);
   padding: 12px 20px;

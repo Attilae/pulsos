@@ -67,7 +67,7 @@
   padding: 5px 10px;
   font-size: var(--fs-xs);
 }
-.loop-btn--cap:hover:not(:disabled) { background: rgba(240, 64, 64, 0.12); }
+.loop-btn--cap:hover:not(:disabled) { background: var(--danger-tint); }
 
 .loop-mini-btn {
   width: 28px;
@@ -84,7 +84,7 @@
 .loop-mini-btn:hover:not(:disabled) { background: var(--hover-surface); color: var(--text); }
 .loop-mini-btn:disabled { opacity: 0.3; cursor: not-allowed; }
 .loop-mini-btn.on {
-  background: rgba(240, 64, 64, 0.15);
+  background: var(--danger-tint-strong);
   color: var(--danger);
   border-color: var(--danger);
 }

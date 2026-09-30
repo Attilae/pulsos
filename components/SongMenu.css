@@ -74,9 +74,9 @@
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 4px;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+  box-shadow: var(--elevation-overlay);
   padding: 4px;
-  z-index: 100;
+  z-index: var(--z-popover);
 }
 
 .song-menu-item {
@@ -130,9 +130,9 @@
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 4px;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+  box-shadow: var(--elevation-overlay);
   padding: 6px;
-  z-index: 100;
+  z-index: var(--z-popover);
 }
 
 .song-menu-picker-title {
@@ -212,4 +212,4 @@
   cursor: pointer;
   border-radius: 3px;
 }
-.song-menu-row-del:hover { color: var(--danger); background: rgba(240, 64, 64, 0.08); }
+.song-menu-row-del:hover { color: var(--danger); background: var(--danger-tint); }
