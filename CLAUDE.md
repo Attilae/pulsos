@@ -98,6 +98,9 @@ pure-logic modules above — so for anything in `components/`, `app/`, or the au
 `npm run build` is the only automated check that exists. Run it before calling such a change done.
 Actual audio behaviour can only be confirmed by playing it (`npm run dev`); don't report a sound
 change as verified on a green build alone.
+`next build` and `next dev` share `.next/`: running a build while a dev server is up corrupts the
+dev server (every route 500s with `MODULE_NOT_FOUND` on `_document`). Stop the dev server first, or
+restart it with a fresh `.next` afterwards.
 
 ### Environment
 
@@ -288,6 +291,21 @@ playhead) survives the switch instead of resetting. Every tab component takes an
 is individually responsible for pausing itself when hidden — e.g. `MixerTab` stops `TransitEngine`
 mock playback on `active` going false if it was running, since all tabs share one
 `Tone.Transport`/destination, but leaves state untouched for instant resume.
+
+**Design system**: `DESIGN.md` (root; machine-readable sidecar in `.impeccable/design.json`) is the
+visual contract: tokens, named rules, do's and don'ts. The UI conventions it relies on live in code:
+- Tokens are in `app/globals.css`: colours (dark default + `[data-theme="light"]`), the type scale
+  `--fs-3xs`…`--fs-xl` (0.62rem is the readable floor; `--fs-micro` is only for in-rail note/bar
+  labels), `--tracking-*`, `--space-*`, `--radius-*`, the named z-index scale `--z-sticky`…`--z-dialog`,
+  `--scrim`/`--elevation-*`, and `--muted` (text, ≥4.5:1) vs `--muted-line` (borders only). Status
+  hues used as *text* go through `--warning-text`/`--success-text`/`--automation-text`.
+- Icons come from `components/icons.jsx` (Phosphor, imported per icon). Don't use Unicode glyphs
+  (⏻ ⏹ ▶ ✕ ⋯) as icons, and don't put em-dashes in user-facing copy.
+- Every overlay uses `lib/shared/useModal.js` (focus in, Tab trapped, Esc closes the top one, focus
+  returned). A new dialog needs `role="dialog"`, `aria-modal`, a labelled title and that hook.
+- Anything that moves per frame (playheads, step and active-stop highlights, meters) draws on the
+  DOM from `lib/shared/playheadTicker.js` with `transform`, never React state; the event log reads
+  `lib/shared/eventLogStore.js`. A `setState` in a rAF loop re-renders the whole DAW.
 
 #### The main DAW (Map/DAW tab)
 
