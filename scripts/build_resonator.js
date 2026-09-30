@@ -12,8 +12,8 @@
 //                                                scripts/resonator_compare.js
 //
 // Toolchain: a pinned wasi-sdk release (clang + wasm-ld + wasi-libc headers),
-// downloaded once into dsp/resonator/.toolchain/ (gitignored) and verified
-// against the SHA-256 digests below. WASI_SDK_PATH overrides the download with a
+// downloaded once into dsp/.toolchain/ (gitignored) by scripts/lib/wasiSdk.js and
+// verified against the SHA-256 digests there. WASI_SDK_PATH overrides the download with a
 // local install of the same version. wasi-sdk rather than Emscripten because
 // the module must instantiate inside an AudioWorkletGlobalScope with no JS glue:
 // the build links with --no-entry and exports a plain C ABI with zero imports.
@@ -24,33 +24,21 @@
 //   public/wasm/resonator.manifest.json toolchain, flags, source + output hashes
 //   lib/resonatorAsset.js               generated URL/hash constants for the loader
 
-import { createHash } from 'node:crypto'
 import { execFileSync } from 'node:child_process'
 import {
-  createWriteStream, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync,
-  rmSync, unlinkSync, writeFileSync,
+  existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync,
 } from 'node:fs'
-import { tmpdir, platform, arch } from 'node:os'
+import { tmpdir } from 'node:os'
 import { dirname, join, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { Readable } from 'node:stream'
-import { pipeline } from 'node:stream/promises'
+import {
+  WASI_SDK, WASM_FLAGS, ensureToolchain, sha256, toolchainVersion, verifyVendor as verifyVendorDir,
+} from './lib/wasiSdk.js'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const args = new Set(process.argv.slice(2))
 const CHECK = args.has('--check')
 const REFERENCE = args.has('--reference')
-
-const WASI_SDK = {
-  tag: 'wasi-sdk-34',
-  version: '34.0',
-  assets: {
-    'arm64-macos':  'sha256:9c59398106b417f8f14913380fdf0097a8cc0ff4af9eb3ce0065a859e88d49e9',
-    'x86_64-macos': 'sha256:87d27fa8adc68dee59bfbf2e22a6d34ef717c34d6bf1d8af2a56fc929d9ce0eb',
-    'arm64-linux':  'sha256:f7e243dff54d60bcc576e94d6166b69f410f2500ae4a9ceef34315be10e77971',
-    'x86_64-linux': 'sha256:b761e3a0721dbae9c09a0059e5fdb2bf917d1b4a8a7b430fb3b5aafb0984b2c4',
-  },
-}
 
 const VENDOR = join(root, 'vendor', 'rings')
 const VENDOR_SRC = join(VENDOR, 'src')
@@ -76,66 +64,11 @@ const SOURCES = [
 // reference build from fusing multiply-adds that wasm cannot, so the two stay
 // comparable.
 const COMMON_FLAGS = ['-O3', '-DTEST', '-fno-exceptions', '-fno-rtti', '-ffp-contract=off', '-std=c++14', `-I${VENDOR_SRC}`]
-const WASM_FLAGS = [
-  '--target=wasm32-wasip1',
-  '-mcpu=mvp', '-mbulk-memory', '-mnontrapping-fptoint', '-msign-ext', '-mmutable-globals',
-  '-nostartfiles',
-  '-Wl,--no-entry', '-Wl,--gc-sections', '-Wl,--strip-all',
-  '-Wl,-z,stack-size=65536',
-]
-
-const sha256 = (buf) => createHash('sha256').update(buf).digest('hex')
 const rel = (p) => relative(root, p).split('\\').join('/')
 
-function hostKey() {
-  const os = platform() === 'darwin' ? 'macos' : platform() === 'linux' ? 'linux' : null
-  const cpu = arch() === 'arm64' ? 'arm64' : arch() === 'x64' ? 'x86_64' : null
-  if (!os || !cpu) throw new Error(`No pinned wasi-sdk for ${platform()}/${arch()}; set WASI_SDK_PATH`)
-  return `${cpu}-${os}`
-}
-
-async function ensureToolchain() {
-  if (process.env.WASI_SDK_PATH) return process.env.WASI_SDK_PATH
-  const key = hostKey()
-  const name = `wasi-sdk-${WASI_SDK.version}-${key}`
-  const dir = join(DSP_DIR, '.toolchain')
-  const sdk = join(dir, name)
-  if (existsSync(join(sdk, 'bin', 'clang++'))) return sdk
-
-  mkdirSync(dir, { recursive: true })
-  const url = `https://github.com/WebAssembly/wasi-sdk/releases/download/${WASI_SDK.tag}/${name}.tar.gz`
-  const tarball = join(dir, `${name}.tar.gz`)
-  console.log(`downloading ${url}`)
-  const res = await fetch(url)
-  if (!res.ok) throw new Error(`wasi-sdk download failed: ${res.status} ${res.statusText}`)
-  await pipeline(Readable.fromWeb(res.body), createWriteStream(tarball))
-  const digest = `sha256:${sha256(readFileSync(tarball))}`
-  if (digest !== WASI_SDK.assets[key]) {
-    unlinkSync(tarball)
-    throw new Error(`wasi-sdk digest mismatch for ${name}: got ${digest}, expected ${WASI_SDK.assets[key]}`)
-  }
-  execFileSync('tar', ['xzf', tarball, '-C', dir])
-  unlinkSync(tarball)
-  if (platform() === 'darwin') {
-    try { execFileSync('xattr', ['-dr', 'com.apple.quarantine', sdk]) } catch {}
-  }
-  return sdk
-}
-
-// Every vendored file must match vendor/rings/manifest.json; a local patch has to
-// be recorded there (and in vendor/rings/PROVENANCE.md), never slipped in.
+// Every vendored file must match vendor/rings/manifest.json.
 function verifyVendor() {
-  const manifest = JSON.parse(readFileSync(join(VENDOR, 'manifest.json'), 'utf8'))
-  const problems = []
-  for (const f of manifest.files) {
-    const p = join(VENDOR_SRC, f.path)
-    if (!existsSync(p)) { problems.push(`missing ${f.path}`); continue }
-    const got = sha256(readFileSync(p))
-    const want = f.patched ? f.patchedSha256 : f.sha256
-    if (got !== want) problems.push(`modified ${f.path} (not recorded as a patch)`)
-  }
-  if (problems.length) throw new Error(`vendor/rings does not match its manifest:\n  ${problems.join('\n  ')}`)
-  return manifest
+  return verifyVendorDir(VENDOR)
 }
 
 function buildWasm(sdk, outFile) {
@@ -164,10 +97,6 @@ function buildReference() {
     join(DSP_DIR, 'reference.cc'), ...SOURCES.map(s => join(root, s)),
   ], { stdio: 'inherit' })
   console.log(`reference → ${rel(bin)}`)
-}
-
-function toolchainVersion(sdk) {
-  return execFileSync(join(sdk, 'bin', 'clang++'), ['--version']).toString().split('\n')[0].trim()
 }
 
 async function main() {
