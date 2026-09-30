@@ -11,6 +11,7 @@ import { useEntitlements } from '@/lib/shared/EntitlementsContext.jsx'
 import { signOut, useSession } from '../lib/auth-client.js'
 import { useModal } from '@/lib/shared/useModal.js'
 import './HeaderMenu.css'
+import { IconClose, IconExternal } from './icons.jsx'
 
 const LEGAL_ITEMS = [
   { href: '/legal', label: 'Legal overview' },
@@ -89,7 +90,7 @@ export default function HeaderMenu({ startTour, showSessionControls = false }) {
                   ← Back
                 </button>
               ) : <span className="header-menu-kicker">Leið control room</span>}
-              <button type="button" className="header-menu-close" onClick={close} aria-label="Close menu">×</button>
+              <button type="button" className="header-menu-close" onClick={close} aria-label="Close menu"><IconClose /></button>
             </header>
 
             <div className="header-menu-scroll">
@@ -126,7 +127,7 @@ function GuestMenu({ onDone, onStartTour }) {
       <AuthForm className="header-menu-auth-form" onDone={onDone} />
       <MenuDivider label="Explore" />
       <button type="button" className="header-menu-item" onClick={onStartTour}>
-        <span>Take the tour</span><span aria-hidden="true">↗</span>
+        <span>Take the tour</span><IconExternal />
       </button>
       <SoundCheckItem onDone={onDone} />
       <LegalItems />
@@ -165,7 +166,7 @@ function AuthenticatedMenu({ user, view, onNavigate, onClose, onStartTour }) {
 
       <MenuDivider label="Explore" />
       <button type="button" className="header-menu-item" onClick={onStartTour}>
-        <span>Take the tour</span><span aria-hidden="true">↗</span>
+        <span>Take the tour</span><IconExternal />
       </button>
       <SoundCheckItem onDone={onClose} />
       <LegalItems />
@@ -188,7 +189,7 @@ function SoundCheckItem({ onDone }) {
       className="header-menu-item"
       onClick={() => { onDone?.(); openSoundCheck('manual') }}
     >
-      <span>Sound problems?</span><span aria-hidden="true">↗</span>
+      <span>Sound problems?</span><IconExternal />
     </button>
   )
 }
@@ -213,7 +214,7 @@ function LegalItems() {
       <nav className="header-menu-legal" aria-label="Legal documents">
         {LEGAL_ITEMS.map(item => (
           <Link key={item.href} href={item.href}>
-            {item.label}<span aria-hidden="true">↗</span>
+            {item.label}<IconExternal />
           </Link>
         ))}
       </nav>
@@ -226,7 +227,7 @@ function LegalItems() {
 function FeedbackItem() {
   return (
     <Link href="/feedback" className="header-menu-item">
-      <span>Feedback &amp; bug reports</span><span aria-hidden="true">↗</span>
+      <span>Feedback &amp; bug reports</span><IconExternal />
     </Link>
   )
 }

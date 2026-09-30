@@ -10,6 +10,7 @@
 
 import { useEffect, useRef } from 'react'
 import * as Tone from 'tone'
+import { IconPlay, IconStop } from '../icons.jsx'
 
 export default function MobileTransportBar({
   started,
@@ -63,7 +64,7 @@ export default function MobileTransportBar({
             data-tour="transport"
             aria-label={started ? 'Stop' : 'Play'}
           >
-            {started ? '⏹' : '▶'}
+            {started ? <IconStop /> : <IconPlay />}
           </button>
 
           <div className="mtransport-bpm">

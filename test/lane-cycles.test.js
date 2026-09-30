@@ -272,7 +272,7 @@ test('formatBars: fractions stay fractions', () => {
   assert.equal(formatBars(0.5), '1/2')
   assert.equal(formatBars(3.5), '3 1/2')
   assert.equal(formatBars(8 / 3), '2 2/3')
-  assert.equal(formatBars(0), '—')
+  assert.equal(formatBars(0), '-')
 })
 
 test('describeSnapshotLoops: a loop rest pattern stretches the realign point', () => {

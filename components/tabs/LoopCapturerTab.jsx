@@ -193,7 +193,7 @@ export default function LoopCapturerTab({ active = true }) {
       {/* ── Live recorder ───────────────────────────────────────────────── */}
       <section className="loop-live">
         <div className="loop-live-meta">
-          <span className="loop-live-label">Recording — {BARS} bars</span>
+          <span className="loop-live-label">Recording {BARS} bars</span>
           <span className="loop-live-count">{liveNotes.length} notes</span>
           <button
             className={`loop-mini-btn ${liveMute ? 'on' : ''}`}

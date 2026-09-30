@@ -15,6 +15,7 @@ import { useCallback, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { useModal } from '@/lib/shared/useModal.js'
 import './Sheet.css'
+import { IconClose } from './icons.jsx'
 
 const DISMISS_DISTANCE = 90   // px dragged down before a release closes the sheet
 const DISMISS_VELOCITY = 0.6  // px/ms — a quick flick closes from any distance
@@ -119,7 +120,7 @@ export default function Sheet({
 
         <header className="sheet-head">
           {title && <h2 className="sheet-title">{title}</h2>}
-          <button type="button" className="sheet-close" onClick={close} aria-label="Close">×</button>
+          <button type="button" className="sheet-close" onClick={close} aria-label="Close"><IconClose /></button>
         </header>
 
         {toolbar && <div className="sheet-toolbar">{toolbar}</div>}

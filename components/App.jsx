@@ -112,7 +112,7 @@ export default function App() {
           <h1
             className="app-title"
             data-tour="title"
-            title={'Leið (say "layth") — Icelandic for route, and for the way. In Reykjavík, every bus line is a leið. Here, so is every song.'}
+            title={'Leið (say "layth"): Icelandic for route, and for the way. In Reykjavík, every bus line is a leið. Here, so is every song.'}
           >
             Leið<span className="app-title-say">layth</span>
           </h1>

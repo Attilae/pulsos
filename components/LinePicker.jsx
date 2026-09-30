@@ -15,6 +15,7 @@ import { useCallback, useId, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useModal } from '@/lib/shared/useModal.js'
 import './LinePicker.css'
+import { IconClose } from './icons.jsx'
 
 const SECTIONS = [
   { type: 'metro',   label: 'Metro' },
@@ -77,7 +78,7 @@ export default function LinePicker({
       >
         <div className="line-picker-head">
           <h2 id={titleId} className="dlg-title">{title}</h2>
-          <button className="line-picker-close" onClick={onClose} title="Close" aria-label="Close">✕</button>
+          <button className="line-picker-close" onClick={onClose} title="Close" aria-label="Close"><IconClose /></button>
         </div>
 
         <div className="line-picker-controls">

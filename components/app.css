@@ -224,8 +224,8 @@
 .mode-btn:hover:not(.active) { background: var(--hover-surface); color: var(--text); }
 
 .ws-status { font-size: var(--fs-xs); }
-.ws-status--connected    { color: var(--success); }
-.ws-status--disconnected { color: var(--warning); }
+.ws-status--connected    { color: var(--success-text); }
+.ws-status--disconnected { color: var(--warning-text); }
 .ws-status--error        { color: var(--danger); }
 
 .bpm-control {
@@ -250,6 +250,16 @@
   color: var(--accent);
   white-space: nowrap;
   letter-spacing: var(--tracking-tight);
+}
+/* Real state (lanes disagree on key), so a status dot is earned here. */
+.harmony-mixed-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 4px;
+  border-radius: var(--radius-pill);
+  background: currentColor;
+  vertical-align: 0.05em;
 }
 
 .transport-btn {
@@ -450,7 +460,7 @@
   border-radius: 3px;
   flex-shrink: 0;
 }
-.mute-btn.active { background: color-mix(in srgb, var(--warning) 16%, transparent); border-color: var(--warning); color: var(--warning); }
+.mute-btn.active { background: color-mix(in srgb, var(--warning) 16%, transparent); border-color: var(--warning); color: var(--warning-text); }
 
 .disable-btn {
   width: 30px; height: 30px;
@@ -463,7 +473,7 @@
   border-radius: 3px;
   flex-shrink: 0;
 }
-.disable-btn.active { background: color-mix(in srgb, var(--warning) 16%, transparent); border-color: var(--warning); color: var(--warning); }
+.disable-btn.active { background: color-mix(in srgb, var(--warning) 16%, transparent); border-color: var(--warning); color: var(--warning-text); }
 
 .volume-slider {
   -webkit-appearance: none;

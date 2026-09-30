@@ -17,6 +17,7 @@ import { createPortal } from 'react-dom'
 import { useModal } from '@/lib/shared/useModal.js'
 import { LANE_TAG_PRESETS, LANE_TAG_COLORS, LANE_TAG_MAX_LEN, normalizeLaneTag } from '@/lib/laneTags.js'
 import './LaneTagEditor.css'
+import { IconClose } from './icons.jsx'
 
 /**
  * The label controls. `onChange` takes a partial patch ({ text } / { color } /
@@ -102,7 +103,7 @@ export default function LaneTagEditor({ routeName, tag, onChange, onClose }) {
       >
         <div className="lane-tag-editor-head">
           <h2 id={titleId} className="dlg-title">Label · {routeName}</h2>
-          <button className="lane-tag-editor-close" onClick={onClose} title="Close" aria-label="Close">✕</button>
+          <button className="lane-tag-editor-close" onClick={onClose} title="Close" aria-label="Close"><IconClose /></button>
         </div>
         <p className="lane-tag-editor-hint">
           Name this lane by what it plays. The colour marks the lane box.

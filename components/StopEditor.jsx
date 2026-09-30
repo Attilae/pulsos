@@ -16,6 +16,7 @@ import { createPortal } from 'react-dom'
 import { useModal } from '@/lib/shared/useModal.js'
 import { shiftSemitones, transposeNoteInScale } from '@/lib/mappings.js'
 import './StopEditor.css'
+import { IconClose } from './icons.jsx'
 
 const DEGREE_LIMIT = 14   // ±2 octaves of diatonic steps
 
@@ -85,7 +86,7 @@ export default function StopEditor({ editingStop, onClose, onPitch, onVelocity, 
       >
         <div className="stop-editor-head">
           <h2 id={titleId} className="dlg-title">{stopName || 'Stop'}</h2>
-          <button className="stop-editor-close" onClick={onClose} title="Close" aria-label="Close">✕</button>
+          <button className="stop-editor-close" onClick={onClose} title="Close" aria-label="Close"><IconClose /></button>
         </div>
 
         <div className="stop-editor-row">

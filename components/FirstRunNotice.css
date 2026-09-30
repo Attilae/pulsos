@@ -18,11 +18,11 @@
   line-height: 1.55;
   color: var(--text-subtle);
   padding: var(--space-150);
-  border-left: 2px solid var(--warning);
+  border: 1px solid color-mix(in srgb, var(--warning) 40%, transparent);
   border-radius: var(--radius-sm);
   background: color-mix(in srgb, var(--warning) 10%, transparent);
 }
-.intro-warn strong { color: var(--warning); }
+.intro-warn strong { color: var(--warning-text); }
 
 .intro-btn {
   flex: 1;

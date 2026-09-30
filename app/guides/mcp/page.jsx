@@ -63,7 +63,7 @@ export default function McpGuidePage() {
         <ol>
           <li>
             Copy the server URL: <code>{MCP_URL}</code>. It is also shown in Leið under the
-            <strong> ⋯</strong> menu → <strong>Connect an AI client</strong>.
+            <strong> menu</strong> (top right) → <strong>Connect an AI client</strong>.
           </li>
           <li>
             In Claude, open <strong>Settings → Connectors → Add custom connector</strong>, name it
@@ -118,7 +118,7 @@ export default function McpGuidePage() {
           prompts stay with your AI client under its own terms.
         </p>
         <p>
-          To disconnect, open <strong>⋯ → Connect an AI client</strong> in Leið and choose
+          To disconnect, open <strong>menu → Connect an AI client</strong> in Leið and choose
           <strong> Disconnect</strong> next to the client. Its access is revoked at once, even if it
           still holds an unexpired token. See the <a href="/privacy">privacy notice</a> for the rest.
         </p>

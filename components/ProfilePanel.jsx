@@ -21,6 +21,7 @@ import { confirmDialog } from './Dialog.jsx'
 import { useEntitlements } from '@/lib/shared/EntitlementsContext.jsx'
 import { trackProductEvent } from '@/lib/productAnalytics.js'
 import './ProfilePanel.css'
+import { IconClose } from './icons.jsx'
 
 export default function ProfilePanel({ onClose }) {
   const { data: session } = useSession()
@@ -40,7 +41,7 @@ export default function ProfilePanel({ onClose }) {
       <div className="profile-panel" onPointerDown={e => e.stopPropagation()}>
         <header className="profile-header">
           <h2>Profile</h2>
-          <button className="profile-close" onClick={onClose} aria-label="Close">✕</button>
+          <button className="profile-close" onClick={onClose} aria-label="Close"><IconClose /></button>
         </header>
 
         <div className="profile-scroll">
@@ -429,14 +430,14 @@ export function SecuritySection() {
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 function formatDate(d) {
-  if (!d) return '—'
+  if (!d) return 'Unknown'
   const date = d instanceof Date ? d : new Date(d)
-  if (Number.isNaN(date.getTime())) return '—'
+  if (Number.isNaN(date.getTime())) return 'Unknown'
   return date.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })
 }
 
 function formatRelative(ts) {
-  if (!ts) return '—'
+  if (!ts) return 'Unknown'
   const diff = Date.now() - ts
   if (diff < 60_000) return 'just now'
   if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}m ago`

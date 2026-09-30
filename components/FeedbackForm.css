@@ -81,7 +81,7 @@
 
 .feedback-kind--on {
   border-color: var(--legal-accent, var(--accent));
-  box-shadow: inset 3px 0 0 var(--legal-accent, var(--accent));
+  background: var(--accent-tint);
 }
 
 .feedback-kind:focus-within {

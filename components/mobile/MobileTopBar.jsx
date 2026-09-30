@@ -2,6 +2,8 @@
 // stage — the desktop equivalent is an 11-control sticky row that wraps to six.
 'use client'
 
+import { IconCaretDown } from '../icons.jsx'
+
 export default function MobileTopBar({ cityName, songName, onSong, onMore, harmonyMixed }) {
   return (
     <header className="mtopbar">
@@ -9,7 +11,7 @@ export default function MobileTopBar({ cityName, songName, onSong, onMore, harmo
 
       <button type="button" className="mtopbar-song" onClick={onSong}>
         <span className="mtopbar-song-name">{songName}</span>
-        <span aria-hidden="true">▾</span>
+        <IconCaretDown />
       </button>
 
       <button type="button" className="mtopbar-more" onClick={onMore} aria-label="Session settings">

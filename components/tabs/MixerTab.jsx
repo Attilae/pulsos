@@ -37,6 +37,7 @@ import { pushEvents, clearEvents } from '@/lib/shared/eventLogStore.js'
 import AudioTroubleshooter from '../AudioTroubleshooter.jsx'
 import MobileDaw from '../mobile/MobileDaw.jsx'
 import { useIsPhone } from '@/lib/shared/useViewport.js'
+import { IconClose, IconDownload, IconMusic, IconPlay, IconRepick, IconStop } from '../icons.jsx'
 
 // Leaflet + maplibre-gl are the heaviest client deps after Tone, and the DAW view
 // is the default, so the map ships as its own chunk. ssr:false matches the page.
@@ -2066,7 +2067,7 @@ export default function MixerTab({ active = true }) {
             className="preset-warning-close"
             onClick={() => setPresetWarning(null)}
             aria-label="Dismiss"
-          >×</button>
+          ><IconClose /></button>
         </div>
       )}
       {!isPhone && (
@@ -2127,8 +2128,8 @@ export default function MixerTab({ active = true }) {
           {harmonyMixed && (
             <span
               className="harmony-mixed-indicator"
-              title="Lanes are not all in the same harmony — pick a value to re-sync them all"
-            >● Mixed</span>
+              title="Lanes are not all in the same harmony. Pick a value to re-sync them all"
+            ><span className="harmony-mixed-dot" aria-hidden="true" /> Mixed</span>
           )}
         </div>
 
@@ -2138,7 +2139,7 @@ export default function MixerTab({ active = true }) {
           onClick={handleRepickAll}
           disabled={started || !routes}
           title="Randomly re-select all tram, trolley and bus lines"
-        >↻ Re-pick all</button>
+        ><IconRepick /> Re-pick all</button>
 
         <button
           type="button"
@@ -2146,15 +2147,15 @@ export default function MixerTab({ active = true }) {
           onClick={handleExportMixMidi}
           disabled={!canExportMix}
           title="Download multi-track MIDI (session if recorded, else 4-bar loop of audible lines)"
-        >↓ MIDI</button>
+        ><IconDownload /> MIDI</button>
 
         <button
           type="button"
           className="midi-export-btn midi-export-btn--global"
           onClick={handleExportMixAudio}
           disabled={!started || audioExporting}
-          title="Record the live mix to a WAV file (real-time capture — play first)"
-        >{audioExporting ? `↓ WAV ${Math.round(audioProgress * 100)}%` : '↓ WAV'}</button>
+          title="Record the live mix to a WAV file (real-time capture, so play first)"
+        ><IconDownload /> {audioExporting ? `WAV ${Math.round(audioProgress * 100)}%` : 'WAV'}</button>
 
         <div className="bpm-control">
           <label htmlFor="mixer-bpm">BPM</label>
@@ -2173,7 +2174,7 @@ export default function MixerTab({ active = true }) {
             className="drums-import-btn"
             onClick={handleImportDrums}
             title="Add the pattern sent from the Drum Machine tab"
-          >♪ {drumPattern ? 'Update drums' : 'Add drums'}</button>
+          ><IconMusic /> {drumPattern ? 'Update drums' : 'Add drums'}</button>
         ) : null}
 
         <button
@@ -2181,7 +2182,7 @@ export default function MixerTab({ active = true }) {
           data-tour="transport"
           onClick={handlePlayPause}
         >
-          {started ? '⏹ Stop' : '▶ Play'}
+          {started ? <><IconStop /> Stop</> : <><IconPlay /> Play</>}
         </button>
 
         {needsGesture && (

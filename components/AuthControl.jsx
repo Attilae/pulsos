@@ -54,7 +54,7 @@ export function AuthForm({ onDone, className = '', callbackURL = '/' }) {
       )}
       <button
         className="auth-btn auth-btn--ghost"
-        onClick={() => run('magic', (addr) => authClient.signIn.magicLink({ email: addr, callbackURL }), 'Magic link sent — check your email.')}
+        onClick={() => run('magic', (addr) => authClient.signIn.magicLink({ email: addr, callbackURL }), 'Magic link sent. Check your email.')}
       >
         Email me a magic link
       </button>

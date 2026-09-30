@@ -37,7 +37,7 @@ export default function McpSignInPage() {
       <p className={styles.lede}>Sign in to your Leið account to continue connecting your AI client.</p>
       <ClientChip clientId={clientId} />
       {session?.user
-        ? <p className={styles.status}>Signed in — continuing authorization…</p>
+        ? <p className={styles.status}>Signed in. Continuing authorization…</p>
         : <AuthForm
             className={styles.authForm}
             onDone={() => window.location.assign(`/api/auth/oauth2/authorize${window.location.search}`)}

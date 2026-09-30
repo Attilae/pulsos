@@ -13,6 +13,7 @@ import { SongChainPlayer } from '@/lib/songChainPlayer.js'
 import ChainItemLoops from './ChainItemLoops.jsx'
 import { confirmDialog } from '../Dialog.jsx'
 import './SongChainerTab.css'
+import { IconClose, IconMoveDown, IconMoveUp, IconPlay, IconStop } from '../icons.jsx'
 
 const DEFAULT_BARS = 8
 
@@ -318,7 +319,7 @@ export default function SongChainerTab({ active = true }) {
           onClick={handlePlayStop}
           disabled={!items.length}
         >
-          {playing ? '⏹ Stop' : '▶ Play'}
+          {playing ? <><IconStop /> Stop</> : <><IconPlay /> Play</>}
         </button>
 
         <div className="chain-menu">
@@ -347,7 +348,7 @@ export default function SongChainerTab({ active = true }) {
       )}
       {cityMismatch && (
         <div className="chain-notice chain-notice--warn">
-          This song was made for a different city — its presets reference routes that
+          This song was made for a different city: its presets reference routes that
           aren't loaded now, so it may play silently. Switch back to the original city.
         </div>
       )}
@@ -427,9 +428,9 @@ export default function SongChainerTab({ active = true }) {
                   )}
 
                   <div className="chain-item-actions">
-                    <button className="chain-icon" onClick={() => moveItem(idx, -1)} disabled={idx === 0} title="Move up" aria-label={`Move ${it.presetName} up`}>↑</button>
-                    <button className="chain-icon" onClick={() => moveItem(idx, +1)} disabled={idx === items.length - 1} title="Move down" aria-label={`Move ${it.presetName} down`}>↓</button>
-                    <button className="chain-icon chain-icon--danger" onClick={() => removeItem(idx)} title="Remove" aria-label={`Remove ${it.presetName}`}>✕</button>
+                    <button className="chain-icon" onClick={() => moveItem(idx, -1)} disabled={idx === 0} title="Move up" aria-label={`Move ${it.presetName} up`}><IconMoveUp /></button>
+                    <button className="chain-icon" onClick={() => moveItem(idx, +1)} disabled={idx === items.length - 1} title="Move down" aria-label={`Move ${it.presetName} down`}><IconMoveDown /></button>
+                    <button className="chain-icon chain-icon--danger" onClick={() => removeItem(idx)} title="Remove" aria-label={`Remove ${it.presetName}`}><IconClose /></button>
                   </div>
                 </div>
 

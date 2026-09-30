@@ -14,6 +14,7 @@ import {
   describeSnapshotLoops, buildLoopBricks, suggestBarOptions, formatBars,
 } from '@/lib/laneCycles.js'
 import { loopPlays, formatLoopPattern } from '@/lib/laneGating.js'
+import { IconCheck } from '../icons.jsx'
 
 // Beyond this the strip is taller than the row it explains; the rest collapse
 // into a count. Chosen to comfortably clear the Free plan's 6-lane cap.
@@ -26,7 +27,7 @@ function LaneRow({ lane, barCount }) {
   const length = formatBars(lane.loopBars)
   const title  = `${lane.name} · loops every ${length} bar${lane.loopBars === 1 ? '' : 's'}`
     + (lane.pattern ? ` · pattern ${formatLoopPattern(lane.pattern)} (rests are faded)` : '')
-    + (bricks.aligned ? '' : ' — cut mid-loop by this part')
+    + (bricks.aligned ? '' : ', cut mid-loop by this part')
 
   return (
     <div className="chain-loop-lane" title={title}>
@@ -78,7 +79,7 @@ export default function ChainItemLoops({
 
   if (snapshot === undefined) return <div className="chain-loops chain-loops--pending">loading…</div>
   if (snapshot === null)      return <div className="chain-loops chain-loops--pending">preset unavailable</div>
-  if (info.unknownLanes)      return <div className="chain-loops chain-loops--pending">older song — lane list not recorded</div>
+  if (info.unknownLanes)      return <div className="chain-loops chain-loops--pending">Older song: lane list not recorded</div>
   if (!info.lanes.length)     return <div className="chain-loops chain-loops--pending">no active lanes</div>
 
   const barCount = Math.max(1, Math.round(bars || 1))
@@ -129,9 +130,9 @@ export default function ChainItemLoops({
         {hidden > 0 && <span className="chain-loops-more">+{hidden} more lane{hidden === 1 ? '' : 's'}</span>}
 
         {unbounded ? (
-          <span>Lanes never fully realign — no common cycle under 256 bars.</span>
+          <span>Lanes never fully realign: no common cycle under 256 bars.</span>
         ) : suggestedBars == null ? null : alignedHere ? (
-          <span className="chain-loops-ok">✓ All lanes end together at {barCount} bars.</span>
+          <span className="chain-loops-ok"><IconCheck /> All lanes end together at {barCount} bars.</span>
         ) : (
           <span>
             Lanes realign every <strong>{suggestedBars}</strong> bar{suggestedBars === 1 ? '' : 's'}.
@@ -146,7 +147,7 @@ export default function ChainItemLoops({
                 type="button"
                 className="chain-snap-chip"
                 onClick={() => onSnapBars?.(n)}
-                title={`Set this part to ${n} bars — every lane ends flush`}
+                title={`Set this part to ${n} bars so every lane ends flush`}
               >
                 {n}
               </button>
