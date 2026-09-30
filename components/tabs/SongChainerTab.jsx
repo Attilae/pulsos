@@ -46,6 +46,7 @@ export default function SongChainerTab({ active = true }) {
   const [loadedCityId,  setLoadedCityId]  = useState(null)
 
   const [playing, setPlaying] = useState(false)
+  const [playError, setPlayError] = useState(null)   // a section's instruments failed to load
   const [currentIndex, setCurrentIndex] = useState(-1)
   // Section progress is written straight to the bar (transform: scaleX), not
   // React state: the player reports it every animation frame, and state here
@@ -85,6 +86,10 @@ export default function SongChainerTab({ active = true }) {
       if (idx === -1) { setPlaying(false); setProgress(0) }
     }
     player.onProgress = setProgress
+    player.onError = (err) => {
+      setPlaying(false); setCurrentIndex(-1); setProgress(0)
+      setPlayError(err?.message ?? 'A section could not be prepared, so playback stopped.')
+    }
     playerRef.current = player
 
     return () => {
@@ -188,6 +193,7 @@ export default function SongChainerTab({ active = true }) {
     p.setRoutes(routes ?? [])
     p.setChain(playableItems, bpm)
     p.setLoop(loop)
+    setPlayError(null)
     setPlaying(true)
     await p.play()
   }, [playing, items, itemLimit, bpm, loop, routes])
@@ -345,6 +351,9 @@ export default function SongChainerTab({ active = true }) {
 
       {!signedIn && (
         <div className="chain-notice">Sign in to load your presets and save songs.</div>
+      )}
+      {playError && (
+        <div className="chain-notice chain-notice--warn" role="alert">{playError}</div>
       )}
       {cityMismatch && (
         <div className="chain-notice chain-notice--warn">

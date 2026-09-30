@@ -391,6 +391,13 @@
 }
 .rack-card--sound { --rack-domain: var(--info); }
 .rack-card--rhythm { --rack-domain: var(--automation); }
+.rack-card-note {
+  margin: 0;
+  font-size: var(--fs-2xs);
+  line-height: 1.4;
+  color: var(--muted);
+}
+
 .rack-card-head {
   display: flex;
   align-items: center;

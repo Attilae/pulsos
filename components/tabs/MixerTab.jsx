@@ -2,7 +2,8 @@ import dynamic from 'next/dynamic'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import * as Tone from 'tone'
 import { TransitEngine, SYNTH_DEFAULTS, availableAutomationTargets, DEFAULT_ARP, DEFAULT_GRANULAR, DEFAULT_SIDECHAIN, SIDECHAIN_ANY_DRUM, SIDECHAIN_PAD_SOURCES, DEFAULT_PITCH_VARIETY, DRUMS_ROUTE_ID } from '@/lib/engine.js'
-import { DEFAULT_FX_TRACKS } from '@/lib/soundSpecs.js'
+import { DEFAULT_FX_TRACKS, usesResonator } from '@/lib/soundSpecs.js'
+import { warmResonatorAsset } from '@/lib/resonatorLoader.js'
 import { FX_BUSES } from '@/lib/fxTrack.js'
 import { randomFromScale, shiftOctaveNote, geoToMidi, routeBounds, midiToNote, noteToMidi, SCALES, MODES, setCityBounds } from '@/lib/mappings.js'
 import { fetchLines } from '@/lib/shared/useRoutes.js'
@@ -397,6 +398,11 @@ export default function MixerTab({ active = true }) {
   const [snapshotLoading, setSnapshotLoading] = useState(false)
   // Lanes a loaded song referenced that this city's route data no longer has.
   const [presetWarning, setPresetWarning] = useState(null)
+  // An instrument that couldn't load (the Resonator's DSP): { message }.
+  const [soundError, setSoundError] = useState(null)
+  // Per-lane request tokens for synth swaps that have to wait for a load, so a
+  // quick second change can't be overwritten by the first one finishing late.
+  const synthRequestRef = useRef({})
   // Bumped to re-run the city effect after a failed preset load, so the user lands
   // on a normal randomly-picked session instead of an empty screen.
   const [cityNonce, setCityNonce] = useState(0)
@@ -671,6 +677,7 @@ export default function MixerTab({ active = true }) {
     })
     engine.init()
     engine.setMidiRecorder(recorder)
+    engine.onSoundError = (err) => setSoundError({ message: err?.message ?? 'An instrument could not be loaded.' })
     // The weq8 curve editor mutates the EQ runtime directly; mirror each change
     // back into React state so autosave/persistence stays in sync.
     engine.setOnRouteEqChange((routeId, spec) => {
@@ -800,6 +807,21 @@ export default function MixerTab({ active = true }) {
     if (mode === 'live') fetchSnapshot()
   }, [mode]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Load whatever the lanes' instruments need (the Resonator's DSP) before the
+  // engine builds them. Reports and returns false on failure so playback stays
+  // stopped with an explanation instead of starting with a silent lane.
+  const prepareLaneSounds = useCallback(async (synthTypes) => {
+    const engine = engineRef.current
+    if (!engine || engine.soundsReady(synthTypes)) return true
+    try {
+      await engine.prepareSounds(synthTypes)
+      return true
+    } catch (err) {
+      setSoundError({ message: err?.message ?? 'An instrument could not be loaded.' })
+      return false
+    }
+  }, [])
+
   const handlePlayPause = async () => {
     const engine = engineRef.current
     if (!engine) return
@@ -825,6 +847,8 @@ export default function MixerTab({ active = true }) {
       await engine.start()
       setNeedsGesture(false)
       setNoOutput(false)
+      if (!(await prepareLaneSounds(trackSynthTypes))) return
+      setSoundError(null)
 
       // Start silent, fade in after transport starts
       Tone.getDestination().volume.value = -80
@@ -872,6 +896,7 @@ export default function MixerTab({ active = true }) {
           setNeedsGesture(true)
           return
         }
+        if (!(await prepareLaneSounds(trackSynthTypes)) || cancelled) return
         Tone.getDestination().volume.value = -80
         const smMap = {}
         for (const [rid, soundMode] of Object.entries(trackSoundModes)) {
@@ -1013,17 +1038,29 @@ export default function MixerTab({ active = true }) {
   }, [])
 
   const handleSynthType = useCallback((routeId, routeType, synthType) => {
-    setTrackSynthTypes(s => ({ ...s, [routeId]: synthType }))
-    const defaults = { ...SYNTH_DEFAULTS[synthType] }
-    setTrackADSRs(a => ({ ...a, [routeId]: defaults }))
-    engineRef.current?.setSynthType(routeId, routeType, synthType, defaults)
+    const token = (synthRequestRef.current[routeId] ?? 0) + 1
+    synthRequestRef.current[routeId] = token
+    const apply = () => {
+      setTrackSynthTypes(s => ({ ...s, [routeId]: synthType }))
+      const defaults = { ...SYNTH_DEFAULTS[synthType] }
+      setTrackADSRs(a => ({ ...a, [routeId]: defaults }))
+      engineRef.current?.setSynthType(routeId, routeType, synthType, defaults)
 
-    // e.g. an FM-only param lane after switching to Drums
-    const validIds = new Set(availableAutomationTargets(
-      synthType, activeFxTracks, !!trackGranulars[routeId]?.enabled
-    ).map(t => t.id))
-    resetInvalidAutomationLanes(routeId, validIds)
-  }, [activeFxTracks, trackGranulars, resetInvalidAutomationLanes])
+      // e.g. an FM-only param lane after switching to Drums
+      const validIds = new Set(availableAutomationTargets(
+        synthType, activeFxTracks, !!trackGranulars[routeId]?.enabled
+      ).map(t => t.id))
+      resetInvalidAutomationLanes(routeId, validIds)
+    }
+    const engine = engineRef.current
+    if (!engine || engine.soundsReady([synthType])) { apply(); return }
+    // The new instrument has to load first. The lane keeps its current sound
+    // (and its picker keeps showing it) until then; a failed load changes nothing.
+    // Bulk paths (AI apply, song open) prepare up front and never land here.
+    prepareLaneSounds([synthType]).then((ok) => {
+      if (ok && synthRequestRef.current[routeId] === token) apply()
+    })
+  }, [activeFxTracks, trackGranulars, resetInvalidAutomationLanes, prepareLaneSounds])
 
   const handleADSR = useCallback((routeId, params) => {
     setTrackADSRs(a => {
@@ -1658,6 +1695,13 @@ export default function MixerTab({ active = true }) {
       stoppingRef.current = false
     }
 
+    // A plan that picks the Resonator needs its DSP before the handlers below run,
+    // so handleSynthType takes its synchronous path and the plan's tone lands on
+    // the new instrument instead of racing the load.
+    if (usesResonator((plan.tracks ?? []).map(t => t.synthType)) && !(await prepareLaneSounds(['Resonator']))) {
+      throw new Error('The Resonator instrument could not be loaded, so the plan was not applied. Try again in a moment.')
+    }
+
     const replacement = buildReplacementLaneState(
       visibleInstrumentRoutes,
       plan.tracks.map(track => track.routeId),
@@ -1768,6 +1812,7 @@ export default function MixerTab({ active = true }) {
     handleDroneMode, handleDroneRoot, handleAddFxTrack, handleFxBusWet,
     handleFxBusParam, handleSendLevel, handleTrackSpeed, handleTrackLoopRegion,
     handleTrackGridResolution, handlePitchVariety, handleNoteChance, handleNoteLength, handleLoopPattern,
+    prepareLaneSounds,
   ])
 
   const midiExportCtx = useMemo(() => ({
@@ -1954,6 +1999,8 @@ export default function MixerTab({ active = true }) {
     if (!raw) return null
     const target = raw.cityId ?? song?.cityId ?? cityIdRef.current
     const targetEntry = getCityEntry(target)
+    // Start downloading the Resonator's DSP now; Play awaits it (prepareLaneSounds).
+    if (usesResonator(raw.trackSynthTypes)) warmResonatorAsset()
 
     // Stop playback before the engine is disposed underneath it.
     if (startedRef.current) {
@@ -2066,6 +2113,17 @@ export default function MixerTab({ active = true }) {
             type="button"
             className="preset-warning-close"
             onClick={() => setPresetWarning(null)}
+            aria-label="Dismiss"
+          ><IconClose /></button>
+        </div>
+      )}
+      {soundError && (
+        <div className="preset-warning" role="alert">
+          <span>{soundError.message}</span>
+          <button
+            type="button"
+            className="preset-warning-close"
+            onClick={() => setSoundError(null)}
             aria-label="Dismiss"
           ><IconClose /></button>
         </div>
@@ -2401,6 +2459,8 @@ export default function MixerTab({ active = true }) {
             noteLengths: trackNoteLengths,
             stopChances: trackStopChances,
             loopPatterns: trackLoopPatterns,
+            adsrs: trackADSRs,
+            granulars: trackGranulars,
             sidechains: trackSidechains,
             sidechainSources,
             sendMatrix,
@@ -2410,6 +2470,7 @@ export default function MixerTab({ active = true }) {
             onVolume: handleVolume,
             onPan: handlePan,
             onSynthType: handleSynthType,
+            onADSR: handleADSR,
             onScale: handleScale,
             onOctaveShift: handleOctaveShift,
             onPitchVariety: handlePitchVariety,
