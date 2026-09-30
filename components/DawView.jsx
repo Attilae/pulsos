@@ -1168,9 +1168,9 @@ function LineTrack({
             <div className="rack-card-head">Expression</div>
             <div className="octave-row">
               <span className="octave-label">OCT</span>
-              <button className="octave-btn" onClick={() => onOctaveShift(Math.max(-2, octaveShift - 1))}>−</button>
+              <button className="octave-btn" onClick={() => onOctaveShift(Math.max(-4, octaveShift - 1))}>−</button>
               <span className="octave-val">{octaveShift >= 0 ? `+${octaveShift}` : octaveShift}</span>
-              <button className="octave-btn" onClick={() => onOctaveShift(Math.min(2, octaveShift + 1))}>+</button>
+              <button className="octave-btn" onClick={() => onOctaveShift(Math.min(4, octaveShift + 1))}>+</button>
             </div>
             {synthType !== 'Resonator' && <div className="glide-row">
               <span className="glide-label">GLIDE</span>

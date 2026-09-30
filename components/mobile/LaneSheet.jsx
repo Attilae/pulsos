@@ -206,9 +206,9 @@ export default function LaneSheet({
 
             <Field label="Octave">
               <div className="lsheet-stepper">
-                <button type="button" onClick={() => onOctaveShift(route.id, Math.max(-2, octave - 1))} aria-label="Octave down">−</button>
+                <button type="button" onClick={() => onOctaveShift(route.id, Math.max(-4, octave - 1))} aria-label="Octave down">−</button>
                 <span className="mono">{octave > 0 ? `+${octave}` : octave}</span>
-                <button type="button" onClick={() => onOctaveShift(route.id, Math.min(2, octave + 1))} aria-label="Octave up">+</button>
+                <button type="button" onClick={() => onOctaveShift(route.id, Math.min(4, octave + 1))} aria-label="Octave up">+</button>
               </div>
             </Field>
           </section>
