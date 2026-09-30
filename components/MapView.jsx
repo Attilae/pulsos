@@ -227,9 +227,10 @@ function MapView({
     return { routesByType: byType, allRoutes: LAYERS.flatMap(l => byType[l.type]) }
   }, [routes]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // rAF loop — only runs in mock mode while playing
+  // rAF loop — only runs in mock mode while playing, and only while the map is
+  // the visible view (MixerTab keeps MapView mounted but hidden in the DAW view).
   useEffect(() => {
-    if (!started || mode !== 'mock' || !routes) {
+    if (!active || !started || mode !== 'mock' || !routes) {
       setPlayheadPositions({})
       return
     }
@@ -274,7 +275,7 @@ function MapView({
       setPlayheadPositions({})
       if (playheadPane.current) playheadPane.current.style.opacity = '1'
     }
-  }, [started, mode, routes])
+  }, [active, started, mode, routes])
 
   // Live vehicles indexed by routeShortName
   const vehiclesByRouteName = {}

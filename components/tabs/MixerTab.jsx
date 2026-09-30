@@ -1,3 +1,4 @@
+import dynamic from 'next/dynamic'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import * as Tone from 'tone'
 import { TransitEngine, SYNTH_DEFAULTS, availableAutomationTargets, DEFAULT_ARP, DEFAULT_GRANULAR, DEFAULT_SIDECHAIN, SIDECHAIN_ANY_DRUM, SIDECHAIN_PAD_SOURCES, DEFAULT_PITCH_VARIETY, DRUMS_ROUTE_ID } from '@/lib/engine.js'
@@ -14,7 +15,6 @@ import { normalizeNoteLength } from '@/lib/noteLength.js'
 import { useDrumClipboard } from '@/lib/shared/DrumClipboardContext.jsx'
 import { cycleStepValue } from '@/lib/engines/drumEngine.js'
 import DawView, { NOTE_ROOTS, SCALE_TYPES } from '../DawView.jsx'
-import MapView from '../MapView.jsx'
 import AIComposerPanel from '../AIComposerPanel.jsx'
 import SongMenu from '../SongMenu.jsx'
 import { useSongPersistence } from '../../lib/useSongPersistence.js'
@@ -33,9 +33,14 @@ import { buildReplacementLaneState, sendsToClear, trackSynthParams } from '@/lib
 import { trackProductEvent } from '@/lib/productAnalytics.js'
 import { unlockAudio, releaseAudioSession, probeOutputPeak } from '@/lib/audioSession.js'
 import { registerSoundCheck } from '@/lib/shared/soundCheck.js'
+import { pushEvents, clearEvents } from '@/lib/shared/eventLogStore.js'
 import AudioTroubleshooter from '../AudioTroubleshooter.jsx'
 import MobileDaw from '../mobile/MobileDaw.jsx'
 import { useIsPhone } from '@/lib/shared/useViewport.js'
+
+// Leaflet + maplibre-gl are the heaviest client deps after Tone, and the DAW view
+// is the default, so the map ships as its own chunk. ssr:false matches the page.
+const MapView = dynamic(() => import('../MapView.jsx'), { ssr: false })
 
 const MAX_EVENTS = 80
 
@@ -179,7 +184,6 @@ export default function MixerTab({ active = true }) {
   // pattern as cityIdRef/limitsRef.
   const isPhoneRef = useRef(isPhone)
   useEffect(() => { isPhoneRef.current = isPhone }, [isPhone])
-  const [events,  setEvents]  = useState([])
 
   const [volumes, setVolumes] = useState({})
   const [disabledRoutes, setDisabledRoutes] = useState({})
@@ -649,7 +653,7 @@ export default function MixerTab({ active = true }) {
     pendingEventsRef.current = []
     // Newest first (matches the old [ev, ...prev] order); buffer is oldest-first.
     buffered.reverse()
-    setEvents(prev => [...buffered, ...prev].slice(0, MAX_EVENTS))
+    pushEvents(buffered, MAX_EVENTS)
   }, [])
 
   // Build a fresh engine + MIDI recorder and stash them on the refs. Used both
@@ -1887,7 +1891,7 @@ export default function MixerTab({ active = true }) {
     const engine = createEngine()
     try { Tone.getDestination().volume.value = 0 } catch {}
     setStarted(false)
-    setEvents([])
+    clearEvents()
 
     setVolumes({}); setDisabledRoutes(allDisabledMap(laneRoutes)); setPans({}); setSoloRoutes(new Set())
     for (const r of laneRoutes) engine.setRouteDisabled(r.id, true)
@@ -2216,9 +2220,9 @@ export default function MixerTab({ active = true }) {
       {!isPhone && (
       <DawView
         className={view !== 'daw' ? 'view-hidden' : ''}
+        visible={view === 'daw'}
         mode={mode}
         started={started}
-        events={events}
         routes={mergedRoutes}
         allRoutes={allRoutesRef.current}
         onRepickType={handleRepickType}

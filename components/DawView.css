@@ -2,21 +2,36 @@
   display: contents; /* lets App.jsx grid control placement */
 }
 
-/* ── Per-lane playhead needle (inside each stop-rail) ───────────────────── */
+/* ── Per-lane playhead needle (inside each stop-rail) ───────────────────────
+   The playhead ticker moves the needle with transform, never `left`, so a
+   frame costs a composite instead of a layout. translateX(%) is relative to
+   the element's own width, so the moving part is a full-width track whose
+   ::before is the 2px line; the outer box clips it to the rail. */
 .lane-playhead {
   position: absolute;
-  top: 0;
-  height: 100%;
-  width: 2px;
-  transform: translateX(-50%);
-  background: color-mix(in srgb, var(--line-color, var(--accent)) 55%, transparent);
-  box-shadow: 0 0 8px 3px color-mix(in srgb, var(--line-color, var(--accent)) 20%, transparent);
+  inset: 0;
+  overflow: hidden;
   pointer-events: none;
   z-index: 10;
   display: none;
-  will-change: left;
 }
 .lane-playhead.active { display: block; }
+.lane-playhead-track {
+  position: absolute;
+  inset: 0;
+  will-change: transform;
+}
+.lane-playhead-track::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 2px;
+  height: 100%;
+  transform: translateX(-50%);
+  background: color-mix(in srgb, var(--line-color, var(--accent)) 55%, transparent);
+  box-shadow: 0 0 8px 3px color-mix(in srgb, var(--line-color, var(--accent)) 20%, transparent);
+}
 
 /* ── Loop-region selection (per-track section) ─────────────────────────── */
 .loop-region-dim {
@@ -1367,9 +1382,10 @@
 
 /* Playhead for the automation lane (overrides the dim per-lane needle) */
 .auto-playhead.lane-playhead {
-  width: 2px;
-  background: color-mix(in srgb, var(--line-color, var(--accent)) 60%, var(--text));
   z-index: 6;
+}
+.auto-playhead .lane-playhead-track::before {
+  background: color-mix(in srgb, var(--line-color, var(--accent)) 60%, var(--text));
 }
 
 .auto-curve-live-hint {
@@ -1682,14 +1698,15 @@
   background: color-mix(in srgb, var(--muted) 20%, transparent);
   overflow: hidden;
   min-width: 0;
-  /* Gain reduction grows from the right, like a hardware GR meter. */
-  display: flex;
-  justify-content: flex-end;
 }
+/* Gain reduction grows from the right, like a hardware GR meter. Scaled, not
+   resized, so each poll is a composite rather than a layout. */
 .gr-meter-fill {
+  width: 100%;
   height: 100%;
   background: var(--warning);
-  transition: width 80ms linear;
+  transform-origin: right center;
+  transition: transform 80ms linear;
 }
 
 .master-chain-off-note {

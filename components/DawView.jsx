@@ -1,5 +1,5 @@
 import * as Tone from 'tone'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { SYNTH_DEFAULTS, availableAutomationTargets, findTargetSpec, SAMPLER_PRESET_LIST, SAMPLER_PRESETS, DRUM_VOICES, DRUM_VOICE_LICENSE, DEFAULT_GRANULAR, DEFAULT_SIDECHAIN, ARP_STYLES, ARP_RATES, DEFAULT_ARP, DRUMS_ROUTE_ID } from '@/lib/engine.js'
 import { FX_BUSES, AUTOMATION_TARGETS, FX_PARAM_SPECS, FX_SYNC_TARGETS } from '@/lib/fxTrack.js'
 import { PAD_DEFS as DRUM_PAD_DEFS, STEPS as DRUM_STEPS, SOURCE_STEPS as DRUM_SOURCE_STEPS, emptyPattern as emptyDrumPattern } from '@/lib/engines/drumEngine.js'
@@ -9,6 +9,8 @@ import { pickerSynthTypes, OSC_TYPES } from '@/lib/soundSpecs.js'
 import { NOTE_LENGTHS, NOTE_LENGTH_LABELS, DEFAULT_NOTE_LENGTH } from '@/lib/noteLength.js'
 import { useResetGesture } from '@/lib/shared/useResetGesture.js'
 import { useIsPhone } from '@/lib/shared/useViewport.js'
+import { subscribePlayhead } from '@/lib/shared/playheadTicker.js'
+import { subscribeEvents, getEvents } from '@/lib/shared/eventLogStore.js'
 import { normalizeLaneTag } from '@/lib/laneTags.js'
 import { LOOP_PATTERN_PRESETS, MAX_PATTERN_PLAY, MAX_PATTERN_REST, normalizeLoopPattern, normalizeNoteChance, formatLoopPattern, loopIndexAt, loopPlays } from '@/lib/laneGating.js'
 import StopEditor from './StopEditor.jsx'
@@ -104,7 +106,7 @@ function resolvePlayhead(route, lat, lng) {
 
 export default function DawView({
   className = '',
-  mode, started, events, routes, allRoutes, onRepickType,
+  visible = true, mode, started, routes, allRoutes, onRepickType,
   onAddLine, onChangeLine, onRemoveLine,
   onDuplicateTrack, onRemoveDuplicate, onStopPitch, perStopStepsById,
   onMergeLanes, onUnmerge, mergedConsumedIds,
@@ -136,9 +138,6 @@ export default function DawView({
   const tracksRef             = useRef(null)
   const animRef               = useRef(null)
   const lastProgressRef       = useRef(0)
-  const lastProgressUpdateRef = useRef(0)
-  const [playheadProgress, setPlayheadProgress] = useState(0)
-  const [drumStep, setDrumStep] = useState(-1)
   // Stop-editor modal: the stop currently open for pitch/velocity editing, or null.
   const [editingStop, setEditingStop] = useState(null)
   // Duplicate-lane modal: { routeId, routeName } of the lane being duplicated, or null.
@@ -182,14 +181,13 @@ export default function DawView({
     return map
   }, [liveSnapshot])
 
+  // Live mode: fire a note when a vehicle crosses the 4-bar visual cycle.
+  // This drives audio, not display, so it runs whether or not the DAW view is
+  // visible. Playheads and step highlights draw themselves from the shared
+  // ticker (lib/shared/playheadTicker.js) without touching React state.
   useEffect(() => {
-    if (!started) {
-      cancelAnimationFrame(animRef.current)
-      setPlayheadProgress(0)
-      setDrumStep(-1)
-      lastProgressRef.current = 0
-      return
-    }
+    lastProgressRef.current = 0
+    if (!started || mode !== 'live' || !routes || !liveSnapshot) return
 
     const tick = () => {
       // The global Transport no longer loops (each Part self-loops for polyrhythm), so
@@ -198,30 +196,17 @@ export default function DawView({
       const loopSec = (16 / bpm) * 60
       const progress = (Tone.getTransport().seconds % loopSec) / loopSec
 
-      const now = performance.now()
-      if (now - lastProgressUpdateRef.current > 66) {
-        setPlayheadProgress(progress)
-        // Drum sequencer step (16th-note loop of DRUM_STEPS cells). The drum loop
-        // is shorter than the 16-beat visual cycle, so derive it independently.
-        // bpm is fixed while started (the input is disabled), so the prop is safe here.
-        const stepDur = (60 / (bpm || 120)) / 4
-        setDrumStep(Math.floor(Tone.getTransport().seconds / stepDur) % DRUM_STEPS)
-        lastProgressUpdateRef.current = now
-      }
-
-      if (mode === 'live' && routes && liveSnapshot) {
-        const prev = lastProgressRef.current
-        for (const route of routes) {
-          const vehicles = vehiclesByRoute[route.name] ?? []
-          for (const v of vehicles) {
-            const ph2 = resolvePlayhead(route, v.lat, v.lng)
-            if (!ph2) continue
-            const vPct   = ph2.pct / 100
-            const crossed = progress >= prev
-              ? (prev < vPct && vPct <= progress)
-              : (prev < vPct || vPct <= progress)
-            if (crossed) onVehicleCrossed(route.id, route.type, v.lat, ph2.stopId)
-          }
+      const prev = lastProgressRef.current
+      for (const route of routes) {
+        const vehicles = vehiclesByRoute[route.name] ?? []
+        for (const v of vehicles) {
+          const ph2 = resolvePlayhead(route, v.lat, v.lng)
+          if (!ph2) continue
+          const vPct   = ph2.pct / 100
+          const crossed = progress >= prev
+            ? (prev < vPct && vPct <= progress)
+            : (prev < vPct || vPct <= progress)
+          if (crossed) onVehicleCrossed(route.id, route.type, v.lat, ph2.stopId)
         }
       }
 
@@ -338,7 +323,7 @@ export default function DawView({
                     route={route}
                     mode={mode}
                     started={started}
-                    progress={playheadProgress}
+                    visible={visible}
                     volume={volumes[route.id] ?? 0}
                     disabled={disabled[route.id] ?? false}
                     pan={pans[route.id] ?? 0}
@@ -439,6 +424,7 @@ export default function DawView({
                       synthType={trackSynthTypes?.[route.id] ?? 'Synth'}
                       granularEnabled={!!trackGranulars?.[route.id]?.enabled}
                       started={started}
+                      visible={visible}
                       srcLoopRegion={trackLoopRegions?.[laneCfg.sourceRouteId]}
                       srcGridResolution={trackGridResolutions?.[laneCfg.sourceRouteId]}
                       onUpdate={cfg => onUpdateAutomationLane(route.id, laneId, cfg)}
@@ -467,7 +453,8 @@ export default function DawView({
           <DrumLane
             pattern={drumPattern}
             muted={drumsMuted}
-            activeStep={drumStep}
+            started={started}
+            visible={visible}
             onToggleStep={onToggleDrumStep}
             onTogglePadMute={onToggleDrumPadMute}
             onToggleMute={onToggleDrumsMute}
@@ -485,18 +472,7 @@ export default function DawView({
 
       </main>
 
-      <aside className="event-log">
-        <h2>Event Log</h2>
-        <ul>
-          {events.slice(0, 24).map((ev, i) => (
-            <li key={i}>
-              <span className="ev-line">{ev.routeShortName ?? ev.lineId}</span>
-              <span className="ev-stop">{ev.stopName}</span>
-              <span className="ev-note">{ev.note}</span>
-            </li>
-          ))}
-        </ul>
-      </aside>
+      <EventLog visible={visible} />
 
       <DawFooter
         activeFxTracks={activeFxTracks ?? []}
@@ -572,12 +548,59 @@ export default function DawView({
 // A mini 6-pad step sequencer pinned to the bottom of the track list. Each pad
 // shows the 16 visible steps (its 64-slot buffer windowed by the pad's offset);
 // clicking a cell toggles it live. Mirrors DrumMachineTab's grid, DAW-scoped.
+// ── Event log ────────────────────────────────────────────────────────────────
+// Subscribes to the note feed itself (lib/shared/eventLogStore.js), so a note
+// burst re-renders this list and nothing above it. Hidden → no subscription.
+const noSubscribe = () => () => {}
+function EventLog({ visible }) {
+  const events = useSyncExternalStore(visible ? subscribeEvents : noSubscribe, getEvents, getEvents)
+  return (
+    <aside className="event-log">
+      <h2>Event Log</h2>
+      <ul>
+        {events.slice(0, 24).map((ev, i) => (
+          <li key={i}>
+            <span className="ev-line">{ev.routeShortName ?? ev.lineId}</span>
+            <span className="ev-stop">{ev.stopName}</span>
+            <span className="ev-note">{ev.note}</span>
+          </li>
+        ))}
+      </ul>
+    </aside>
+  )
+}
+
 function DrumLane({
-  pattern, muted, activeStep, onToggleStep, onTogglePadMute, onToggleMute, onClear,
+  pattern, muted, started = false, visible = true, onToggleStep, onTogglePadMute, onToggleMute, onClear,
   volume = 0, filter, onVolume, onFilter, onSendLevel, getEqRuntime,
   activeFxTracks = [], sendMatrix = {},
 }) {
   const [rackOpen, setRackOpen] = useState(false)
+  // Playing-step highlight, drawn on the DOM from the shared ticker instead of
+  // re-rendering the lane every step. After any render React may have rewritten
+  // the step classNames, so forget the applied step and let the next frame redo it.
+  const stepsRef = useRef(null)
+  const playingStepRef = useRef(-1)
+  useLayoutEffect(() => { playingStepRef.current = -1 })
+  useEffect(() => {
+    const root = stepsRef.current
+    const clear = () => {
+      root?.querySelectorAll('.drum-lane-step.playing').forEach(el => el.classList.remove('playing'))
+      playingStepRef.current = -1
+    }
+    if (!started || !visible || !root) { clear(); return undefined }
+    const unsubscribe = subscribePlayhead(() => {
+      // Drum sequencer step (16th-note loop of DRUM_STEPS cells). The drum loop
+      // is shorter than the 16-beat visual cycle, so derive it independently.
+      const stepDur = (60 / (Tone.Transport.bpm.value || 120)) / 4
+      const step = Math.floor(Tone.getTransport().seconds / stepDur) % DRUM_STEPS
+      if (step === playingStepRef.current) return
+      root.querySelectorAll('.drum-lane-step.playing').forEach(el => el.classList.remove('playing'))
+      root.querySelectorAll(`.drum-lane-step[data-step="${step}"]`).forEach(el => el.classList.add('playing'))
+      playingStepRef.current = step
+    })
+    return () => { unsubscribe(); clear() }
+  }, [started, visible])
   const vol = Number.isFinite(volume) ? volume : 0
   return (
     <div className={`daw-section drum-section ${rackOpen ? 'drum-section--open' : ''}`}>
@@ -645,7 +668,7 @@ function DrumLane({
         </div>
       )}
 
-      <div className={`drum-lane ${muted ? 'drum-lane--muted' : ''}`}>
+      <div ref={stepsRef} className={`drum-lane ${muted ? 'drum-lane--muted' : ''}`}>
         {DRUM_PAD_DEFS.map(pad => {
           const padPat   = pattern.patterns?.[pad.id] ?? emptyDrumPattern()
           const offset   = pattern.offsets?.[pad.id] ?? 0
@@ -668,11 +691,11 @@ function DrumLane({
                   return (
                     <button
                       key={i}
+                      data-step={i}
                       className={[
                         'drum-lane-step',
                         v ? 'on' : '',
                         level,
-                        activeStep === i ? 'playing' : '',
                         i % 4 === 0 ? 'beat' : '',
                       ].filter(Boolean).join(' ')}
                       onClick={() => onToggleStep(pad.id, i)}
@@ -691,7 +714,7 @@ function DrumLane({
 
 // ── Individual instrument track row ──────────────────────────────────────────
 function LineTrack({
-  route, mode, started, progress, volume, disabled, pan, isSoloed,
+  route, mode, started, visible = true, volume, disabled, pan, isSoloed,
   vehicles, soundMode, trackScale, synthType, adsr,
   filter, getEqRuntime,
   droneMode, droneRoot,
@@ -902,7 +925,7 @@ function LineTrack({
 
       <StopRail
         route={route}
-        progress={progress}
+        visible={visible}
         speed={speed ?? 1}
         started={started}
         mode={mode}
@@ -1409,7 +1432,7 @@ function LineTrack({
 }
 
 // ── Automation lane (sub-row below instrument track) ─────────────────────────
-function AutomationLane({ laneId, instRoute, laneCfg, allRoutes, activeFxTracks, disabled, soloRoutes, synthType = 'Synth', granularEnabled = false, started = false, srcLoopRegion, srcGridResolution, onUpdate, onRemove, onLiveValue }) {
+function AutomationLane({ laneId, instRoute, laneCfg, allRoutes, activeFxTracks, disabled, soloRoutes, synthType = 'Synth', granularEnabled = false, started = false, visible = true, srcLoopRegion, srcGridResolution, onUpdate, onRemove, onLiveValue }) {
   const sourceRouteId = laneCfg?.sourceRouteId ?? ''
   const paramTarget   = laneCfg?.paramTarget   ?? 'volume'
   const points        = laneCfg?.points        ?? {}
@@ -1519,6 +1542,7 @@ function AutomationLane({ laneId, instRoute, laneCfg, allRoutes, activeFxTracks,
         points={points}
         spec={findTargetSpec(paramTarget, synthType)}
         started={started}
+        visible={visible}
         speed={speed}
         loopRegion={effectiveRegion}
         gridResolution={srcGridResolution}
@@ -1564,7 +1588,7 @@ function AutomationSourceTrack({ srcRoute, instRoute, automationCfg, srcGridReso
           )}
         </div>
       </div>
-      <StopRail route={srcRoute} progress={0} mode="mock" vehicles={[]} automationValues={automationValues} gridResolution={srcGridResolution} />
+      <StopRail route={srcRoute} mode="mock" vehicles={[]} automationValues={automationValues} gridResolution={srcGridResolution} />
     </div>
   )
 }
@@ -1603,7 +1627,7 @@ function autoCtl(autoTargets, ids, { divide = 1 } = {}) {
 
 // Draggable per-stop automation curve. X = the chosen line's stops (snapped to the
 // same grid as instrument notes); Y = the authored value (override or hash default).
-function AutoCurveRail({ route, laneId, points, spec, started = false, speed = 1, loopRegion, gridResolution, onLoopRegion, onUpdate, onActiveValue }) {
+function AutoCurveRail({ route, laneId, points, spec, started = false, visible = true, speed = 1, loopRegion, gridResolution, onLoopRegion, onUpdate, onActiveValue }) {
   const noteStepsPerBar = GRID_RESOLUTION_STEPS_PER_BAR[gridResolution ?? DEFAULT_GRID_RESOLUTION] ?? GRID_STEPS_PER_BAR
   const noteTotalCells  = GRID_BARS * noteStepsPerBar
   const railRef = useRef(null)
@@ -1619,39 +1643,56 @@ function AutoCurveRail({ route, laneId, points, spec, started = false, speed = 1
   const startPct  = (startCell / GRID_TOTAL_CELLS) * 100
   const endPct    = (endCell   / GRID_TOTAL_CELLS) * 100
 
+  // Dot elements + their x, cached after each render rather than queried per
+  // frame. A render may also have rewritten the dots' classNames, so drop the
+  // applied highlight and let the next frame reapply it.
+  const dotsRef       = useRef([])
+  const lastActiveRef = useRef(-1)
+  useLayoutEffect(() => {
+    dotsRef.current = railRef.current
+      ? [...railRef.current.querySelectorAll('.auto-dot')].map(el => ({ el, x: parseFloat(el.dataset.x) }))
+      : []
+    lastActiveRef.current = -2  // forces a reapply without re-reporting the same value
+  })
+
   useEffect(() => {
     const el = needleRef.current
-    if (!el) return
-    const dots = () => (railRef.current ? [...railRef.current.querySelectorAll('.auto-dot')] : [])
-    const clearActive = () => dots().forEach(d => d.classList.remove('active'))
-    if (!started) { el.style.left = `${startPct}%`; clearActive(); onActiveValue?.(null); return }
-    let rafId
-    let lastActive = -1
-    const tick = () => {
+    if (!el) return undefined
+    const clearActive = () => dotsRef.current.forEach(d => d.el.classList.remove('active'))
+    if (!started || !visible) {
+      el.style.transform = `translateX(${startPct}%)`
+      clearActive()
+      lastActiveRef.current = -1
+      if (!started) onActiveValue?.(null)
+      return undefined
+    }
+    let reported = -1
+    const unsubscribe = subscribePlayhead(() => {
       const bpm = Tone.Transport.bpm.value || 120
       const loopSec = (16 / bpm) * 60
       const partLoopSec = (regionLen / GRID_TOTAL_CELLS) * loopSec / (speed || 1)
       const t = Tone.getTransport().seconds
       const local = partLoopSec > 0 ? ((t % partLoopSec) + partLoopSec) % partLoopSec / partLoopSec : 0
       const playLeft = startPct + local * (endPct - startPct)
-      el.style.left = `${playLeft}%`
+      el.style.transform = `translateX(${playLeft}%)`
       // Highlight the point currently in effect: the last dot the needle has passed.
-      const ds = dots()
+      const ds = dotsRef.current
       let active = -1
       for (let i = 0; i < ds.length; i++) {
-        if (parseFloat(ds[i].dataset.x) <= playLeft) active = i
+        if (ds[i].x <= playLeft) active = i
       }
-      if (active !== lastActive) {
-        ds.forEach((d, i) => d.classList.toggle('active', i === active))
-        lastActive = active
+      if (active !== lastActiveRef.current) {
+        ds.forEach((d, i) => d.el.classList.toggle('active', i === active))
+        lastActiveRef.current = active
+      }
+      if (active !== reported) {
+        reported = active
         // Surface the value now in effect so the parent can drive the instrument control.
         onActiveValue?.(active >= 0 ? (stopPointsRef.current[active]?.value ?? null) : null)
       }
-      rafId = requestAnimationFrame(tick)
-    }
-    rafId = requestAnimationFrame(tick)
-    return () => { cancelAnimationFrame(rafId); clearActive(); onActiveValue?.(null) }
-  }, [started, speed, startPct, endPct, regionLen, onActiveValue])
+    })
+    return () => { unsubscribe(); clearActive(); lastActiveRef.current = -1; onActiveValue?.(null) }
+  }, [started, visible, speed, startPct, endPct, regionLen, onActiveValue])
 
   // ── Loop-handle drag (mirrors StopRail) ───────────────────────────────────
   const cellFromClientX = useCallback((clientX) => {
@@ -1790,10 +1831,11 @@ function AutoCurveRail({ route, laneId, points, spec, started = false, speed = 1
         <polyline points={polylinePoints} fill="none" stroke={route.color} strokeWidth="1.5" opacity="0.45" />
       </svg>
       <div
-        ref={needleRef}
         className={`lane-playhead auto-playhead ${started ? 'active' : ''}`}
         style={{ '--line-color': route.color }}
-      />
+      >
+        <div ref={needleRef} className="lane-playhead-track" />
+      </div>
       {stopPoints.map((p) => (
         <button
           key={p.id}
@@ -1886,7 +1928,15 @@ function MasterChainCard({ settings, onChange }) {
     const bus = getMasterBus()
     const id = setInterval(() => {
       if (document.hidden) return
-      setMeter(bus.status())
+      const next = bus.status()
+      // Only re-render when the shown reading (0.1 dB) actually moves; an idle
+      // master otherwise re-rendered this card ten times a second for nothing.
+      setMeter(prev => (
+        prev
+        && prev.limiter === next.limiter
+        && Math.round((prev.glueReductionDb ?? 0) * 10) === Math.round((next.glueReductionDb ?? 0) * 10)
+        && Math.round((prev.limiterReductionDb ?? 0) * 10) === Math.round((next.limiterReductionDb ?? 0) * 10)
+      ) ? prev : next)
     }, MASTER_METER_POLL_MS)
     return () => clearInterval(id)
   }, [enabled])
@@ -1955,7 +2005,7 @@ function GainReductionMeter({ label, db, title = `${label} gain reduction` }) {
     <div className="gr-meter" title={title}>
       <span className="fx-param-label">{label}</span>
       <div className="gr-meter-track">
-        <div className="gr-meter-fill" style={{ width: `${frac * 100}%` }} />
+        <div className="gr-meter-fill" style={{ transform: `scaleX(${frac})` }} />
       </div>
       <span className="fx-param-val">{gr === 0 ? '0.0' : gr.toFixed(1)} dB</span>
     </div>
@@ -2534,7 +2584,7 @@ const BAR_LABELS = Array.from({ length: GRID_BARS }, (_, i) => ({
 
 // ── Stop rail: stops quantized to 4-bar × 16th-note grid (64 cells) ──────────
 function StopRail({
-  route, progress = 0, speed = 1, started = false, mode = 'mock', vehicles = [],
+  route, visible = true, speed = 1, started = false, mode = 'mock', vehicles = [],
   trackScale = { root: 'C', scaleType: 'major' }, octaveShift = 0, semitoneShift = 0,
   loopRegion, onLoopRegion, gridResolution, automationValues = null,
   pitchVariety = null,
@@ -2552,24 +2602,52 @@ function StopRail({
   const startPct  = (startCell / GRID_TOTAL_CELLS) * 100
   const endPct    = (endCell   / GRID_TOTAL_CELLS) * 100
 
+  // Active-stop highlight targets: in-region stops (or merged chord cells) with
+  // their position inside the loop, ascending. Rebuilt on each render (below);
+  // the ticker toggles `.active` on the DOM so playback never re-renders the rail.
+  // After any render React may have rewritten the dots' classNames, so forget
+  // the applied key and let the next frame put the highlight back.
+  const activeTargetsRef = useRef([])
+  const activeKeyRef     = useRef(null)
+  useLayoutEffect(() => { activeKeyRef.current = null })
+
   // Drive the playhead from the track's local part progress so a shrunk
   // section visibly loops at its own (faster) rate.
   useEffect(() => {
-    const el = needleRef.current
-    if (!el) return
-    if (!started) {
-      el.style.left = `${startPct}%`
-      return
+    const el   = needleRef.current
+    const rail = railRef.current
+    if (!el || !rail) return undefined
+    const setActive = (key) => {
+      if (key === activeKeyRef.current) return
+      rail.querySelectorAll('.stop-dot.active').forEach(d => d.classList.remove('active'))
+      if (key != null) {
+        rail.querySelectorAll(`.stop-dot[data-akey="${CSS.escape(key)}"]`).forEach(d => d.classList.add('active'))
+      }
+      activeKeyRef.current = key
     }
-    let rafId
-    const tick = () => {
+    if (!started || !visible) {
+      el.style.transform = `translateX(${startPct}%)`
+      setActive(null)
+      return undefined
+    }
+    const unsubscribe = subscribePlayhead(() => {
       const bpm = Tone.Transport.bpm.value || 120
       const loopSec = (16 / bpm) * 60  // 4 bars
       const partLoopSec = (regionLen / GRID_TOTAL_CELLS) * loopSec / (speed || 1)
       const t = Tone.getTransport().seconds
       const local = partLoopSec > 0 ? ((t % partLoopSec) + partLoopSec) % partLoopSec / partLoopSec : 0
       const x = startPct + local * (endPct - startPct)
-      el.style.left = `${x}%`
+      // The needle is a full-width track, so translateX(x%) is x% of the rail.
+      el.style.transform = `translateX(${x}%)`
+      // Active stop: the last in-region target whose loop position <= local progress.
+      if (mode === 'mock') {
+        let key = null
+        for (const target of activeTargetsRef.current) {
+          if (target.rel <= local) key = target.key
+          else break
+        }
+        setActive(key)
+      }
       // Dim the rail while its loop pattern sits this pass out. Toggled on the
       // DOM, not via state, so the per-frame tick doesn't re-render the rail.
       // Counted in ticks like the engine's _laneGate (a Part's loop is fixed in
@@ -2581,16 +2659,15 @@ function StopRail({
         rail.classList.toggle('stop-rail--resting',
           !loopPlays(loopIndexAt(transport.ticks, 0, loopTicks), loopPattern))
       } else {
-        rail?.classList.remove('stop-rail--resting')
+        rail.classList.remove('stop-rail--resting')
       }
-      rafId = requestAnimationFrame(tick)
-    }
-    rafId = requestAnimationFrame(tick)
+    })
     return () => {
-      cancelAnimationFrame(rafId)
-      railRef.current?.classList.remove('stop-rail--resting')
+      unsubscribe()
+      setActive(null)
+      rail.classList.remove('stop-rail--resting')
     }
-  }, [started, speed, startPct, endPct, regionLen, loopPattern])
+  }, [started, visible, mode, speed, startPct, endPct, regionLen, loopPattern])
 
   // ── Loop-handle drag ──────────────────────────────────────────────────────
   const cellFromClientX = useCallback((clientX) => {
@@ -2722,31 +2799,17 @@ function StopRail({
     }))
   })() : null
 
-  // Per-track local progress (0..1) inside the loop region — wraps at the
-  // shrunken loop length so a 1-bar section completes a cycle in 1 bar.
-  const bpm = Tone.Transport.bpm.value || 120
-  const loopSec = (16 / bpm) * 60
-  const partLoopSec = (regionLen / GRID_TOTAL_CELLS) * loopSec / (speed || 1)
-  const transportSec = started ? Tone.getTransport().seconds : 0
-  const localProgress = partLoopSec > 0
-    ? ((transportSec % partLoopSec) + partLoopSec) % partLoopSec / partLoopSec
-    : 0
-
-  // Active stop: last in-region stop whose relative position <= local progress
-  const activeStopId = mode === 'mock'
-    ? [...stopPoints]
-        .filter(s => s.cellIdx >= startCell && s.cellIdx < endCell)
-        .reverse()
-        .find(s => ((s.cellIdx - startCell) / regionLen) <= localProgress)?.id
-    : null
-
-  // Merged lane: the cell of the chord currently sounding (highlights every stacked dot there).
-  const mergedActiveCell = (isMergedRail && mergedPoints && mode === 'mock')
-    ? [...new Set(mergedPoints.map(p => p.cellIdx))]
-        .filter(c => c >= startCell && c < endCell)
-        .sort((a, b) => b - a)
-        .find(c => ((c - startCell) / regionLen) <= localProgress) ?? null
-    : null
+  // Highlight targets for the ticker: a stop id (every dot sharing it lights), or
+  // on a merged lane the chord cell (every stacked dot at that cell lights).
+  const inRegion = (cellIdx) => cellIdx >= startCell && cellIdx < endCell
+  const activeKeyOf = (p) => (mergedPoints ? `c${p.cellIdx}` : String(p.id))
+  const targetsByKey = new Map()
+  for (const p of (mergedPoints ?? stopPoints)) {
+    if (!inRegion(p.cellIdx)) continue
+    const key = activeKeyOf(p)
+    if (!targetsByKey.has(key)) targetsByKey.set(key, { key, rel: (p.cellIdx - startCell) / regionLen })
+  }
+  activeTargetsRef.current = [...targetsByKey.values()].sort((a, b) => a.rel - b.rel)
 
   const vehicleMarkers = mode === 'live'
     ? vehicles.map(v => {
@@ -2796,10 +2859,11 @@ function StopRail({
       />
 
       <div
-        ref={needleRef}
         className={`lane-playhead ${started ? 'active' : ''}`}
         style={{ '--line-color': route.color }}
-      />
+      >
+        <div ref={needleRef} className="lane-playhead-track" />
+      </div>
 
       {/* Bar number labels */}
       {BAR_LABELS.map(({ bar, pct }) => (
@@ -2832,7 +2896,8 @@ function StopRail({
         ? mergedPoints.map((p) => (
             <div
               key={p.key}
-              className={`stop-dot stop-dot--merged ${p.cellIdx === mergedActiveCell ? 'active' : ''}`}
+              data-akey={activeKeyOf(p)}
+              className="stop-dot stop-dot--merged"
               style={{ '--pos': `${p.x}%`, '--y-pos': `${p.y}%`, '--line-color': p.color }}
               title={`${p.srcName} · ${p.stopName} · ${p.noteName}`}
             >
@@ -2848,9 +2913,9 @@ function StopRail({
         return (
         <div
           key={`${stop.id}_${i}`}
+          data-akey={activeKeyOf(stop)}
           className={[
             'stop-dot',
-            stop.id === activeStopId ? 'active' : '',
             mode === 'live' ? 'stop-dot--ref' : '',
             canEdit ? 'stop-dot--editable' : '',
             chance < 1 ? 'stop-dot--chance' : '',
