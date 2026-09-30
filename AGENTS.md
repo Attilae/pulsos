@@ -721,6 +721,10 @@ way. Status and open release gates: `docs/rings-resonator-plan.md`. Build and me
   shapes MIDI export.
 - Plan `tone` keys: `resonatorModel`, `structure`, `brightness`, `damping` (higher rings
   longer), `position`, `resonatorVoices`.
+- Automation lanes can target Structure, Brightness, Damping and Position
+  (`RESONATOR_AUTOMATION_TARGETS`, ids `synth.resonator*`). Model and voice count are
+  discrete and aren't automatable. Unlike other `synth.*` targets, removing the lane restores
+  the stored value (`_restoreParamToManual` reads the entry's `synthParams`).
 
 ### Billing & entitlements (Free/Pro)
 

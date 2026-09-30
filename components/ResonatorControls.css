@@ -114,6 +114,8 @@
   accent-color: var(--accent);
 }
 
+.res-param-slider:disabled { opacity: 0.55; cursor: not-allowed; }
+
 .res-note {
   padding-top: var(--space-050);
   border-top: 1px solid var(--border);

@@ -17,8 +17,17 @@ const STATUS_TEXT = {
   error: 'The Resonator could not load. Press play to try again.',
 }
 
-function ParamSlider({ spec, value, onChange, variant }) {
-  const reset = useResetGesture(() => onChange({ [spec.key]: spec.default }))
+// An armed automation lane on `synth.<key>` owns the slider: it greys out and,
+// while values flow, follows the live automated value (targets are 0..1, so the
+// value needs no denormalizing). Same contract as autoCtl in DawView.jsx.
+function automationFor(autoTargets, key) {
+  const a = autoTargets?.[`synth.${key}`]
+  return a ? { locked: true, live: typeof a.value === 'number' ? a.value : null } : { locked: false, live: null }
+}
+
+function ParamSlider({ spec, value: stored, onChange, variant, auto }) {
+  const reset = useResetGesture(() => { if (!auto.locked) onChange({ [spec.key]: spec.default }) })
+  const value = auto.live ?? stored
   const pct = Math.round(value * 100)
   const id = `res-${spec.key}`
   return (
@@ -30,7 +39,7 @@ function ParamSlider({ spec, value, onChange, variant }) {
           type="button"
           className="res-param-reset"
           onClick={() => onChange({ [spec.key]: spec.default })}
-          disabled={Math.abs(value - spec.default) < 0.005}
+          disabled={auto.locked || Math.abs(value - spec.default) < 0.005}
           aria-label={`Reset ${spec.label}`}
         >Reset</button>
       </div>
@@ -38,9 +47,10 @@ function ParamSlider({ spec, value, onChange, variant }) {
         id={id}
         type="range" min={0} max={1} step={0.01} value={value}
         className="res-param-slider"
+        disabled={auto.locked}
         aria-valuetext={`${pct}%`}
         aria-describedby={variant === 'sheet' ? `${id}-hint` : undefined}
-        title={variant === 'rack' ? `${spec.hint} Double-click to reset.` : undefined}
+        title={auto.locked ? 'Controlled by an automation lane' : variant === 'rack' ? `${spec.hint} Double-click to reset.` : undefined}
         onChange={e => onChange({ [spec.key]: Number(e.target.value) })}
         {...reset}
       />
@@ -49,7 +59,7 @@ function ParamSlider({ spec, value, onChange, variant }) {
   )
 }
 
-export default function ResonatorControls({ params, onChange, status = 'ready', granularEnabled = false, variant = 'rack' }) {
+export default function ResonatorControls({ params, onChange, status = 'ready', granularEnabled = false, variant = 'rack', autoTargets }) {
   const p = normalizeResonatorParams(params)
   const model = RESONATOR_MODELS.find(m => m.id === p.resonatorModel) ?? RESONATOR_MODELS[0]
 
@@ -80,7 +90,7 @@ export default function ResonatorControls({ params, onChange, status = 'ready', 
       </div>
 
       {RESONATOR_PARAMS.map(spec => (
-        <ParamSlider key={spec.key} spec={spec} value={p[spec.key]} onChange={onChange} variant={variant} />
+        <ParamSlider key={spec.key} spec={spec} value={p[spec.key]} onChange={onChange} variant={variant} auto={automationFor(autoTargets, spec.key)} />
       ))}
 
       <div className="res-group" role="radiogroup" aria-label="Resonator voices">
