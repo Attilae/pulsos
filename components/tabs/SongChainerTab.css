@@ -18,8 +18,8 @@
   flex-wrap: wrap;
 }
 .chain-title {
-  font-size: 1.05rem;
-  letter-spacing: 0.12em;
+  font-size: var(--fs-base);
+  letter-spacing: var(--tracking-caps);
   color: var(--accent);
   white-space: nowrap;
 }
@@ -29,7 +29,7 @@
   border: 1px solid var(--border);
   border-radius: 3px;
   font-family: inherit;
-  font-size: 0.85rem;
+  font-size: var(--fs-md);
   padding: 6px 8px;
   min-width: 180px;
   outline: none;
@@ -38,7 +38,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 0.72rem;
+  font-size: var(--fs-xs);
   color: var(--muted);
 }
 .chain-field input {
@@ -47,7 +47,7 @@
   border: 1px solid var(--border);
   border-radius: 3px;
   font-family: inherit;
-  font-size: 0.78rem;
+  font-size: var(--fs-sm);
   padding: 5px 6px;
   width: 56px;
   text-align: center;
@@ -57,7 +57,7 @@
   display: flex;
   align-items: center;
   gap: 5px;
-  font-size: 0.74rem;
+  font-size: var(--fs-xs);
   color: var(--muted);
   cursor: pointer;
 }
@@ -75,7 +75,7 @@
   border: 1px solid var(--border);
   border-radius: 3px;
   font-family: inherit;
-  font-size: 0.8rem;
+  font-size: var(--fs-sm);
   cursor: pointer;
   transition: background 0.12s, color 0.12s, border-color 0.12s;
 }
@@ -96,7 +96,7 @@
   border: 1px solid var(--border);
   border-radius: 3px;
   font-family: inherit;
-  font-size: 0.8rem;
+  font-size: var(--fs-sm);
   padding: 7px 8px;
   outline: none;
   min-width: 120px;
@@ -105,13 +105,13 @@
 /* ── Notices ──────────────────────────────────────────────────────────── */
 .chain-notice {
   padding: 8px 20px;
-  font-size: 0.74rem;
+  font-size: var(--fs-xs);
   color: var(--muted);
   background: var(--surface);
   border-bottom: 1px solid var(--border);
 }
 .chain-notice--warn {
-  color: var(--warning);
+  color: var(--warning-text);
   background: rgba(230, 180, 80, 0.08);
 }
 
@@ -124,14 +124,14 @@
   overflow: hidden;
 }
 .chain-subhead {
-  font-size: 0.7rem;
-  letter-spacing: 0.1em;
+  font-size: var(--fs-2xs);
+  letter-spacing: var(--tracking-caps);
   text-transform: uppercase;
   color: var(--muted);
   margin: 0 0 10px;
 }
 .chain-empty {
-  font-size: 0.76rem;
+  font-size: var(--fs-sm);
   color: var(--muted);
   opacity: 0.7;
   padding: 6px 0;
@@ -157,7 +157,7 @@
   border: 1px solid var(--border);
   border-radius: 3px;
   font-family: inherit;
-  font-size: 0.8rem;
+  font-size: var(--fs-sm);
   cursor: pointer;
   text-align: left;
   transition: background 0.12s, border-color 0.12s;
@@ -176,7 +176,7 @@
   align-items: baseline;
   justify-content: space-between;
 }
-.chain-meta { font-size: 0.74rem; color: var(--muted); }
+.chain-meta { font-size: var(--fs-xs); color: var(--muted); }
 
 .chain-items { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .chain-item {
@@ -198,15 +198,15 @@
 }
 .chain-item.playing { border-color: var(--accent); }
 .chain-item--locked { opacity: .62; border-style: dashed; }
-.chain-pro-lock { padding: 3px 6px; border: 1px solid var(--accent); border-radius: 2px; background: transparent; color: var(--accent); font: .58rem inherit; letter-spacing: .1em; cursor: pointer; }
+.chain-pro-lock { padding: 3px 6px; border: 1px solid var(--accent); border-radius: 2px; background: transparent; color: var(--accent); font: .58rem inherit; letter-spacing: var(--tracking-caps); cursor: pointer; }
 .chain-item-idx {
-  font-size: 0.72rem;
+  font-size: var(--fs-xs);
   color: var(--muted);
   width: 18px;
   text-align: center;
 }
 .chain-item-name {
-  font-size: 0.85rem;
+  font-size: var(--fs-md);
   color: var(--text);
   flex: 1;
   overflow: hidden;
@@ -217,8 +217,8 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
-  font-size: 0.62rem;
-  letter-spacing: 0.04em;
+  font-size: var(--fs-3xs);
+  letter-spacing: var(--tracking-wide);
   text-transform: uppercase;
   color: var(--muted);
 }
@@ -229,7 +229,7 @@
   border: 1px solid var(--border);
   border-radius: 3px;
   font-family: inherit;
-  font-size: 0.78rem;
+  font-size: var(--fs-sm);
   padding: 4px 6px;
   outline: none;
 }
@@ -249,7 +249,7 @@
   border-radius: 3px;
 }
 .chain-loops--pending {
-  font-size: 0.66rem;
+  font-size: var(--fs-2xs);
   color: var(--muted);
   font-style: italic;
   padding: 5px 8px;
@@ -294,7 +294,7 @@
   display: flex;
   align-items: center;
   gap: 4px;
-  font-size: 0.64rem;
+  font-size: var(--fs-3xs);
   color: var(--muted);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -305,7 +305,7 @@
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--lane-color, var(--muted));
+  background: var(--lane-color, var(--muted-line));
 }
 
 .chain-loop-track {
@@ -350,7 +350,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.58rem;
+  font-size: var(--fs-3xs);
   color: var(--surface2);
   font-weight: 700;
 }
@@ -359,7 +359,7 @@
   flex: 0 0 var(--len-col);
   width: var(--len-col);
   text-align: right;
-  font-size: 0.6rem;
+  font-size: var(--fs-3xs);
   color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
@@ -372,7 +372,7 @@
 }
 .chain-loop-tick {
   flex: none;
-  font-size: 0.55rem;
+  font-size: var(--fs-3xs);
   line-height: 11px;
   color: var(--muted);
   opacity: 0.7;
@@ -387,7 +387,7 @@
   align-items: center;
   flex-wrap: wrap;
   gap: 6px;
-  font-size: 0.65rem;
+  font-size: var(--fs-2xs);
   color: var(--muted);
 }
 .chain-loops-hint strong { color: var(--text); font-weight: 600; }
@@ -403,7 +403,7 @@
   border: 1px solid var(--border);
   border-radius: 10px;
   font: inherit;
-  font-size: 0.62rem;
+  font-size: var(--fs-3xs);
   cursor: pointer;
   font-variant-numeric: tabular-nums;
 }
@@ -429,7 +429,7 @@
   border: 1px solid var(--border);
   border-radius: 3px;
   cursor: pointer;
-  font-size: 0.8rem;
+  font-size: var(--fs-sm);
   line-height: 1;
 }
 .chain-icon:hover:not(:disabled) { background: var(--hover-surface); }
@@ -441,7 +441,7 @@
   padding: 8px 20px;
   border-top: 1px solid var(--border);
   background: var(--surface);
-  font-size: 0.72rem;
+  font-size: var(--fs-xs);
   color: var(--muted);
   text-align: center;
 }

@@ -14,7 +14,7 @@
   border: 1px solid var(--border);
   border-radius: 3px;
   font-family: inherit;
-  font-size: 0.78rem;
+  font-size: var(--fs-sm);
   cursor: pointer;
   max-width: 220px;
   transition: background 0.12s, color 0.12s, border-color 0.12s;
@@ -30,7 +30,7 @@
 }
 .song-menu-caret {
   color: var(--muted);
-  font-size: 0.7rem;
+  font-size: var(--fs-2xs);
 }
 
 /* ── Save indicator ────────────────────────────────────────────────────── */
@@ -39,8 +39,8 @@
   align-items: center;
   gap: 5px;
   margin-left: 8px;
-  font-size: 0.66rem;
-  letter-spacing: 0.02em;
+  font-size: var(--fs-2xs);
+  letter-spacing: var(--tracking-tight);
   color: var(--muted);
   white-space: nowrap;
   /* With autosave on, this cycles Unsaved → Saving… → Saved on every edit.
@@ -51,7 +51,7 @@
 .song-save-indicator--error { color: var(--danger); }
 
 .song-save-dot {
-  font-size: 0.6rem;
+  font-size: var(--fs-3xs);
   line-height: 1;
 }
 .song-save-indicator--saving .song-save-dot {
@@ -91,7 +91,7 @@
   border: none;
   border-radius: 3px;
   font-family: inherit;
-  font-size: 0.78rem;
+  font-size: var(--fs-sm);
   cursor: pointer;
   text-align: left;
 }
@@ -102,7 +102,7 @@
 .song-menu-kbd,
 .song-menu-count {
   color: var(--muted);
-  font-size: 0.7rem;
+  font-size: var(--fs-2xs);
   font-family: var(--font-mono);
 }
 
@@ -114,7 +114,7 @@
 
 .song-menu-meta {
   padding: 6px 10px 2px;
-  font-size: 0.68rem;
+  font-size: var(--fs-2xs);
   color: var(--muted);
 }
 .song-menu-note { padding-top: 2px; padding-bottom: 6px; font-style: italic; }
@@ -137,9 +137,9 @@
 
 .song-menu-picker-title {
   padding: 4px 8px 8px;
-  font-size: 0.68rem;
+  font-size: var(--fs-2xs);
   text-transform: uppercase;
-  letter-spacing: 0.12em;
+  letter-spacing: var(--tracking-caps);
   color: var(--muted);
   border-bottom: 1px solid var(--border);
   margin-bottom: 4px;
@@ -147,7 +147,7 @@
 
 .song-menu-empty {
   padding: 12px 8px;
-  font-size: 0.75rem;
+  font-size: var(--fs-sm);
   color: var(--muted);
   text-align: center;
   font-style: italic;
@@ -173,7 +173,7 @@
   color: var(--text);
   border: none;
   font-family: inherit;
-  font-size: 0.78rem;
+  font-size: var(--fs-sm);
   cursor: pointer;
   text-align: left;
   min-width: 0;
@@ -188,17 +188,17 @@
 }
 .song-menu-row-city {
   padding: 1px 6px;
-  border: 1px solid color-mix(in srgb, var(--muted) 40%, transparent);
+  border: 1px solid color-mix(in srgb, var(--muted-line) 40%, transparent);
   border-radius: 999px;
   color: var(--muted);
-  font-size: 0.65rem;
-  letter-spacing: 0.04em;
+  font-size: var(--fs-2xs);
+  letter-spacing: var(--tracking-wide);
   white-space: nowrap;
   flex-shrink: 0;
 }
 .song-menu-row-date {
   color: var(--muted);
-  font-size: 0.7rem;
+  font-size: var(--fs-2xs);
   flex-shrink: 0;
 }
 
@@ -208,7 +208,7 @@
   color: var(--muted);
   border: none;
   font-family: inherit;
-  font-size: 0.75rem;
+  font-size: var(--fs-sm);
   cursor: pointer;
   border-radius: 3px;
 }

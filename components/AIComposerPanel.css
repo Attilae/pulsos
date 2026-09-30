@@ -10,7 +10,7 @@
   border-radius: 6px;
   box-shadow: var(--elevation-overlay);
   color: var(--text);
-  font-size: 12px;
+  font-size: var(--fs-md);
   overflow: hidden;
 }
 
@@ -24,12 +24,12 @@
   border: none;
   color: var(--text);
   cursor: pointer;
-  font-size: 12px;
+  font-size: var(--fs-md);
 }
 
 .ai-composer-title {
   font-weight: 600;
-  letter-spacing: 0.03em;
+  letter-spacing: var(--tracking-tight);
   color: var(--accent);
 }
 
@@ -83,7 +83,7 @@
 .ai-composer-apply:disabled { opacity: 0.65; cursor: default; }
 .ai-composer-discard { background: var(--surface2); }
 
-.ai-composer-hint { color: var(--muted); font-size: 11px; }
+.ai-composer-hint { color: var(--muted); font-size: var(--fs-sm); }
 
 .ai-composer-error {
   background: color-mix(in srgb, var(--danger) 14%, transparent);
@@ -98,7 +98,7 @@
   border: 1px solid var(--success);
   border-radius: 4px;
   padding: 6px 8px;
-  color: var(--success);
+  color: var(--success-text);
 }
 
 .ai-composer-preview {
@@ -124,14 +124,14 @@
   border: 1px solid var(--border);
   border-radius: 3px;
   padding: 2px 6px;
-  font-size: 11px;
+  font-size: var(--fs-sm);
 }
 
 .ai-preview-label {
   color: var(--muted);
   text-transform: uppercase;
-  letter-spacing: 0.05em;
-  font-size: 10px;
+  letter-spacing: var(--tracking-wide);
+  font-size: var(--fs-xs);
   margin-bottom: 3px;
 }
 
@@ -142,8 +142,8 @@
 .ai-preview-detail { color: var(--muted); text-align: right; }
 
 .ai-composer-note {
-  color: var(--warning);
-  font-size: 11px;
+  color: var(--warning-text);
+  font-size: var(--fs-sm);
   line-height: 1.4;
 }
 
@@ -188,7 +188,7 @@
 .ai-planning-kicker {
   color: var(--accent);
   font: 600 11px/1.2 var(--font-mono);
-  letter-spacing: 0.17em;
+  letter-spacing: var(--tracking-caps);
   text-transform: uppercase;
 }
 
@@ -203,7 +203,7 @@
   min-height: 48px;
   margin: 0;
   color: var(--text-subtle);
-  font-size: 14px;
+  font-size: var(--fs-base);
   line-height: 1.65;
   animation: ai-fact-enter 500ms ease both;
 }
@@ -310,7 +310,7 @@
   border: 0;
   padding: 5px 8px;
   font: inherit;
-  font-size: 12px;
+  font-size: var(--fs-md);
   cursor: pointer;
   color: var(--muted);
   background: var(--surface);
@@ -333,7 +333,7 @@
   border-radius: 999px;
   padding: 2px 9px;
   font: inherit;
-  font-size: 11px;
+  font-size: var(--fs-sm);
   white-space: nowrap;
   cursor: pointer;
   color: var(--muted);

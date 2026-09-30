@@ -102,14 +102,14 @@
   gap: 6px;
 }
 .phones-caption-big {
-  font-size: 1.15rem;
+  font-size: var(--fs-lg);
   color: var(--text);
-  letter-spacing: 0.04em;
+  letter-spacing: var(--tracking-wide);
 }
 .phones-caption-sub {
-  font-size: 0.78rem;
+  font-size: var(--fs-sm);
   color: var(--muted);
-  letter-spacing: 0.02em;
+  letter-spacing: var(--tracking-tight);
 }
 
 /* ── Now-playing card ─────────────────────────────────────────────────── */
@@ -121,8 +121,8 @@
   padding: 16px 20px;
 }
 .phones-card-head {
-  font-size: 0.66rem;
-  letter-spacing: 0.16em;
+  font-size: var(--fs-2xs);
+  letter-spacing: var(--tracking-caps);
   text-transform: uppercase;
   color: var(--muted);
   margin-bottom: 12px;
@@ -145,13 +145,13 @@
 }
 .phones-voice:last-child { border-bottom: none; }
 .phones-voice-line {
-  font-weight: bold;
-  font-size: 0.92rem;
+  font-weight: 700;
+  font-size: var(--fs-md);
   color: var(--accent);
-  letter-spacing: 0.06em;
+  letter-spacing: var(--tracking-wide);
 }
 .phones-voice-role {
-  font-size: 0.82rem;
+  font-size: var(--fs-sm);
   color: var(--text-subtle);
 }
 .phones-voice-dot {
@@ -181,9 +181,9 @@
   color: var(--text-subtle);
   border-radius: 999px;
   font-family: inherit;
-  font-size: 0.82rem;
+  font-size: var(--fs-sm);
   cursor: pointer;
-  letter-spacing: 0.04em;
+  letter-spacing: var(--tracking-wide);
   transition: background 0.15s, color 0.15s, border-color 0.15s;
 }
 .phones-toggle:hover { color: var(--text); }
@@ -202,7 +202,7 @@
 }
 .phones-volume-icon {
   color: var(--muted);
-  font-size: 1rem;
+  font-size: var(--fs-base);
 }
 .phones-volume input[type="range"] {
   flex: 1;
