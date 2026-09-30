@@ -570,8 +570,10 @@
   outline-offset: 2px;
 }
 @media (hover: hover) {
+  /* The label only exists while shown: an opacity-0 tooltip still takes
+     layout, and the one on a lane's rightmost button pushed the track list
+     into sideways scroll. */
   .lane-icon-btn[data-tooltip]::after {
-    content: attr(data-tooltip);
     position: absolute;
     left: 50%;
     bottom: calc(100% + 7px);
@@ -590,12 +592,10 @@
     text-transform: none;
     white-space: nowrap;
     pointer-events: none;
-    opacity: 0;
-    transition: opacity 60ms ease-out, transform 60ms ease-out;
   }
   .lane-icon-btn[data-tooltip]:hover::after,
   .lane-icon-btn[data-tooltip]:focus-visible::after {
-    opacity: 1;
+    content: attr(data-tooltip);
     transform: translate(-50%, 0);
   }
 }
@@ -1188,11 +1188,15 @@
   padding: 2px 6px;
   border-radius: 3px;
   pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.12s;
+  /* display, not opacity: an invisible label still takes layout, and the ones
+     on a rail's last stops added ~46px of sideways scroll to the track list. */
+  display: none;
   z-index: 10;
 }
-.stop-dot:hover .stop-label { opacity: 1; }
+.stop-dot:hover .stop-label,
+.stop-dot:focus-visible .stop-label { display: block; }
+/* Merged chord rails stack several sources per cell; they never show names. */
+.stop-dot--merged:hover .stop-label { display: none; }
 
 /* ── Solo button ────────────────────────────────────────────────────────── */
 .solo-btn {
