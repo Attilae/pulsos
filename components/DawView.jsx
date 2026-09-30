@@ -1232,8 +1232,10 @@ function LineTrack({
               <span className="speed-label">LENGTH</span>
               <div
                 className="speed-btns"
-                title={synthType === 'Resonator'
-                  ? 'The Resonator rings out on its own (Damping sets how long). Note length only shapes MIDI export'
+                title={synthType === 'Resonator' && !adsr?.resonatorEnvelope
+                  ? 'The Resonator rings out on its own (Damping sets how long). Turn on its envelope to make note length hold and release each note'
+                  : synthType === 'Resonator'
+                  ? 'How long each note is held before the Resonator envelope releases it'
                   : legato || arp?.enabled || synthType === 'PluckSynth'
                   ? 'Note length has no effect while legato, the arpeggiator or PluckSynth is in use'
                   : 'How long each note is held before its release'}

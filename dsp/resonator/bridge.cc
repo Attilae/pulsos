@@ -13,7 +13,12 @@
 //   - the DSP runs at 48 kHz in upstream's fixed 24-sample blocks — the host
 //     (public/worklets/resonator-processor.js) owns scheduling and resampling;
 //   - model changes and panics fade out, reset the resonators, and fade back in,
-//     rather than reinterpreting live DSP state.
+//     rather than reinterpreting live DSP state;
+//   - an optional per-voice ADSR (rs_set_envelope). Off, every note is a strike
+//     that rings out on its own and the render path is exactly the envelope-less
+//     one. On, the envelope scales the voice's output, drives a noise "bow" into
+//     the resonator (Rings is built to be excited this way), and a note releases
+//     after its hold time or on rs_release; the strike pulse becomes optional.
 //
 // No allocation, no imports and no memory growth: everything is static.
 
@@ -50,6 +55,22 @@ const int kIdleSamples = 48000 / 4;
 const float kStereoWidth = 0.7f;
 // One-pole patch smoothing at the 2 kHz block rate (~15 ms time constant).
 const float kPatchSmoothing = 0.0328f;
+// Envelope segment limits, seconds. Attack has a floor so retriggering a
+// ringing (stolen) voice ramps rather than steps its gain.
+const float kMinAttack = 0.001f, kMaxAttack = 4.0f;
+const float kMinDecay = 0.001f, kMaxDecay = 4.0f;
+const float kMinRelease = 0.01f, kMaxRelease = 8.0f;
+// Decay and release are exponential; a segment of time T falls by ~60 dB.
+const float kEnvLn = 6.9078f;   // ln(1000)
+// Below this a releasing voice is finished (-80 dB of its peak).
+const float kEnvFloor = 1e-4f;
+// Bow noise level into the resonator at bow = 1, per model (modal, sympathetic,
+// string): the models respond very differently to a steady input. Calibrated so
+// a fully bowed, sustained note sits near a strike's early RMS at the default
+// patch (see README).
+const float kBowGain[kNumModels] = { 0.15f, 0.06f, 0.15f };
+
+enum EnvStage { ENV_IDLE, ENV_ATTACK, ENV_DECAY, ENV_SUSTAIN, ENV_RELEASE };
 
 struct Voice {
   float gain;
@@ -59,11 +80,29 @@ struct Voice {
   int32_t silent_samples;
   bool active;
   bool strike;           // excite on the next rendered block
+  // Envelope. A voice follows the mode it was struck in, so switching the
+  // envelope on or off never re-levels a note that is already sounding.
+  bool enveloped;
+  float env;
+  int32_t stage;         // EnvStage
+  int32_t hold;          // samples until auto-release; < 0 holds until rs_release
+  uint32_t noise;        // per-voice xorshift32 state for the bow
 };
 
 struct PendingStrike {
   float note;
   float velocity;
+  int32_t hold;
+};
+
+struct EnvSettings {
+  bool enabled;
+  float attack_inc;      // per-sample linear step
+  float decay_coef;      // per-sample exponential factors
+  float release_coef;
+  float sustain;
+  float bow;
+  bool strike;
 };
 
 enum FadeState { FADE_NONE, FADE_OUT, FADE_IN };
@@ -91,7 +130,12 @@ bool ctors_done = false;
 rings::Patch target_patch = { 0.4f, 0.5f, 0.6f, 0.4f };
 rings::Patch patch = { 0.4f, 0.5f, 0.6f, 0.4f };
 
+EnvSettings env_settings = { false, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, true };
+uint32_t noise_seed = 1;
+
 float silence[kBlock];
+float excite[kBlock];
+float env_gain[kBlock];
 float voice_out[kBlock];
 float voice_aux[kBlock];
 float out_l[kBlock];
@@ -100,6 +144,23 @@ float out_r[kBlock];
 inline float clamp01(float x, float fallback) {
   if (!(x == x) || isinf(x)) return fallback;   // NaN / inf from an import
   return x < 0.0f ? 0.0f : (x > 1.0f ? 1.0f : x);
+}
+
+inline float clampRange(float x, float lo, float hi, float fallback) {
+  if (!(x == x) || isinf(x)) return fallback;
+  return x < lo ? lo : (x > hi ? hi : x);
+}
+
+inline float SegmentCoef(float seconds) {
+  return expf(-kEnvLn / (seconds * rings::kSampleRate));
+}
+
+// Uniform noise in [-1, 1) from a per-voice xorshift32.
+inline float Noise(uint32_t& s) {
+  s ^= s << 13;
+  s ^= s >> 17;
+  s ^= s << 5;
+  return static_cast<float>(static_cast<int32_t>(s)) * (1.0f / 2147483648.0f);
 }
 
 void InitPart(int i) {
@@ -122,6 +183,12 @@ void ResetVoice(int i) {
   v.silent_samples = 0;
   v.active = false;
   v.strike = false;
+  v.enveloped = false;
+  v.env = 0.0f;
+  v.stage = ENV_IDLE;
+  v.hold = -1;
+  v.noise = noise_seed * 2654435761u + static_cast<uint32_t>(i) * 40503u + 1u;
+  if (!v.noise) v.noise = 1;
 }
 
 void ResetAll() {
@@ -140,7 +207,7 @@ int Allocate() {
   return oldest;
 }
 
-int Strike(float note, float velocity) {
+int Strike(float note, float velocity, int32_t hold) {
   int i = Allocate();
   Voice& v = voices[i];
   bool was_silent = !v.active && !v.strike;
@@ -151,12 +218,58 @@ int Strike(float note, float velocity) {
   v.silent_samples = 0;
   v.active = true;
   v.strike = true;
+  // Restart from the current level (a stolen voice ramps, it doesn't jump). A
+  // voice that was ringing without an envelope counts as fully open.
+  if (was_silent) v.env = 0.0f;
+  else if (!v.enveloped) v.env = 1.0f;
+  v.enveloped = env_settings.enabled;
+  v.stage = ENV_ATTACK;
+  v.hold = hold;
   return i;
 }
 
 void FlushPending() {
-  for (int i = 0; i < num_pending; ++i) Strike(pending[i].note, pending[i].velocity);
+  for (int i = 0; i < num_pending; ++i) Strike(pending[i].note, pending[i].velocity, pending[i].hold);
   num_pending = 0;
+}
+
+// Advance voice `v`'s envelope over one block into env_gain[]. Returns false
+// once a release has run out (the voice is finished).
+bool RenderEnvelope(Voice& v) {
+  const EnvSettings& e = env_settings;
+  float env = v.env;
+  int32_t stage = v.stage;
+  int32_t hold = v.hold;
+  for (int n = 0; n < kBlock; ++n) {
+    if (hold > 0 && stage != ENV_RELEASE && --hold == 0) stage = ENV_RELEASE;
+    switch (stage) {
+      case ENV_ATTACK:
+        env += e.attack_inc;
+        if (env >= 1.0f) { env = 1.0f; stage = ENV_DECAY; }
+        break;
+      case ENV_DECAY:
+        env = e.sustain + (env - e.sustain) * e.decay_coef;
+        if (fabsf(env - e.sustain) < 1e-5f) { env = e.sustain; stage = ENV_SUSTAIN; }
+        break;
+      case ENV_SUSTAIN:
+        env = e.sustain;
+        break;
+      case ENV_RELEASE:
+        env *= e.release_coef;
+        break;
+      default:
+        env = 0.0f;
+        break;
+    }
+    env_gain[n] = env;
+  }
+  v.env = env;
+  v.stage = stage;
+  v.hold = hold;
+  if (stage == ENV_RELEASE && env < kEnvFloor) return false;
+  // Sustain at 0 is silent for good as well.
+  if (stage == ENV_SUSTAIN && env <= 0.0f) return false;
+  return true;
 }
 
 void SmoothPatch() {
@@ -175,6 +288,7 @@ RS_EXPORT(rs_init) void rs_init(uint32_t seed) {
   if (!ctors_done) { __wasm_call_ctors(); ctors_done = true; }
 #endif
   stmlib::Random::Seed(seed ? seed : 0x21);
+  noise_seed = seed ? seed : 0x21;
   memset(silence, 0, sizeof(silence));
   memset(out_l, 0, sizeof(out_l));
   memset(out_r, 0, sizeof(out_r));
@@ -234,20 +348,59 @@ RS_EXPORT(rs_panic) void rs_panic() {
 
 // Strike a note (fractional MIDI) at velocity 0..1 on the next block. Returns the
 // voice index, -1 when deferred behind a fade, -2 when rejected.
-RS_EXPORT(rs_trigger) int rs_trigger(float note, float velocity) {
+// Like rs_trigger, plus how long the note is held before it releases, in DSP
+// samples (< 0: until rs_release). Only matters while the envelope is on.
+RS_EXPORT(rs_trigger_held) int rs_trigger_held(float note, float velocity, int32_t hold) {
   if (!(note == note) || isinf(note)) return -2;
   if (note < 12.0f) note = 12.0f;
   if (note > 120.0f) note = 120.0f;
   velocity = clamp01(velocity, 1.0f);
+  if (hold == 0) hold = 1;                 // a zero-length note still sounds
   if (fade_state == FADE_OUT) {
     if (pending_reset) return -2;          // a panic cancels, it doesn't defer
     if (num_pending >= kMaxPendingStrikes) return -2;
     pending[num_pending].note = note;
     pending[num_pending].velocity = velocity;
+    pending[num_pending].hold = hold;
     ++num_pending;
     return -1;
   }
-  return Strike(note, velocity);
+  return Strike(note, velocity, hold);
+}
+
+RS_EXPORT(rs_trigger) int rs_trigger(float note, float velocity) {
+  return rs_trigger_held(note, velocity, -1);
+}
+
+// Start the release of every sounding voice on `note` (within half a semitone);
+// a negative note releases them all. No effect while the envelope is off.
+RS_EXPORT(rs_release) void rs_release(float note) {
+  if (!(note == note) || isinf(note)) return;
+  for (int i = 0; i < kMaxVoices; ++i) {
+    Voice& v = voices[i];
+    if (!(v.active || v.strike) || !v.enveloped || v.stage == ENV_RELEASE) continue;
+    if (note < 0.0f || fabsf(v.note - note) < 0.5f) v.stage = ENV_RELEASE;
+  }
+  for (int i = 0; i < num_pending; ++i) {
+    if (note < 0.0f || fabsf(pending[i].note - note) < 0.5f) pending[i].hold = 1;
+  }
+}
+
+// Envelope and exciter settings, seconds / 0..1. Segment times, sustain and bow
+// apply to sounding voices at once; switching the envelope on or off applies from
+// the next strike (see Voice::enveloped).
+RS_EXPORT(rs_set_envelope) void rs_set_envelope(
+    int enabled, float attack, float decay, float sustain, float release,
+    float bow, int strike) {
+  EnvSettings& e = env_settings;
+  e.enabled = enabled != 0;
+  const float a = clampRange(attack, kMinAttack, kMaxAttack, 0.005f);
+  e.attack_inc = 1.0f / (a * rings::kSampleRate);
+  e.decay_coef = SegmentCoef(clampRange(decay, kMinDecay, kMaxDecay, 0.3f));
+  e.release_coef = SegmentCoef(clampRange(release, kMinRelease, kMaxRelease, 1.5f));
+  e.sustain = clamp01(sustain, 0.7f);
+  e.bow = clamp01(bow, 0.0f);
+  e.strike = strike != 0;
 }
 
 RS_EXPORT(rs_active_voices) int rs_active_voices() {
@@ -274,8 +427,20 @@ RS_EXPORT(rs_render) void rs_render() {
     Voice& v = voices[i];
     if (!v.active && !v.strike) continue;
 
+    const bool enveloped = v.enveloped;
+    bool finished = false;
+    const float* input = silence;
+    if (enveloped) {
+      finished = !RenderEnvelope(v);
+      const float bow = env_settings.bow * kBowGain[model] * v.target_gain;
+      if (bow > 0.0f) {
+        for (int n = 0; n < kBlock; ++n) excite[n] = bow * env_gain[n] * Noise(v.noise);
+        input = excite;
+      }
+    }
+
     rings::PerformanceState ps;
-    ps.strum = v.strike;
+    ps.strum = v.strike && (!enveloped || env_settings.strike);
     ps.internal_exciter = true;
     ps.internal_strum = false;
     ps.internal_note = false;
@@ -285,7 +450,7 @@ RS_EXPORT(rs_render) void rs_render() {
     ps.chord = 0;
     v.strike = false;
 
-    parts[i].Process(ps, patch, silence, voice_out, voice_aux, kBlock);
+    parts[i].Process(ps, patch, input, voice_out, voice_aux, kBlock);
 
     float peak = 0.0f;
     bool finite = true;
@@ -302,8 +467,9 @@ RS_EXPORT(rs_render) void rs_render() {
       g += dg;
       const float mid = 0.5f * (o - a);
       const float side = 0.5f * (o + a) * kStereoWidth;
-      out_l[n] += g * (mid + side);
-      out_r[n] += g * (mid - side);
+      const float k = enveloped ? g * env_gain[n] : g;
+      out_l[n] += k * (mid + side);
+      out_r[n] += k * (mid - side);
     }
     if (!finite) {
       // Never expected from the upstream DSP; if it happens, drop the voice rather
@@ -313,6 +479,12 @@ RS_EXPORT(rs_render) void rs_render() {
       continue;
     }
     v.gain = v.target_gain;
+    if (finished) {
+      // Released to silence: clear the resonator so the voice's next note
+      // starts clean instead of reviving a tail the envelope had muted.
+      ResetVoice(i);
+      continue;
+    }
     if (peak < kIdleThreshold) {
       v.silent_samples += kBlock;
       if (v.silent_samples >= kIdleSamples) v.active = false;

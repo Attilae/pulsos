@@ -3,6 +3,11 @@
 Status: **implemented behind `NEXT_PUBLIC_RESONATOR_ENABLED` (off by default); the
 Phase 6 release gates are still open.** Updated 2026-09-30.
 
+Update 2026-10-01: an opt-in per-voice ADSR plus a noise "bow" exciter now ships in the
+DSP (`rs_set_envelope`, `rs_trigger_held`, `rs_release`), the worklet, the voice, the lane
+editor and the plan contract. Off by default and bit-identical when off; see
+`dsp/resonator/README.md`. Automating the envelope and bow is not done yet.
+
 Done: Phases 1–5. The DSP is vendored and builds reproducibly (wasi-sdk rather
 than Emscripten, see `dsp/resonator/README.md`), and native and wasm renders are
 bit-identical. Also built: the worklet host and voice adapter, the engine and
