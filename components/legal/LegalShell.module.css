@@ -207,6 +207,14 @@
 }
 .sectionBody p { margin: 0 0 1.2em; }
 .sectionBody p:last-child { margin-bottom: 0; }
+/* A licence notice reproduced verbatim (e.g. MIT) — quieter than the prose. */
+.sectionBody .notice {
+  padding: 12px 14px;
+  border-left: 2px solid var(--legal-accent);
+  background: var(--legal-surface);
+  font-size: var(--fs-2xs);
+  line-height: 1.55;
+}
 .sectionBody ul, .sectionBody ol { margin: 0 0 1.2em; padding-left: 1.25rem; }
 .sectionBody li { margin: 0.5em 0; }
 .sectionBody a {

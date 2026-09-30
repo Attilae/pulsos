@@ -81,6 +81,9 @@ logic** — nothing boots Tone.js, React, or the DB: `billing-plans` (`lib/billi
 (`lib/authOrigins.js`), `mcp-tools`
 (`lib/server/mcpTools.js` — drives the real MCP SDK client/handler in-process, but every DB/billing
 call is injected through its `services` argument, so it still never touches Postgres),
+`resonator-dsp` / `resonator-worklet` (run the committed wasm and the worklet's
+`ResonatorHost` directly: tuning, timing, cancellation, bounds), `resonator-plan`
+(vocabulary, both apply paths, flag on/off),
 `composer-skill` (runs every example plan in `skills/leid-composer/` through the real
 `validatePlan`/`PLAN_INPUT_SCHEMA` and checks each tool it names is registered),
 `composer-guide` (pins the prompt's loop-window/FX-unit/fixed-IR facts and its example plan),
@@ -693,6 +696,32 @@ classes.
   - Every ordinary stop note is held for the lane's `noteLength` (default `'4n'`, one beat)
     regardless of grid or speed. Sampler/Drums honour attack and release only. PluckSynth is attack-only. FMSynth's default
     modulator attack is 0.5 s.
+
+### Resonator instrument (flag-gated)
+
+`Resonator` is a lane synth type backed by Emilie Gillet's Rings DSP (MIT, vendored in
+`vendor/rings`, hashes in its `manifest.json`), compiled to a committed standalone wasm
+(`public/wasm/resonator-<sha8>.wasm`) by `npm run build:resonator` with a pinned
+wasi-sdk. Regular builds never compile it. It is offered in the picker and in AI/MCP
+plans only when `NEXT_PUBLIC_RESONATOR_ENABLED=true`, but songs that use it play either
+way. Status and open release gates: `docs/rings-resonator-plan.md`. Build and measurements:
+`dsp/resonator/README.md`.
+- Pieces: `lib/resonatorSpecs.js` (pure vocabulary; flat `resonator*` keys in
+  `trackADSRs`, re-exported by `soundSpecs.js`), `lib/resonatorLoader.js` (fetch/compile
+  once, `addModule` once per context, status store), `lib/resonatorVoice.js`
+  (Tone-shaped voice over one `AudioWorkletNode`), `public/worklets/resonator-processor.js`
+  (`ResonatorHost`: timestamp queue with generation-id cancellation, 48 kHz → context-rate
+  Hermite resampling; no `import`/`export`, same reason as the limiter worklet).
+- **It can't be built synchronously from nothing.** Every path that builds lanes awaits
+  `engine.prepareSounds(synthTypes)` first (MixerTab play/AI start, `applyAIPlan`,
+  `snapshotPlayer.prepareSnapshotSounds` in the Song Chainer). `startMock`/`startLive`
+  throw if they skip it, and `setSynthType` keeps the old voice and reports through
+  `engine.onSoundError`. A failed load never falls back to another instrument.
+- Notes decay naturally: no envelope, note-off, legato, glide or granular layer
+  (`supportsGranular`). Saved grain settings are kept, not played. Note length only
+  shapes MIDI export.
+- Plan `tone` keys: `resonatorModel`, `structure`, `brightness`, `damping` (higher rings
+  longer), `position`, `resonatorVoices`.
 
 ### Billing & entitlements (Free/Pro)
 

@@ -1,0 +1,109 @@
+{
+  "asset": "resonator-a9057a69.wasm",
+  "sha256": "a9057a69ed9b59aff6bf3f6599f07f2198dd9ffd52ac8b022535891e549e65b2",
+  "bytes": 61216,
+  "toolchain": {
+    "name": "wasi-sdk",
+    "tag": "wasi-sdk-34",
+    "version": "34.0",
+    "clang": "clang version 23.1.0-wasi-sdk (https://github.com/llvm/llvm-project 895aa2c896ada719451be2e3673c83da8ddf1141)",
+    "assets": {
+      "arm64-macos": "sha256:9c59398106b417f8f14913380fdf0097a8cc0ff4af9eb3ce0065a859e88d49e9",
+      "x86_64-macos": "sha256:87d27fa8adc68dee59bfbf2e22a6d34ef717c34d6bf1d8af2a56fc929d9ce0eb",
+      "arm64-linux": "sha256:f7e243dff54d60bcc576e94d6166b69f410f2500ae4a9ceef34315be10e77971",
+      "x86_64-linux": "sha256:b761e3a0721dbae9c09a0059e5fdb2bf917d1b4a8a7b430fb3b5aafb0984b2c4"
+    }
+  },
+  "flags": [
+    "--target=wasm32-wasip1",
+    "-mcpu=mvp",
+    "-mbulk-memory",
+    "-mnontrapping-fptoint",
+    "-msign-ext",
+    "-mmutable-globals",
+    "-nostartfiles",
+    "-Wl,--no-entry",
+    "-Wl,--gc-sections",
+    "-Wl,--strip-all",
+    "-Wl,-z,stack-size=65536",
+    "-O3",
+    "-DTEST",
+    "-fno-exceptions",
+    "-fno-rtti",
+    "-ffp-contract=off",
+    "-std=c++14",
+    "-Ivendor/rings/src"
+  ],
+  "upstream": [
+    {
+      "name": "eurorack",
+      "url": "https://github.com/pichenettes/eurorack",
+      "commit": "08460a69a7e1f7a81c5a2abcc7189c9a6b7208d4",
+      "commitDate": "2023-08-16",
+      "license": "MIT (STM32F projects)",
+      "paths": "rings/"
+    },
+    {
+      "name": "stmlib",
+      "url": "https://github.com/pichenettes/stmlib",
+      "commit": "e3bd7c9cc00e4364166f9905c0509b6ffd0535ec",
+      "commitDate": "2023-05-30",
+      "license": "MIT",
+      "paths": "stmlib/",
+      "note": "the submodule revision pinned by the eurorack commit above"
+    }
+  ],
+  "sources": [
+    {
+      "path": "dsp/resonator/bridge.cc",
+      "sha256": "b50d6ddd123873f07dced08285029414dba1db1e7fd3c3ee30c2ea5eb0c3dee8"
+    },
+    {
+      "path": "vendor/rings/src/rings/dsp/part.cc",
+      "sha256": "d638bd8cbe79c4d63cf26c270b5cc57db7d7f59957e72b99499149e2c6b7d767"
+    },
+    {
+      "path": "vendor/rings/src/rings/dsp/resonator.cc",
+      "sha256": "f75160f7c96e90dcb45c522b3ad0658f7ede32a32a283b62fead958ee1309074"
+    },
+    {
+      "path": "vendor/rings/src/rings/dsp/string.cc",
+      "sha256": "a61f0d77ccdb584b065a4354382f3d9d021f67218fbaac85a85de87780a162d5"
+    },
+    {
+      "path": "vendor/rings/src/rings/dsp/fm_voice.cc",
+      "sha256": "8e8cb5c8f27d6888e118a449758a8cfc801638b7b4654246ef6397a4989c2ff3"
+    },
+    {
+      "path": "vendor/rings/src/rings/resources.cc",
+      "sha256": "e9fd699ee57a596c7ee28db6207d76ec1389030e956b5ec0b214068e4820eb2d"
+    },
+    {
+      "path": "vendor/rings/src/stmlib/dsp/units.cc",
+      "sha256": "0acbe230ffaa2d181ba285fce54f2fd0b2339b3ec163a1dd00c946e6bf82ea4a"
+    },
+    {
+      "path": "vendor/rings/src/stmlib/utils/random.cc",
+      "sha256": "145c4d7a30e373d001fd664ce6f97a475458f7dc8286252d24ca6f592e0cdb93"
+    }
+  ],
+  "exports": [
+    "memory",
+    "rs_init",
+    "rs_block_size",
+    "rs_sample_rate",
+    "rs_max_voices",
+    "rs_out_l",
+    "rs_out_r",
+    "rs_fault_count",
+    "rs_set_voices",
+    "rs_set_patch",
+    "rs_set_model",
+    "rs_panic",
+    "rs_trigger",
+    "rs_active_voices",
+    "rs_voice_note",
+    "rs_voice_active",
+    "rs_render"
+  ]
+}
