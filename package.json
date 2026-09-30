@@ -28,7 +28,9 @@
     "index:routes": "node scripts/build_route_index.js",
     "build:skill": "node scripts/build_skill.js",
     "build:resonator": "node scripts/build_resonator.js",
-    "compare:resonator": "node scripts/build_resonator.js --reference && node scripts/resonator_compare.js"
+    "compare:resonator": "node scripts/build_resonator.js --reference && node scripts/resonator_compare.js",
+    "build:clouds": "node scripts/build_clouds.js",
+    "compare:clouds": "node scripts/build_clouds.js --reference && node scripts/clouds_compare.js"
   },
   "dependencies": {
     "@better-auth/cimd": "1.7.5",

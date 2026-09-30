@@ -67,6 +67,8 @@ npm run db:migrate  # drizzle-kit: apply migrations to DATABASE_URL
 npm run db:push     # drizzle-kit: push schema directly (dev only, writes no migration file)
 npm test            # node --test — pure-logic tests only (no audio/UI coverage)
 npm run sync:agents # regenerate AGENTS.md from CLAUDE.md (`-- --check` fails on drift)
+npm run build:clouds   # rebuild the Clouds granular wasm (only after dsp/clouds or vendor/clouds changes)
+npm run compare:clouds # native vs wasm renders of the Clouds bridge
 ```
 
 `npm test` runs the built-in Node test runner (`node --test`) over `test/`. Every test is **pure
@@ -83,7 +85,10 @@ logic** — nothing boots Tone.js, React, or the DB: `billing-plans` (`lib/billi
 call is injected through its `services` argument, so it still never touches Postgres),
 `resonator-dsp` / `resonator-worklet` (run the committed wasm and the worklet's
 `ResonatorHost` directly: tuning, timing, cancellation, bounds), `resonator-plan`
-(vocabulary, both apply paths, flag on/off),
+(vocabulary, both apply paths, flag on/off), `clouds-granular-dsp` / `clouds-granular-worklet`
+(the committed Clouds grain wasm and `CloudsHost`: pitch, loop window, reverse, onset timing,
+cancellation, source swap), `granular-engine` (`lib/granularEngine.js` — the engine switch and the
+Leið → Clouds parameter adapter),
 `composer-skill` (runs every example plan in `skills/leid-composer/` through the real
 `validatePlan`/`PLAN_INPUT_SCHEMA` and checks each tool it names is registered),
 `composer-guide` (pins the prompt's loop-window/FX-unit/fixed-IR facts and its example plan),
@@ -119,6 +124,9 @@ restart it with a fresh `.next` afterwards.
   trusting only `BETTER_AUTH_URL` made every sign-in from the other half fail with `INVALID_ORIGIN`.
 - `OPENROUTER_API_KEY` — required only for the AI Composer (`POST /api/compose`).
 - `OPENROUTER_MODEL` — optional override (default `anthropic/claude-sonnet-4.5`).
+- `NEXT_PUBLIC_GRANULAR_ENGINE` — `grainplayer` (default, the original `Tone.GrainPlayer` layer)
+  or `clouds` (the Clouds-derived wasm layer). Build-time and app-wide, not song state. See
+  **Granular engines** below.
 - `MCP_ENABLED` / `NEXT_PUBLIC_MCP_ENABLED` — default `false`; gate the Pro MCP server and its
   header-menu entry (see **MCP server** below). Apply the Drizzle migrations to the target database
   **before** flipping either on — Better Auth's MCP/OAuth plugins read tables that only exist after
@@ -527,6 +535,18 @@ NetworkState (drone hum + hub-convergence chords) → AlertLayer input
   automation targets (`grain.*`, see `GRAIN_PARAM_TARGETS` / `availableAutomationTargets`). Note:
   `Granular` was *briefly* a synth type — it is **now a layer, not a synth**; `songState.js`
   coerces stale `'Granular'` synth-type snapshots back to a real synth.
+- **Granular engines**: `NEXT_PUBLIC_GRANULAR_ENGINE` (`lib/granularEngine.js`) picks the class
+  `_ensureGranularVoice` builds. That is the only branch in the engine: `GranularVoice`
+  (`Tone.GrainPlayer`, untouched) and `CloudsGranularVoice` (`lib/cloudsGranularVoice.js`) share
+  one lifecycle (`setBuffer`/`set`/`setMix`/`trigger*`/`setNote`/`connect`/`dispose`/`loaded`),
+  the same C4 offline render as their source, and the same outer envelope + additive mix into
+  `routeGain`. The Clouds layer is a wasm grain cloud in an AudioWorklet
+  (`dsp/clouds/bridge.cc` over `vendor/clouds`, `public/worklets/clouds-granular-processor.js`,
+  `lib/cloudsGranularLoader.js`), built like the Resonator (`npm run build:clouds`, committed
+  artifact). It loads asynchronously and **falls back to `GranularVoice`** if the wasm or worklet
+  fails, so a lane never loses its layer. Saved `grain.*` settings and automation go through
+  `cloudsParamsFromGranular`; what each one means there, plus measurements, is in
+  `dsp/clouds/README.md`. Plan and remaining gates: `docs/clouds-granular-port-plan.md`.
 
 #### Musical mapping (`lib/mappings.js`)
 
@@ -702,7 +722,8 @@ classes.
 `Resonator` is a lane synth type backed by Emilie Gillet's Rings DSP (MIT, vendored in
 `vendor/rings`, hashes in its `manifest.json`), compiled to a committed standalone wasm
 (`public/wasm/resonator-<sha8>.wasm`) by `npm run build:resonator` with a pinned
-wasi-sdk. Regular builds never compile it. It is offered in the picker and in AI/MCP
+wasi-sdk (`scripts/lib/wasiSdk.js`, shared with the Clouds granular build). Regular builds never
+compile it. It is offered in the picker and in AI/MCP
 plans only when `NEXT_PUBLIC_RESONATOR_ENABLED=true`, but songs that use it play either
 way. Status and open release gates: `docs/rings-resonator-plan.md`. Build and measurements:
 `dsp/resonator/README.md`.

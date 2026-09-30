@@ -13,7 +13,7 @@ app builds never compile C++. Rebuild only after changing `bridge.cc` or the
 vendored sources:
 
 ```bash
-npm run build:resonator        # downloads the pinned wasi-sdk once into .toolchain/
+npm run build:resonator        # downloads the pinned wasi-sdk once into dsp/.toolchain/
 node scripts/build_resonator.js --check   # fails if committed assets don't match sources
 npm run compare:resonator      # native vs wasm, writes WAVs to .build/renders/
 npm test                       # resonator-dsp / -worklet / -plan tests use the wasm
