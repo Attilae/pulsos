@@ -6,6 +6,7 @@ import { DEFAULT_FX_TRACKS, usesResonator } from '@/lib/soundSpecs.js'
 import { warmResonatorAsset } from '@/lib/resonatorLoader.js'
 import { FX_BUSES } from '@/lib/fxTrack.js'
 import { randomFromScale, shiftOctaveNote, geoToMidi, routeBounds, midiToNote, noteToMidi, SCALES, MODES, setCityBounds } from '@/lib/mappings.js'
+import { buildRouteSoundModes, buildLanePitchMaps } from '@/lib/lanePitch.js'
 import { fetchLines } from '@/lib/shared/useRoutes.js'
 import { useCitySelection } from '@/lib/shared/CityContext.jsx'
 import { getCityEntry, linesUrlFor } from '@/lib/shared/cities.js'
@@ -853,10 +854,7 @@ export default function MixerTab({ active = true }) {
       // Start silent, fade in after transport starts
       Tone.getDestination().volume.value = -80
 
-      const smMap = {}
-      for (const [rid, m] of Object.entries(trackSoundModes)) {
-        smMap[rid] = { mode: m, scale: trackScales[rid] ?? { root: 'C', scaleType: 'major' } }
-      }
+      const smMap = buildRouteSoundModes(mergedRoutes, trackSoundModes, trackScales)
 
       if (mode === 'mock') {
         engine.startMock(mergedRoutes ?? [], smMap, bpm, trackSynthTypes, trackADSRs)
@@ -898,13 +896,7 @@ export default function MixerTab({ active = true }) {
         }
         if (!(await prepareLaneSounds(trackSynthTypes)) || cancelled) return
         Tone.getDestination().volume.value = -80
-        const smMap = {}
-        for (const [rid, soundMode] of Object.entries(trackSoundModes)) {
-          smMap[rid] = {
-            mode: soundMode,
-            scale: trackScales[rid] ?? { root: 'C', scaleType: 'major' },
-          }
-        }
+        const smMap = buildRouteSoundModes(mergedRoutes, trackSoundModes, trackScales)
         engine.startMock(mergedRoutes ?? [], smMap, bpm, trackSynthTypes, trackADSRs)
         setStarted(true)
         Tone.getDestination().volume.rampTo(masterVolume, 0.5)
@@ -1000,6 +992,17 @@ export default function MixerTab({ active = true }) {
     const stopLat = lat ?? stop?.lat
     const stopLng = stop?.lon ?? stop?.lng
 
+    if (stop) {
+      const { pitchMap } = buildLanePitchMaps(route, {
+        scale: trackScales[routeId], pitchVariety: trackPitchVariety[routeId],
+        perStopSteps: trackPitchOffsets[routeId], octaveShift: octave,
+        semitoneShift: trackSemitones[routeId] ?? 0,
+        gridResolution: trackGridResolutions[routeId], loopRegion: trackLoopRegions[routeId],
+      })
+      engineRef.current?.triggerLiveNote(routeId, routeType, pitchMap[route.stops.indexOf(stop)])
+      return
+    }
+
     let rawNote
     if (stopLat != null) {
       // Two-axis geographic pitch — same mapping the mock rail uses (engine.js),
@@ -1014,7 +1017,7 @@ export default function MixerTab({ active = true }) {
     const note = shiftOctaveNote(rawNote, octave)
 
     engineRef.current?.triggerLiveNote(routeId, routeType, note)
-  }, [trackScales, trackOctaves, routes])
+  }, [trackScales, trackOctaves, trackPitchVariety, trackPitchOffsets, trackSemitones, trackGridResolutions, trackLoopRegions, routes])
 
   // Reset any automation lane whose target is no longer valid (synth type change,
   // granular toggled off). 'volume' is always valid.
@@ -2454,6 +2457,7 @@ export default function MixerTab({ active = true }) {
             gridResolutions: trackGridResolutions,
             arps: trackArps,
             pitchOffsets: trackPitchOffsets,
+            loopRegions: trackLoopRegions,
             stopVelocities: trackStopVelocities,
             noteChances: trackNoteChances,
             noteLengths: trackNoteLengths,

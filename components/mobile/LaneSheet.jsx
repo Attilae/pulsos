@@ -26,7 +26,7 @@ import { LaneTagFields } from '../LaneTagEditor.jsx'
 import ResonatorControls from '../ResonatorControls.jsx'
 import { useResonatorStatus } from '@/lib/shared/useResonatorStatus.js'
 import { ARP_RATES, ARP_STYLES, DEFAULT_ARP, DEFAULT_SIDECHAIN } from '@/lib/engine.js'
-import { DEFAULT_GRID_RESOLUTION, DEFAULT_PITCH_VARIETY, PITCH_CONTOURS } from '@/lib/mappings.js'
+import { DEFAULT_GRID_RESOLUTION, DEFAULT_PITCH_VARIETY, PITCH_CONTOURS, PITCH_SPANS, PITCH_LEAPS } from '@/lib/mappings.js'
 import { NOTE_LENGTHS, NOTE_LENGTH_LABELS, DEFAULT_NOTE_LENGTH } from '@/lib/noteLength.js'
 import { FX_BUSES } from '@/lib/fxTrack.js'
 import { buildLanePitchMaps, buildLaneNoteRows } from '@/lib/laneNotes.js'
@@ -60,6 +60,7 @@ export default function LaneSheet({
   pitchVariety,
   speed = 1,
   gridResolution = DEFAULT_GRID_RESOLUTION,
+  loopRegion,
   arp,
   perStopSteps,
   stopVelocities,
@@ -92,9 +93,10 @@ export default function LaneSheet({
     const { pitchMap } = buildLanePitchMaps(route, {
       scale: trackScale, pitchVariety, perStopSteps,
       octaveShift: octave, semitoneShift: semitone,
+      gridResolution, loopRegion,
     })
     return buildLaneNoteRows(route, { pitchMap, perStopSteps, stopVelocities, stopChances, laneChance })
-  }, [route, segment, trackScale.root, trackScale.scaleType, pitchVariety, perStopSteps, stopVelocities, stopChances, laneChance, octave, semitone])
+  }, [route, segment, trackScale.root, trackScale.scaleType, pitchVariety, perStopSteps, stopVelocities, stopChances, laneChance, octave, semitone, gridResolution, loopRegion])
 
   if (!route) return null
 
@@ -189,6 +191,30 @@ export default function LaneSheet({
                     aria-pressed={pv.contour === contour}
                     aria-label={CONTOUR_TITLES[contour]}
                   >{CONTOUR_LABELS[contour] ?? contour}</button>
+                ))}
+              </div>
+            </Field>
+
+            <Field label="Pitch range" hint="Limit generated notes before your stop edits and octave shift. Auto keeps the original contour range.">
+              <div className="lsheet-choice-grid">
+                {[null, ...PITCH_SPANS].map(span => (
+                  <button key={span ?? 'auto'} type="button"
+                    className={(span == null ? pv.span == null : pv.span === span) ? 'is-active' : ''}
+                    aria-pressed={span == null ? pv.span == null : pv.span === span}
+                    onClick={() => onPitchVariety(route.id, { span: span ?? undefined })}
+                  >{span == null ? 'Auto' : `${span} octave${span === 1 ? '' : 's'}`}</button>
+                ))}
+              </div>
+            </Field>
+
+            <Field label="Maximum leap" hint="Scale steps between generated notes, including the loop return. Trimming a loop can reshape its notes. Your stop edits take priority.">
+              <div className="lsheet-choice-grid">
+                {PITCH_LEAPS.map(maxLeap => (
+                  <button key={maxLeap} type="button"
+                    className={(pv.maxLeap ?? 0) === maxLeap ? 'is-active' : ''}
+                    aria-pressed={(pv.maxLeap ?? 0) === maxLeap}
+                    onClick={() => onPitchVariety(route.id, { maxLeap })}
+                  >{maxLeap ? `${maxLeap} step${maxLeap === 1 ? '' : 's'}` : 'Off'}</button>
                 ))}
               </div>
             </Field>

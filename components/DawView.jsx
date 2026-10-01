@@ -3,7 +3,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, use
 import { SYNTH_DEFAULTS, supportsGranular, availableAutomationTargets, findTargetSpec, SAMPLER_PRESET_LIST, SAMPLER_PRESETS, DRUM_VOICES, DRUM_VOICE_LICENSE, DEFAULT_GRANULAR, DEFAULT_SIDECHAIN, ARP_STYLES, ARP_RATES, DEFAULT_ARP, DRUMS_ROUTE_ID } from '@/lib/engine.js'
 import { FX_BUSES, AUTOMATION_TARGETS, FX_PARAM_SPECS, FX_SYNC_TARGETS } from '@/lib/fxTrack.js'
 import { PAD_DEFS as DRUM_PAD_DEFS, STEPS as DRUM_STEPS, SOURCE_STEPS as DRUM_SOURCE_STEPS, emptyPattern as emptyDrumPattern } from '@/lib/engines/drumEngine.js'
-import { generatePitchMap, shiftOctaveNote, shiftSemitones, noteToMidi, SCALES, hashStopValue, snapStopsToGrid, GRID_TOTAL_CELLS, GRID_BARS, GRID_STEPS_PER_BAR, GRID_RESOLUTION_STEPS_PER_BAR, DEFAULT_GRID_RESOLUTION, denormalizeToRange, denormalizeExp, transposeNoteInScale, PITCH_CONTOURS, DEFAULT_PITCH_VARIETY } from '@/lib/mappings.js'
+import { noteToMidi, hashStopValue, snapStopsToGrid, GRID_TOTAL_CELLS, GRID_BARS, GRID_STEPS_PER_BAR, GRID_RESOLUTION_STEPS_PER_BAR, DEFAULT_GRID_RESOLUTION, denormalizeToRange, denormalizeExp, transposeNoteInScale, PITCH_CONTOURS, DEFAULT_PITCH_VARIETY, PITCH_SPANS, PITCH_LEAPS } from '@/lib/mappings.js'
 import { buildLanePitchMaps } from '@/lib/laneNotes.js'
 import { pickerSynthTypes, OSC_TYPES } from '@/lib/soundSpecs.js'
 import { NOTE_LENGTHS, NOTE_LENGTH_LABELS, DEFAULT_NOTE_LENGTH } from '@/lib/noteLength.js'
@@ -83,9 +83,10 @@ export const ARP_RATE_LABELS = {
 }
 
 // Pitch-contour display labels (values come from PITCH_CONTOURS in mappings)
-export const CONTOUR_LABELS = { geographic: 'Geo', demand: 'Demand', randomWalk: 'Walk', arch: 'Arch' }
+export const CONTOUR_LABELS = { geographic: 'Geo', demand: 'Demand', geometryDemand: 'Geometry', randomWalk: 'Walk', arch: 'Arch' }
 export const CONTOUR_TITLES = {
   demand:     'Demand: more service or riders produces a higher note (default)',
+  geometryDemand: 'Geometry: route shape drives melody, with a smaller demand influence',
   geographic: 'Geographic: latitude traces the melody',
   randomWalk: 'Random walk: seeded melodic drift through the scale',
   arch:       'Arch: rises then falls along the stop sequence',
@@ -1123,10 +1124,39 @@ function LineTrack({
                           className={`speed-btn ${pv.contour === c ? 'active' : ''}`}
                           style={pv.contour === c ? { borderColor: route.color, color: route.color } : {}}
                           onClick={() => onPitchVariety({ contour: c })}
+                          aria-pressed={pv.contour === c}
                           title={CONTOUR_TITLES[c]}
                         >
                           {CONTOUR_LABELS[c] ?? c}
                         </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="speed-row">
+                    <span className="speed-label">RANGE</span>
+                    <div className="speed-btns" role="group" aria-label={`${route.name} pitch range`}>
+                      {[null, ...PITCH_SPANS].map(span => (
+                        <button key={span ?? 'auto'} type="button"
+                          className={`speed-btn ${pv.span === span || (span == null && pv.span == null) ? 'active' : ''}`}
+                          aria-pressed={span == null ? pv.span == null : pv.span === span}
+                          aria-label={span == null ? 'Original contour range' : `${span} octave${span === 1 ? '' : 's'}`}
+                          title={span == null ? 'Keep the original contour range' : `Limit generated notes to ${span} octave${span === 1 ? '' : 's'} before your pitch edits`}
+                          onClick={() => onPitchVariety({ span: span ?? undefined })}
+                        >{span == null ? 'Auto' : `${span} oct`}</button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="speed-row">
+                    <span className="speed-label">LEAP</span>
+                    <div className="speed-btns" role="group" aria-label={`${route.name} maximum melodic leap`}>
+                      {PITCH_LEAPS.map(maxLeap => (
+                        <button key={maxLeap} type="button"
+                          className={`speed-btn ${(pv.maxLeap ?? 0) === maxLeap ? 'active' : ''}`}
+                          aria-pressed={(pv.maxLeap ?? 0) === maxLeap}
+                          aria-label={maxLeap ? `${maxLeap} scale step${maxLeap === 1 ? '' : 's'}` : 'Unrestricted leaps'}
+                          title={maxLeap ? `At most ${maxLeap} scale steps between generated notes, including loop return. Your stop edits take priority.` : 'Keep unrestricted melodic movement'}
+                          onClick={() => onPitchVariety({ maxLeap })}
+                        >{maxLeap || 'Off'}</button>
                       ))}
                     </div>
                   </div>
@@ -2854,8 +2884,6 @@ function StopRail({
   const total = route.totalDist || route.stops[route.stops.length - 1]?.dist || 1
   const PAD   = 0.1  // keep dots 10% from top/bottom edges
 
-  const scaleIntervals = SCALES[trackScale.scaleType] ?? SCALES.major
-
   // Snap all stops to grid cells — this is the canonical X position
   const gridStops = snapStopsToGrid(route.stops, total, noteTotalCells, noteStepsPerBar)
 
@@ -2873,6 +2901,7 @@ function StopRail({
   // notes in the same order the engine does (offset → octave → transpose).
   const { pitchMap, geoDisplayMap } = buildLanePitchMaps(route, {
     scale: trackScale, pitchVariety, perStopSteps, octaveShift, semitoneShift,
+    gridResolution, loopRegion,
   })
   const stopPoints = (() => {
     const midis     = pitchMap.map(n => noteToMidi(n))
@@ -2907,14 +2936,12 @@ function StopRail({
     route.sourceRoutes.forEach((src, si) => {
       if (!src?.stops?.length) return
       const srcTotal = src.totalDist || src.stops[src.stops.length - 1]?.dist || 1
-      const srcPitch = generatePitchMap(src.stops, noteToMidi(`${trackScale.root}3`), scaleIntervals, 3,
-        { ...(pitchVariety ?? {}), routeId: src.id })
+      const { pitchMap: srcPitch } = buildLanePitchMaps(src, {
+        scale: trackScale, pitchVariety, octaveShift, semitoneShift, gridResolution, loopRegion,
+      })
       const srcGrid  = snapStopsToGrid(src.stops, srcTotal, noteTotalCells, noteStepsPerBar)
       for (const stop of srcGrid) {
-        const noteName = shiftSemitones(
-          shiftOctaveNote(srcPitch[stop.originalIdx] ?? 'C3', octaveShift),
-          semitoneShift,
-        )
+        const noteName = srcPitch[stop.originalIdx]
         raw.push({
           key: `${src.id}_${stop.id}_${stop.cellIdx}`, si,
           x: (stop.cellIdx / noteTotalCells) * 100, cellIdx: stop.cellIdx,
