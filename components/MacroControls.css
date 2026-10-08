@@ -1,0 +1,177 @@
+/* Macro panel (components/MacroControls.jsx). Rack density; tokens only, so
+   both themes work. Lime marks only live/selected state: the selected bank,
+   the lit engine lamp, the voice count, a focused or dragged knob. Amber marks
+   knobs owned by an automation lane (PanelKnob.css). */
+
+.mc-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-100);
+  min-width: 0;
+}
+
+.mc-status {
+  margin: 0;
+  padding: var(--space-050) var(--space-075);
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-2xs);
+  color: var(--text-subtle);
+  background: var(--hover-bg);
+}
+.mc-status--error {
+  color: var(--text);
+  background: var(--danger-tint);
+  border: 1px solid color-mix(in srgb, var(--danger) 40%, transparent);
+}
+
+.mc-caption {
+  font-size: var(--fs-3xs);
+  font-weight: 700;
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.mc-hint,
+.mc-note {
+  margin: 0;
+  font-size: var(--fs-3xs);
+  line-height: 1.4;
+  color: var(--muted);
+}
+.mc-note {
+  padding-top: var(--space-050);
+  border-top: 1px solid var(--border);
+}
+
+/* ── MODEL: bank buttons + eight lamps (the module's buttons and LEDs) ─────── */
+.mc-model {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-050);
+}
+.mc-model-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-075);
+}
+
+.mc-banks {
+  display: inline-flex;
+  margin-left: auto;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+.mc-bank {
+  min-width: 26px;
+  padding: 2px var(--space-075);
+  font-family: var(--font-mono);
+  font-size: var(--fs-3xs);
+  color: var(--muted);
+  background: transparent;
+  border: none;
+  border-left: 1px solid var(--border);
+  cursor: pointer;
+}
+.mc-bank:first-child { border-left: none; }
+.mc-bank:hover { color: var(--text); background: var(--hover-bg); }
+.mc-bank.is-active { color: var(--accent); background: var(--hover-surface); }
+
+.mc-lamps {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 2px var(--space-075);
+}
+.mc-lamp-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-050);
+  min-width: 0;
+  padding: 2px var(--space-050);
+  font-size: var(--fs-3xs);
+  text-align: left;
+  color: var(--text-subtle);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.mc-lamp-btn:hover { color: var(--text); background: var(--hover-bg); }
+.mc-lamp-btn.is-active { color: var(--accent); border-color: var(--border-strong); }
+.mc-lamp {
+  flex-shrink: 0;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  border: 1px solid var(--muted-line);
+}
+.mc-lamp-btn.is-active .mc-lamp { background: var(--accent); border-color: var(--accent); }
+.mc-lamp-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Knob rows ─────────────────────────────────────────────────────────────── */
+.mc-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-050);
+}
+.mc-row {
+  display: grid;
+  gap: var(--space-050);
+}
+.mc-row--2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.mc-row--3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+/* ── Voices ───────────────────────────────────────────────────────────────── */
+.mc-voices {
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-075);
+}
+.mc-choices {
+  display: flex;
+  gap: var(--space-050);
+  margin-left: auto;
+}
+.mc-choice {
+  min-width: 28px;
+  padding: 2px var(--space-050);
+  font-family: var(--font-mono);
+  font-size: var(--fs-3xs);
+  color: var(--text-subtle);
+  background: none;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.mc-choice:hover { color: var(--text); background: var(--hover-bg); }
+.mc-choice.is-active {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-tint);
+}
+
+.mc-bank:focus-visible,
+.mc-lamp-btn:focus-visible,
+.mc-choice:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* ── Phone lane sheet: bigger type and dials. Buttons get the 44px touch floor
+   from mobile.css. ──────────────────────────────────────────────────────────── */
+.mc-panel--sheet .mc-hint,
+.mc-panel--sheet .mc-note,
+.mc-panel--sheet .mc-lamp-btn,
+.mc-panel--sheet .mc-caption,
+.mc-panel--sheet .mc-bank,
+.mc-panel--sheet .mc-choice { font-size: var(--fs-2xs); }
+.mc-panel--sheet .mc-bank,
+.mc-panel--sheet .mc-choice { min-width: 44px; }
+.mc-panel--sheet .pk-knob--lg .pk-knob-dial { width: 52px; height: 52px; }
+.mc-panel--sheet .pk-knob--md .pk-knob-dial { width: 44px; height: 44px; }
+.mc-panel--sheet .pk-knob--sm .pk-knob-dial { width: 40px; height: 40px; }
