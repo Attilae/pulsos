@@ -30,7 +30,9 @@
     "build:resonator": "node scripts/build_resonator.js",
     "compare:resonator": "node scripts/build_resonator.js --reference && node scripts/resonator_compare.js",
     "build:clouds": "node scripts/build_clouds.js",
-    "compare:clouds": "node scripts/build_clouds.js --reference && node scripts/clouds_compare.js"
+    "compare:clouds": "node scripts/build_clouds.js --reference && node scripts/clouds_compare.js",
+    "build:macro": "node scripts/build_macro.js",
+    "compare:macro": "node scripts/build_macro.js --reference && node scripts/macro_compare.js"
   },
   "dependencies": {
     "@better-auth/cimd": "1.7.5",

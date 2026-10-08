@@ -1,0 +1,246 @@
+{
+  "asset": "macro-ed63b582.wasm",
+  "sha256": "ed63b582f28f58d20de1d15ffe207dbf86cb2c808f64e7d51b690dda258f65da",
+  "bytes": 208625,
+  "toolchain": {
+    "name": "wasi-sdk",
+    "tag": "wasi-sdk-34",
+    "version": "34.0",
+    "clang": "clang version 23.1.0-wasi-sdk (https://github.com/llvm/llvm-project 895aa2c896ada719451be2e3673c83da8ddf1141)",
+    "assets": {
+      "arm64-macos": "sha256:9c59398106b417f8f14913380fdf0097a8cc0ff4af9eb3ce0065a859e88d49e9",
+      "x86_64-macos": "sha256:87d27fa8adc68dee59bfbf2e22a6d34ef717c34d6bf1d8af2a56fc929d9ce0eb",
+      "arm64-linux": "sha256:f7e243dff54d60bcc576e94d6166b69f410f2500ae4a9ceef34315be10e77971",
+      "x86_64-linux": "sha256:b761e3a0721dbae9c09a0059e5fdb2bf917d1b4a8a7b430fb3b5aafb0984b2c4"
+    }
+  },
+  "flags": [
+    "--target=wasm32-wasip1",
+    "-mcpu=mvp",
+    "-mbulk-memory",
+    "-mnontrapping-fptoint",
+    "-msign-ext",
+    "-mmutable-globals",
+    "-nostartfiles",
+    "-Wl,--no-entry",
+    "-Wl,--gc-sections",
+    "-Wl,--strip-all",
+    "-Wl,-z,stack-size=65536",
+    "-isystem",
+    "<sysroot>/include/wasm32-wasip1/noeh/c++/v1",
+    "-O3",
+    "-DTEST",
+    "-include",
+    "stdio.h",
+    "-fno-exceptions",
+    "-fno-rtti",
+    "-ffp-contract=off",
+    "-std=c++14",
+    "-Ivendor/plaits/src"
+  ],
+  "upstream": [
+    {
+      "name": "eurorack",
+      "url": "https://github.com/pichenettes/eurorack",
+      "commit": "08460a69a7e1f7a81c5a2abcc7189c9a6b7208d4",
+      "commitDate": "2023-08-16",
+      "license": "MIT (STM32F projects)",
+      "paths": "plaits/"
+    },
+    {
+      "name": "stmlib",
+      "url": "https://github.com/pichenettes/stmlib",
+      "commit": "e3bd7c9cc00e4364166f9905c0509b6ffd0535ec",
+      "commitDate": "2023-05-30",
+      "license": "MIT",
+      "paths": "stmlib/",
+      "note": "the submodule revision pinned by the eurorack commit above"
+    }
+  ],
+  "sources": [
+    {
+      "path": "dsp/macro/bridge.cc",
+      "sha256": "32532632dae57ea0b48e6c5759b2915a34e7e9bf6f325bfd749c57ff9d6106b7"
+    },
+    {
+      "path": "vendor/plaits/src/plaits/dsp/chords/chord_bank.cc",
+      "sha256": "e1fd26d32c377e1b3f96446e0fff016f83d0f32e45fd8c8190e522d24718e187"
+    },
+    {
+      "path": "vendor/plaits/src/plaits/dsp/engine/additive_engine.cc",
+      "sha256": "8af97e00572a3741fed16fdf7ebd6f579d4cccedf891c0ee2f2934204ee6450d"
+    },
+    {
+      "path": "vendor/plaits/src/plaits/dsp/engine/bass_drum_engine.cc",
+      "sha256": "e48f5f50c85d797abfbf108d288e741082a06402c36ffec7edbe702ba7626c63"
+    },
+    {
+      "path": "vendor/plaits/src/plaits/dsp/engine/chord_engine.cc",
+      "sha256": "0cb5b9c7cad8714328903165432ddf9d86d9e98634f27b490878bc2099b7df51"
+    },
+    {
+      "path": "vendor/plaits/src/plaits/dsp/engine/fm_engine.cc",
+      "sha256": "0d9a76302b61be966988cebf851dde6b0fd52b10887b50875c03fc3c941f2f82"
+    },
+    {
+      "path": "vendor/plaits/src/plaits/dsp/engine/grain_engine.cc",
+      "sha256": "d6a46e24f55c1b76cabb8a948e9ef2ff9f90b5d05b0c3f15910749714805de72"
+    },
+    {
+      "path": "vendor/plaits/src/plaits/dsp/engine/hi_hat_engine.cc",
+      "sha256": "4a07a45febf78eab17ed1530609b03d67f004501b3b507b286693d7940fb5e75"
+    },
+    {
+      "path": "vendor/plaits/src/plaits/dsp/engine/modal_engine.cc",
+      "sha256": "6fb8374b32378bd7b99cd4cc7421b12af681ce973de03a7148ae901c99c71a7a"
+    },
+    {
+      "path": "vendor/plaits/src/plaits/dsp/engine/noise_engine.cc",
+      "sha256": "f57b326e51961fc05977a8c7141628d0414ea26e93aea8060790cb3fefdd4fd7"
+    },
+    {
+      "path": "vendor/plaits/src/plaits/dsp/engine/particle_engine.cc",
+      "sha256": "436ea05dee9a378c334849f20fa73b04575787a47cc8d93e6a9b731cd949ca1a"
+    },
+    {
+      "path": "vendor/plaits/src/plaits/dsp/engine/snare_drum_engine.cc",
+      "sha256": "a522f9a20b739070e401cbeab193718e7fc7a4cfd99c15d10f62a278c0a62508"
+    },
+    {
+      "path": "vendor/plaits/src/plaits/dsp/engine/speech_engine.cc",
+      "sha256": "f1adf33c123eb0fb2db214cb7b83153e2905c3f497ee51ff6e41058cf402f10c"
+    },
+    {
+      "path": "vendor/plaits/src/plaits/dsp/engine/string_engine.cc",
+      "sha256": "b054d0a0e2dcee7a4ddd28728dd17ae9f372498030d8646857104f139ba7a266"
+    },
+    {
+      "path": "vendor/plaits/src/plaits/dsp/engine/swarm_engine.cc",
+      "sha256": "307b8e3c9c47dbbbf8e78fd06dc6b7c70a9130210a72ce46320c98e18a9a6e9a"
+    },
+    {
+      "path": "vendor/plaits/src/plaits/dsp/engine/virtual_analog_engine.cc",
+      "sha256": "775957d866da2560409574bd99ab91147e17a1e3d843e0c5741dc51d54dd6651"
+    },
+    {
+      "path": "vendor/plaits/src/plaits/dsp/engine/waveshaping_engine.cc",
+      "sha256": "ee7b7ef6a7746f17d2e8eaf4e73a7ad4c0dd8122190cecc43ac3750e770ce546"
+    },
+    {
+      "path": "vendor/plaits/src/plaits/dsp/engine/wavetable_engine.cc",
+      "sha256": "56d4c95755dbd97bdca9158bb21f7ad61b52a6d019d9fb6c18f74a4e478d193c"
+    },
+    {
+      "path": "vendor/plaits/src/plaits/dsp/engine2/chiptune_engine.cc",
+      "sha256": "05da125b52ec817978978521527682d365817d4cb15e067042bf805fa7480ad2"
+    },
+    {
+      "path": "vendor/plaits/src/plaits/dsp/engine2/phase_distortion_engine.cc",
+      "sha256": "65ed91dae78bb727aa45d2233d00eb36ebd9b9caabe28a3942799c9da7161d48"
+    },
+    {
+      "path": "vendor/plaits/src/plaits/dsp/engine2/six_op_engine.cc",
+      "sha256": "24e8353a4bc497ae4b343080aabaa1da2ff1272f702c32be2648f688b87d6d2f"
+    },
+    {
+      "path": "vendor/plaits/src/plaits/dsp/engine2/string_machine_engine.cc",
+      "sha256": "f9313f67988e59cdd824660074f33f2acb2eb9d219da639a1a8d492904dfe99a"
+    },
+    {
+      "path": "vendor/plaits/src/plaits/dsp/engine2/virtual_analog_vcf_engine.cc",
+      "sha256": "4635b1c8e77f786a3fc036ae969cfb788a5365a8e7abd8f971340d89ed6229c5"
+    },
+    {
+      "path": "vendor/plaits/src/plaits/dsp/engine2/wave_terrain_engine.cc",
+      "sha256": "600e148dd0eb5e6742043b43e798c4d085e25ba955c18d02498b61a5cc786b71"
+    },
+    {
+      "path": "vendor/plaits/src/plaits/dsp/fm/algorithms.cc",
+      "sha256": "ea82204adcac389c8b4792c5f029122e774a137163f44fe0f4551e89c3d2441b"
+    },
+    {
+      "path": "vendor/plaits/src/plaits/dsp/fm/dx_units.cc",
+      "sha256": "af9c1f9dde6768ca0630724173f57bcf18d797bd681bdf3dfc5511081605ee60"
+    },
+    {
+      "path": "vendor/plaits/src/plaits/dsp/physical_modelling/modal_voice.cc",
+      "sha256": "c3e5ab1fd540f92e56ea62150a28304ff401930c1db243b2ebb42a5417660fec"
+    },
+    {
+      "path": "vendor/plaits/src/plaits/dsp/physical_modelling/resonator.cc",
+      "sha256": "6b51c987acd069f97b526a53ba431ece3e447981385dc193ebbe4557ff76fc6a"
+    },
+    {
+      "path": "vendor/plaits/src/plaits/dsp/physical_modelling/string.cc",
+      "sha256": "290cf726aab4265e5dafaa730316c1404bd3ebaaceade898fc29a89193d36b09"
+    },
+    {
+      "path": "vendor/plaits/src/plaits/dsp/physical_modelling/string_voice.cc",
+      "sha256": "5e18234d34e057b5cb3d8f56989005c47faccbaf4f3a5cc435abfce9a856ad85"
+    },
+    {
+      "path": "vendor/plaits/src/plaits/dsp/speech/lpc_speech_synth.cc",
+      "sha256": "83be3c9136717351a6bb04d309df8c3fe7efb5bef1a27d0147e640dff8b2715d"
+    },
+    {
+      "path": "vendor/plaits/src/plaits/dsp/speech/lpc_speech_synth_controller.cc",
+      "sha256": "524dce2916beb257fc347f2ac44229afa9d089545fdd46e83e35ee5f415a732f"
+    },
+    {
+      "path": "vendor/plaits/src/plaits/dsp/speech/lpc_speech_synth_phonemes.cc",
+      "sha256": "3885114e9dd3e736c91975b5e8dab580c733064111fe285f8a306e155985a2a5"
+    },
+    {
+      "path": "vendor/plaits/src/plaits/dsp/speech/lpc_speech_synth_words.cc",
+      "sha256": "142b34d8d26988fb4353fb9a508a94420a6805192d834cad65687d46b74763fa"
+    },
+    {
+      "path": "vendor/plaits/src/plaits/dsp/speech/naive_speech_synth.cc",
+      "sha256": "fca90a2f6e9e92c0dca40d85f16c8b446af2b1e3d4bdc57e4f8f12c80e312da3"
+    },
+    {
+      "path": "vendor/plaits/src/plaits/dsp/speech/sam_speech_synth.cc",
+      "sha256": "97f98367531c437aa27725dcd3ea2da48c5be50bba4e402e631408fe1239bd7f"
+    },
+    {
+      "path": "vendor/plaits/src/plaits/dsp/voice.cc",
+      "sha256": "ce7191f647a311b80365392d40dfb1e5fd84e3279bd221e1e59bd8e5ac73d2a9"
+    },
+    {
+      "path": "vendor/plaits/src/plaits/resources.cc",
+      "sha256": "de2b2adf661c0623a5ddf74326d7d3b88d7b3554c3aa0d710bf8ebd1c4cd18ef"
+    },
+    {
+      "path": "vendor/plaits/src/stmlib/dsp/units.cc",
+      "sha256": "0acbe230ffaa2d181ba285fce54f2fd0b2339b3ec163a1dd00c946e6bf82ea4a"
+    },
+    {
+      "path": "vendor/plaits/src/stmlib/utils/random.cc",
+      "sha256": "145c4d7a30e373d001fd664ce6f97a475458f7dc8286252d24ca6f592e0cdb93"
+    }
+  ],
+  "exports": [
+    "memory",
+    "mc_init",
+    "mc_block_size",
+    "mc_sample_rate",
+    "mc_max_voices",
+    "mc_num_engines",
+    "mc_trigger_latency",
+    "mc_out",
+    "mc_fault_count",
+    "mc_set_voices",
+    "mc_set_patch",
+    "mc_set_aux",
+    "mc_set_engine",
+    "mc_panic",
+    "mc_trigger_held",
+    "mc_trigger",
+    "mc_release",
+    "mc_active_voices",
+    "mc_voice_note",
+    "mc_voice_active",
+    "mc_engine",
+    "mc_render"
+  ]
+}

@@ -276,3 +276,26 @@ test('a lane label keeps the space you are typing between words', () => {
   const snapshot = buildSnapshot({ ...baseState(), trackLabels: { '4': { text: 'Sub ', color: '' } } })
   assert.deepEqual(snapshot.trackLabels, { '4': { text: 'Sub ', color: '' } })
 })
+
+test('a Macro lane keeps its panel and its synth.macro* automation through a round trip', () => {
+  const setters = recorder()
+  const engine = recorder()
+  const macro = { macroEngine: 'modal', macroHarmonics: 0.3, macroFmAmt: -0.4, macroDecay: 0.7, macroVoices: 3 }
+  const state = {
+    ...baseState(),
+    trackSynthTypes: { M1: 'Macro', '4': 'FMSynth' },
+    trackADSRs: { M1: macro },
+    automationCfg: {
+      M1: { lane0: { sourceRouteId: '9', paramTarget: 'synth.macroFmAmt', points: { 0: 0.2 } } },
+      // A Macro target on a lane that isn't Macro is stale: it falls back to volume.
+      '4': { lane1: { sourceRouteId: '9', paramTarget: 'synth.macroTimbre', points: {} } },
+    },
+  }
+  const snap = JSON.parse(JSON.stringify(buildSnapshot(state)))
+  applySnapshot(snap, setters.target, engine.target, CITY)
+
+  assert.deepEqual(engine.first('setSynthType').args, ['M1', 'metro', 'Macro', macro])
+  const auto = setters.first('setAutomationCfg').args[0]
+  assert.equal(auto.M1.lane0.paramTarget, 'synth.macroFmAmt')
+  assert.equal(auto['4'].lane1.paramTarget, 'volume')
+})

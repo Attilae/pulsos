@@ -1,0 +1,85 @@
+/* PanelKnob (components/PanelKnob.jsx): the rotary control shared by the
+   panels modelled on hardware modules (Texture, Macro). Tokens only. Lime marks
+   the focused or dragged knob; amber marks one owned by an automation lane. */
+
+.pk-knob {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  min-width: 0;
+}
+.pk-knob-dial {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  cursor: ns-resize;
+  touch-action: none;
+  user-select: none;
+}
+.pk-knob--sm .pk-knob-dial { width: 30px; height: 30px; }
+.pk-knob-dial svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.pk-knob-dial.is-locked { cursor: not-allowed; }
+
+.pk-knob-track {
+  fill: none;
+  stroke: var(--border-strong);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+}
+.pk-knob-value {
+  fill: none;
+  stroke: var(--text-subtle);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+}
+.pk-knob-body {
+  fill: var(--surface);
+  stroke: var(--border-strong);
+  stroke-width: 1;
+}
+.pk-knob-pointer {
+  stroke: var(--text);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+.pk-knob-dial:hover .pk-knob-body { fill: var(--hover-surface); }
+.pk-knob-dial.is-active .pk-knob-value,
+.pk-knob-dial:focus-visible .pk-knob-value { stroke: var(--accent); }
+.pk-knob-dial.is-locked .pk-knob-value,
+.pk-knob-dial.is-locked .pk-knob-pointer { stroke: var(--automation); }
+
+.pk-knob-label {
+  font-size: var(--fs-3xs);
+  font-weight: 700;
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+.pk-knob-val {
+  font-family: var(--font-mono);
+  font-size: var(--fs-3xs);
+  color: var(--text-subtle);
+  white-space: nowrap;
+}
+.pk-knob-dial.is-locked ~ .pk-knob-val { color: var(--automation-text); }
+
+.pk-knob--md .pk-knob-dial { width: 34px; height: 34px; }
+.pk-knob--xs .pk-knob-dial { width: 26px; height: 26px; }
+
+/* A knob that does nothing on the current setting (still adjustable). */
+.pk-knob.is-dim { opacity: 0.5; }
+
+/* What the control does on the current setting, e.g. HARMONICS: "Detune". */
+.pk-knob-sub {
+  font-size: var(--fs-3xs);
+  color: var(--text-subtle);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
