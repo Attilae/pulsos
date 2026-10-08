@@ -2,8 +2,9 @@ import dynamic from 'next/dynamic'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import * as Tone from 'tone'
 import { TransitEngine, SYNTH_DEFAULTS, availableAutomationTargets, DEFAULT_ARP, DEFAULT_GRANULAR, DEFAULT_SIDECHAIN, SIDECHAIN_ANY_DRUM, SIDECHAIN_PAD_SOURCES, DEFAULT_PITCH_VARIETY, DRUMS_ROUTE_ID } from '@/lib/engine.js'
-import { DEFAULT_FX_TRACKS, usesResonator } from '@/lib/soundSpecs.js'
+import { DEFAULT_FX_TRACKS, usesResonator, usesMacro } from '@/lib/soundSpecs.js'
 import { warmResonatorAsset } from '@/lib/resonatorLoader.js'
+import { warmMacroAsset } from '@/lib/macroLoader.js'
 import { FX_BUSES } from '@/lib/fxTrack.js'
 import { randomFromScale, shiftOctaveNote, geoToMidi, routeBounds, midiToNote, noteToMidi, SCALES, MODES, setCityBounds } from '@/lib/mappings.js'
 import { fetchLines } from '@/lib/shared/useRoutes.js'
@@ -807,7 +808,7 @@ export default function MixerTab({ active = true }) {
     if (mode === 'live') fetchSnapshot()
   }, [mode]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Load whatever the lanes' instruments need (the Resonator's DSP) before the
+  // Load whatever the lanes' instruments need (the Resonator's and Macro's DSP) before the
   // engine builds them. Reports and returns false on failure so playback stays
   // stopped with an explanation instead of starting with a silent lane.
   const prepareLaneSounds = useCallback(async (synthTypes) => {
@@ -1695,11 +1696,14 @@ export default function MixerTab({ active = true }) {
       stoppingRef.current = false
     }
 
-    // A plan that picks the Resonator needs its DSP before the handlers below run,
+    // A plan that picks the Resonator or Macro needs its DSP before the handlers below run,
     // so handleSynthType takes its synchronous path and the plan's tone lands on
     // the new instrument instead of racing the load.
     if (usesResonator((plan.tracks ?? []).map(t => t.synthType)) && !(await prepareLaneSounds(['Resonator']))) {
       throw new Error('The Resonator instrument could not be loaded, so the plan was not applied. Try again in a moment.')
+    }
+    if (usesMacro((plan.tracks ?? []).map(t => t.synthType)) && !(await prepareLaneSounds(['Macro']))) {
+      throw new Error('The Macro instrument could not be loaded, so the plan was not applied. Try again in a moment.')
     }
 
     const replacement = buildReplacementLaneState(
@@ -1999,8 +2003,9 @@ export default function MixerTab({ active = true }) {
     if (!raw) return null
     const target = raw.cityId ?? song?.cityId ?? cityIdRef.current
     const targetEntry = getCityEntry(target)
-    // Start downloading the Resonator's DSP now; Play awaits it (prepareLaneSounds).
+    // Start downloading the worklet instruments' DSP now; Play awaits it (prepareLaneSounds).
     if (usesResonator(raw.trackSynthTypes)) warmResonatorAsset()
+    if (usesMacro(raw.trackSynthTypes)) warmMacroAsset()
 
     // Stop playback before the engine is disposed underneath it.
     if (startedRef.current) {

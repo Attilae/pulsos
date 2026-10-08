@@ -6,6 +6,7 @@ import { PAD_DEFS as DRUM_PAD_DEFS, STEPS as DRUM_STEPS, SOURCE_STEPS as DRUM_SO
 import { generatePitchMap, shiftOctaveNote, shiftSemitones, noteToMidi, SCALES, hashStopValue, snapStopsToGrid, GRID_TOTAL_CELLS, GRID_BARS, GRID_STEPS_PER_BAR, GRID_RESOLUTION_STEPS_PER_BAR, DEFAULT_GRID_RESOLUTION, denormalizeToRange, denormalizeExp, transposeNoteInScale, PITCH_CONTOURS, DEFAULT_PITCH_VARIETY } from '@/lib/mappings.js'
 import { buildLanePitchMaps } from '@/lib/laneNotes.js'
 import { pickerSynthTypes, OSC_TYPES } from '@/lib/soundSpecs.js'
+import MacroControls from './MacroControls.jsx'
 import { NOTE_LENGTHS, NOTE_LENGTH_LABELS, DEFAULT_NOTE_LENGTH } from '@/lib/noteLength.js'
 import { useResetGesture } from '@/lib/shared/useResetGesture.js'
 import { useIsPhone } from '@/lib/shared/useViewport.js'
@@ -979,8 +980,8 @@ function LineTrack({
             onClick={() => onExportRouteMidi?.(route.id)}
             disabled={!route.stops?.length}
             aria-label={`Download ${route.name} as MIDI`}
-            data-tooltip={synthType === 'Resonator'
-              ? 'Download MIDI · notes and velocity only, not the Resonator sound or its ring-out'
+            data-tooltip={synthType === 'Resonator' || synthType === 'Macro'
+              ? `Download MIDI · notes and velocity only, not the ${synthType} sound or its ring-out`
               : 'Download MIDI'}
           >MIDI</button>
           <button
@@ -1151,7 +1152,7 @@ function LineTrack({
 
           <div className="rack-card rack-card--sound">
             <div className="rack-card-head">{synthType}</div>
-            <EnvPanel synthType={synthType} adsr={adsr} onADSR={onADSR} onSamplerPreset={onSamplerPreset} onDrumVoice={onDrumVoice} onSamplerUpload={onSamplerUpload} autoTargets={autoTargets} granularEnabled={!!granular?.enabled && !supportsGranular(synthType)} />
+            <EnvPanel synthType={synthType} adsr={adsr} onADSR={onADSR} onSamplerPreset={onSamplerPreset} onDrumVoice={onDrumVoice} onSamplerUpload={onSamplerUpload} autoTargets={autoTargets} granularEnabled={!!granular?.enabled && !supportsGranular(synthType)} laneName={route.name} />
           </div>
 
           <div className="rack-card rack-card--sound">
@@ -1172,7 +1173,7 @@ function LineTrack({
               <span className="octave-val">{octaveShift >= 0 ? `+${octaveShift}` : octaveShift}</span>
               <button className="octave-btn" onClick={() => onOctaveShift(Math.min(4, octaveShift + 1))}>+</button>
             </div>
-            {synthType !== 'Resonator' && <div className="glide-row">
+            {synthType !== 'Resonator' && synthType !== 'Macro' && <div className="glide-row">
               <span className="glide-label">GLIDE</span>
               <input
                 type="range" min="0" max="1" step="0.01"
@@ -1236,6 +1237,8 @@ function LineTrack({
                   ? 'The Resonator rings out on its own (Damping sets how long). Turn on its envelope to make note length hold and release each note'
                   : synthType === 'Resonator'
                   ? 'How long each note is held before the Resonator envelope releases it'
+                  : synthType === 'Macro'
+                  ? "How long each note holds the Macro trigger. Only the 6-op FM engines sustain for it; the others ring for the gate's Decay or their own decay"
                   : legato || arp?.enabled || synthType === 'PluckSynth'
                   ? 'Note length has no effect while legato, the arpeggiator or PluckSynth is in use'
                   : 'How long each note is held before its release'}
@@ -2453,7 +2456,7 @@ function SpSliderWithCurve({ label, min, max, step, value, onChange, curveValue,
 
 const AMP_ENV_KEYS = new Set(['attack', 'decay', 'sustain', 'release'])
 
-function EnvPanel({ synthType, adsr, onADSR, onSamplerPreset, onDrumVoice, onSamplerUpload, autoTargets = {}, granularEnabled = false }) {
+function EnvPanel({ synthType, adsr, onADSR, onSamplerPreset, onDrumVoice, onSamplerUpload, autoTargets = {}, granularEnabled = false, laneName }) {
   const resonatorStatus = useResonatorStatus()
   const def = SYNTH_DEFAULTS[synthType] ?? SYNTH_DEFAULTS['Synth']
   const p = { ...def, ...adsr }
@@ -2497,6 +2500,12 @@ function EnvPanel({ synthType, adsr, onADSR, onSamplerPreset, onDrumVoice, onSam
   if (synthType === 'Resonator') return (
     <div className="sp-panel">
       <ResonatorControls params={p} onChange={onADSR} status={resonatorStatus} granularEnabled={granularEnabled} variant="rack" autoTargets={autoTargets} />
+    </div>
+  )
+
+  if (synthType === 'Macro') return (
+    <div className="sp-panel">
+      <MacroControls params={p} onChange={onADSR} granularEnabled={granularEnabled} variant="rack" autoTargets={autoTargets} laneName={laneName} />
     </div>
   )
 
