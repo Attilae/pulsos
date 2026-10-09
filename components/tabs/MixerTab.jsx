@@ -2286,6 +2286,10 @@ export default function MixerTab({ active = true }) {
         soloRoutes={soloRoutes}
         trackLabels={trackLabels}
         liveSnapshot={liveSnapshot}
+        automationCfg={automationCfg}
+        trackSpeeds={trackSpeeds}
+        trackLoopRegions={trackLoopRegions}
+        trackSynthTypes={trackSynthTypes}
       />
       <AIComposerPanel
         className={view !== 'map' && view !== 'daw' ? 'view-hidden' : ''}

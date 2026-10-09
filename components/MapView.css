@@ -201,6 +201,73 @@
   50%       { opacity: 0.6; }
 }
 
+/* ── Automation ──────────────────────────────────────────────────────────
+   A source line drawn as a control path: amber dashes that flow along it.
+   The stroke attribute carries a hex for the canvas renderer (phones); on SVG
+   the CSS property wins and follows the theme token. */
+.map-auto-line {
+  stroke: var(--automation);
+  animation: map-auto-flow 1.6s linear infinite;
+}
+@keyframes map-auto-flow {
+  to { stroke-dashoffset: -22; }
+}
+.map-auto-stop,
+.map-auto-dot { stroke: var(--automation); }
+.map-auto-stop { fill: var(--automation); }
+
+.map-status-heading {
+  margin-top: 4px;
+  padding: 0 2px;
+  font-family: var(--font-mono);
+  font-size: var(--fs-3xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wide);
+  color: var(--automation-text);
+}
+.map-status-row--auto .map-status-name { flex: 0 1 auto; }
+.map-status-arrow { color: var(--muted); }
+.map-status-target {
+  margin-left: auto;
+  padding-left: 6px;
+  color: var(--automation-text);
+  font-size: var(--fs-3xs);
+  letter-spacing: var(--tracking-wide);
+}
+.map-status-badge--auto {
+  background: color-mix(in srgb, var(--automation) 18%, transparent);
+  border: 1px solid var(--automation);
+  color: var(--automation-text);
+}
+
+/* ── Note ripples ────────────────────────────────────────────────────────
+   One per note, at the stop that played it (NoteRipples in MapView.jsx). */
+.map-ripple { pointer-events: none; }
+.map-ripple span {
+  position: absolute;
+  left: -14px;
+  top: -14px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid var(--ripple-color);
+  background: color-mix(in srgb, var(--ripple-color) 35%, transparent);
+  box-shadow: 0 0 12px var(--ripple-color);
+  transform: scale(0.2);
+  opacity: 0.95;
+  animation: map-ripple 1.1s cubic-bezier(0.2, 0.7, 0.3, 1) forwards;
+}
+@keyframes map-ripple {
+  to { transform: scale(calc(1.6 * var(--ripple-scale, 1))); opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .map-auto-line,
+  .map-playhead-pulse,
+  .map-playhead-dot { animation: none; }
+}
+
 /* Per-city data attribution (bottom-left, above Leaflet's own credit). */
 .map-attribution {
   position: absolute;

@@ -6,6 +6,10 @@ import { maplibreGL } from '@maplibre/maplibre-gl-leaflet'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { useIsPhone } from '@/lib/shared/useViewport.js'
 import { normalizeLaneTag } from '@/lib/laneTags.js'
+import { findTargetSpec } from '@/lib/engine.js'
+import { hashStopValue } from '@/lib/mappings.js'
+import { lanePlayhead, trailFracs, wrapFade } from '@/lib/mapPlayhead.js'
+import { subscribeEvents, getEvents } from '@/lib/shared/eventLogStore.js'
 import './MapView.css'
 
 delete L.Icon.Default.prototype._getIconUrl
@@ -74,6 +78,48 @@ function routeStyle(route, disabled, soloRoutes) {
   }
 }
 
+// Automation identity colour (--automation). Canvas-rendered maps (phones) can't
+// read CSS custom properties, so the stroke carries the dark-theme hex and
+// .map-auto-line re-points it at the token where SVG is in use.
+const AUTOMATION_COLOR = '#e2a53b'
+
+// Route colours come from the data file and end up inside a divIcon's HTML.
+const SAFE_COLOR = /^#[0-9a-f]{3,8}$/i
+const safeColor = c => (SAFE_COLOR.test(c ?? '') ? c : '#ffffff')
+
+function automationTargetLabel(paramTarget, synthType) {
+  const spec = findTargetSpec(paramTarget, synthType)
+  return spec?.label?.replace(/^→\s*/, '') ?? paramTarget
+}
+
+// Every automation lane that has a source line, as the map draws it: one entry
+// per lane, grouped by source so a line read by several lanes is drawn once.
+function buildAutomationLinks(automationCfg, routes, trackSynthTypes) {
+  const byId = new Map((routes ?? []).map(r => [r.id, r]))
+  const links = []
+  for (const [destId, lanes] of Object.entries(automationCfg ?? {})) {
+    for (const [laneId, cfg] of Object.entries(lanes ?? {})) {
+      const src = cfg?.sourceRouteId ? byId.get(cfg.sourceRouteId) : null
+      if (!src?.polylines?.length) continue
+      links.push({
+        key: `${destId}:${laneId}`,
+        laneId,
+        cfg,
+        src,
+        destId,
+        destName: byId.get(destId)?.name ?? byId.get(destId.split('~dup~')[0])?.name ?? destId,
+        target: automationTargetLabel(cfg.paramTarget ?? 'volume', trackSynthTypes?.[destId]),
+      })
+    }
+  }
+  const bySource = new Map()
+  for (const l of links) {
+    if (!bySource.has(l.src.id)) bySource.set(l.src.id, [])
+    bySource.get(l.src.id).push(l)
+  }
+  return { links, bySource }
+}
+
 // Calls map.invalidateSize() when the map becomes visible after being hidden,
 // and whenever the viewport itself changes shape.
 //
@@ -121,6 +167,12 @@ function PlayheadPaneSetup({ paneRef }) {
     if (!map.getPane('playhead')) {
       const pane = map.createPane('playhead')
       pane.style.zIndex = '450'
+    }
+    // Trails sit just under the dots they follow, above the note ripples.
+    if (!map.getPane('trails')) {
+      const pane = map.createPane('trails')
+      pane.style.zIndex = '445'
+      pane.style.pointerEvents = 'none'
     }
     paneRef.current = map.getPane('playhead') ?? null
   }, [map, paneRef])
@@ -186,6 +238,95 @@ function CityView({ city, routes, disabled, soloRoutes, active }) {
   return null
 }
 
+// A ripple at the stop that just played, so the map shows where the music is
+// coming from rather than only a dot sliding along each line.
+//
+// Reads the same note feed as the DAW's event log (eventLogStore), imperatively:
+// a ripple is a DOM divIcon that removes itself, so nothing here touches React
+// state per note. Notes are scheduled `lookAhead` ahead of the audio clock, so
+// each ripple waits that long to land on the beat it belongs to.
+const RIPPLE_MS       = 1100
+const MAX_RIPPLES     = 48   // concurrent; a dense arp shouldn't pile up DOM
+const MAX_RIPPLE_BURST = 12  // per flush
+
+function NoteRipples({ routes, active }) {
+  const map = useMap()
+  const lookupRef = useRef({ byId: new Map(), byName: new Map() })
+
+  useEffect(() => {
+    const byId = new Map(), byName = new Map()
+    for (const r of routes ?? []) {
+      const entry = { color: safeColor(r.color), stops: new Map((r.stops ?? []).map(st => [st.id, st])) }
+      byId.set(r.id, entry)
+      if (!r.isDuplicate) byName.set(r.name, entry)
+    }
+    lookupRef.current = { byId, byName }
+  }, [routes])
+
+  useEffect(() => {
+    if (!active) return undefined
+    if (!map.getPane('ripples')) {
+      const pane = map.createPane('ripples')
+      pane.style.zIndex = '440'           // above lines, under the playhead pane
+      pane.style.pointerEvents = 'none'
+    }
+    const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    const live = new Set()
+    const timers = new Set()
+    const later = (fn, ms) => {
+      const t = setTimeout(() => { timers.delete(t); fn() }, ms)
+      timers.add(t)
+    }
+
+    const spawn = (stop, color, velocity) => {
+      if (live.size >= MAX_RIPPLES) return
+      const scale = 0.7 + 0.6 * Math.max(0, Math.min(1, velocity ?? 1))
+      const marker = L.marker([stop.lat, stop.lon], {
+        pane: 'ripples',
+        interactive: false,
+        keyboard: false,
+        icon: L.divIcon({
+          className: 'map-ripple',
+          html: `<span style="--ripple-color:${color};--ripple-scale:${scale.toFixed(2)}"></span>`,
+          iconSize: [0, 0],
+        }),
+      }).addTo(map)
+      live.add(marker)
+      later(() => { marker.remove(); live.delete(marker) }, RIPPLE_MS)
+    }
+
+    let head = getEvents()[0]
+    const unsubscribe = subscribeEvents(() => {
+      const events = getEvents()
+      const fresh = []
+      for (const ev of events) {
+        if (ev === head) break
+        fresh.push(ev)
+      }
+      head = events[0]
+      if (reduced || document.hidden || !fresh.length) return
+      const lead = Math.max(0, (Tone.getContext().lookAhead ?? 0) * 1000)
+      const { byId, byName } = lookupRef.current
+      for (const ev of fresh.slice(0, MAX_RIPPLE_BURST)) {
+        if (ev.stopId == null) continue   // merged chord lanes have no single stop
+        const r = (ev.routeId && (byId.get(ev.routeId) ?? byId.get(ev.routeId.split('~dup~')[0])))
+          ?? byName.get(ev.routeShortName)
+        const stop = r?.stops.get(ev.stopId)
+        if (!stop || !Number.isFinite(stop.lat) || !Number.isFinite(stop.lon)) continue
+        later(() => spawn(stop, r.color, ev.velocity), lead)
+      }
+    })
+
+    return () => {
+      unsubscribe()
+      for (const t of timers) clearTimeout(t)
+      for (const m of live) m.remove()
+    }
+  }, [active, map])
+
+  return null
+}
+
 function MapView({
   className = '',
   active = true,
@@ -197,6 +338,10 @@ function MapView({
   soloRoutes = new Set(),
   trackLabels = {},
   liveSnapshot = null,
+  automationCfg = {},
+  trackSpeeds = {},
+  trackLoopRegions = {},
+  trackSynthTypes = {},
 }) {
   // Drives the phone-only map concessions: canvas rendering, no zoom control,
   // and no per-stop CircleMarkers.
@@ -207,8 +352,20 @@ function MapView({
   const soloRef      = useRef(soloRoutes)
   const playheadPane = useRef(null)   // DOM div for the playhead Leaflet pane
 
+  const speedsRef     = useRef(trackSpeeds)
+  const regionsRef    = useRef(trackLoopRegions)
+
   useEffect(() => { disabledRef.current = disabled }, [disabled])
   useEffect(() => { soloRef.current  = soloRoutes }, [soloRoutes])
+  useEffect(() => { speedsRef.current  = trackSpeeds }, [trackSpeeds])
+  useEffect(() => { regionsRef.current = trackLoopRegions }, [trackLoopRegions])
+
+  const automation = useMemo(
+    () => buildAutomationLinks(automationCfg, routes, trackSynthTypes),
+    [automationCfg, routes, trackSynthTypes]
+  )
+  const automationRef = useRef(automation)
+  useEffect(() => { automationRef.current = automation }, [automation])
 
   const LAYERS = [
     { type: 'metro',   label: 'Metro' },
@@ -236,35 +393,52 @@ function MapView({
     }
 
     let lastUpdate = 0
-    const FADE_ZONE = 0.06
+    const routeById = new Map(routes.map(r => [r.id, r]))
+    // A trail is a fan of short segments, so its cost is lanes × samples paths
+    // redrawn per frame. Phones get a coarser one.
+    const trailSamples = isPhone ? TRAIL_SAMPLES_PHONE : TRAIL_SAMPLES
+    const trailOf = (route, opts) =>
+      trailFracs({ ...opts, trailBeats: TRAIL_BEATS, samples: trailSamples })
+        .map(f => positionAlongRoute(route, f))
+        .filter(Boolean)
 
     function tick(ts) {
       rafRef.current = requestAnimationFrame(tick)
       if (ts - lastUpdate < 33) return  // ~30fps
       lastUpdate = ts
 
-      // The global Transport no longer loops (each Part self-loops for polyrhythm), so
-      // Transport.progress stays 0. Compute the 4-bar visual cycle phase manually.
-      const bpm = Tone.Transport.bpm.value || 120
-      const loopSec = (16 / bpm) * 60
-      const progress = (Tone.getTransport().seconds % loopSec) / loopSec
-
-      // Fade in at start (0→FADE_ZONE), full in middle, fade out at end (1-FADE_ZONE→1).
-      // Applied directly to the pane DOM element — no React state, no re-render.
-      const fadeOp = progress < FADE_ZONE
-        ? progress / FADE_ZONE
-        : progress > 1 - FADE_ZONE
-          ? (1 - progress) / FADE_ZONE
-          : 1
-      if (playheadPane.current) {
-        playheadPane.current.style.opacity = String(fadeOp)
-      }
+      // Each lane's Part loops its own region at its own speed (polyrhythm), so
+      // every dot gets its own phase — see lib/mapPlayhead.js. Measured in beats
+      // because Parts loop in ticks.
+      const transport = Tone.getTransport()
+      const beats = transport.ticks / (transport.PPQ || 192)
 
       const next = {}
       for (const route of routes) {
+        if (route.isDuplicate) continue
         if (!isRouteActive(route, disabledRef.current, soloRef.current)) continue
-        const pos = positionAlongRoute(route, progress)
-        if (pos) next[route.id] = pos
+        const timing = {
+          beats,
+          speed: speedsRef.current?.[route.id] ?? 1,
+          region: regionsRef.current?.[route.id],
+        }
+        const { frac, phase } = lanePlayhead(timing)
+        const pos = positionAlongRoute(route, frac)
+        if (pos) next[route.id] = { ...pos, fade: wrapFade(phase), color: route.color, kind: 'note', trail: trailOf(route, timing) }
+      }
+      // Automation lanes read their source line at the lane's own speed and
+      // sub-loop (falling back to the source's region), like the engine does.
+      for (const link of automationRef.current.links) {
+        const dest = routeById.get(link.destId) ?? routeById.get(link.destId.split('~dup~')[0])
+        if (dest && !isRouteActive(dest, disabledRef.current, soloRef.current)) continue
+        const timing = {
+          beats,
+          speed: link.cfg.speed ?? 1,
+          region: link.cfg.loopRegion ?? regionsRef.current?.[link.src.id],
+        }
+        const { frac, phase } = lanePlayhead(timing)
+        const pos = positionAlongRoute(link.src, frac)
+        if (pos) next[`auto:${link.key}`] = { ...pos, fade: wrapFade(phase), color: AUTOMATION_COLOR, kind: 'auto', trail: trailOf(link.src, timing) }
       }
       setPlayheadPositions(next)
     }
@@ -273,9 +447,8 @@ function MapView({
     return () => {
       cancelAnimationFrame(rafRef.current)
       setPlayheadPositions({})
-      if (playheadPane.current) playheadPane.current.style.opacity = '1'
     }
-  }, [active, started, mode, routes])
+  }, [active, started, mode, routes, isPhone])
 
   // Live vehicles indexed by routeShortName
   const vehiclesByRouteName = {}
@@ -302,6 +475,18 @@ function MapView({
         return (
           <LayersControl.Overlay key={type} checked name={label}>
             <>
+              {/* Soft glow under the lines that are playing, so the mix reads
+                  at a glance against the dimmed network. */}
+              {layerRoutes
+                .filter(route => isRouteActive(route, disabled, soloRoutes))
+                .map(route => route.polylines.map(pl => (
+                  <Polyline
+                    key={`${route.id}_${pl.direction}_glow`}
+                    positions={pl.coords}
+                    interactive={false}
+                    pathOptions={{ color: route.color, weight: route.type === 'metro' ? 10 : 8, opacity: 0.16, lineCap: 'round', lineJoin: 'round' }}
+                  />
+                )))}
               {layerRoutes.map(route => {
                 const { opacity, weight, dashArray } = routeStyle(route, disabled, soloRoutes)
                 return route.polylines.map(pl => (
@@ -343,8 +528,51 @@ function MapView({
           </LayersControl.Overlay>
         )
       })}
+      {automation.bySource.size > 0 && (
+        <LayersControl.Overlay checked name="Automation">
+          <>
+            {[...automation.bySource.values()].map(lanes => {
+              const src = lanes[0].src
+              const summary = lanes.map(l => `${l.destName} · ${l.target}`).join(', ')
+              return src.polylines.map(pl => (
+                // Amber "signal" line on top of the source's own line: this
+                // line is a control path, its stops drive another lane's knob.
+                <Polyline
+                  key={`auto_${src.id}_${pl.direction}`}
+                  positions={pl.coords}
+                  className="map-auto-line"
+                  pathOptions={{ color: AUTOMATION_COLOR, weight: 2.5, opacity: 0.95, dashArray: '2 9', lineCap: 'round' }}
+                >
+                  <Tooltip sticky>Automation: {src.name} drives {summary}</Tooltip>
+                </Polyline>
+              ))
+            })}
+            {/* The envelope itself, drawn on the map: each stop of the source
+                is sized by the value it sends (first lane on that source).
+                Same resolution as the engine's AutomationTrack.valueAt. */}
+            {!isPhone && [...automation.bySource.values()].map(lanes => {
+              const { src, laneId, cfg } = lanes[0]
+              return (src.stops ?? []).map((stop, i) => {
+                const v = cfg.points?.[stop.id]
+                const value = typeof v === 'number' ? v : hashStopValue(laneId, stop.id)
+                return (
+                  <CircleMarker
+                    key={`auto_${src.id}_${stop.id}_${i}`}
+                    center={[stop.lat, stop.lon]}
+                    radius={2 + value * 6}
+                    className="map-auto-stop"
+                    pathOptions={{ color: AUTOMATION_COLOR, fillColor: AUTOMATION_COLOR, fillOpacity: 0.18 + value * 0.5, weight: 1, opacity: 0.9 }}
+                  >
+                    <Tooltip>{stop.name}: {Math.round(value * 100)}%</Tooltip>
+                  </CircleMarker>
+                )
+              })
+            })}
+          </>
+        </LayersControl.Overlay>
+      )}
     </LayersControl>
-  ), [routesByType, disabled, soloRoutes, isPhone]) // eslint-disable-line react-hooks/exhaustive-deps
+  ), [routesByType, disabled, soloRoutes, isPhone, automation]) // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className={`map-wrapper${className ? ` ${className}` : ''}`}>
@@ -375,6 +603,25 @@ function MapView({
               </div>
             )
           })}
+          {automation.links.length > 0 && (
+            <>
+              <div className="map-status-heading">Automation</div>
+              {automation.links.map(link => {
+                const dest = allRoutes.find(r => r.id === link.destId)
+                const live = !dest || isRouteActive(dest, disabled, soloRoutes)
+                return (
+                  <div key={link.key} className={`map-status-row map-status-row--auto${live ? '' : ' map-status-row--dim'}`}>
+                    <span className="map-status-badge map-status-badge--auto">AUTO</span>
+                    <span className="map-status-dot" style={{ background: link.src.color }} />
+                    <span className="map-status-name">{link.src.name}</span>
+                    <span className="map-status-arrow" aria-hidden="true">→</span>
+                    <span className="map-status-name">{link.destName}</span>
+                    <span className="map-status-target">{link.target}</span>
+                  </div>
+                )
+              })}
+            </>
+          )}
         </div>
       )}
 
@@ -403,12 +650,23 @@ function MapView({
 
         {routeLayers}
 
-        {/* ── Mock mode: playhead dot per route (rendered in dedicated pane for fade control) ── */}
-        {mode === 'mock' && Object.entries(playheadPositions).map(([routeId, { lat, lng }]) => {
-          const route = allRoutes.find(r => r.id === routeId)
-          if (!route) return null
-          return <PlayheadMarker key={routeId} lat={lat} lng={lng} color={route.color} pane="playhead" />
-        })}
+        <NoteRipples routes={routes} active={active && started} />
+
+        {/* ── Mock mode: playhead dot per lane, in its own pane above the lines ── */}
+        {mode === 'mock' && Object.entries(playheadPositions).map(([key, p]) => (
+          <PlayheadTrail key={`${key}_trail`} points={p.trail} color={p.color} fade={p.fade} />
+        ))}
+        {mode === 'mock' && Object.entries(playheadPositions).map(([key, p]) => (
+          <PlayheadMarker
+            key={key}
+            lat={p.lat}
+            lng={p.lng}
+            color={p.color}
+            fade={p.fade}
+            variant={p.kind}
+            pane="playhead"
+          />
+        ))}
 
         {/* ── Live mode: vehicle dots ── */}
         {mode === 'live' && allRoutes.map(route => {
@@ -439,28 +697,63 @@ function MapView({
 // so this skips the whole (expensive) map render on the note-driven re-render storm.
 export default memo(MapView)
 
-function PlayheadMarker({ lat, lng, color, pane }) {
+// The path a lane's dot has just travelled, as segments that brighten and
+// thicken toward the dot. Leaflet has no gradient strokes, so the fade is
+// stepped: one Polyline per segment, a fixed count per trail so React only
+// updates positions frame to frame instead of adding/removing layers.
+const TRAIL_BEATS        = 2
+const TRAIL_SAMPLES      = 10
+const TRAIL_SAMPLES_PHONE = 5
+
+function PlayheadTrail({ points, color, fade = 1 }) {
+  if (!points || points.length < 2) return null
+  const n = points.length - 1
+  return points.slice(0, -1).map((p, i) => {
+    const t = (i + 1) / n          // 0 at the tail → 1 at the dot
+    return (
+      <Polyline
+        key={i}
+        positions={[[p.lat, p.lng], [points[i + 1].lat, points[i + 1].lng]]}
+        pane="trails"
+        interactive={false}
+        pathOptions={{ color, weight: 1.5 + t * 4, opacity: fade * t * t * 0.85, lineCap: 'round' }}
+      />
+    )
+  })
+}
+
+// Style goes through pathOptions so the per-frame fade actually updates (bare
+// color/opacity props only apply when the marker is created).
+function PlayheadMarker({ lat, lng, color, pane, fade = 1, variant = 'note' }) {
   const opts = pane ? { pane } : {}
+  if (variant === 'auto') {
+    return (
+      <CircleMarker
+        center={[lat, lng]}
+        radius={5}
+        className="map-auto-dot"
+        pathOptions={{ color, fillColor: '#111111', fillOpacity: 0.9 * fade, opacity: fade, weight: 2.5 }}
+        interactive={false}
+        {...opts}
+      />
+    )
+  }
   return (
     <>
       <CircleMarker
         center={[lat, lng]}
         radius={13}
-        color={color}
-        fillColor={color}
-        fillOpacity={0.12}
-        weight={2}
         className="map-playhead-pulse"
+        pathOptions={{ color, fillColor: color, fillOpacity: 0.12 * fade, opacity: fade, weight: 2 }}
+        interactive={false}
         {...opts}
       />
       <CircleMarker
         center={[lat, lng]}
         radius={7}
-        color={color}
-        fillColor="#ffffff"
-        fillOpacity={0.95}
-        weight={2.5}
         className="map-playhead-dot"
+        pathOptions={{ color, fillColor: '#ffffff', fillOpacity: 0.95 * fade, opacity: fade, weight: 2.5 }}
+        interactive={false}
         {...opts}
       />
     </>
