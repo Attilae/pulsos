@@ -244,3 +244,12 @@
   inset: calc(12px + env(safe-area-inset-top)) 12px auto 12px !important;
 }
 .driver-popover.leid-tour--mobile .driver-popover-arrow { display: none; }
+
+/* Lane filter editor in the phone lane sheet (components/LaneFilterEditor.jsx).
+   767 = PHONE_MAX in lib/shared/breakpoints.js. */
+@media (max-width: 767px) {
+  .lsheet-field .lane-filter-model { display: flex; width: 100%; }
+  .lsheet-field .lane-filter-model-btn { flex: 1; font-size: var(--fs-sm); }
+  .lsheet-field .lane-filter-status { font-size: var(--fs-2xs); }
+  .lane-filter-retry { min-height: var(--tap-min); padding: 0 var(--space-100); }
+}

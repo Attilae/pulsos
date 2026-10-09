@@ -101,6 +101,7 @@ export default function MobileDaw({ controls, lanes }) {
         activeFxTracks={lanes.activeFxTracks}
         sidechain={lanes.sidechains?.[openLaneId]}
         sidechainSources={lanes.sidechainSources}
+        filter={lanes.filters?.[openLaneId]}
         tag={lanes.labels?.[openLaneId]}
         onVolume={lanes.onVolume}
         onPan={lanes.onPan}
@@ -123,6 +124,7 @@ export default function MobileDaw({ controls, lanes }) {
         onStopChance={lanes.onStopChance}
         onLoopPattern={lanes.onLoopPattern}
         onLaneTag={lanes.onLaneTag}
+        onFilter={lanes.onFilter}
       />
 
       <MoreSheet

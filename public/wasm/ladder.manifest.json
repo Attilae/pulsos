@@ -1,0 +1,81 @@
+{
+  "asset": "ladder-3a72c153.wasm",
+  "sha256": "3a72c153e4dae0002f67671688143ea145948a87397bd7c04bedaf7a1f11eea5",
+  "bytes": 5237,
+  "abiVersion": 1,
+  "toolchain": {
+    "name": "wasi-sdk",
+    "tag": "wasi-sdk-34",
+    "version": "34.0",
+    "clang": "clang version 23.1.0-wasi-sdk (https://github.com/llvm/llvm-project 895aa2c896ada719451be2e3673c83da8ddf1141)",
+    "assets": {
+      "arm64-macos": "sha256:9c59398106b417f8f14913380fdf0097a8cc0ff4af9eb3ce0065a859e88d49e9",
+      "x86_64-macos": "sha256:87d27fa8adc68dee59bfbf2e22a6d34ef717c34d6bf1d8af2a56fc929d9ce0eb",
+      "arm64-linux": "sha256:f7e243dff54d60bcc576e94d6166b69f410f2500ae4a9ceef34315be10e77971",
+      "x86_64-linux": "sha256:b761e3a0721dbae9c09a0059e5fdb2bf917d1b4a8a7b430fb3b5aafb0984b2c4"
+    }
+  },
+  "flags": [
+    "--target=wasm32-wasip1",
+    "-mcpu=mvp",
+    "-mbulk-memory",
+    "-mnontrapping-fptoint",
+    "-msign-ext",
+    "-mmutable-globals",
+    "-nostartfiles",
+    "-Wl,--no-entry",
+    "-Wl,--gc-sections",
+    "-Wl,--strip-all",
+    "-Wl,-z,stack-size=65536",
+    "-isystem",
+    "<sysroot>/include/wasm32-wasip1/noeh/c++/v1",
+    "-O3",
+    "-fno-exceptions",
+    "-fno-rtti",
+    "-ffp-contract=off",
+    "-std=c++14",
+    "-Wno-unknown-attributes",
+    "-Ivendor/daisysp/src/Source"
+  ],
+  "upstream": [
+    {
+      "name": "DaisySP",
+      "url": "https://github.com/electro-smith/DaisySP",
+      "commit": "2c72eaf9eac5fc0dca1919d65d606da907832618",
+      "commitDate": "2026-09-28",
+      "license": "MIT",
+      "paths": "Source/Filters/ladder.h, Source/Filters/ladder.cpp, Source/Utility/dsp.h",
+      "note": "LadderFilter is MIT (Richard van Hoesel 2021, Infrasonic Audio LLC 2024); dsp.h is MIT (Electrosmith, Emilie Gillet). DaisySP-LGPL and the older moogladder module are not vendored."
+    }
+  ],
+  "sources": [
+    {
+      "path": "dsp/ladder/bridge.cc",
+      "sha256": "eda606ac8001779d9d846d16f4958936b52d84c59e102d24c81318393f0477f5"
+    },
+    {
+      "path": "vendor/daisysp/src/Source/Filters/ladder.cpp",
+      "sha256": "6c46c12b237c68fb8660e5b49dde0d24e2e4dbb333742faef4acd7b2dd9e18d3"
+    }
+  ],
+  "exports": [
+    "memory",
+    "ld_abi_version",
+    "ld_max_frames",
+    "ld_in_l",
+    "ld_in_r",
+    "ld_out_l",
+    "ld_out_r",
+    "ld_freq",
+    "ld_res",
+    "ld_drive",
+    "ld_max_cutoff",
+    "ld_fault_count",
+    "ld_init",
+    "ld_reset",
+    "ld_set_params",
+    "ld_set_mode",
+    "ld_mode",
+    "ld_process"
+  ]
+}
