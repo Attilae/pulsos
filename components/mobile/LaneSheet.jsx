@@ -24,8 +24,9 @@ import {
 } from '../DawView.jsx'
 import { LaneTagFields } from '../LaneTagEditor.jsx'
 import ResonatorControls from '../ResonatorControls.jsx'
+import MacroControls from '../MacroControls.jsx'
 import { useResonatorStatus } from '@/lib/shared/useResonatorStatus.js'
-import { ARP_RATES, ARP_STYLES, DEFAULT_ARP, DEFAULT_SIDECHAIN } from '@/lib/engine.js'
+import { ARP_RATES, ARP_STYLES, DEFAULT_ARP, DEFAULT_SIDECHAIN, supportsGranular } from '@/lib/engine.js'
 import { DEFAULT_GRID_RESOLUTION, DEFAULT_PITCH_VARIETY, PITCH_CONTOURS, PITCH_SPANS, PITCH_LEAPS } from '@/lib/mappings.js'
 import { NOTE_LENGTHS, NOTE_LENGTH_LABELS, DEFAULT_NOTE_LENGTH } from '@/lib/noteLength.js'
 import { FX_BUSES } from '@/lib/fxTrack.js'
@@ -159,6 +160,19 @@ export default function LaneSheet({
             </section>
           )}
 
+          {synthType === 'Macro' && (
+            <section className="lsheet-group lsheet-group--sound">
+              <GroupHead title="Macro" description="Pick a model, then shape it with Harmonics, Timbre and Morph, as on the module's panel." />
+              <MacroControls
+                params={adsr}
+                onChange={patch => onADSR?.(route.id, patch)}
+                granularEnabled={!!granular?.enabled && !supportsGranular('Macro')}
+                variant="sheet"
+                laneName={route.name}
+              />
+            </section>
+          )}
+
           <section className="lsheet-group lsheet-group--sound">
             <GroupHead title="Pitch map" description="Turn route data into melody." />
             <Field label="Key" hint="Sets the scale this line's stops are mapped onto.">
@@ -284,6 +298,8 @@ export default function LaneSheet({
                 ? 'The Resonator rings out on its own; Damping sets how long. Turn on its envelope to make note length hold and release each note.'
                 : synthType === 'Resonator'
                 ? 'How long each note is held before the Resonator envelope releases it.'
+                : synthType === 'Macro'
+                ? "How long each note holds the Macro trigger. Only the 6-op FM engines sustain for it; the others ring for the gate's Decay or their own decay."
                 : 'How long each note is held before it releases. No effect with legato, the arpeggiator or PluckSynth.'}
             >
               <div className="lsheet-choice-grid lsheet-choice-grid--compact">

@@ -68,6 +68,8 @@ npm test            # node --test — pure-logic tests only (no audio/UI coverag
 npm run sync:agents # regenerate AGENTS.md from CLAUDE.md (`-- --check` fails on drift)
 npm run build:clouds   # rebuild the Clouds granular wasm (only after dsp/clouds or vendor/clouds changes)
 npm run compare:clouds # native vs wasm renders of the Clouds bridge
+npm run build:macro    # rebuild the Macro (Plaits) wasm (only after dsp/macro or vendor/plaits changes)
+npm run compare:macro  # native vs wasm renders of the Macro bridge
 ```
 
 `npm test` runs the built-in Node test runner (`node --test`) over `test/`. Every test is **pure
@@ -84,7 +86,10 @@ logic** — nothing boots Tone.js, React, or the DB: `billing-plans` (`lib/billi
 call is injected through its `services` argument, so it still never touches Postgres),
 `resonator-dsp` / `resonator-worklet` (run the committed wasm and the worklet's
 `ResonatorHost` directly: tuning, timing, cancellation, bounds), `resonator-plan`
-(vocabulary, both apply paths, flag on/off), `clouds-granular-dsp` / `clouds-granular-worklet`
+(vocabulary, both apply paths, flag on/off), `macro-dsp` / `macro-worklet` / `macro-specs` /
+`macro-plan` (the same four layers for Macro: the committed Plaits wasm, `MacroHost`, the engine
+vocabulary checked against the vendored `voice.cc`, and `tone.macro` through both apply paths),
+`clouds-granular-dsp` / `clouds-granular-worklet`
 (the committed Clouds grain wasm and `CloudsHost`: pitch, loop window, reverse, onset timing,
 cancellation, source swap), `granular-engine` (`lib/granularEngine.js` — the engine switch and the
 Leið → Clouds parameter adapter),
@@ -126,6 +131,8 @@ restart it with a fresh `.next` afterwards.
 - `NEXT_PUBLIC_GRANULAR_ENGINE` — `grainplayer` (default, the original `Tone.GrainPlayer` layer)
   or `clouds` (the Clouds-derived wasm layer). Build-time and app-wide, not song state. See
   **Granular engines** below.
+- `NEXT_PUBLIC_MACRO_ENABLED` — default `false`; offers the Macro instrument in the lane picker
+  and AI/MCP plans (see **Macro instrument** below). Songs that use it play either way.
 - `MCP_ENABLED` / `NEXT_PUBLIC_MCP_ENABLED` — default `false`; gate the Pro MCP server and its
   header-menu entry (see **MCP server** below). Apply the Drizzle migrations to the target database
   **before** flipping either on — Better Auth's MCP/OAuth plugins read tables that only exist after
@@ -741,7 +748,7 @@ classes.
 `Resonator` is a lane synth type backed by Emilie Gillet's Rings DSP (MIT, vendored in
 `vendor/rings`, hashes in its `manifest.json`), compiled to a committed standalone wasm
 (`public/wasm/resonator-<sha8>.wasm`) by `npm run build:resonator` with a pinned
-wasi-sdk (`scripts/lib/wasiSdk.js`, shared with the Clouds granular build). Regular builds never
+wasi-sdk (`scripts/lib/wasiSdk.js`, shared with the Clouds and Macro builds). Regular builds never
 compile it. It is offered in the picker and in AI/MCP
 plans only when `NEXT_PUBLIC_RESONATOR_ENABLED=true`, but songs that use it play either
 way. Status and open release gates: `docs/rings-resonator-plan.md`. Build and measurements:
@@ -781,6 +788,36 @@ way. Status and open release gates: `docs/rings-resonator-plan.md`. Build and me
   (`RESONATOR_AUTOMATION_TARGETS`, ids `synth.resonator*`). Model and voice count are
   discrete and aren't automatable. Unlike other `synth.*` targets, removing the lane restores
   the stored value (`_restoreParamToManual` reads the entry's `synthParams`).
+
+### Macro instrument (flag-gated)
+
+`Macro` is a lane synth type backed by Emilie Gillet's Plaits DSP (MIT, vendored unmodified in
+`vendor/plaits`; the name follows upstream's rule against reusing module names). Same layering as
+the Resonator, and every special case is shared with it through `WORKLET_SYNTHS` in `engine.js`:
+`lib/macroSpecs.js` (pure vocabulary, flat `macro*` keys in `trackADSRs`, re-exported by
+`soundSpecs.js`), `lib/macroLoader.js`, `lib/macroVoice.js`, `public/worklets/macro-processor.js`
+(`MacroHost`), `dsp/macro/bridge.cc` → `public/wasm/macro-<sha8>.wasm` (`npm run build:macro`).
+Offered in the picker and plans only when `NEXT_PUBLIC_MACRO_ENABLED=true`. Plan, release gates and
+the FM-patch licence check: `docs/plaits-macro-plan.md`. Build, measurements, engine order:
+`dsp/macro/README.md`.
+- **24 engines in 3 banks** (firmware 1.2), stored in songs by id (`'va'`, `'modal'`), never by
+  index. `MACRO_ENGINES` also says what HARMONICS/TIMBRE/MORPH/AUX do on each, which drives the
+  panel's sub-labels and the AI prompt.
+- **A note is the module with TRIG + V/OCT patched.** The trigger is held for the note's length,
+  but the low-pass gate *pings*: only the 6-op FM engines sustain while it's held (measured). There
+  is no ADSR (`NO_STANDARD_ENV`), no legato, glide or harmony layer. Self-enveloped engines
+  (`MACRO_SELF_ENVELOPED`: 6-op, chiptune, string, modal, drums) ignore the gate's Colour.
+  Chiptune with TRIG patched is a clocked arpeggiator that drones unless `macroTimbreAmt` is set.
+- **Upstream quirks the bridge corrects**: tuning against the hardware's 47872.34 Hz clock (a
+  −4.6 cent offset), and a 4-block (48-sample) trigger delay that `MacroHost` schedules ahead of.
+- **Panel**: `components/MacroControls.jsx` (desktop `EnvPanel` + phone `LaneSheet`), laid out
+  after the faceplate on the shared `components/PanelKnob.jsx` (also used by Texture). FREQUENCY
+  is a ±7-semitone transpose in steps; the three attenuverters (`macro*Amt`, −1..1) set how far
+  each note's decay moves Timbre, pitch and Morph.
+- **Plans** set it through one nested `tone.macro` object (`validateMacroTone`,
+  `macroToneToParams`, `macroParamsToTone`), so the strict OpenRouter schema gains one key per
+  track; `transpose` is whole semitones. A plan `envelope` is dropped (not written) on Macro.
+  Recipes R18/R19 and the prompt text exist only while the flag is on.
 
 ### Billing & entitlements (Free/Pro)
 
