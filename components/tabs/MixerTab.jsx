@@ -32,7 +32,7 @@ import {
 import { exportRouteAudio, exportMixAudio } from '@/lib/audioExport.js'
 import { useEntitlements } from '@/lib/shared/EntitlementsContext.jsx'
 import { countActiveLanes, normalizeLaneAccess, normalizeSnapshotLaneAccess } from '@/lib/billing/plans.js'
-import { buildReplacementLaneState, sendsToClear, trackSynthParams } from '@/lib/ai/planApply.js'
+import { buildReplacementLaneState, sendsToClear, trackSynthParams, planFilterState } from '@/lib/ai/planApply.js'
 import { trackProductEvent } from '@/lib/productAnalytics.js'
 import { unlockAudio, releaseAudioSession, probeOutputPeak } from '@/lib/audioSession.js'
 import { registerSoundCheck } from '@/lib/shared/soundCheck.js'
@@ -1751,7 +1751,7 @@ export default function MixerTab({ active = true }) {
         engine?.setRouteDisabled(DRUMS_ROUTE_ID, false)
         setDrumsMuted(false)
         if (plan.drums.volume != null) handleVolume(DRUMS_ROUTE_ID, plan.drums.volume)
-        if (plan.drums.filter) handleFilter(DRUMS_ROUTE_ID, plan.drums.filter)
+        if (plan.drums.filter) handleFilter(DRUMS_ROUTE_ID, planFilterState(trackFilters[DRUMS_ROUTE_ID], plan.drums.filter))
       }
     }
 
@@ -1766,7 +1766,7 @@ export default function MixerTab({ active = true }) {
       // An edit without a synthType keeps the lane's instrument; filter its tone by that.
       const synthParams = trackSynthParams(t, t.synthType ?? trackSynthTypes[t.routeId] ?? 'Synth')
       if (Object.keys(synthParams).length) handleADSR(t.routeId, synthParams)
-      if (t.filter)       handleFilter(t.routeId, t.filter)
+      if (t.filter)       handleFilter(t.routeId, planFilterState(trackFilters[t.routeId], t.filter))
       if (t.granular)     handleGranular(t.routeId, t.granular)
       if (t.volume != null) handleVolume(t.routeId, t.volume)
       if (t.pan != null)    handlePan(t.routeId, t.pan)
@@ -1813,7 +1813,7 @@ export default function MixerTab({ active = true }) {
     return { appliedCount: replacement.activeIds.length, skippedCount: replacement.skippedIds.length }
   }, [
     routes, started, masterVolume, bpm, visibleInstrumentRoutes, disabledRoutes, limits.activeLanes, soloRoutes, sendMatrix,
-    trackSynthTypes, handleMasterVolume, handleGlobalHarmony, handleSynthType, handleSamplerPreset, handleDrumVoice, handleGranular,
+    trackSynthTypes, trackFilters, handleMasterVolume, handleGlobalHarmony, handleSynthType, handleSamplerPreset, handleDrumVoice, handleGranular,
     handleADSR, handleFilter, handleVolume, handlePan, handleScale, handleOctaveShift, handleGlide, handleLegato, handleArp,
     handleSidechain, handleLaneTag, handleClearDrums, setSyncedDrumPattern,
     handleDroneMode, handleDroneRoot, handleAddFxTrack, handleFxBusWet,
@@ -2286,6 +2286,10 @@ export default function MixerTab({ active = true }) {
         soloRoutes={soloRoutes}
         trackLabels={trackLabels}
         liveSnapshot={liveSnapshot}
+        automationCfg={automationCfg}
+        trackSpeeds={trackSpeeds}
+        trackLoopRegions={trackLoopRegions}
+        trackSynthTypes={trackSynthTypes}
       />
       <AIComposerPanel
         className={view !== 'map' && view !== 'daw' ? 'view-hidden' : ''}
@@ -2472,6 +2476,7 @@ export default function MixerTab({ active = true }) {
             granulars: trackGranulars,
             sidechains: trackSidechains,
             sidechainSources,
+            filters: trackFilters,
             sendMatrix,
             activeFxTracks,
             onDisable: handleDisable,
@@ -2495,6 +2500,7 @@ export default function MixerTab({ active = true }) {
             onStopChance: handleStopChance,
             onLoopPattern: handleLoopPattern,
             onLaneTag: handleLaneTag,
+            onFilter: handleFilter,
           }}
         />
       )}

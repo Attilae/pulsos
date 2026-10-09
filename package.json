@@ -32,7 +32,9 @@
     "build:clouds": "node scripts/build_clouds.js",
     "compare:clouds": "node scripts/build_clouds.js --reference && node scripts/clouds_compare.js",
     "build:macro": "node scripts/build_macro.js",
-    "compare:macro": "node scripts/build_macro.js --reference && node scripts/macro_compare.js"
+    "compare:macro": "node scripts/build_macro.js --reference && node scripts/macro_compare.js",
+    "build:ladder": "node scripts/build_ladder.js",
+    "compare:ladder": "node scripts/build_ladder.js --reference && node scripts/ladder_compare.js"
   },
   "dependencies": {
     "@better-auth/cimd": "1.7.5",

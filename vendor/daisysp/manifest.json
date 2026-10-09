@@ -1,0 +1,30 @@
+{
+  "upstream": [
+    {
+      "name": "DaisySP",
+      "url": "https://github.com/electro-smith/DaisySP",
+      "commit": "2c72eaf9eac5fc0dca1919d65d606da907832618",
+      "commitDate": "2026-09-28",
+      "license": "MIT",
+      "paths": "Source/Filters/ladder.h, Source/Filters/ladder.cpp, Source/Utility/dsp.h",
+      "note": "LadderFilter is MIT (Richard van Hoesel 2021, Infrasonic Audio LLC 2024); dsp.h is MIT (Electrosmith, Emilie Gillet). DaisySP-LGPL and the older moogladder module are not vendored."
+    }
+  ],
+  "files": [
+    {
+      "path": "Source/Filters/ladder.cpp",
+      "sha256": "6c46c12b237c68fb8660e5b49dde0d24e2e4dbb333742faef4acd7b2dd9e18d3",
+      "patched": false
+    },
+    {
+      "path": "Source/Filters/ladder.h",
+      "sha256": "752e54352631eb2adf0acbaf83109ccbcbbcc04e15bb1d123ed57d58c031eff9",
+      "patched": false
+    },
+    {
+      "path": "Source/Utility/dsp.h",
+      "sha256": "534f0f76b7794939a5fff9b128b8fddb23ae0e63ad3354f663445d417924099a",
+      "patched": false
+    }
+  ]
+}

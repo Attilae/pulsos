@@ -2,6 +2,8 @@ import * as Tone from 'tone'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { SYNTH_DEFAULTS, supportsGranular, availableAutomationTargets, findTargetSpec, SAMPLER_PRESET_LIST, SAMPLER_PRESETS, DRUM_VOICES, DRUM_VOICE_LICENSE, DEFAULT_GRANULAR, DEFAULT_SIDECHAIN, ARP_STYLES, ARP_RATES, DEFAULT_ARP, DRUMS_ROUTE_ID } from '@/lib/engine.js'
 import { FX_BUSES, AUTOMATION_TARGETS, FX_PARAM_SPECS, FX_SYNC_TARGETS } from '@/lib/fxTrack.js'
+import { useLaneFilterEditor, AnalogFilterStatus, FilterModelSwitch, DRIVE_HELP } from './LaneFilterEditor.jsx'
+import { ANALOG_SLOPES, FILTER_RANGES, filterTargetActive, FILTER_TARGET_MODELS, FILTER_MODEL_LABELS } from '@/lib/laneFilterSpec.js'
 import { PAD_DEFS as DRUM_PAD_DEFS, STEPS as DRUM_STEPS, SOURCE_STEPS as DRUM_SOURCE_STEPS, emptyPattern as emptyDrumPattern } from '@/lib/engines/drumEngine.js'
 import { noteToMidi, hashStopValue, snapStopsToGrid, GRID_TOTAL_CELLS, GRID_BARS, GRID_STEPS_PER_BAR, GRID_RESOLUTION_STEPS_PER_BAR, DEFAULT_GRID_RESOLUTION, denormalizeToRange, denormalizeExp, transposeNoteInScale, PITCH_CONTOURS, DEFAULT_PITCH_VARIETY, PITCH_SPANS, PITCH_LEAPS } from '@/lib/mappings.js'
 import { buildLanePitchMaps } from '@/lib/laneNotes.js'
@@ -530,6 +532,7 @@ export default function DawView({
                       soloRoutes={soloRoutes}
                       synthType={trackSynthTypes?.[route.id] ?? 'Synth'}
                       granularEnabled={!!trackGranulars?.[route.id]?.enabled}
+                      filter={trackFilters?.[route.id]}
                       started={started}
                       visible={visible}
                       srcLoopRegion={trackLoopRegions?.[laneCfg.sourceRouteId]}
@@ -1620,7 +1623,7 @@ function LineTrack({
 }
 
 // ── Automation lane (sub-row below instrument track) ─────────────────────────
-function AutomationLane({ laneId, instRoute, laneCfg, allRoutes, activeFxTracks, disabled, soloRoutes, synthType = 'Synth', granularEnabled = false, started = false, visible = true, srcLoopRegion, srcGridResolution, onUpdate, onRemove, onLiveValue }) {
+function AutomationLane({ laneId, instRoute, laneCfg, allRoutes, activeFxTracks, disabled, soloRoutes, synthType = 'Synth', granularEnabled = false, filter, started = false, visible = true, srcLoopRegion, srcGridResolution, onUpdate, onRemove, onLiveValue }) {
   const sourceRouteId = laneCfg?.sourceRouteId ?? ''
   const paramTarget   = laneCfg?.paramTarget   ?? 'volume'
   const points        = laneCfg?.points        ?? {}
@@ -1685,13 +1688,22 @@ function AutomationLane({ laneId, instRoute, laneCfg, allRoutes, activeFxTracks,
           {Object.entries(groupedTargets).map(([group, targets]) => (
             <optgroup key={group} label={group}>
               {targets.map(t => (
-                <option key={t.id} value={t.id}>{t.label}</option>
+                <option key={t.id} value={t.id}>
+                  {t.label}{FILTER_TARGET_MODELS[t.id] ? ` (${FILTER_MODEL_LABELS[FILTER_TARGET_MODELS[t.id]]})` : ''}
+                </option>
               ))}
             </optgroup>
           ))}
         </select>
 
         <button className="auto-remove-btn" onClick={onRemove} title="Remove lane" aria-label="Remove automation lane"><IconClose /></button>
+
+        {!filterTargetActive(paramTarget, filter) && (
+          <p className="auto-lane-inactive" role="status">
+            Inactive: this target needs the {FILTER_MODEL_LABELS[FILTER_TARGET_MODELS[paramTarget]]} filter.
+            It resumes when the lane switches back.
+          </p>
+        )}
 
         <div className="speed-row auto-speed-row">
           <span className="speed-label">SPEED</span>
@@ -2721,14 +2733,40 @@ function EnvPanel({ synthType, adsr, onADSR, onSamplerPreset, onDrumVoice, onSam
 }
 
 function FilterPanel({ filter, onFilter, autoTargets = {} }) {
-  const p = { ...DEFAULT_FILTER, ...filter }
-  const aFreq = autoCtl(autoTargets, 'filter.frequency')
-  const aQ    = autoCtl(autoTargets, 'filter.Q')
+  const ed = useLaneFilterEditor(filter, onFilter)
+  const { p, analog } = ed
+  const aFreq  = autoCtl(autoTargets, 'filter.frequency')
+  const aQ     = autoCtl(autoTargets, 'filter.Q')
+  const aRes   = autoCtl(autoTargets, 'filter.resonance', { divide: FILTER_RANGES.resonance.max / 100 })
+  const aDrive = autoCtl(autoTargets, 'filter.drive')
   return (
     <div className="sp-panel">
-      <SpSelect label="Type" value={p.type}      options={FILTER_TYPES} onChange={v => onFilter({ type: v })} />
-      <SpSlider label="Freq" min={20}  max={20000} step={10}  value={aFreq.display ?? p.frequency} onChange={v => onFilter({ frequency: v })} unit="Hz" disabled={aFreq.disabled} />
-      <SpSlider label="Q"    min={0.1} max={20}    step={0.1} value={aQ.display ?? p.Q}            onChange={v => onFilter({ Q: v })} disabled={aQ.disabled} />
+      <FilterModelSwitch value={p.model} onChange={ed.setModel} className="lane-filter-model--rack" />
+      {ed.notice && <p className="lane-filter-status" role="status">{ed.notice}</p>}
+      <AnalogFilterStatus analog={analog} />
+      <SpSelect label="Type" value={p.type} options={ed.types} onChange={v => ed.set({ type: v })} />
+      <SpSlider label="Freq" min={20}  max={20000} step={10}  value={aFreq.display ?? p.frequency} onChange={v => ed.set({ frequency: v })} unit="Hz" disabled={aFreq.disabled} />
+      {ed.cutoffLimit && <p className="lane-filter-status">{ed.cutoffLimit}</p>}
+      {analog ? (
+        <>
+          <SpSlider label="Res"   min={0} max={100} step={1}    value={aRes.display ?? ed.resonancePct} onChange={v => ed.setResonancePct(v)} unit="%" disabled={aRes.disabled} />
+          <div title={DRIVE_HELP}>
+            <SpSlider label="Drive" min={0} max={4}   step={0.05} value={aDrive.display ?? p.drive} onChange={v => ed.set({ drive: v })} disabled={aDrive.disabled} />
+          </div>
+          <SpSelect label="Slope" value={String(p.slope)} options={ANALOG_SLOPES.map(String)} onChange={v => ed.set({ slope: Number(v) })} />
+        </>
+      ) : (
+        <SpSlider label="Q"    min={0.1} max={20}    step={0.1} value={aQ.display ?? p.Q}            onChange={v => ed.set({ Q: v })} disabled={aQ.disabled} />
+      )}
+      <div className="sp-row sp-row--select">
+        <span className="sp-label">Bypass</span>
+        <button
+          type="button"
+          className={`lane-filter-bypass ${p.bypass ? 'is-on' : ''}`}
+          aria-pressed={p.bypass}
+          onClick={() => ed.set({ bypass: !p.bypass })}
+        >{p.bypass ? 'Bypassed' : 'Off'}</button>
+      </div>
     </div>
   )
 }

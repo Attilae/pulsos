@@ -71,6 +71,8 @@ npm run build:clouds   # rebuild the Clouds granular wasm (only after dsp/clouds
 npm run compare:clouds # native vs wasm renders of the Clouds bridge
 npm run build:macro    # rebuild the Macro (Plaits) wasm (only after dsp/macro or vendor/plaits changes)
 npm run compare:macro  # native vs wasm renders of the Macro bridge
+npm run build:ladder   # rebuild the Analog filter (DaisySP ladder) wasm (only after dsp/ladder or vendor/daisysp changes)
+npm run compare:ladder # native vs wasm renders of the ladder bridge
 ```
 
 `npm test` runs the built-in Node test runner (`node --test`) over `test/`. Every test is **pure
@@ -94,6 +96,9 @@ vocabulary checked against the vendored `voice.cc`, and `tone.macro` through bot
 (the committed Clouds grain wasm and `CloudsHost`: pitch, loop window, reverse, onset timing,
 cancellation, source swap), `granular-engine` (`lib/granularEngine.js` — the engine switch and the
 Leið → Clouds parameter adapter),
+`ladder-dsp` / `ladder-worklet` / `lane-filter-spec` / `lane-filter-plan` (the Analog lane filter:
+the committed ladder wasm, `LadderHost`, `lib/laneFilterSpec.js`, and the filter through plans and
+song state),
 `composer-skill` (runs every example plan in `skills/leid-composer/` through the real
 `validatePlan`/`PLAN_INPUT_SCHEMA` and checks each tool it names is registered),
 `composer-guide` (pins the prompt's loop-window/FX-unit/fixed-IR facts and its example plan),
@@ -819,6 +824,40 @@ the FM-patch licence check: `docs/plaits-macro-plan.md`. Build, measurements, en
   `macroToneToParams`, `macroParamsToTone`), so the strict OpenRouter schema gains one key per
   track; `transpose` is whole semitones. A plan `envelope` is dropped (not written) on Macro.
   Recipes R18/R19 and the prompt text exist only while the flag is on.
+
+### Lane filter: Classic and Analog
+
+Every lane's insert filter (including the drum lane) is a `LaneFilter` (`lib/laneFilter.js`), the
+stable node `_createSingleRouteEntry`/`_ensureDrumInsert` splice between `routeGain` and the weq8
+EQ. It owns both models so the engine never branches on one: **Classic** is the original
+`Tone.Filter` and is always built; **Analog** (`model: 'daisy-ladder'`) is DaisySP's
+`LadderFilter` (MIT, vendored in `vendor/daisysp`) compiled by `npm run build:ladder` to
+`public/wasm/ladder-<sha8>.wasm` and hosted per lane by `public/worklets/ladder-processor.js`
+(`LadderHost`, no `import`/`export` for the usual worklet reason). Plan and open gates:
+`docs/daisy-ladder-filter-plan.md`; ABI and measurements: `dsp/ladder/README.md`.
+- **State** stays in `trackFilters[routeId]`; the Analog fields (`model`, `resonance` 0–1.8 native,
+  `drive` 0–4, `slope` 12/24, `bypass`) are additive. Missing `model` means Classic, so old songs
+  are byte-identical and there's no schema bump. `lib/laneFilterSpec.js` (pure) holds ranges,
+  defaults, `normalizeLaneFilter` (run on every load by `migrateSnapshot`), the model-switch patch
+  (Analog has **no notch**: switching from notch changes the response to lowpass and the UI says
+  so; a plan asking for it is rejected), and automation eligibility.
+- **Never blocks playback.** An Analog lane plays through Classic until the DSP is ready and stays
+  there if loading fails ("Analog filter unavailable; using Classic" + Retry in both panels, via
+  `retryLadder()` + `retryAnalogFilters()`). `prepareSounds`/`prepareSnapshotSounds` warm it but
+  swallow the error. Requested settings are kept either way.
+- **The post-filter gate** is what silences a disabled, solo-excluded or zero-volume Analog lane:
+  silence at a self-oscillating ladder's input doesn't stop it ringing. `_applyRouteGain` calls
+  `filter.setAudible`; the gate fades, then the DSP is suspended and reset. Classic is ungated
+  (unchanged semantics). Analog DSP that isn't heard (Classic selected, bypassed, gated) is
+  suspended after its fade, so Classic-only lanes cost nothing.
+- **Gain staging is unchanged**: lane volume sits before the filter, so it feeds the drive.
+- **Automation**: `filter.frequency` drives both models; `filter.Q` is Classic-only and
+  `filter.resonance`/`filter.drive` Analog-only (`filterModel` on the target spec). Incompatible
+  lanes are kept and shown as inactive, never reset, and resume when the model switches back;
+  `restore()` only touches its own param, so a stale Q lane can't overwrite resonance.
+- **Plans**: `planFilterState` (`planApply.js`) is the one merge both apply paths use; the
+  fresh-composition baseline resets model/drive/bypass per key, so a reused lane can't inherit the
+  previous song's Analog filter.
 
 ### Billing & entitlements (Free/Pro)
 

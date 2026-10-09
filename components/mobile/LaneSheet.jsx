@@ -4,7 +4,7 @@
 // four segments in a bottom sheet:
 //   Tone   — instrument, harmony and pitch mapping
 //   Rhythm — playback timing and arpeggiation
-//   Mix   — level, stereo position, FX sends, sidechain ducking
+//   Mix   — level, stereo position, filter, FX sends, sidechain ducking
 //   Notes — the touch replacement for the stop rail (see below)
 //
 // The stop rail can't be made tappable at this size: dots are 8px and sit
@@ -25,6 +25,7 @@ import {
 import { LaneTagFields } from '../LaneTagEditor.jsx'
 import ResonatorControls from '../ResonatorControls.jsx'
 import MacroControls from '../MacroControls.jsx'
+import { LaneFilterFields } from '../LaneFilterEditor.jsx'
 import { useResonatorStatus } from '@/lib/shared/useResonatorStatus.js'
 import { ARP_RATES, ARP_STYLES, DEFAULT_ARP, DEFAULT_SIDECHAIN, supportsGranular } from '@/lib/engine.js'
 import { DEFAULT_GRID_RESOLUTION, DEFAULT_PITCH_VARIETY, PITCH_CONTOURS, PITCH_SPANS, PITCH_LEAPS } from '@/lib/mappings.js'
@@ -73,12 +74,13 @@ export default function LaneSheet({
   activeFxTracks = [],
   sidechain,
   sidechainSources = [],
+  filter,
   tag,
   // handlers — the same ones the desktop rack calls
   onVolume, onPan, onDisable, onSolo, onSynthType, onADSR, onScale, onOctaveShift,
   onPitchVariety, onTrackSpeed, onGridResolution, onArp,
   onSendLevel, onSidechain, onStopPitch, onStopVelocity, onLaneTag,
-  onNoteChance, onStopChance, onLoopPattern, onNoteLength,
+  onNoteChance, onStopChance, onLoopPattern, onNoteLength, onFilter,
 }) {
   const [segment, setSegment] = useState('sound')
   const resonatorStatus = useResonatorStatus()
@@ -481,6 +483,8 @@ export default function LaneSheet({
               Centre
             </button>
           </Field>
+
+          {onFilter && <LaneFilterFields filter={filter} onFilter={p => onFilter(route.id, p)} Field={Field} />}
 
           {activeFxTracks.length > 0 && (
             <Field label="Sends">

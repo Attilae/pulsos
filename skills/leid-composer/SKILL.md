@@ -119,6 +119,10 @@ the Leið DAW and plays.
     and `tone.filterQ` sets its resonance. A fast decay, sustain 0 and Q 4–8 give an acid squelch.
   - On PluckSynth, `tone.resonance` sets how long the string rings, `tone.dampening` its brightness
     and `tone.attackNoise` the pick noise.
+- The lane `filter` has two models. Omit `model` (or use `"classic"`) for the clean filter with `Q`.
+  `"model": "daisy-ladder"` is the Analog ladder: `resonance` (its own 0–1.8 scale, not Q; it
+  self-oscillates near the top), `drive` (1 is unity; the lane's volume drives it too) and `slope`
+  12 or 24. It has no notch, so a notch on it is rejected. `bypass: true` turns either one off.
 - Keep granular quiet (mix around 0.08), on a sustained support lane, and off the bass.
 - The drum kit's pads have fixed synthesized sounds and share one effects chain. Create contrast
   with hat vs ride, rim vs clap, and step velocities.
