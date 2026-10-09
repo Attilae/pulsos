@@ -561,7 +561,7 @@ Pure, side-effect-free functions — the place to change *how data becomes music
 comes from the **stop rail**: `generatePitchMap(stops, rootMidi, modeScale, octaveSpan, opts)`
 builds a line's note sequence per stop, either from geography (latitude → scale degree, longitude →
 octave register, via `geoToMidi`/`latToMidi`) or from the stop's baked-in demand. `opts = { contour,
-variety, routeId }` (`PITCH_CONTOURS = ['demand','geographic','randomWalk','arch']`,
+variety, routeId, span?, maxLeap? }` (`PITCH_CONTOURS = ['demand','geometryDemand','geographic','randomWalk','arch']`,
 `DEFAULT_PITCH_VARIETY = { contour: 'demand', variety: 0 }`) picks the contour and layers opt-in
 variety on top; `variety === 0` reproduces the chosen contour's plain mapping byte-for-byte.
 **The default contour is `demand`** (`geographic` was the default before `SCHEMA_VERSION` 4) — the
@@ -577,6 +577,26 @@ geometry: it maps each stop's `signals.demand` (0–1) across the lane's full re
 stops sit higher. It
 is *not* a live signal — see **Stop demand signals** under *Data pipeline gotchas* — and falls back exactly to
 `geographic` when a route's stops carry no `signals`, so older `lines.<city>.json` still plays.
+
+**Shared pitch resolution** is in `lib/lanePitch.js`: `buildBasePitchMap` generates the
+contour, `resolveStopPitch` applies authored scale-degree edits then octave and semitone shifts,
+and `buildLanePitchMaps` serves both note displays and pure MIDI event reconstruction
+(`lib/midiEvents.js`, re-exported by `midiExport.js`). The engine uses the same helpers, keeping
+the authored transformations live at callback time. `buildMergedPitchCells` stacks source
+voices for engine and MIDI chord lanes. `buildRouteSoundModes` covers every played route at
+startup, including lanes without an explicit sound-mode entry, so a selected scale survives
+Start, AI auto-start, and Song playback.
+
+**Geometry contour and movement controls** remain opt-in. `geometryDemand` projects stop
+coordinates into local meters and onto the route's principal axis, then blends 80% geometry
+with 20% demand (missing demand uses geometry). Its variety is deterministic. Optional
+`trackPitchVariety[id].span` is 1/2/3 octaves; absent (Auto in the UI) preserves the original
+contour's register. `maxLeap` is 0..4 scale steps, with 0/absent unrestricted. It bounds
+generated pitches cyclically over the stops surviving the lane's grid and loop window, so
+trimming a constrained loop can reshape its notes. Explicit stop edits take priority; chance
+gating can skip intermediate notes. All settings survive songs and composer/MCP round trips.
+`test/lane-pitch.test.js` pins legacy notes and checks scale startup, cyclic limits, display/MIDI
+parity, merged voices, and persistence. Details: `docs/pitch-map-feature.md`.
 
 **Per-stop velocity** is a parallel, independently opt-in layer: `generateVelocityMap(stops,
 variety)` derives a 0.6–1.0 velocity per stop from inter-stop gap size (tightly-packed stops
