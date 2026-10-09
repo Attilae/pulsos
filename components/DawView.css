@@ -1768,6 +1768,13 @@
   min-width: 300px;
   height: 360px;
 }
+/* weq8-ui hardcodes a dark palette inside its shadow DOM and paints its
+   response curve white on a canvas, so no token can reach it. In light mode
+   invert the whole element (hue-rotate keeps the yellow selection yellow) and
+   lift it slightly so the panel sits near the light card surface. */
+:root[data-theme="light"] .eq-weq8 weq8-ui {
+  filter: invert(1) hue-rotate(180deg) brightness(1.06);
+}
 .eq-loading {
   color: var(--muted);
   font-size: var(--fs-2xs);
