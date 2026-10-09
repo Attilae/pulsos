@@ -1820,3 +1820,68 @@
   outline-offset: 2px;
   z-index: 6;
 }
+
+/* ── Lane filter: model switch, status, bypass (components/LaneFilterEditor.jsx) ── */
+.lane-filter-model {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 3px);
+  overflow: hidden;
+}
+.lane-filter-model--rack { margin: 2px 0 4px; align-self: flex-start; }
+.lane-filter-model-btn {
+  font-size: var(--fs-3xs);
+  padding: 2px 8px;
+  background: var(--surface2);
+  color: var(--muted);
+  border: 0;
+  cursor: pointer;
+}
+.lane-filter-model-btn + .lane-filter-model-btn { border-left: 1px solid var(--border); }
+.lane-filter-model-btn:hover { color: var(--accent); }
+.lane-filter-model-btn.is-active {
+  color: var(--text);
+  font-weight: 600;
+  background: color-mix(in srgb, var(--accent) 16%, var(--surface2));
+}
+.lane-filter-model-btn:focus-visible { outline: 1px solid var(--accent); outline-offset: -1px; }
+
+.lane-filter-status {
+  margin: 2px 0;
+  font-size: var(--fs-3xs);
+  line-height: 1.4;
+  color: var(--muted);
+}
+.lane-filter-status--error { color: var(--warning-text); }
+.lane-filter-retry {
+  font: inherit;
+  color: var(--accent);
+  background: none;
+  border: 0;
+  padding: 0;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.lane-filter-bypass {
+  grid-column: 2;
+  justify-self: start;
+  font-size: var(--fs-3xs);
+  padding: 2px 6px;
+  background: var(--surface2);
+  color: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  cursor: pointer;
+}
+.lane-filter-bypass.is-on {
+  color: var(--warning-text);
+  border-color: color-mix(in srgb, var(--warning-text) 50%, var(--border));
+}
+
+.auto-lane-inactive {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: var(--fs-3xs);
+  color: var(--muted);
+}

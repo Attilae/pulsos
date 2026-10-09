@@ -25,3 +25,4 @@ dsp/resonator/.toolchain/
 dsp/resonator/.build/
 dsp/clouds/.build/
 dsp/macro/.build/
+dsp/ladder/.build/
