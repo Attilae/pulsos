@@ -89,6 +89,7 @@ export default function MobileDaw({ controls, lanes }) {
         pitchVariety={lanes.pitchVariety?.[openLaneId]}
         speed={lanes.speeds?.[openLaneId] ?? 1}
         gridResolution={lanes.gridResolutions?.[openLaneId]}
+        loopRegion={lanes.loopRegions?.[openLaneId]}
         arp={lanes.arps?.[openLaneId]}
         perStopSteps={lanes.pitchOffsets?.[openLaneId]}
         stopVelocities={lanes.stopVelocities?.[openLaneId]}

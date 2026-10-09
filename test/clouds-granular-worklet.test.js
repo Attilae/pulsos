@@ -22,8 +22,9 @@ function makeHost(sampleRate, cfg = {}) {
   return new TextureHost(x, sampleRate, { seed: 4, params: textureDspParams(cfg) })
 }
 
-// Feed `input(frame)` (mono) through the host for `seconds`; returns L/R.
-function run(host, sampleRate, seconds, input, { beforeQuantum } = {}) {
+// Feed `input(frame)` (mono) through the host for `seconds`, starting at context
+// frame `startFrame` (to continue an earlier run); returns L/R.
+function run(host, sampleRate, seconds, input, { beforeQuantum, startFrame = 0 } = {}) {
   const frames = Math.round(seconds * sampleRate)
   const L = new Float32Array(frames), R = new Float32Array(frames)
   const inBuf = new Float32Array(QUANTUM)
@@ -32,7 +33,7 @@ function run(host, sampleRate, seconds, input, { beforeQuantum } = {}) {
     const n = Math.min(QUANTUM, frames - off)
     for (let j = 0; j < n; j++) inBuf[j] = input ? input(off + j) : 0
     const i = input ? inBuf.subarray(0, n) : null
-    host.process(i, i, L.subarray(off, off + n), R.subarray(off, off + n), n, off)
+    host.process(i, i, L.subarray(off, off + n), R.subarray(off, off + n), n, startFrame + off)
   }
   return { L, R }
 }
