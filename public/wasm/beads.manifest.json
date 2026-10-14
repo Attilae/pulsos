@@ -1,0 +1,118 @@
+{
+  "asset": "beads-a4464682.wasm",
+  "sha256": "a446468202b3d62e46fb0c5ab47283a5b10449ba6ff0356274a84179a71cf17d",
+  "bytes": 90961,
+  "toolchain": {
+    "name": "wasi-sdk",
+    "tag": "wasi-sdk-34",
+    "version": "34.0",
+    "clang": "clang version 23.1.0-wasi-sdk (https://github.com/llvm/llvm-project 895aa2c896ada719451be2e3673c83da8ddf1141)",
+    "assets": {
+      "arm64-macos": "sha256:9c59398106b417f8f14913380fdf0097a8cc0ff4af9eb3ce0065a859e88d49e9",
+      "x86_64-macos": "sha256:87d27fa8adc68dee59bfbf2e22a6d34ef717c34d6bf1d8af2a56fc929d9ce0eb",
+      "arm64-linux": "sha256:f7e243dff54d60bcc576e94d6166b69f410f2500ae4a9ceef34315be10e77971",
+      "x86_64-linux": "sha256:b761e3a0721dbae9c09a0059e5fdb2bf917d1b4a8a7b430fb3b5aafb0984b2c4"
+    }
+  },
+  "flags": [
+    "--target=wasm32-wasip1",
+    "-mcpu=mvp",
+    "-mbulk-memory",
+    "-mnontrapping-fptoint",
+    "-msign-ext",
+    "-mmutable-globals",
+    "-nostartfiles",
+    "-Wl,--no-entry",
+    "-Wl,--gc-sections",
+    "-Wl,--strip-all",
+    "-Wl,-z,stack-size=65536",
+    "-isystem",
+    "<sysroot>/include/wasm32-wasip1/noeh/c++/v1",
+    "-O3",
+    "-DTEST",
+    "-DNDEBUG",
+    "-Wno-vla-cxx-extension",
+    "-Wno-unknown-warning-option",
+    "-fno-exceptions",
+    "-fno-rtti",
+    "-ffp-contract=off",
+    "-std=c++14",
+    "-Ivendor/beads/src"
+  ],
+  "upstream": [
+    {
+      "name": "eurorack",
+      "url": "https://github.com/pichenettes/eurorack",
+      "commit": "d8f473915232af74347762b6365202bfd26f73f6",
+      "commitDate": "2026-10-11",
+      "license": "MIT (STM32F projects)",
+      "paths": "beads/"
+    },
+    {
+      "name": "stmlib",
+      "url": "https://github.com/pichenettes/stmlib",
+      "commit": "e3bd7c9cc00e4364166f9905c0509b6ffd0535ec",
+      "commitDate": "2023-05-30",
+      "license": "MIT",
+      "paths": "stmlib/",
+      "note": "the submodule revision pinned by the eurorack commit above"
+    }
+  ],
+  "sources": [
+    {
+      "path": "dsp/beads/bridge.cc",
+      "sha256": "e7a1e773ed80a7198e5f1115120a7a87820cfc268e4450386a6d3bcc7ea939d1"
+    },
+    {
+      "path": "vendor/beads/src/beads/dsp/processor.cc",
+      "sha256": "9d3acbbc9828240def58a9866429cb12ba4deaf9537fce4ba15ef1dbe9380ec1"
+    },
+    {
+      "path": "vendor/beads/src/beads/dsp/delay_clock.cc",
+      "sha256": "a7f4bcd50e5544f27da9380cd8988b1d8b72d8329d1a7bdee692a7b1606dcee3"
+    },
+    {
+      "path": "vendor/beads/src/beads/dsp/delay_controller.cc",
+      "sha256": "7893b105c34572bdb7bca2e6c08ce2be68cf3c7272c421afd1b3842631236ed7"
+    },
+    {
+      "path": "vendor/beads/src/beads/dsp/trigger_generator.cc",
+      "sha256": "c2435554fd3b49f1e64bb344bc4847c569d4e6e50f3fffb8de68334bc0393964"
+    },
+    {
+      "path": "vendor/beads/src/beads/dsp/mu_law.cc",
+      "sha256": "67614c864a3789060836bb7ab208658bf55ffac69912c3600f060f090c747d8c"
+    },
+    {
+      "path": "vendor/beads/src/beads/resources.cc",
+      "sha256": "65bd67ca50cbed0b45939d0f02b4932964d211abc4723e58544676b9315618d7"
+    },
+    {
+      "path": "vendor/beads/src/stmlib/dsp/units.cc",
+      "sha256": "0acbe230ffaa2d181ba285fce54f2fd0b2339b3ec163a1dd00c946e6bf82ea4a"
+    },
+    {
+      "path": "vendor/beads/src/stmlib/utils/random.cc",
+      "sha256": "145c4d7a30e373d001fd664ce6f97a475458f7dc8286252d24ca6f592e0cdb93"
+    }
+  ],
+  "exports": [
+    "memory",
+    "bd_init",
+    "bd_block_size",
+    "bd_max_block_size",
+    "bd_sample_rate",
+    "bd_quality",
+    "bd_in_l",
+    "bd_in_r",
+    "bd_out_l",
+    "bd_out_r",
+    "bd_fault_count",
+    "bd_set_params",
+    "bd_set_seed",
+    "bd_set_quality",
+    "bd_gate",
+    "bd_reset",
+    "bd_render"
+  ]
+}

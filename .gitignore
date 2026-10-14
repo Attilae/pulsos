@@ -19,10 +19,12 @@ _videos/*
 public/skills/
 
 # DSP toolchain (scripts/lib/wasiSdk.js) and comparison renders
-# (scripts/build_resonator.js, scripts/build_clouds.js, scripts/build_macro.js)
+# (scripts/build_resonator.js, scripts/build_clouds.js, scripts/build_macro.js,
+# scripts/build_beads.js)
 dsp/.toolchain/
 dsp/resonator/.toolchain/
 dsp/resonator/.build/
 dsp/clouds/.build/
 dsp/macro/.build/
+dsp/beads/.build/
 dsp/ladder/.build/

@@ -1,4 +1,5 @@
 import dynamic from 'next/dynamic'
+import { TEXTURE_MK2_PARAM_TARGETS } from '@/lib/granularEngine.js'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import * as Tone from 'tone'
 import { TransitEngine, SYNTH_DEFAULTS, availableAutomationTargets, DEFAULT_ARP, DEFAULT_GRANULAR, DEFAULT_SIDECHAIN, SIDECHAIN_ANY_DRUM, SIDECHAIN_PAD_SOURCES, DEFAULT_PITCH_VARIETY, DRUMS_ROUTE_ID } from '@/lib/engine.js'
@@ -1052,8 +1053,10 @@ export default function MixerTab({ active = true }) {
 
       // e.g. an FM-only param lane after switching to Drums
       const validIds = new Set(availableAutomationTargets(
-        synthType, activeFxTracks, !!trackGranulars[routeId]?.enabled
+        synthType, activeFxTracks, !!trackGranulars[routeId]?.enabled, trackGranulars[routeId]
       ).map(t => t.id))
+      // A lane on the other Texture model's control stays (inactive), as on load.
+      if (trackGranulars[routeId]?.enabled) for (const t of TEXTURE_MK2_PARAM_TARGETS) validIds.add(t.id)
       resetInvalidAutomationLanes(routeId, validIds)
     }
     const engine = engineRef.current
