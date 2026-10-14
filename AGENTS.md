@@ -68,6 +68,9 @@ npm test            # node --test — pure-logic tests only (no audio/UI coverag
 npm run sync:agents # regenerate AGENTS.md from CLAUDE.md (`-- --check` fails on drift)
 npm run build:clouds   # rebuild the Clouds granular wasm (only after dsp/clouds or vendor/clouds changes)
 npm run compare:clouds # native vs wasm renders of the Clouds bridge
+npm run build:beads    # rebuild the Texture Mk II (Beads) wasm (only after dsp/beads or vendor/beads changes)
+npm run compare:beads  # native vs wasm renders of the Beads bridge
+node scripts/beads_bench.js [--soak]  # Texture load: Classic vs Mk II per quality, 8 lanes, through the worklet hosts
 npm run build:macro    # rebuild the Macro (Plaits) wasm (only after dsp/macro or vendor/plaits changes)
 npm run compare:macro  # native vs wasm renders of the Macro bridge
 npm run build:ladder   # rebuild the Analog filter (DaisySP ladder) wasm (only after dsp/ladder or vendor/daisysp changes)
@@ -92,9 +95,11 @@ call is injected through its `services` argument, so it still never touches Post
 `macro-plan` (the same four layers for Macro: the committed Plaits wasm, `MacroHost`, the engine
 vocabulary checked against the vendored `voice.cc`, and `tone.macro` through both apply paths),
 `clouds-granular-dsp` / `clouds-granular-worklet`
-(the committed Clouds grain wasm and `CloudsHost`: pitch, loop window, reverse, onset timing,
-cancellation, source swap), `granular-engine` (`lib/granularEngine.js` — the engine switch and the
-Leið → Clouds parameter adapter),
+(Texture Classic: the committed Clouds wasm and its `TextureHost` — dry/wet, TRIG timing, pitch,
+freeze, cancellation), `granular-engine` (`lib/granularEngine.js` — the engine switch and Classic's
+controls), `beads-dsp` / `beads-worklet` / `texture-mk2` (Texture Mk II: the committed Beads wasm,
+`BeadsHost` at every quality and host rate, and the model switch, vocabulary, readouts and
+automation rules),
 `ladder-dsp` / `ladder-worklet` / `lane-filter-spec` / `lane-filter-plan` (the Analog lane filter:
 the committed ladder wasm, `LadderHost`, `lib/laneFilterSpec.js`, and the filter through plans and
 song state),
@@ -134,8 +139,11 @@ restart it with a fresh `.next` afterwards.
 - `OPENROUTER_API_KEY` — required only for the AI Composer (`POST /api/compose`).
 - `OPENROUTER_MODEL` — optional override (default `anthropic/claude-sonnet-4.5`).
 - `NEXT_PUBLIC_GRANULAR_ENGINE` — `grainplayer` (default, the original `Tone.GrainPlayer` layer)
-  or `clouds` (the Clouds-derived wasm layer). Build-time and app-wide, not song state. See
+  or `clouds` (the **Texture** insert). Build-time and app-wide, not song state. See
   **Granular engines** below.
+- `NEXT_PUBLIC_TEXTURE_MK2_ENABLED` — default `false`; offers Texture's Mk II model in the lane
+  panel (only matters when the engine is `clouds`). Songs whose lanes are on Mk II play it either
+  way.
 - `NEXT_PUBLIC_MACRO_ENABLED` — default `false`; offers the Macro instrument in the lane picker
   and AI/MCP plans (see **Macro instrument** below). Songs that use it play either way.
 - `MCP_ENABLED` / `NEXT_PUBLIC_MCP_ENABLED` — default `false`; gate the Pro MCP server and its
@@ -546,18 +554,43 @@ NetworkState (drone hum + hub-convergence chords) → AlertLayer input
   automation targets (`grain.*`, see `GRAIN_PARAM_TARGETS` / `availableAutomationTargets`). Note:
   `Granular` was *briefly* a synth type — it is **now a layer, not a synth**; `songState.js`
   coerces stale `'Granular'` synth-type snapshots back to a real synth.
-- **Granular engines**: `NEXT_PUBLIC_GRANULAR_ENGINE` (`lib/granularEngine.js`) picks the class
-  `_ensureGranularVoice` builds. That is the only branch in the engine: `GranularVoice`
-  (`Tone.GrainPlayer`, untouched) and `CloudsGranularVoice` (`lib/cloudsGranularVoice.js`) share
-  one lifecycle (`setBuffer`/`set`/`setMix`/`trigger*`/`setNote`/`connect`/`dispose`/`loaded`),
-  the same C4 offline render as their source, and the same outer envelope + additive mix into
-  `routeGain`. The Clouds layer is a wasm grain cloud in an AudioWorklet
-  (`dsp/clouds/bridge.cc` over `vendor/clouds`, `public/worklets/clouds-granular-processor.js`,
-  `lib/cloudsGranularLoader.js`), built like the Resonator (`npm run build:clouds`, committed
-  artifact). It loads asynchronously and **falls back to `GranularVoice`** if the wasm or worklet
-  fails, so a lane never loses its layer. Saved `grain.*` settings and automation go through
-  `cloudsParamsFromGranular`; what each one means there, plus measurements, is in
-  `dsp/clouds/README.md`. Plan and remaining gates: `docs/clouds-granular-port-plan.md`.
+- **Granular engines**: `NEXT_PUBLIC_GRANULAR_ENGINE` (`lib/granularEngine.js`) picks what
+  `_ensureGranularVoice` builds, and it's the only branch in the engine.
+  - `grainplayer` (default): `GranularVoice` (`Tone.GrainPlayer`), a *layer* in parallel with the
+    lane, grained from an offline C4 render of its instrument (`_renderGranularSource`). Worklet
+    instruments (Resonator, Macro) can't be rendered offline, so `supportsGranular` is false for
+    them here.
+  - `clouds`: **Texture** (`lib/textureVoice.js`), an *insert*. Every lane instrument feeds
+    `laneIn`; with Texture on, `laneIn → TextureVoice → routeGain` replaces `laneIn → routeGain`,
+    so it records the lane's live audio into a buffer and plays grains out of it, like the module.
+    It works on every instrument, and the lane's inserts, sends, gating and stems see its output.
+    Lane notes are its trigger input. Settings are `tx*` keys in the lane's granular config, beside
+    the GrainPlayer ones, so a song keeps both and plays through whichever the build selects.
+  - **Texture has two models per lane**, `txModel` = `classic` | `mk2` (song state; a lane that
+    switches keeps the other model's settings). `TextureVoice` hosts one at a time and cross-fades
+    20 ms on a switch; the dry path carries the lane until a model is ready and if it fails to
+    load, and a failed switch stays on the old model (`retry()`).
+    - **Classic**: Clouds' granular mode, `dsp/clouds/bridge.cc` over `vendor/clouds`,
+      `public/worklets/clouds-granular-processor.js` (`TextureHost`), `lib/cloudsGranularLoader.js`,
+      `npm run build:clouds`. A note seeds one grain. The bridge.cc header is the accurate
+      description; `dsp/clouds/README.md` and `docs/clouds-granular-port-plan.md` still describe the
+      earlier frozen-source layer.
+    - **Mk II** (flag `NEXT_PUBLIC_TEXTURE_MK2_ENABLED`): Beads, `dsp/beads/bridge.cc` over
+      `vendor/beads`, `public/worklets/beads-processor.js` (`BeadsHost`), `lib/beadsLoader.js`,
+      `npm run build:beads`. Keys are `tx2*`. A note is a gate on SEED held for its length (0.25 s
+      for legato/drone notes). Seed modes: gates, clock (notes clock DENSITY) and free. SIZE at full
+      enters delay mode after 1.5 s. The four qualities run the DSP at 48/48/32/24 kHz and
+      changing one clears the recording, as on the module. The whole lane (dry included) goes
+      through the DSP, under 1 ms late; output gets `TEXTURE_MK2_MAKEUP_DB` (+3 dB). Upstream
+      says the code is unverified on hardware. Plan and open gates: `docs/texture-mk2-plan.md`;
+      ABI, upstream quirks and measurements: `dsp/beads/README.md`.
+  - **UI names**: "Classic" and "Mk II", never the module names (upstream's request). The panel is
+    `components/TextureControls.jsx` (desktop only; the phone lane sheet has no granular
+    controls).
+  - **Automation**: `textureParamTargets(cfg)` gives `grain.tx*` (Classic) and `grain.tx2*`
+    (Mk II) targets. A lane on the other model's target is kept and shown inactive in DawView,
+    like the lane filter's model-specific targets. `prepareSounds`/`prepareSnapshotSounds` warm Mk
+    II without blocking.
 
 #### Musical mapping (`lib/mappings.js`)
 

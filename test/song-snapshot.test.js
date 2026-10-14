@@ -299,3 +299,34 @@ test('a Macro lane keeps its panel and its synth.macro* automation through a rou
   assert.equal(auto.M1.lane0.paramTarget, 'synth.macroFmAmt')
   assert.equal(auto['4'].lane1.paramTarget, 'volume')
 })
+
+test('a Texture Mk II lane keeps both models\' settings and automation through a round trip', () => {
+  const setters = recorder()
+  const engine = recorder()
+  const granular = {
+    enabled: true, txModel: 'mk2', tx2Quality: 'dirtyTape', tx2SeedMode: 'clock', tx2Time: 0.3, tx2Freeze: true,
+    txPosition: 0.4,   // Classic's setting, kept for when the lane switches back
+  }
+  const state = {
+    ...baseState(),
+    trackGranulars: { M1: granular },
+    automationCfg: {
+      M1: {
+        lane0: { sourceRouteId: '9', paramTarget: 'grain.tx2Density', points: { 0: 0.2 } },
+        // The other model's control stays: inactive until the lane switches back.
+        lane1: { sourceRouteId: '9', paramTarget: 'grain.txSize', points: {} },
+      },
+      // Without a granular layer a Texture target is stale: it falls back to volume.
+      '4': { lane2: { sourceRouteId: '9', paramTarget: 'grain.tx2Reverb', points: {} } },
+    },
+  }
+  const snap = JSON.parse(JSON.stringify(buildSnapshot(state)))
+  applySnapshot(snap, setters.target, engine.target, CITY)
+
+  assert.deepEqual(setters.first('setTrackGranulars').args[0].M1, granular)
+  assert.deepEqual(engine.first('setGranular').args, ['M1', granular])
+  const auto = setters.first('setAutomationCfg').args[0]
+  assert.equal(auto.M1.lane0.paramTarget, 'grain.tx2Density')
+  assert.equal(auto.M1.lane1.paramTarget, 'grain.txSize')
+  assert.equal(auto['4'].lane2.paramTarget, 'volume')
+})

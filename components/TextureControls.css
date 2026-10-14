@@ -138,3 +138,96 @@
   line-height: 1.4;
   color: var(--muted);
 }
+
+/* ── Model switch: Classic | Mk II ─────────────────────────────────────────── */
+.tx-models,
+.tx-seg {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+.tx-seg { flex: 1; min-width: 0; }
+.tx-model,
+.tx-seg-opt {
+  min-width: 0;
+  padding: 3px var(--space-075);
+  font-size: var(--fs-3xs);
+  font-weight: 700;
+  letter-spacing: var(--tracking-wide);
+  white-space: nowrap;
+  color: var(--muted);
+  background: transparent;
+  border: none;
+  border-left: 1px solid var(--border);
+  cursor: pointer;
+}
+.tx-model:first-child,
+.tx-seg-opt:first-child { border-left: none; }
+.tx-model:hover,
+.tx-seg-opt:hover { color: var(--text); background: var(--hover-bg); }
+.tx-model.is-active,
+.tx-seg-opt.is-active { color: var(--accent); background: var(--hover-surface); }
+
+/* ── Mk II: four knob columns, each a large knob over its randomizer ───────── */
+.tx-row--4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.tx-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-025);
+  min-width: 0;
+}
+
+/* The QUALITY button's four LEDs. */
+.tx-quality {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-050);
+  min-width: 0;
+}
+.tx-caption {
+  font-size: var(--fs-3xs);
+  font-weight: 700;
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.tx-lamps {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 2px var(--space-075);
+}
+.tx-lamp-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-050);
+  min-width: 0;
+  padding: 2px var(--space-050);
+  font-size: var(--fs-3xs);
+  text-align: left;
+  color: var(--text-subtle);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.tx-lamp-btn:hover { color: var(--text); background: var(--hover-bg); }
+.tx-lamp-btn.is-active { color: var(--accent); border-color: var(--border-strong); }
+.tx-lamp-btn.is-active .tx-lamp { background: var(--accent); border-color: var(--accent); }
+.tx-lamp-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tx-model:focus-visible,
+.tx-seg-opt:focus-visible,
+.tx-lamp-btn:focus-visible,
+.tx-freeze:focus-visible,
+.tx-blend-opt:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}

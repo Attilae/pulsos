@@ -33,6 +33,8 @@
     "compare:clouds": "node scripts/build_clouds.js --reference && node scripts/clouds_compare.js",
     "build:macro": "node scripts/build_macro.js",
     "compare:macro": "node scripts/build_macro.js --reference && node scripts/macro_compare.js",
+    "build:beads": "node scripts/build_beads.js",
+    "compare:beads": "node scripts/build_beads.js --reference && node scripts/beads_compare.js",
     "build:ladder": "node scripts/build_ladder.js",
     "compare:ladder": "node scripts/build_ladder.js --reference && node scripts/ladder_compare.js"
   },
