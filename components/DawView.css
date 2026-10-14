@@ -328,11 +328,22 @@
 /* ── Device rack (expanded signal-flow cards) ───────────────────────────── */
 .device-rack {
   /* Masonry-style flow: short cards (e.g. Instrument + Sends) stack in the
-     same column instead of leaving a tall gap under the next row. */
-  columns: 248px;
-  column-gap: 8px;
+     same column instead of leaving a tall gap under the next row. Columns are
+     assigned once by DeviceRack.jsx (not CSS multicol, which reshuffled every
+     card whenever one changed height). Its 248px / 8px mirror that file. */
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
   padding-top: 2px;
 }
+.device-rack-col {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.device-rack .rack-card { margin-bottom: 0; }
 
 .rack-domain-key {
   display: flex;
@@ -386,8 +397,6 @@
   flex-direction: column;
   gap: 6px;
   min-width: 0;
-  break-inside: avoid;       /* keep a card whole within one column */
-  margin-bottom: 8px;        /* multicol spaces with margins, not gap */
 }
 .rack-card--sound { --rack-domain: var(--info); }
 .rack-card--rhythm { --rack-domain: var(--automation); }

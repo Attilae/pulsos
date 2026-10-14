@@ -18,6 +18,7 @@ import { normalizeLaneTag } from '@/lib/laneTags.js'
 import { LOOP_PATTERN_PRESETS, MAX_PATTERN_PLAY, MAX_PATTERN_REST, normalizeLoopPattern, normalizeNoteChance, formatLoopPattern, loopIndexAt, loopPlays } from '@/lib/laneGating.js'
 import StopEditor from './StopEditor.jsx'
 import TextureControls from './TextureControls.jsx'
+import DeviceRack from './DeviceRack.jsx'
 import { TEXTURE_ENABLED, TEXTURE_MODEL_LABELS, textureTargetActive } from '@/lib/granularEngine.js'
 import ResonatorControls from './ResonatorControls.jsx'
 import { useResonatorStatus } from '@/lib/shared/useResonatorStatus.js'
@@ -748,7 +749,7 @@ function DrumLane({
       </div>
 
       {rackOpen && (
-        <div className="device-rack drum-rack">
+        <DeviceRack className="drum-rack">
           <div className="rack-card">
             <div className="rack-card-head">Filter</div>
             <FilterPanel filter={filter} onFilter={onFilter} />
@@ -782,7 +783,7 @@ function DrumLane({
               </div>
             </div>
           )}
-        </div>
+        </DeviceRack>
       )}
 
       <div ref={stepsRef} className={`drum-lane ${muted ? 'drum-lane--muted' : ''}`}>
@@ -1087,7 +1088,7 @@ function LineTrack({
             </span>
           </div>
 
-          <div className="device-rack">
+          <DeviceRack layoutKey={synthType}>
           <div className="rack-card rack-card--sound">
             <div className="rack-card-head">Instrument</div>
             <select
@@ -1616,7 +1617,7 @@ function LineTrack({
               </div>
             </div>
           )}
-          </div>
+          </DeviceRack>
         </>
       )}
     </div>
