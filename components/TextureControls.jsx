@@ -68,11 +68,12 @@ export default function TextureControls({ cfg, onChange, autoTargets, laneName }
   }, [autoTargets])
 
   const knob = (key, { format, label, size, group } = {}) => {
+    const mk2Key = key.startsWith('tx2')
     const spec = KNOB[key]
     const a = auto(key)
     return (
       <Knob
-        group={group ?? (model === 'mk2' ? 'Texture Mk II' : 'Texture')}
+        group={group ?? (mk2Key ? 'Texture Mk II' : 'Texture')}
         label={label ?? spec.label}
         value={a.live ?? c[key]}
         onChange={v => onChange({ [key]: v })}
@@ -130,12 +131,14 @@ export default function TextureControls({ cfg, onChange, autoTargets, laneName }
         </p>
       )}
 
-      {model === 'mk2' ? (
-        <div className={`tx-body${on ? '' : ' is-off'}`} inert={!on}>
-          {mk2Body()}
-        </div>
-      ) : (
-      <div className={`tx-body${on ? '' : ' is-off'}`} inert={!on}>
+      {/* Both models' bodies share one grid cell and the inactive one is hidden,
+          so the card is always as tall as the taller model and switching never
+          pushes the cards stacked under it in the rack (DeviceRack.jsx). */}
+      <div className="tx-bodies">
+      <div className={bodyClass('mk2')} inert={!on || model !== 'mk2'} aria-hidden={model !== 'mk2'}>
+        {mk2Body()}
+      </div>
+      <div className={bodyClass('classic')} inert={!on || model !== 'classic'} aria-hidden={model !== 'classic'}>
         <div className="tx-strip">
           <button
             type="button"
@@ -196,9 +199,13 @@ export default function TextureControls({ cfg, onChange, autoTargets, laneName }
           <p className="tx-hint">Each lane note triggers a grain. With Density at centre, only notes do.</p>
         </div>
       </div>
-      )}
+      </div>
     </div>
   )
+
+  function bodyClass(m) {
+    return `tx-body${on ? '' : ' is-off'}${m === model ? '' : ' is-hidden'}`
+  }
 
   function mk2Body() {
     const seedMode = TEXTURE_MK2_SEED_MODES.find(m => m.id === c.tx2SeedMode) ?? TEXTURE_MK2_SEED_MODES[0]
