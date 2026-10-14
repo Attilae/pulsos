@@ -155,13 +155,13 @@ export default function LicensesPage() {
           dependency tree control if this summary differs from a package’s own licence.
         </p>
         <p>
-          The Resonator and Macro instruments’ sound engines and the granular layer’s cloud engine
-          are compiled from open-source DSP code by Emilie Gillet: the Rings resonator, Plaits
-          macro-oscillator and Clouds grain sources in{' '}
+          The Resonator and Macro instruments’ sound engines and the Texture insert’s Classic and
+          Mk II models are compiled from open-source DSP code by Emilie Gillet: the Rings
+          resonator, Plaits macro-oscillator, Clouds and Beads granular sources in{' '}
           <a href="https://github.com/pichenettes/eurorack" target="_blank" rel="noreferrer">eurorack</a>{' '}
           and the supporting{' '}
           <a href="https://github.com/pichenettes/stmlib" target="_blank" rel="noreferrer">stmlib</a>{' '}
-          library, used under the MIT License. All three are independent adaptations and are not
+          library, used under the MIT License. All four are independent adaptations and are not
           affiliated with or endorsed by the original author. The notice below applies to that
           code:
         </p>

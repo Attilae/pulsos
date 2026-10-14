@@ -1,0 +1,47 @@
+handoff_version: 1
+skill: design
+status: complete
+objective: "Plan a more visually captivating, music-first map for Leið using researched references and the existing architecture."
+implementation_status: proposed
+baseline_commit: "00a846727d94f3cf354b7630358d1b18ede5bdb1"
+inputs_used:
+  - DESIGN.md
+  - AGENTS.md
+  - "CodeGraph exploration of MapView, MixerTab, engine, mapPlayhead and shared subscriptions"
+  - "Rendered local route / in Budapest, desktop and phone, both themes"
+  - "Primary-source design references linked in README.md"
+artifacts_created:
+  - path: digital-product/design/design-plans/map-view/README.md
+    type: research_and_implementation_plan
+    owner: design
+  - path: digital-product/design/design-plans/map-view/evidence/
+    type: current_state_screenshots
+    owner: design
+decisions:
+  - "Retain the Leaflet and MapLibre hybrid."
+  - "Make route motion and actual note response the signature."
+  - "Fix composition and theme behavior before increasing effects."
+  - "Replace frame-driven React updates with bounded imperative drawing."
+  - "Keep visual focus separate from audio solo."
+constraints:
+  - "No product-source implementation in this task."
+  - "Live remains disabled; mock movement represents musical time."
+  - "Preserve musical timing, shared subscriptions, attribution and mobile gestures."
+risks:
+  - "Ambiguous GTFS shapes and merged-lane location metadata."
+  - "Canvas alignment through Leaflet zoom and resize."
+  - "Large-city performance and custom-style redistribution terms."
+unresolved:
+  - "Agree on representative desktop and midrange phone for performance targets."
+validation:
+  performed:
+    - "Source and architecture inspection."
+    - "Local current-state visual review, theme toggle and playback interaction."
+    - "Confirmed tablet grid collision via computed styles and zero-size map rectangle at 820px."
+    - "Research using primary-source websites and documentation."
+  remaining:
+    - "Implement and render proposed design."
+    - "Pure-logic tests, production build, audio sync, accessibility and device performance."
+recommended_next:
+  - skill: frontend-design
+    reason: "Implement stages 1–3 against the repository's existing visual contract and the plan's validation gates."

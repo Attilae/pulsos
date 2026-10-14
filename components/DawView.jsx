@@ -18,7 +18,7 @@ import { normalizeLaneTag } from '@/lib/laneTags.js'
 import { LOOP_PATTERN_PRESETS, MAX_PATTERN_PLAY, MAX_PATTERN_REST, normalizeLoopPattern, normalizeNoteChance, formatLoopPattern, loopIndexAt, loopPlays } from '@/lib/laneGating.js'
 import StopEditor from './StopEditor.jsx'
 import TextureControls from './TextureControls.jsx'
-import { TEXTURE_ENABLED } from '@/lib/granularEngine.js'
+import { TEXTURE_ENABLED, TEXTURE_MODEL_LABELS, textureTargetActive } from '@/lib/granularEngine.js'
 import ResonatorControls from './ResonatorControls.jsx'
 import { useResonatorStatus } from '@/lib/shared/useResonatorStatus.js'
 import LaneTagEditor from './LaneTagEditor.jsx'
@@ -532,6 +532,7 @@ export default function DawView({
                       soloRoutes={soloRoutes}
                       synthType={trackSynthTypes?.[route.id] ?? 'Synth'}
                       granularEnabled={!!trackGranulars?.[route.id]?.enabled}
+                      granular={trackGranulars?.[route.id]}
                       filter={trackFilters?.[route.id]}
                       started={started}
                       visible={visible}
@@ -1623,7 +1624,7 @@ function LineTrack({
 }
 
 // ── Automation lane (sub-row below instrument track) ─────────────────────────
-function AutomationLane({ laneId, instRoute, laneCfg, allRoutes, activeFxTracks, disabled, soloRoutes, synthType = 'Synth', granularEnabled = false, filter, started = false, visible = true, srcLoopRegion, srcGridResolution, onUpdate, onRemove, onLiveValue }) {
+function AutomationLane({ laneId, instRoute, laneCfg, allRoutes, activeFxTracks, disabled, soloRoutes, synthType = 'Synth', granularEnabled = false, granular = null, filter, started = false, visible = true, srcLoopRegion, srcGridResolution, onUpdate, onRemove, onLiveValue }) {
   const sourceRouteId = laneCfg?.sourceRouteId ?? ''
   const paramTarget   = laneCfg?.paramTarget   ?? 'volume'
   const points        = laneCfg?.points        ?? {}
@@ -1654,12 +1655,12 @@ function AutomationLane({ laneId, instRoute, laneCfg, allRoutes, activeFxTracks,
   // Target options, grouped by .group, filtered to what's valid for this synth type.
   const groupedTargets = useMemo(() => {
     const groups = {}
-    for (const t of availableAutomationTargets(synthType, activeFxTracks ?? [], granularEnabled)) {
+    for (const t of availableAutomationTargets(synthType, activeFxTracks ?? [], granularEnabled, granular)) {
       const g = t.group ?? 'Other'
       ;(groups[g] ??= []).push(t)
     }
     return groups
-  }, [synthType, activeFxTracks, granularEnabled])
+  }, [synthType, activeFxTracks, granularEnabled, granular])
 
   return (
     <div className="automation-lane">
@@ -1701,6 +1702,12 @@ function AutomationLane({ laneId, instRoute, laneCfg, allRoutes, activeFxTracks,
         {!filterTargetActive(paramTarget, filter) && (
           <p className="auto-lane-inactive" role="status">
             Inactive: this target needs the {FILTER_MODEL_LABELS[FILTER_TARGET_MODELS[paramTarget]]} filter.
+            It resumes when the lane switches back.
+          </p>
+        )}
+        {!textureTargetActive(paramTarget, granular) && (
+          <p className="auto-lane-inactive" role="status">
+            Inactive: this target needs Texture {TEXTURE_MODEL_LABELS[paramTarget.startsWith('grain.tx2') ? 'mk2' : 'classic']}.
             It resumes when the lane switches back.
           </p>
         )}
