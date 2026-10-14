@@ -30,7 +30,9 @@ export function useLaneFilterEditor(filter, onFilter) {
   const p = resolveLaneFilter(filter)
   const analog = p.model === ANALOG_MODEL
   const [notice, setNotice] = useState(null)
-  const maxCutoff = analog ? analogMaxCutoff(contextRate()) : FILTER_RANGES.frequency.max
+  const analogMax = analogMaxCutoff(contextRate())
+  const maxCutoff = analog ? analogMax : FILTER_RANGES.frequency.max
+  const analogCutoffLimit = p.frequency > analogMax ? `Plays at ${formatHz(analogMax)} max at this sample rate` : null
   return {
     p,
     analog,
@@ -38,7 +40,10 @@ export function useLaneFilterEditor(filter, onFilter) {
     notice,
     maxCutoff,
     // The requested cutoff is above what the Analog filter reaches here.
-    cutoffLimit: analog && p.frequency > maxCutoff ? `Plays at ${formatHz(maxCutoff)} max at this sample rate` : null,
+    cutoffLimit: analog ? analogCutoffLimit : null,
+    // The same note whichever model is selected, for the desktop rack, which
+    // lays out the hidden Analog controls too so the card keeps its height.
+    analogCutoffLimit,
     resonancePct: resonanceToPercent(p.resonance),
     setModel(model) {
       if (model === p.model) return

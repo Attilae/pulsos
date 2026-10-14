@@ -2754,18 +2754,22 @@ function FilterPanel({ filter, onFilter, autoTargets = {} }) {
       <AnalogFilterStatus analog={analog} />
       <SpSelect label="Type" value={p.type} options={ed.types} onChange={v => ed.set({ type: v })} />
       <SpSlider label="Freq" min={20}  max={20000} step={10}  value={aFreq.display ?? p.frequency} onChange={v => ed.set({ frequency: v })} unit="Hz" disabled={aFreq.disabled} />
-      {ed.cutoffLimit && <p className="lane-filter-status">{ed.cutoffLimit}</p>}
-      {analog ? (
-        <>
+      {/* Both models' controls share one grid cell and the inactive set is
+          hidden, so switching model never changes the card's height and pushes
+          the cards stacked under it in the rack (DeviceRack.jsx). */}
+      <div className="lane-filter-models">
+        <div className={`sp-panel lane-filter-model-body${analog ? '' : ' is-hidden'}`} inert={!analog} aria-hidden={!analog}>
+          {ed.analogCutoffLimit && <p className="lane-filter-status">{ed.analogCutoffLimit}</p>}
           <SpSlider label="Res"   min={0} max={100} step={1}    value={aRes.display ?? ed.resonancePct} onChange={v => ed.setResonancePct(v)} unit="%" disabled={aRes.disabled} />
           <div title={DRIVE_HELP}>
             <SpSlider label="Drive" min={0} max={4}   step={0.05} value={aDrive.display ?? p.drive} onChange={v => ed.set({ drive: v })} disabled={aDrive.disabled} />
           </div>
           <SpSelect label="Slope" value={String(p.slope)} options={ANALOG_SLOPES.map(String)} onChange={v => ed.set({ slope: Number(v) })} />
-        </>
-      ) : (
-        <SpSlider label="Q"    min={0.1} max={20}    step={0.1} value={aQ.display ?? p.Q}            onChange={v => ed.set({ Q: v })} disabled={aQ.disabled} />
-      )}
+        </div>
+        <div className={`sp-panel lane-filter-model-body${analog ? ' is-hidden' : ''}`} inert={analog} aria-hidden={analog}>
+          <SpSlider label="Q"    min={0.1} max={20}    step={0.1} value={aQ.display ?? p.Q}            onChange={v => ed.set({ Q: v })} disabled={aQ.disabled} />
+        </div>
+      </div>
       <div className="sp-row sp-row--select">
         <span className="sp-label">Bypass</span>
         <button

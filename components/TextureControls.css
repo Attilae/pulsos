@@ -34,6 +34,9 @@
   min-width: 0;
 }
 .tx-body.is-off { opacity: 0.5; }
+.tx-bodies { display: grid; }
+.tx-bodies > .tx-body { grid-area: 1 / 1; }
+.tx-body.is-hidden { visibility: hidden; }
 
 /* ── Button strip: FREEZE + the BLEND selector (the module's buttons A and B) ── */
 .tx-strip {

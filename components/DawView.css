@@ -713,6 +713,9 @@
   padding: 4px 0 4px;
   width: 100%;
 }
+.lane-filter-models { display: grid; }
+.lane-filter-models > .lane-filter-model-body { grid-area: 1 / 1; padding: 0; }
+.lane-filter-model-body.is-hidden { visibility: hidden; }
 
 .sp-section {
   font-size: var(--fs-3xs);
