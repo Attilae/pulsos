@@ -2788,10 +2788,14 @@ function FilterPanel({ filter, onFilter, autoTargets = {} }) {
 // mutated directly by the curve editor; the engine mirrors changes into React
 // state (setOnRouteEqChange). Mounted only while the rack is open, so at most a
 // few analyser loops run at once.
+// Once the custom element is registered, a remounted EqPanel (the device rack
+// re-splitting its columns) renders the editor straight away, not a placeholder.
+let weq8Loaded = false
+
 function EqPanel({ getRuntime }) {
   const hostRef  = useRef(null)
   const boundRef = useRef(null)
-  const [ready, setReady] = useState(false)
+  const [ready, setReady] = useState(weq8Loaded)
   // <weq8-ui> is a 300×360px drag-to-place curve editor from a third-party
   // package — precision pointer work we don't control the internals of. Below
   // 768px we don't load or mount it at all.
@@ -2805,7 +2809,7 @@ function EqPanel({ getRuntime }) {
   useEffect(() => {
     if (isPhone) return undefined
     let cancelled = false
-    import('weq8/ui').then(() => { if (!cancelled) setReady(true) })
+    import('weq8/ui').then(() => { weq8Loaded = true; if (!cancelled) setReady(true) })
       .catch(e => console.warn('weq8/ui failed to load', e))
     return () => { cancelled = true }
   }, [isPhone])
