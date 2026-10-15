@@ -1,5 +1,5 @@
 import * as Tone from 'tone'
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { SYNTH_DEFAULTS, supportsGranular, availableAutomationTargets, findTargetSpec, SAMPLER_PRESET_LIST, SAMPLER_PRESETS, DRUM_VOICES, DRUM_VOICE_LICENSE, DEFAULT_GRANULAR, DEFAULT_SIDECHAIN, ARP_STYLES, ARP_RATES, DEFAULT_ARP, DRUMS_ROUTE_ID } from '@/lib/engine.js'
 import { FX_BUSES, AUTOMATION_TARGETS, FX_PARAM_SPECS, FX_SYNC_TARGETS } from '@/lib/fxTrack.js'
 import { useLaneFilterEditor, AnalogFilterStatus, FilterModelSwitch, DRIVE_HELP } from './LaneFilterEditor.jsx'
@@ -28,6 +28,7 @@ import LinePicker from './LinePicker.jsx'
 import { NOTE_ROOTS, SCALE_TYPES } from '@/lib/harmony.js'
 import { getMasterBus } from '@/lib/masterBus.js'
 import { MASTER_CHAIN_DEFAULTS, MASTER_CHAIN_SPECS, MASTER_CHAIN_STAGES, isDefaultMasterChain } from '@/lib/masterChain.js'
+import { installWeq8Lifecycle, observeWeq8 } from '@/lib/shared/weq8Lifecycle.js'
 import './DawView.css'
 import { IconAdd, IconCaretDown, IconChangeLine, IconClose, IconDuplicate, IconPower, IconRepick, IconReset } from './icons.jsx'
 
@@ -103,6 +104,36 @@ const NOISE_TYPES = ['white', 'pink', 'brown']
 const DEFAULT_FILTER = { type: 'lowpass', frequency: 20000, Q: 4 }
 
 // Find the stop nearest to a vehicle lat/lng, return its rail position (0–100)
+const EMPTY_LIST = Object.freeze([])
+const EMPTY_TARGETS = Object.freeze({})
+const DEFAULT_TRACK_SCALE = Object.freeze({ root: 'C', scaleType: 'major' })
+
+// True when two plain objects hold the same values, comparing one level of
+// nested plain objects shallowly too (autoTargets entries are { spec, value }).
+function sameShallow2(a, b) {
+  const ka = Object.keys(a)
+  if (ka.length !== Object.keys(b).length) return false
+  for (const k of ka) {
+    const x = a[k], y = b[k]
+    if (x === y) continue
+    if (!x || !y || typeof x !== 'object' || typeof y !== 'object' || Array.isArray(x) || Array.isArray(y)) return false
+    const kx = Object.keys(x)
+    if (kx.length !== Object.keys(y).length) return false
+    for (const j of kx) if (x[j] !== y[j]) return false
+  }
+  return true
+}
+
+// One lane's slice of the flat `${routeId}:${busId}` send matrix.
+function sendLevelsFor(sendMatrix, routeId, busIds) {
+  const out = {}
+  for (const busId of busIds ?? EMPTY_LIST) {
+    const v = sendMatrix?.[`${routeId}:${busId}`]
+    if (v != null) out[busId] = v
+  }
+  return out
+}
+
 function resolvePlayhead(route, lat, lng) {
   if (!route.stops.length || route.totalDist <= 0 || lat == null) return null
   let nearest = route.stops[0]
@@ -214,7 +245,8 @@ function mergeHandlers(a, b) {
   return out
 }
 
-export default function DawView({
+export default function DawView(props) {
+  const {
   className = '',
   visible = true, mode, started, routes, allRoutes, onRepickType,
   onAddLine, onChangeLine, onRemoveLine,
@@ -244,7 +276,7 @@ export default function DawView({
   onOctaveShift, onGlide, onLegato, onArp, onGranular, onSidechain, onTrackSpeed, onTrackLoopRegion, onGridResolution,
   onAddAutomationLane, onRemoveAutomationLane, onUpdateAutomationLane,
   onRefetch, onVehicleCrossed, onExportRouteMidi, onExportRouteAudio, audioExportActive,
-}) {
+  } = props
   const tracksRef             = useRef(null)
   const animRef               = useRef(null)
   const lastProgressRef       = useRef(0)
@@ -280,6 +312,32 @@ export default function DawView({
       return { ...prev, [routeId]: { ...prev[routeId], [laneId]: { paramTarget, value } } }
     })
   }, [])
+
+  // Lane rows are memoized (MemoLineTrack), so a knob on one lane doesn't
+  // re-render every other lane. That needs props that keep their identity:
+  //   laneCb   a per-lane callback that always calls the *latest* DawView prop,
+  //            so a lane that skipped a render can't hold a stale handler;
+  //   laneObj  reuses the previous per-lane object while its contents match.
+  const latestRef = useRef(props)
+  latestRef.current = props
+  const laneCbCache  = useRef(new Map())
+  const laneObjCache = useRef(new Map())
+  const laneCb = (routeId, name, make) => {
+    const key = `${routeId}\u0000${name}`
+    let fn = laneCbCache.current.get(key)
+    if (!fn) {
+      fn = (...args) => make(latestRef.current, ...args)
+      laneCbCache.current.set(key, fn)
+    }
+    return fn
+  }
+  const laneObj = (routeId, name, next) => {
+    const key = `${routeId}\u0000${name}`
+    const prev = laneObjCache.current.get(key)
+    if (prev && sameShallow2(prev, next)) return prev
+    laneObjCache.current.set(key, next)
+    return next
+  }
 
   const vehiclesByRoute = useMemo(() => {
     if (!liveSnapshot?.vehicles) return {}
@@ -410,6 +468,7 @@ export default function DawView({
               )}
             </div>
             {routesByType[type].map(route => {
+              const id = route.id
               const lanes = Object.entries(automationCfg?.[route.id] ?? {})
               // Source routes attached to this instrument
               const attachedSrcIds = [...new Set(
@@ -429,7 +488,7 @@ export default function DawView({
               }
               return (
                 <div key={route.id} className={`track-group ${lanes.length > 0 ? 'track-group--has-lanes' : ''}`}>
-                  <LineTrack
+                  <MemoLineTrack
                     route={route}
                     mode={mode}
                     started={started}
@@ -438,22 +497,22 @@ export default function DawView({
                     disabled={disabled[route.id] ?? false}
                     pan={pans[route.id] ?? 0}
                     isSoloed={soloRoutes.has(route.id)}
-                    vehicles={vehiclesByRoute[route.name] ?? []}
+                    vehicles={vehiclesByRoute[route.name] ?? EMPTY_LIST}
                     soundMode={trackSoundModes?.[route.id] ?? 'harmonic'}
-                    trackScale={trackScales?.[route.id] ?? { root: 'C', scaleType: 'major' }}
+                    trackScale={trackScales?.[route.id] ?? DEFAULT_TRACK_SCALE}
                     synthType={trackSynthTypes?.[route.id] ?? 'Synth'}
                     adsr={trackADSRs?.[route.id] ?? SYNTH_DEFAULTS['Synth']}
                     droneMode={trackDroneModes?.[route.id] ?? false}
                     droneRoot={trackDroneRoots?.[route.id] ?? 'C3'}
                     laneCount={lanes.length}
-                    autoTargets={autoTargets}
-                    activeFxTracks={activeFxTracks ?? []}
-                    sendMatrix={sendMatrix}
-                    onSendLevel={(busId, lvl) => onSendLevel(route.id, busId, lvl)}
-                    onVolume={v => onVolume(route.id, v)}
-                    onDisable={() => onDisable(route.id)}
-                    onPan={v => onPan(route.id, v)}
-                    onSolo={e => onSolo(route.id, e.metaKey || e.ctrlKey)}
+                    autoTargets={laneObj(route.id, 'autoTargets', autoTargets)}
+                    activeFxTracks={activeFxTracks ?? EMPTY_LIST}
+                    sendLevels={laneObj(route.id, 'sends', sendLevelsFor(sendMatrix, route.id, activeFxTracks))}
+                    onSendLevel={laneCb(id, 'send', (p, busId, lvl) => p.onSendLevel(id, busId, lvl))}
+                    onVolume={laneCb(id, 'volume', (p, v) => p.onVolume(id, v))}
+                    onDisable={laneCb(id, 'disable', p => p.onDisable(id))}
+                    onPan={laneCb(id, 'pan', (p, v) => p.onPan(id, v))}
+                    onSolo={laneCb(id, 'solo', (p, e) => p.onSolo(id, e.metaKey || e.ctrlKey))}
                     octaveShift={trackOctaves?.[route.id] ?? 0}
                     semitoneShift={trackSemitones?.[route.id] ?? 0}
                     glide={trackGlides?.[route.id] ?? 0}
@@ -464,53 +523,53 @@ export default function DawView({
                     sidechainSources={sidechainSources}
                     speed={trackSpeeds?.[route.id] ?? 1}
                     loopRegion={trackLoopRegions?.[route.id]}
-                    onLoopRegion={r => onTrackLoopRegion(route.id, r)}
+                    onLoopRegion={laneCb(id, 'loopRegion', (p, r) => p.onTrackLoopRegion(id, r))}
                     gridResolution={trackGridResolutions?.[route.id]}
-                    onGridResolution={rt => onGridResolution(route.id, rt)}
+                    onGridResolution={laneCb(id, 'grid', (p, rt) => p.onGridResolution(id, rt))}
                     pitchVariety={trackPitchVariety?.[route.id]}
-                    onPitchVariety={cfg => onPitchVariety(route.id, cfg)}
+                    onPitchVariety={laneCb(id, 'variety', (p, cfg) => p.onPitchVariety(id, cfg))}
                     stopVelocities={trackStopVelocities?.[route.id]}
                     noteChance={trackNoteChances?.[route.id]}
-                    onNoteChance={c => onNoteChance?.(route.id, c)}
+                    onNoteChance={laneCb(id, 'chance', (p, c) => p.onNoteChance?.(id, c))}
                     noteLength={trackNoteLengths?.[route.id]}
-                    onNoteLength={len => onNoteLength?.(route.id, len)}
+                    onNoteLength={laneCb(id, 'noteLength', (p, len) => p.onNoteLength?.(id, len))}
                     stopChances={trackStopChances?.[route.id]}
                     loopPattern={trackLoopPatterns?.[route.id]}
-                    onLoopPattern={p => onLoopPattern?.(route.id, p)}
+                    onLoopPattern={laneCb(id, 'loopPattern', (p, lp) => p.onLoopPattern?.(id, lp))}
                     onStopOpen={setEditingStop}
-                    onSoundMode={m => onSoundMode(route.id, route.name, m)}
-                    onScale={s => onScale(route.id, route.name, s)}
-                    onSynthType={st => onSynthType(route.id, route.type, st)}
-                    onADSR={p => onADSR(route.id, p)}
-                    onSamplerPreset={id => onSamplerPreset(route.id, route.type, id)}
-                    onDrumVoice={id => onDrumVoice(route.id, route.type, id)}
-                    onSamplerUpload={(file, note) => onSamplerUpload(route.id, file, note)}
+                    onSoundMode={laneCb(id, 'soundMode', (p, m) => p.onSoundMode(id, route.name, m))}
+                    onScale={laneCb(id, 'scale', (p, sc) => p.onScale(id, route.name, sc))}
+                    onSynthType={laneCb(id, 'synthType', (p, st) => p.onSynthType(id, route.type, st))}
+                    onADSR={laneCb(id, 'adsr', (p, params) => p.onADSR(id, params))}
+                    onSamplerPreset={laneCb(id, 'samplerPreset', (p, pid) => p.onSamplerPreset(id, route.type, pid))}
+                    onDrumVoice={laneCb(id, 'drumVoice', (p, vid) => p.onDrumVoice(id, route.type, vid))}
+                    onSamplerUpload={laneCb(id, 'samplerUpload', (p, file, note) => p.onSamplerUpload(id, file, note))}
                     filter={trackFilters?.[route.id] ?? DEFAULT_FILTER}
-                    getEqRuntime={() => getEqRuntime?.(route.id)}
-                    onFilter={p => onFilter(route.id, p)}
-                    onOctaveShift={shift => onOctaveShift(route.id, shift)}
-                    onGlide={s => onGlide(route.id, s)}
-                    onLegato={en => onLegato(route.id, en)}
-                    onArp={params => onArp(route.id, params)}
-                    onGranular={params => onGranular(route.id, params)}
-                    onSidechain={params => onSidechain(route.id, params)}
-                    onSpeed={m => onTrackSpeed(route.id, m)}
-                    onDroneMode={en => onDroneMode(route.id, en)}
-                    onDroneRoot={n => onDroneRoot(route.id, n)}
-                    onAddLane={() => onAddAutomationLane(route.id)}
-                    onExportRouteMidi={onExportRouteMidi}
-                    onExportRouteAudio={onExportRouteAudio}
+                    getEqRuntime={laneCb(id, 'eqRuntime', p => p.getEqRuntime?.(id))}
+                    onFilter={laneCb(id, 'filter', (p, params) => p.onFilter(id, params))}
+                    onOctaveShift={laneCb(id, 'octave', (p, shift) => p.onOctaveShift(id, shift))}
+                    onGlide={laneCb(id, 'glide', (p, g) => p.onGlide(id, g))}
+                    onLegato={laneCb(id, 'legato', (p, en) => p.onLegato(id, en))}
+                    onArp={laneCb(id, 'arp', (p, params) => p.onArp(id, params))}
+                    onGranular={laneCb(id, 'granular', (p, params) => p.onGranular(id, params))}
+                    onSidechain={laneCb(id, 'sidechain', (p, params) => p.onSidechain(id, params))}
+                    onSpeed={laneCb(id, 'speed', (p, m) => p.onTrackSpeed(id, m))}
+                    onDroneMode={laneCb(id, 'droneMode', (p, en) => p.onDroneMode(id, en))}
+                    onDroneRoot={laneCb(id, 'droneRoot', (p, n) => p.onDroneRoot(id, n))}
+                    onAddLane={laneCb(id, 'addLane', p => p.onAddAutomationLane(id))}
+                    onExportRouteMidi={onExportRouteMidi ? laneCb(id, 'exportMidi', (p, rid) => p.onExportRouteMidi?.(rid)) : undefined}
+                    onExportRouteAudio={onExportRouteAudio ? laneCb(id, 'exportAudio', (p, rid) => p.onExportRouteAudio?.(rid)) : undefined}
                     audioExportActive={audioExportActive}
                     tag={trackLabels?.[route.id]}
-                    onOpenTag={() => setTagPrompt({ routeId: route.id, routeName: route.name })}
-                    onDuplicate={() => setDupPrompt({ routeId: route.id, routeName: route.name })}
-                    onRemoveDuplicate={() => onRemoveDuplicate?.(route.id)}
-                    onChangeLine={onChangeLine ? () => setLinePicker({ mode: 'change', type: route.type, routeId: route.id }) : undefined}
+                    onOpenTag={laneCb(id, 'openTag', () => setTagPrompt({ routeId: id, routeName: route.name }))}
+                    onDuplicate={laneCb(id, 'duplicate', () => setDupPrompt({ routeId: id, routeName: route.name }))}
+                    onRemoveDuplicate={laneCb(id, 'removeDuplicate', p => p.onRemoveDuplicate?.(id))}
+                    onChangeLine={onChangeLine ? laneCb(id, 'changeLine', () => setLinePicker({ mode: 'change', type: route.type, routeId: id })) : undefined}
                     perStopSteps={perStopStepsById?.[route.id]}
                     mergeMode={mergeMode}
                     mergeChecked={mergeSel.has(route.id)}
-                    onMergeToggle={() => toggleMergeSel(route.id)}
-                    onUnmerge={() => onUnmerge?.(route.id)}
+                    onMergeToggle={laneCb(id, 'mergeToggle', () => toggleMergeSel(id))}
+                    onUnmerge={laneCb(id, 'unmerge', p => p.onUnmerge?.(id))}
                   />
                   {attachedSrcIds.map(srcId => (
                     <AutomationSourceTrack
@@ -840,7 +899,7 @@ function LineTrack({
   vehicles, soundMode, trackScale, synthType, adsr,
   filter, getEqRuntime,
   droneMode, droneRoot,
-  laneCount, autoTargets = {}, activeFxTracks, sendMatrix, octaveShift, semitoneShift, glide, legato, arp, granular, sidechain, sidechainSources, speed,
+  laneCount, autoTargets = EMPTY_TARGETS, activeFxTracks, sendLevels, octaveShift, semitoneShift, glide, legato, arp, granular, sidechain, sidechainSources, speed,
   loopRegion, onLoopRegion, gridResolution, onGridResolution,
   pitchVariety, onPitchVariety,
   stopVelocities, onStopOpen,
@@ -1597,7 +1656,7 @@ function LineTrack({
                 {activeFxTracks.map(busId => {
                   const bus   = FX_BUSES.find(b => b.id === busId)
                   const aSend = autoCtl(autoTargets, `send.${busId}`)
-                  const level = aSend.display != null ? aSend.display : (sendMatrix?.[`${route.id}:${busId}`] ?? 0)
+                  const level = aSend.display != null ? aSend.display : (sendLevels?.[busId] ?? 0)
                   return (
                     <div key={busId} className="line-send-row">
                       <span className="line-send-label">→ {bus?.label ?? busId}</span>
@@ -1625,6 +1684,10 @@ function LineTrack({
 }
 
 // ── Automation lane (sub-row below instrument track) ─────────────────────────
+// Every prop DawView passes is identity-stable unless its value changed (see
+// laneCb/laneObj there), so a plain shallow memo is enough.
+const MemoLineTrack = memo(LineTrack)
+
 function AutomationLane({ laneId, instRoute, laneCfg, allRoutes, activeFxTracks, disabled, soloRoutes, synthType = 'Synth', granularEnabled = false, granular = null, filter, started = false, visible = true, srcLoopRegion, srcGridResolution, onUpdate, onRemove, onLiveValue }) {
   const sourceRouteId = laneCfg?.sourceRouteId ?? ''
   const paramTarget   = laneCfg?.paramTarget   ?? 'volume'
@@ -2786,8 +2849,8 @@ function FilterPanel({ filter, onFilter, autoTargets = {} }) {
 // 8-band parametric EQ via the weq8 <weq8-ui> web component (raw Web Audio),
 // bound to the route's persistent WEQ8Runtime from the engine. The runtime is
 // mutated directly by the curve editor; the engine mirrors changes into React
-// state (setOnRouteEqChange). Mounted only while the rack is open, so at most a
-// few analyser loops run at once.
+// state (setOnRouteEqChange). Mounted only while the rack is open; the element's
+// analyser loop is stopped on unmount and while offscreen by installWeq8Lifecycle.
 // Once the custom element is registered, a remounted EqPanel (the device rack
 // re-splitting its columns) renders the editor straight away, not a placeholder.
 let weq8Loaded = false
@@ -2809,10 +2872,21 @@ function EqPanel({ getRuntime }) {
   useEffect(() => {
     if (isPhone) return undefined
     let cancelled = false
-    import('weq8/ui').then(() => { weq8Loaded = true; if (!cancelled) setReady(true) })
+    import('weq8/ui').then(() => {
+      installWeq8Lifecycle()
+      weq8Loaded = true
+      if (!cancelled) setReady(true)
+    })
       .catch(e => console.warn('weq8/ui failed to load', e))
     return () => { cancelled = true }
   }, [isPhone])
+
+  // Run the element's analyser/curve visuals only while it's on screen, and
+  // release them (loop, listener, analyser edge) when it unmounts.
+  useEffect(() => {
+    if (!ready || !hostRef.current) return undefined
+    return observeWeq8(hostRef.current)
+  }, [ready])
 
   // Bind the route's EQ runtime to the element once both exist (guarded so we
   // don't re-assign the same runtime on every render).
@@ -2855,7 +2929,7 @@ const BAR_LABELS = Array.from({ length: GRID_BARS }, (_, i) => ({
 // ── Stop rail: stops quantized to 4-bar × 16th-note grid (64 cells) ──────────
 function StopRail({
   route, visible = true, speed = 1, started = false, mode = 'mock', vehicles = [],
-  trackScale = { root: 'C', scaleType: 'major' }, octaveShift = 0, semitoneShift = 0,
+  trackScale = DEFAULT_TRACK_SCALE, octaveShift = 0, semitoneShift = 0,
   loopRegion, onLoopRegion, gridResolution, automationValues = null,
   pitchVariety = null,
   stopVelocities = null, perStopSteps = null, onStopOpen = null,
@@ -2942,108 +3016,122 @@ function StopRail({
   // ── Loop handles (pointer + keyboard, shared with AutoCurveRail) ─────────
   const loopHandleProps = useLoopHandles({ railRef, startCell, endCell, onLoopRegion })
 
-  if (!route.stops.length) return <div className="stop-rail stop-rail--empty" />
+  // Rail geometry: grid positions, pitch maps and dot coordinates. Memoized so a
+  // re-render that doesn't touch the lane's notes (a mixer knob, a rack toggle)
+  // doesn't rebuild them.
+  const geo = useMemo(() => {
+    if (!route.stops.length) return null
+    const total = route.totalDist || route.stops[route.stops.length - 1]?.dist || 1
+    const PAD   = 0.1  // keep dots 10% from top/bottom edges
 
-  const total = route.totalDist || route.stops[route.stops.length - 1]?.dist || 1
-  const PAD   = 0.1  // keep dots 10% from top/bottom edges
+    // Snap all stops to grid cells — this is the canonical X position
+    const gridStops = snapStopsToGrid(route.stops, total, noteTotalCells, noteStepsPerBar)
 
-  // Snap all stops to grid cells — this is the canonical X position
-  const gridStops = snapStopsToGrid(route.stops, total, noteTotalCells, noteStepsPerBar)
+    // Always compute lat range for vehicle markers in live mode
+    const lats     = route.stops.map(s => s.lat).filter(v => v != null)
+    const minLat   = lats.length ? Math.min(...lats) : 0
+    const maxLat   = lats.length ? Math.max(...lats) : 1
+    const latRange = Math.max(maxLat - minLat, 0.0001)
 
-  // Always compute lat range for vehicle markers in live mode
-  const lats     = route.stops.map(s => s.lat).filter(v => v != null)
-  const minLat   = lats.length ? Math.min(...lats) : 0
-  const maxLat   = lats.length ? Math.max(...lats) : 1
-  const latRange = Math.max(maxLat - minLat, 0.0001)
-
-  // Two-axis geographic pitch map — same mapping the engine plays (engine.js):
-  // latitude → scale degree, longitude → octave register, plus the lane's
-  // pitch-variety opts, then the per-track octave and chromatic shifts. The
-  // y-axis renders it piano-roll style.
-  // Shared with the phone lane sheet via lib/laneNotes.js, so both views resolve
-  // notes in the same order the engine does (offset → octave → transpose).
-  const { pitchMap, geoDisplayMap } = buildLanePitchMaps(route, {
-    scale: trackScale, pitchVariety, perStopSteps, octaveShift, semitoneShift,
-    gridResolution, loopRegion,
-  })
-  const stopPoints = (() => {
-    const midis     = pitchMap.map(n => noteToMidi(n))
-    const midiMin   = Math.min(...midis)
-    const midiMax   = Math.max(...midis)
-    const midiRange = Math.max(midiMax - midiMin, 1)
-    return gridStops.map((stop) => {
-      const x        = (stop.cellIdx / noteTotalCells) * 100
-      // Automation-mirror mode: position dots by the lane's authored value, not pitch.
-      if (automationValues) {
-        const v = automationValues[stop.id] ?? 0.5
-        return { ...stop, x, y: autoValueToY(v), noteName: `${Math.round(v * 100)}%` }
-      }
-      const noteName = pitchMap[stop.originalIdx] ?? '?'
-      const midi     = noteToMidi(noteName)
-      const y        = (PAD + (1 - (midi - midiMin) / midiRange) * (1 - PAD * 2)) * 100
-      return { ...stop, x, y, noteName }
+    // Two-axis geographic pitch map — same mapping the engine plays (engine.js):
+    // latitude → scale degree, longitude → octave register, plus the lane's
+    // pitch-variety opts, then the per-track octave and chromatic shifts. The
+    // y-axis renders it piano-roll style.
+    // Shared with the phone lane sheet via lib/laneNotes.js, so both views resolve
+    // notes in the same order the engine does (offset → octave → transpose).
+    const { pitchMap, geoDisplayMap } = buildLanePitchMaps(route, {
+      scale: trackScale, pitchVariety, perStopSteps, octaveShift, semitoneShift,
+      gridResolution, loopRegion,
     })
-  })()
+    const stopPoints = (() => {
+      const midis     = pitchMap.map(n => noteToMidi(n))
+      const midiMin   = Math.min(...midis)
+      const midiMax   = Math.max(...midis)
+      const midiRange = Math.max(midiMax - midiMin, 1)
+      return gridStops.map((stop) => {
+        const x        = (stop.cellIdx / noteTotalCells) * 100
+        // Automation-mirror mode: position dots by the lane's authored value, not pitch.
+        if (automationValues) {
+          const v = automationValues[stop.id] ?? 0.5
+          return { ...stop, x, y: autoValueToY(v), noteName: `${Math.round(v * 100)}%` }
+        }
+        const noteName = pitchMap[stop.originalIdx] ?? '?'
+        const midi     = noteToMidi(noteName)
+        const y        = (PAD + (1 - (midi - midiMin) / midiRange) * (1 - PAD * 2)) * 100
+        return { ...stop, x, y, noteName }
+      })
+    })()
 
-  // Merged (PolySynth chord) lane: overlay EVERY source lane's notes on one shared
-  // pitch axis, so simultaneous notes read as vertically-stacked chords at the same x.
-  // Mirrors the engine's _buildMergedRoutePart exactly — every source is re-pitched
-  // through THIS merged lane's scale + octave, then bucketed by grid cell.
-  const isMergedRail = !!route.isMerged && route.sourceRoutes?.length > 0
+    // Merged (PolySynth chord) lane: overlay EVERY source lane's notes on one shared
+    // pitch axis, so simultaneous notes read as vertically-stacked chords at the same x.
+    // Mirrors the engine's _buildMergedRoutePart exactly — every source is re-pitched
+    // through THIS merged lane's scale + octave, then bucketed by grid cell.
+    const isMergedRail = !!route.isMerged && route.sourceRoutes?.length > 0
+    const mergedPoints = (() => {
+      if (!isMergedRail) return null
+      const raw = []
+      route.sourceRoutes.forEach((src, si) => {
+        if (!src?.stops?.length) return
+        const srcTotal = src.totalDist || src.stops[src.stops.length - 1]?.dist || 1
+        const { pitchMap: srcPitch } = buildLanePitchMaps(src, {
+          scale: trackScale, pitchVariety, octaveShift, semitoneShift, gridResolution, loopRegion,
+        })
+        const srcGrid  = snapStopsToGrid(src.stops, srcTotal, noteTotalCells, noteStepsPerBar)
+        for (const stop of srcGrid) {
+          const noteName = srcPitch[stop.originalIdx]
+          raw.push({
+            key: `${src.id}_${stop.id}_${stop.cellIdx}`, si,
+            x: (stop.cellIdx / noteTotalCells) * 100, cellIdx: stop.cellIdx,
+            midi: noteToMidi(noteName), noteName,
+            color: src.color, srcName: src.name, stopName: stop.name,
+          })
+        }
+      })
+      if (!raw.length) return null
+      const midis = raw.map(p => p.midi)
+      const midiMin = Math.min(...midis), midiMax = Math.max(...midis)
+      const midiRange = Math.max(midiMax - midiMin, 1)
+      for (const p of raw) p.y = (PAD + (1 - (p.midi - midiMin) / midiRange) * (1 - PAD * 2)) * 100
+      return raw
+    })()
+    // Faint contour polyline per source so each lane's melodic shape stays legible.
+    const mergedSourceLines = mergedPoints ? (() => {
+      const bySrc = new Map()
+      for (const p of mergedPoints) {
+        if (!bySrc.has(p.si)) bySrc.set(p.si, { color: p.color, pts: [] })
+        bySrc.get(p.si).pts.push(p)
+      }
+      return [...bySrc.values()].map(({ color, pts }) => ({
+        color,
+        points: pts.slice().sort((a, b) => a.cellIdx - b.cellIdx).map(p => `${p.x},${p.y}`).join(' '),
+      }))
+    })() : null
+
+    // Highlight targets for the ticker: a stop id (every dot sharing it lights), or
+    // on a merged lane the chord cell (every stacked dot at that cell lights).
+    const inRegion = (cellIdx) => cellIdx >= startCell && cellIdx < endCell
+    const activeKeyOf = (p) => (mergedPoints ? `c${p.cellIdx}` : String(p.id))
+    const targetsByKey = new Map()
+    for (const p of (mergedPoints ?? stopPoints)) {
+      if (!inRegion(p.cellIdx)) continue
+      const key = activeKeyOf(p)
+      if (!targetsByKey.has(key)) targetsByKey.set(key, { key, rel: (p.cellIdx - startCell) / regionLen })
+    }
+    return {
+      gridStops, minLat, latRange, stopPoints, isMergedRail, mergedPoints, mergedSourceLines, geoDisplayMap,
+      activeTargets: [...targetsByKey.values()].sort((a, b) => a.rel - b.rel),
+    }
+  }, [route, noteTotalCells, noteStepsPerBar, trackScale, pitchVariety, perStopSteps,
+    octaveShift, semitoneShift, gridResolution, loopRegion, automationValues, startCell, endCell, regionLen])
+
+  if (!geo) return <div className="stop-rail stop-rail--empty" />
+  const { minLat, latRange, stopPoints, isMergedRail, mergedPoints, mergedSourceLines, geoDisplayMap } = geo
+  const PAD = 0.1  // keep dots 10% from top/bottom edges (same as inside geo)
+  const activeKeyOf = (p) => (mergedPoints ? `c${p.cellIdx}` : String(p.id))
+  activeTargetsRef.current = geo.activeTargets
   // Clicking a dot opens the stop editor (pitch + velocity). Not on merged rails
   // (stacked chord sources) or automation-mirror rails.
   const canEdit = !!onStopOpen && !automationValues && !isMergedRail
-  const mergedPoints = (() => {
-    if (!isMergedRail) return null
-    const raw = []
-    route.sourceRoutes.forEach((src, si) => {
-      if (!src?.stops?.length) return
-      const srcTotal = src.totalDist || src.stops[src.stops.length - 1]?.dist || 1
-      const { pitchMap: srcPitch } = buildLanePitchMaps(src, {
-        scale: trackScale, pitchVariety, octaveShift, semitoneShift, gridResolution, loopRegion,
-      })
-      const srcGrid  = snapStopsToGrid(src.stops, srcTotal, noteTotalCells, noteStepsPerBar)
-      for (const stop of srcGrid) {
-        const noteName = srcPitch[stop.originalIdx]
-        raw.push({
-          key: `${src.id}_${stop.id}_${stop.cellIdx}`, si,
-          x: (stop.cellIdx / noteTotalCells) * 100, cellIdx: stop.cellIdx,
-          midi: noteToMidi(noteName), noteName,
-          color: src.color, srcName: src.name, stopName: stop.name,
-        })
-      }
-    })
-    if (!raw.length) return null
-    const midis = raw.map(p => p.midi)
-    const midiMin = Math.min(...midis), midiMax = Math.max(...midis)
-    const midiRange = Math.max(midiMax - midiMin, 1)
-    for (const p of raw) p.y = (PAD + (1 - (p.midi - midiMin) / midiRange) * (1 - PAD * 2)) * 100
-    return raw
-  })()
-  // Faint contour polyline per source so each lane's melodic shape stays legible.
-  const mergedSourceLines = mergedPoints ? (() => {
-    const bySrc = new Map()
-    for (const p of mergedPoints) {
-      if (!bySrc.has(p.si)) bySrc.set(p.si, { color: p.color, pts: [] })
-      bySrc.get(p.si).pts.push(p)
-    }
-    return [...bySrc.values()].map(({ color, pts }) => ({
-      color,
-      points: pts.slice().sort((a, b) => a.cellIdx - b.cellIdx).map(p => `${p.x},${p.y}`).join(' '),
-    }))
-  })() : null
-
-  // Highlight targets for the ticker: a stop id (every dot sharing it lights), or
-  // on a merged lane the chord cell (every stacked dot at that cell lights).
-  const inRegion = (cellIdx) => cellIdx >= startCell && cellIdx < endCell
-  const activeKeyOf = (p) => (mergedPoints ? `c${p.cellIdx}` : String(p.id))
-  const targetsByKey = new Map()
-  for (const p of (mergedPoints ?? stopPoints)) {
-    if (!inRegion(p.cellIdx)) continue
-    const key = activeKeyOf(p)
-    if (!targetsByKey.has(key)) targetsByKey.set(key, { key, rel: (p.cellIdx - startCell) / regionLen })
-  }
-  activeTargetsRef.current = [...targetsByKey.values()].sort((a, b) => a.rel - b.rel)
 
   // Keyboard for editable stop dots: Enter/Space opens the editor (same as a
   // click); arrows move focus along the rail, Home/End to either end.

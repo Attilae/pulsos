@@ -811,3 +811,10 @@
 .driver-popover.leid-tour .driver-popover-arrow-side-right  { border-right-color: var(--surface); }
 .driver-popover.leid-tour .driver-popover-arrow-side-top    { border-top-color: var(--surface); }
 .driver-popover.leid-tour .driver-popover-arrow-side-bottom { border-bottom-color: var(--surface); }
+
+/* Placeholder while a secondary tab's code loads on its first visit (App.jsx). */
+.tab-loading {
+  padding: var(--space-300);
+  color: var(--muted);
+  font-size: var(--fs-sm);
+}

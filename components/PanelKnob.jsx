@@ -9,7 +9,7 @@
 // for controls whose middle is "nothing" (attenuverters, transposes). `steps`
 // snaps the position to that many equal steps (keyboard moves one step).
 
-import { useId, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { useResetGesture } from '@/lib/shared/useResetGesture.js'
 import './PanelKnob.css'
 
@@ -46,6 +46,23 @@ export default function PanelKnob({
     if (s !== v) onChange(s)
   }
 
+  // Drags commit at most once per frame: each change re-renders the mixer, and
+  // some pointers report several moves a frame. The latest value wins, and
+  // pointerup flushes it so the knob always lands where it was let go.
+  const pending = useRef(null)     // { value, raf }
+  const flush = () => {
+    const p = pending.current
+    if (!p) return
+    pending.current = null
+    cancelAnimationFrame(p.raf)
+    set(p.value)
+  }
+  const setCoalesced = (next) => {
+    if (pending.current) { pending.current.value = next; return }
+    pending.current = { value: next, raf: requestAnimationFrame(flush) }
+  }
+  useEffect(() => () => { if (pending.current) cancelAnimationFrame(pending.current.raf) }, [])
+
   const onPointerDown = (e) => {
     reset.onPointerDown?.(e)
     if (locked || e.button > 0) return
@@ -58,10 +75,11 @@ export default function PanelKnob({
     reset.onPointerMove?.(e)
     if (!drag.current) return
     const scale = e.shiftKey ? DRAG_PX * 4 : DRAG_PX
-    set(drag.current.v + (drag.current.y - e.clientY) / scale)
+    setCoalesced(drag.current.v + (drag.current.y - e.clientY) / scale)
   }
   const end = (e) => {
     reset.onPointerUp?.(e)
+    flush()
     drag.current = null
     setActive(false)
   }

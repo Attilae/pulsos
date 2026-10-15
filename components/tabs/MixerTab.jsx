@@ -170,6 +170,11 @@ export default function MixerTab({ active = true }) {
   const [audioProgress,  setAudioProgress]  = useState(0)
 
   const [view,    setView]    = useState('daw')   // 'map' | 'daw'
+  // MapView (Leaflet + MapLibre/WebGL + every route's geometry) mounts on the
+  // first Map visit and then stays mounted, so the default DAW startup doesn't
+  // pay for a hidden map and switching back never rebuilds Leaflet.
+  const [mapMounted, setMapMounted] = useState(false)
+  useEffect(() => { if (view === 'map') setMapMounted(true) }, [view])
   const [mode,    setMode]    = useState('mock')  // 'mock' | 'live'
   const [started, setStarted] = useState(false)
   const [pendingAiStart, setPendingAiStart] = useState(0)
@@ -184,11 +189,6 @@ export default function MixerTab({ active = true }) {
   // whole view, so it starts closed and is launched from the More sheet.
   const [aiOpen, setAiOpen] = useState(false)
   const isPhone = useIsPhone()
-  // applyPreset/loadCity must stay referentially stable (the persistence hook
-  // keys off them), so the phone flag is read through a ref there — same
-  // pattern as cityIdRef/limitsRef.
-  const isPhoneRef = useRef(isPhone)
-  useEffect(() => { isPhoneRef.current = isPhone }, [isPhone])
 
   const [volumes, setVolumes] = useState({})
   const [disabledRoutes, setDisabledRoutes] = useState({})
@@ -415,7 +415,7 @@ export default function MixerTab({ active = true }) {
   // calling it produces a single network fetch.
   const loadCity = useCallback(async (id) => {
     const entry = getCityEntry(id)
-    const { routes: all, city } = await fetchLines(linesUrlFor(entry, { slim: isPhoneRef.current }))
+    const { routes: all, city } = await fetchLines(linesUrlFor(entry, { slim: true }))
     // Retune the pitch/pan fallbacks to this city before any notes are built.
     if (city?.bounds) setCityBounds(city.bounds)
     setCity(city ?? null)
@@ -2278,7 +2278,7 @@ export default function MixerTab({ active = true }) {
       </header>
       )}
 
-      <MapView
+      {mapMounted && <MapView
         className={view !== 'map' ? 'view-hidden' : ''}
         active={view === 'map'}
         routes={routes}
@@ -2293,7 +2293,7 @@ export default function MixerTab({ active = true }) {
         trackSpeeds={trackSpeeds}
         trackLoopRegions={trackLoopRegions}
         trackSynthTypes={trackSynthTypes}
-      />
+      />}
       <AIComposerPanel
         className={view !== 'map' && view !== 'daw' ? 'view-hidden' : ''}
         routes={routes}
