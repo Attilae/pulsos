@@ -110,7 +110,9 @@ song state),
 `note-length` (`lib/noteLength.js` + its plan/advisory rules),
 `sound-policy` (`lib/ai/soundPolicy.js` — every sound recipe survives `validatePlan` and raises no
 advisory), `plan-advisories` (`lib/ai/planAdvisories.js`), `plan-snapshot` (`lib/ai/planSnapshot.js` — round-trips its output through the real
-`applySnapshot`/`buildSnapshot`), `server-purity` (loads the MCP module graph in a child process
+`applySnapshot`/`buildSnapshot`), `texture-voice` (`lib/textureVoice.js`'s model-switch slot
+bookkeeping on the real class with mocked Tone/loaders: reversed switches, superseded and failed
+loads, disposal with a load pending), `server-purity` (loads the MCP module graph in a child process
 that throws on any Tone/React/`.jsx` import, plus `lib/server/routeIndex.js`). There is **no linter
 configured** and the audio/UI code has no tests. Run a single file with
 `node --test test/ai-plan-apply.test.js`.
@@ -160,9 +162,10 @@ restart it with a fresh `.next` afterwards.
 - **Per-city frontend vars** (resolved in `lib/shared/cities.js`): `NEXT_PUBLIC_LINES_URL_<CITY>`
   and `NEXT_PUBLIC_FEED_WS_URL_<CITY>` (e.g. `_HELSINKI`) point a non-default city at its Blob URL
   and feed. A null/unset feed URL makes that city **mock-only** (Live toggle disabled).
-  `NEXT_PUBLIC_LINES_URL_SLIM` and `NEXT_PUBLIC_LINES_URL_<CITY>_SLIM` point at the phone payloads
-  (`lines.<city>.slim.json`, see **Phone route payloads** under Mobile) — unset means phones
-  silently fall back to the full 22–65 MB file, which is a real download, not a warning.
+  `NEXT_PUBLIC_LINES_URL_SLIM` and `NEXT_PUBLIC_LINES_URL_<CITY>_SLIM` point at the slim payloads
+  every device starts from (`lines.<city>.slim.json`, see **Route payloads** under Mobile) — unset
+  falls back to the committed `/data/lines.<city>.slim.json`. The full file is now only fetched by
+  the desktop map for its detailed polylines.
   `NEXT_PUBLIC_DEFAULT_CITY` — initial city id (default `budapest`).
 - `RESEND_API_KEY`, `EMAIL_FROM` — magic-link **and feedback** email; **optional in dev** (mail
   prints to the server console when unset).
@@ -206,9 +209,10 @@ restart it with a fresh `.next` afterwards.
   composition tools validate plans against — the server never loads `lines.<city>.json`. Skip it
   after a preprocess and MCP keeps composing against the previous route ids.
 - **`lines.<city>.slim.json` is a separate build step, not a side effect of preprocessing.**
-  `npm run slim:all` (or `slim:lines -- --city <id>`) regenerates the phone payloads; if you
-  preprocess a city and forget this, phones keep serving the *previous* geometry. See **Phone route
-  payloads** under Mobile for what it strips (polylines only — stops are copied verbatim).
+  `npm run slim:all` (or `slim:lines -- --city <id>`) regenerates the slim payloads; if you
+  preprocess a city and forget this, the app keeps loading the *previous* routes and stops (every
+  device starts from the slim file). See **Route payloads** under Mobile for what it strips
+  (polylines only — stops are copied verbatim).
 - **Stop demand signals** — `preprocess_lines.js` attaches a `signals` block
   (`departures`/`routes`/`centrality`/`demand`/`source`/`ridership`) to every emitted stop, using
   `scripts/lib/stopSignals.js` (pure, tested in `test/stop-signals.test.js`). `departures` comes
@@ -497,6 +501,10 @@ NetworkState (drone hum + hub-convergence chords) → AlertLayer input
   and `_installTruePeak` swaps the worklet in once ready (the stand-in stays if it can't load).
   Load it with `rawContext.audioWorklet.addModule`, **not** Tone's `addAudioWorkletModule`, which
   caches the first module per context and returns that promise for every later URL.
+- **FX buses are built on demand** (`_createFxBuses`/`_ensureFxBus`): at start only the buses
+  something sends to (a non-zero send, or an armed `send.<bus>` automation lane), the rest the first
+  time a send to them is wired. Code that needs a bus calls `_ensureFxBus`, never
+  `this._fxTracks[id]` directly, which is empty for unused buses.
 - Most settings **persist across start/stop** (stored in plain `_xxx` maps on the instance) and
   are re-applied when a synth/part is (re)built.
 - **The drum lane is a reserved pseudo-route**: `DRUMS_ROUTE_ID = '__drums__'` gets one insert
@@ -513,6 +521,11 @@ NetworkState (drone hum + hub-convergence chords) → AlertLayer input
   `setOnRouteEqChange(cb)` mirrors runtime edits back into React state for autosave.
   `lib/eqMigrate.js` (`normalizeEqState`/`eq3ToWeq8`) coerces old saved EQ3 snapshots into weq8
   specs on load (`songState.js`'s `migrateTrackEqs`).
+  weq8 0.2.2's element leaks its analyser loop and `filtersChanged` listener on unmount, so
+  `lib/shared/weq8Lifecycle.js` wraps its `updated()` (`installWeq8Lifecycle`) and `EqPanel` calls
+  `observeWeq8(el)`, which runs the visuals only while the element is on screen. It can't use
+  `connectedCallback`/`disconnectedCallback`: custom element callbacks are captured at define time
+  (on import), so prototype patches to them never run. `window.leidWeq8Stats` counts live visuals.
 - **Synth types** are listed in `SYNTH_TYPES`. Two are sample-backed `Tone.Sampler`s: `Sampler`
   (multi-sample melodic, `SAMPLER_PRESETS` + user uploads) and `Drums` (a single one-shot drum
   voice from `DRUM_VOICES`, fired at a fixed `DRUM_TRIGGER_NOTE` so it never transposes with the
@@ -1044,7 +1057,8 @@ below 768px, but **MixerTab still owns every piece of state**: the branch lives 
 own return and passes `controls`/`lanes` prop bundles built from the same handlers the desktop
 view uses. Branching in `App.jsx` instead would unmount MixerTab on rotation and destroy the song.
 `MapView` keeps rendering in both branches (positioned over the stage by `.daw--phone
-.map-wrapper`) so Leaflet never remounts. Pieces: `MobileTopBar` (city · song · ⋯),
+.map-wrapper`) so Leaflet never remounts. It mounts on the first Map visit (`mapMounted` in
+MixerTab), not at startup, and stays mounted from then on. Pieces: `MobileTopBar` (city · song · ⋯),
 `MobileLaneList`/`MobileLaneStrip` (⏻ · S · volume · ⋯ per lane), `LaneSheet` (Sound/Mix/Notes),
 `MobileTransportBar` (play, BPM, Map⇄Lanes, and the *one* shared playhead — desktop runs one rAF
 per lane, which a phone can't afford), `MoreSheet` (the other eight header controls).
@@ -1083,11 +1097,14 @@ module-level-registration shape as `Dialog.jsx`'s imperative API).
 sets expectations; its **"Got it" also calls `unlockAudio()`** — the first guaranteed gesture of
 the session, and the best moment to promote the audio session before the user finds Play.
 
-**Phone route payloads** — `scripts/slim_lines.js` (`npm run slim:all`) writes
+**Route payloads** — `scripts/slim_lines.js` (`npm run slim:all`) writes
 `lines.<city>.slim.json` with Douglas–Peucker-simplified **polylines only**; `stops` are copied
 verbatim because their coordinates drive `geoToMidi`/`routeBounds`/MIDI export, so thinning one
-would change the music. Berlin 65 MB → 4.7 MB. `cities.js` gains `linesUrlSlim` +
-`linesUrlFor(entry, {slim})`; `useRoutes.js` picks by `useIsPhone()`.
+would change the music. Berlin 65 MB → 4.7 MB. `cities.js` has `linesUrlSlim` +
+`linesUrlFor(entry, {slim})`. Phones started on it; now **every device** does (`useRoutes.js`,
+`MixerTab.loadCity`), and the desktop map swaps in full-resolution lines via
+`lib/shared/useDetailPolylines.js` (polylines only, latest city only) once it's opened.
+`useRoutes.js`'s parsed-city cache keeps the 2 most recently used cities.
 
 **Touch conventions**: 44px floor in `mobile.css`, scoped with `:not()` exclusions (a blanket
 `button { min-height }` breaks the rail elements and the 16-step drum grids, which are documented

@@ -282,8 +282,11 @@ if (typeof registerProcessor === 'function') {
       }
       this.host.process(inL, inR, out[0], out[1] ?? null, out[0].length, currentFrame)
       const s = this.host.stats
-      if (s.overflow > this.reported.overflow || s.dropped > this.reported.dropped || s.underrun > this.reported.underrun) {
+      // At most one warning a second: under overload every block can count a
+      // fault, and a message per block would load the main thread further.
+      if ((s.overflow > this.reported.overflow || s.dropped > this.reported.dropped || s.underrun > this.reported.underrun) && currentFrame >= (this.nextWarnFrame ?? 0)) {
         this.reported = { overflow: s.overflow, dropped: s.dropped, underrun: s.underrun }
+        this.nextWarnFrame = currentFrame + sampleRate
         this.port.postMessage({ type: 'warning', stats: { ...s } })
       }
       return true

@@ -1,5 +1,5 @@
 import * as Tone from 'tone'
-import { memo, useEffect, useMemo, useRef, useState } from 'react'
+import { memo, useEffect, useMemo, useRef } from 'react'
 import { MapContainer, Polyline, CircleMarker, Tooltip, LayersControl, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import { maplibreGL } from '@maplibre/maplibre-gl-leaflet'
@@ -10,6 +10,9 @@ import { findTargetSpec } from '@/lib/engine.js'
 import { hashStopValue } from '@/lib/mappings.js'
 import { lanePlayhead, trailFracs, wrapFade } from '@/lib/mapPlayhead.js'
 import { subscribeEvents, getEvents } from '@/lib/shared/eventLogStore.js'
+import { subscribePlayhead } from '@/lib/shared/playheadTicker.js'
+import { useCitySelection } from '@/lib/shared/CityContext.jsx'
+import { useDetailPolylines } from '@/lib/shared/useDetailPolylines.js'
 import './MapView.css'
 
 delete L.Icon.Default.prototype._getIconUrl
@@ -346,8 +349,11 @@ function MapView({
   // Drives the phone-only map concessions: canvas rendering, no zoom control,
   // and no per-stop CircleMarkers.
   const isPhone = useIsPhone()
-  const [playheadPositions, setPlayheadPositions] = useState({})
-  const rafRef       = useRef(null)
+  // Routes arrive slim (thinned polylines, same stops); the desktop map swaps in
+  // the full-resolution lines once they've loaded. Phones stay on slim.
+  const { cityEntry } = useCitySelection()
+  const detail = useDetailPolylines(cityEntry, !isPhone)
+  const linesOf = (route) => detail?.get(route.id) ?? route.polylines
   const disabledRef  = useRef(disabled)
   const soloRef      = useRef(soloRoutes)
   const playheadPane = useRef(null)   // DOM div for the playhead Leaflet pane
@@ -384,72 +390,6 @@ function MapView({
     return { routesByType: byType, allRoutes: LAYERS.flatMap(l => byType[l.type]) }
   }, [routes]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // rAF loop — only runs in mock mode while playing, and only while the map is
-  // the visible view (MixerTab keeps MapView mounted but hidden in the DAW view).
-  useEffect(() => {
-    if (!active || !started || mode !== 'mock' || !routes) {
-      setPlayheadPositions({})
-      return
-    }
-
-    let lastUpdate = 0
-    const routeById = new Map(routes.map(r => [r.id, r]))
-    // A trail is a fan of short segments, so its cost is lanes × samples paths
-    // redrawn per frame. Phones get a coarser one.
-    const trailSamples = isPhone ? TRAIL_SAMPLES_PHONE : TRAIL_SAMPLES
-    const trailOf = (route, opts) =>
-      trailFracs({ ...opts, trailBeats: TRAIL_BEATS, samples: trailSamples })
-        .map(f => positionAlongRoute(route, f))
-        .filter(Boolean)
-
-    function tick(ts) {
-      rafRef.current = requestAnimationFrame(tick)
-      if (ts - lastUpdate < 33) return  // ~30fps
-      lastUpdate = ts
-
-      // Each lane's Part loops its own region at its own speed (polyrhythm), so
-      // every dot gets its own phase — see lib/mapPlayhead.js. Measured in beats
-      // because Parts loop in ticks.
-      const transport = Tone.getTransport()
-      const beats = transport.ticks / (transport.PPQ || 192)
-
-      const next = {}
-      for (const route of routes) {
-        if (route.isDuplicate) continue
-        if (!isRouteActive(route, disabledRef.current, soloRef.current)) continue
-        const timing = {
-          beats,
-          speed: speedsRef.current?.[route.id] ?? 1,
-          region: regionsRef.current?.[route.id],
-        }
-        const { frac, phase } = lanePlayhead(timing)
-        const pos = positionAlongRoute(route, frac)
-        if (pos) next[route.id] = { ...pos, fade: wrapFade(phase), color: route.color, kind: 'note', trail: trailOf(route, timing) }
-      }
-      // Automation lanes read their source line at the lane's own speed and
-      // sub-loop (falling back to the source's region), like the engine does.
-      for (const link of automationRef.current.links) {
-        const dest = routeById.get(link.destId) ?? routeById.get(link.destId.split('~dup~')[0])
-        if (dest && !isRouteActive(dest, disabledRef.current, soloRef.current)) continue
-        const timing = {
-          beats,
-          speed: link.cfg.speed ?? 1,
-          region: link.cfg.loopRegion ?? regionsRef.current?.[link.src.id],
-        }
-        const { frac, phase } = lanePlayhead(timing)
-        const pos = positionAlongRoute(link.src, frac)
-        if (pos) next[`auto:${link.key}`] = { ...pos, fade: wrapFade(phase), color: AUTOMATION_COLOR, kind: 'auto', trail: trailOf(link.src, timing) }
-      }
-      setPlayheadPositions(next)
-    }
-
-    rafRef.current = requestAnimationFrame(tick)
-    return () => {
-      cancelAnimationFrame(rafRef.current)
-      setPlayheadPositions({})
-    }
-  }, [active, started, mode, routes, isPhone])
-
   // Live vehicles indexed by routeShortName
   const vehiclesByRouteName = {}
   if (mode === 'live' && liveSnapshot?.vehicles) {
@@ -459,8 +399,8 @@ function MapView({
     }
   }
 
-  // The static polyline + stop layer. Memoized on its only real inputs so the
-  // 30 fps playhead re-render (setPlayheadPositions) returns the same element
+  // The static polyline + stop layer. Memoized on its only real inputs so a
+  // re-render (live snapshots, mixer state) returns the same element
   // references and React skips reconciling this heavy tree (hundreds of large
   // polylines + up to ~780 metro stop markers for NYC-scale cities).
   const routeLayers = useMemo(() => (
@@ -479,7 +419,7 @@ function MapView({
                   at a glance against the dimmed network. */}
               {layerRoutes
                 .filter(route => isRouteActive(route, disabled, soloRoutes))
-                .map(route => route.polylines.map(pl => (
+                .map(route => linesOf(route).map(pl => (
                   <Polyline
                     key={`${route.id}_${pl.direction}_glow`}
                     positions={pl.coords}
@@ -489,7 +429,7 @@ function MapView({
                 )))}
               {layerRoutes.map(route => {
                 const { opacity, weight, dashArray } = routeStyle(route, disabled, soloRoutes)
-                return route.polylines.map(pl => (
+                return linesOf(route).map(pl => (
                   // Style goes through pathOptions: react-leaflet applies bare
                   // color/weight/opacity props only at creation, so toggling a
                   // lane on would leave its line drawn dimmed and dashed.
@@ -534,7 +474,7 @@ function MapView({
             {[...automation.bySource.values()].map(lanes => {
               const src = lanes[0].src
               const summary = lanes.map(l => `${l.destName} · ${l.target}`).join(', ')
-              return src.polylines.map(pl => (
+              return linesOf(src).map(pl => (
                 // Amber "signal" line on top of the source's own line: this
                 // line is a control path, its stops drive another lane's knob.
                 <Polyline
@@ -572,7 +512,7 @@ function MapView({
         </LayersControl.Overlay>
       )}
     </LayersControl>
-  ), [routesByType, disabled, soloRoutes, isPhone, automation]) // eslint-disable-line react-hooks/exhaustive-deps
+  ), [routesByType, disabled, soloRoutes, isPhone, automation, detail]) // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className={`map-wrapper${className ? ` ${className}` : ''}`}>
@@ -653,20 +593,16 @@ function MapView({
         <NoteRipples routes={routes} active={active && started} />
 
         {/* ── Mock mode: playhead dot per lane, in its own pane above the lines ── */}
-        {mode === 'mock' && Object.entries(playheadPositions).map(([key, p]) => (
-          <PlayheadTrail key={`${key}_trail`} points={p.trail} color={p.color} fade={p.fade} />
-        ))}
-        {mode === 'mock' && Object.entries(playheadPositions).map(([key, p]) => (
-          <PlayheadMarker
-            key={key}
-            lat={p.lat}
-            lng={p.lng}
-            color={p.color}
-            fade={p.fade}
-            variant={p.kind}
-            pane="playhead"
-          />
-        ))}
+        <MockPlayheads
+          enabled={active && started && mode === 'mock' && !!routes}
+          routes={routes}
+          trailSamples={isPhone ? TRAIL_SAMPLES_PHONE : TRAIL_SAMPLES}
+          disabledRef={disabledRef}
+          soloRef={soloRef}
+          speedsRef={speedsRef}
+          regionsRef={regionsRef}
+          automationRef={automationRef}
+        />
 
         {/* ── Live mode: vehicle dots ── */}
         {mode === 'live' && allRoutes.map(route => {
@@ -699,27 +635,120 @@ export default memo(MapView)
 
 // The path a lane's dot has just travelled, as segments that brighten and
 // thicken toward the dot. Leaflet has no gradient strokes, so the fade is
-// stepped: one Polyline per segment, a fixed count per trail so React only
-// updates positions frame to frame instead of adding/removing layers.
+// stepped: a fixed number of short segments per trail.
 const TRAIL_BEATS        = 2
 const TRAIL_SAMPLES      = 10
 const TRAIL_SAMPLES_PHONE = 5
+const PLAYHEAD_FRAME_MS  = 33   // ~30 fps
 
-function PlayheadTrail({ points, color, fade = 1 }) {
-  if (!points || points.length < 2) return null
-  const n = points.length - 1
-  return points.slice(0, -1).map((p, i) => {
-    const t = (i + 1) / n          // 0 at the tail → 1 at the dot
-    return (
-      <Polyline
-        key={i}
-        positions={[[p.lat, p.lng], [points[i + 1].lat, points[i + 1].lng]]}
-        pane="trails"
-        interactive={false}
-        pathOptions={{ color, weight: 1.5 + t * 4, opacity: fade * t * t * 0.85, lineCap: 'round' }}
-      />
-    )
-  })
+// Mock-mode playheads: a dot (plus pulse ring) and a trail per active lane and
+// automation link. Drawn imperatively from the shared playhead ticker: layers
+// are created once per lane and then only moved and restyled, so nothing here
+// re-renders React per frame. Trails share one canvas renderer (one redraw per
+// frame instead of an SVG path update per segment); the dots stay SVG for
+// their CSS pulse classes.
+function MockPlayheads({ enabled, routes, trailSamples, disabledRef, soloRef, speedsRef, regionsRef, automationRef }) {
+  const map = useMap()
+  useEffect(() => {
+    if (!enabled) return undefined
+    const trailRenderer = L.canvas({ pane: 'trails', padding: 0.2 })
+    const layers = new Map()     // key → { kind, segments, pulse, dot }
+    const routeById = new Map(routes.map(r => [r.id, r]))
+    const trailOf = (route, timing) =>
+      trailFracs({ ...timing, trailBeats: TRAIL_BEATS, samples: trailSamples })
+        .map(f => positionAlongRoute(route, f))
+        .filter(Boolean)
+
+    const remove = (entry) => {
+      for (const seg of entry.segments) seg.remove()
+      entry.pulse?.remove()
+      entry.dot.remove()
+    }
+    const draw = (key, p) => {
+      let entry = layers.get(key)
+      if (entry && entry.kind !== p.kind) { remove(entry); entry = null }
+      if (!entry) {
+        const ll = [p.lat, p.lng]
+        entry = { kind: p.kind, segments: [], pulse: null, dot: null }
+        if (p.kind === 'auto') {
+          entry.dot = L.circleMarker(ll, { radius: 5, className: 'map-auto-dot', pane: 'playhead', interactive: false, weight: 2.5, fillColor: '#111111' }).addTo(map)
+        } else {
+          entry.pulse = L.circleMarker(ll, { radius: 13, className: 'map-playhead-pulse', pane: 'playhead', interactive: false, weight: 2 }).addTo(map)
+          entry.dot = L.circleMarker(ll, { radius: 7, className: 'map-playhead-dot', pane: 'playhead', interactive: false, weight: 2.5, fillColor: '#ffffff' }).addTo(map)
+        }
+        layers.set(key, entry)
+      }
+      const ll = [p.lat, p.lng]
+      const { color, fade } = p
+      if (p.kind === 'auto') {
+        entry.dot.setLatLng(ll).setStyle({ color, fillOpacity: 0.9 * fade, opacity: fade })
+      } else {
+        entry.pulse.setLatLng(ll).setStyle({ color, fillColor: color, fillOpacity: 0.12 * fade, opacity: fade })
+        entry.dot.setLatLng(ll).setStyle({ color, fillOpacity: 0.95 * fade, opacity: fade })
+      }
+      // Trail: one segment per consecutive pair, brightest at the dot.
+      const pts = p.trail
+      const n = Math.max(0, pts.length - 1)
+      while (entry.segments.length > n) entry.segments.pop().remove()
+      for (let i = 0; i < n; i++) {
+        const t = (i + 1) / n
+        const latlngs = [[pts[i].lat, pts[i].lng], [pts[i + 1].lat, pts[i + 1].lng]]
+        const style = { color, weight: 1.5 + t * 4, opacity: fade * t * t * 0.85 }
+        let seg = entry.segments[i]
+        if (!seg) {
+          seg = L.polyline(latlngs, { ...style, renderer: trailRenderer, pane: 'trails', interactive: false, lineCap: 'round' }).addTo(map)
+          entry.segments[i] = seg
+        } else {
+          seg.setLatLngs(latlngs).setStyle(style)
+        }
+      }
+    }
+
+    let last = 0
+    const unsubscribe = subscribePlayhead((now) => {
+      if (now - last < PLAYHEAD_FRAME_MS) return
+      last = now
+      // Each lane's Part loops its own region at its own speed (polyrhythm), so
+      // every dot gets its own phase — see lib/mapPlayhead.js. Measured in beats
+      // because Parts loop in ticks.
+      const transport = Tone.getTransport()
+      const beats = transport.ticks / (transport.PPQ || 192)
+      const seen = new Set()
+      for (const route of routes) {
+        if (route.isDuplicate) continue
+        if (!isRouteActive(route, disabledRef.current, soloRef.current)) continue
+        const timing = { beats, speed: speedsRef.current?.[route.id] ?? 1, region: regionsRef.current?.[route.id] }
+        const { frac, phase } = lanePlayhead(timing)
+        const pos = positionAlongRoute(route, frac)
+        if (!pos) continue
+        seen.add(route.id)
+        draw(route.id, { ...pos, fade: wrapFade(phase), color: route.color, kind: 'note', trail: trailOf(route, timing) })
+      }
+      // Automation lanes read their source line at the lane's own speed and
+      // sub-loop (falling back to the source's region), like the engine does.
+      for (const link of automationRef.current.links) {
+        const dest = routeById.get(link.destId) ?? routeById.get(link.destId.split('~dup~')[0])
+        if (dest && !isRouteActive(dest, disabledRef.current, soloRef.current)) continue
+        const timing = { beats, speed: link.cfg.speed ?? 1, region: link.cfg.loopRegion ?? regionsRef.current?.[link.src.id] }
+        const { frac, phase } = lanePlayhead(timing)
+        const pos = positionAlongRoute(link.src, frac)
+        if (!pos) continue
+        const key = `auto:${link.key}`
+        seen.add(key)
+        draw(key, { ...pos, fade: wrapFade(phase), color: AUTOMATION_COLOR, kind: 'auto', trail: trailOf(link.src, timing) })
+      }
+      for (const [key, entry] of layers) {
+        if (!seen.has(key)) { remove(entry); layers.delete(key) }
+      }
+    })
+    return () => {
+      unsubscribe()
+      for (const entry of layers.values()) remove(entry)
+      layers.clear()
+      trailRenderer.remove()
+    }
+  }, [map, enabled, routes, trailSamples, disabledRef, soloRef, speedsRef, regionsRef, automationRef])
+  return null
 }
 
 // Style goes through pathOptions so the per-frame fade actually updates (bare

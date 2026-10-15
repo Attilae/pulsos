@@ -13,9 +13,6 @@ import { Children, useLayoutEffect, useRef, useState } from 'react'
 
 const MIN_COLUMN_PX = 248
 const GAP_PX = 8
-// Cards can still be settling just after a relayout (weq8-ui renders its shadow
-// DOM asynchronously), so size changes re-split for this long, then stop.
-const SETTLE_MS = 600
 
 function columnCount(width) {
   return Math.max(1, Math.floor((width + GAP_PX) / (MIN_COLUMN_PX + GAP_PX)))
@@ -57,7 +54,6 @@ export default function DeviceRack({ className = '', layoutKey = '', children })
   const [cols, setCols] = useState(1)
   const [layout, setLayout] = useState(null) // { sig, starts }
   const sig = `${cols}|${layoutKey}|${keys.join(',')}`
-  const settleUntil = useRef(0)
 
   useLayoutEffect(() => {
     const el = rootRef.current
@@ -73,24 +69,12 @@ export default function DeviceRack({ className = '', layoutKey = '', children })
     const starts = partition(heights, cols)
     setLayout(prev => (prev?.sig === sig && prev.starts.join() === starts.join() ? prev : { sig, starts }))
   }
-  const measureRef = useRef(measure)
-  measureRef.current = measure
 
   // Runs before paint, so the provisional even split below is never seen.
   useLayoutEffect(() => {
     if (layout?.sig === sig) return
-    settleUntil.current = performance.now() + SETTLE_MS
     measure()
   })
-
-  // Re-attached per split: a card that changes column is a new element.
-  useLayoutEffect(() => {
-    const ro = new ResizeObserver(() => {
-      if (performance.now() < settleUntil.current) measureRef.current()
-    })
-    for (const el of cellRefs.current.values()) ro.observe(el)
-    return () => ro.disconnect()
-  }, [layout])
 
   const starts = layout?.sig === sig ? layout.starts : evenStarts(items.length, cols)
   const columns = starts.map((s, j) => items.slice(s, starts[j + 1] ?? items.length))

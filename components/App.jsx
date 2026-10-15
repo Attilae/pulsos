@@ -1,11 +1,15 @@
 import { useState, useEffect, useRef } from 'react'
+import dynamic          from 'next/dynamic'
 import MixerTab         from './tabs/MixerTab.jsx'
-import DrumMachineTab   from './tabs/DrumMachineTab.jsx'
 // LoopCapturerTab, HeadphoneTab and MotifTab are kept but hidden from the menu (see TABS below).
 // import LoopCapturerTab  from './tabs/LoopCapturerTab.jsx'
 // import HeadphoneTab     from './tabs/HeadphoneTab.jsx'
 // import MotifTab         from './tabs/MotifTab.jsx'
-import SongChainerTab   from './tabs/SongChainerTab.jsx'
+// The other tabs only mount on their first visit (see `mounted` below), so
+// their code loads then too instead of with the Map/DAW startup.
+const TabLoading = () => <div className="tab-loading" role="status">Loading…</div>
+const DrumMachineTab = dynamic(() => import('./tabs/DrumMachineTab.jsx'), { ssr: false, loading: TabLoading })
+const SongChainerTab = dynamic(() => import('./tabs/SongChainerTab.jsx'), { ssr: false, loading: TabLoading })
 import CitySelect       from './CitySelect.jsx'
 import HeaderMenu       from './HeaderMenu.jsx'
 import ThemeToggle      from './ThemeToggle.jsx'
