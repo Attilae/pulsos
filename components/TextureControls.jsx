@@ -25,7 +25,7 @@
 // Values are the lane's granular cfg (tx* and tx2* keys). Knobs owned by an
 // armed grain.* automation lane lock and follow the live value.
 
-import { useCallback, useState, useSyncExternalStore } from 'react'
+import { useCallback, useRef, useState, useSyncExternalStore } from 'react'
 import {
   TEXTURE_BLEND_PARAMS, TEXTURE_DEFAULTS, TEXTURE_KNOBS, TEXTURE_MK2_DEFAULTS, TEXTURE_MK2_ENABLED, TEXTURE_MK2_KNOBS,
   TEXTURE_MK2_MIX_KNOBS, TEXTURE_MK2_QUALITIES, TEXTURE_MK2_RAND_KNOBS, TEXTURE_MK2_SEED_MODES, TEXTURE_MODEL_LABELS,
@@ -58,6 +58,7 @@ export default function TextureControls({ cfg, onChange, autoTargets, laneName }
   const status = model === 'mk2' ? mk2Status : classicStatus
   const showSwitch = TEXTURE_MK2_ENABLED || model === 'mk2'
   const [blendKey, setBlendKey] = useState('txBlend')
+  const bodyCache = useRef({})
   const blend = TEXTURE_BLEND_PARAMS.find(b => b.key === blendKey) ?? TEXTURE_BLEND_PARAMS[0]
 
   // An armed grain.<key> automation lane owns that control: locked, showing the
@@ -136,72 +137,88 @@ export default function TextureControls({ cfg, onChange, autoTargets, laneName }
           pushes the cards stacked under it in the rack (DeviceRack.jsx). */}
       <div className="tx-bodies">
       <div className={bodyClass('mk2')} inert={!on || model !== 'mk2'} aria-hidden={model !== 'mk2'}>
-        {mk2Body()}
+        {cachedBody('mk2', mk2Body)}
       </div>
       <div className={bodyClass('classic')} inert={!on || model !== 'classic'} aria-hidden={model !== 'classic'}>
-        <div className="tx-strip">
-          <button
-            type="button"
-            className={`tx-freeze${c.txFreeze ? ' is-on' : ''}`}
-            aria-pressed={!!c.txFreeze}
-            onClick={() => onChange({ txFreeze: !c.txFreeze })}
-            title="Stop recording: grains keep playing whatever is in the buffer now."
-          >
-            <span className="tx-lamp" aria-hidden="true" />
-            Freeze
-          </button>
-          <div className="tx-blend-select" role="radiogroup" aria-label="What the Blend knob controls">
-            {TEXTURE_BLEND_PARAMS.map(b => {
-              const value = auto(b.key).live ?? c[b.key]
-              return (
-                <button
-                  key={b.key}
-                  type="button"
-                  role="radio"
-                  aria-checked={b.key === blend.key}
-                  aria-label={`${b.label}, ${pct(value)}`}
-                  className={`tx-blend-opt${b.key === blend.key ? ' is-active' : ''}`}
-                  onClick={() => setBlendKey(b.key)}
-                  title={`${b.label}: ${b.hint}`}
-                >
-                  <span className="tx-blend-name" aria-hidden="true">{b.short}</span>
-                  <span className="tx-meter" aria-hidden="true">
-                    <span className="tx-meter-fill" style={{ transform: `scaleX(${clamp01(value)})` }} />
-                  </span>
-                </button>
-              )
-            })}
-          </div>
-        </div>
-
-        <div className="tx-row">
-          {knob('txPosition')}
-          {knob('txSize')}
-          {knob('txPitch')}
-        </div>
-        <div className="tx-row">
-          {knob('txDensity')}
-          {knob('txTexture')}
-          <Knob
-            group="Texture"
-            label={`Blend ${blend.short}`}
-            value={blendAuto.live ?? c[blend.key]}
-            onChange={v => onChange({ [blend.key]: v })}
-            onReset={() => onChange({ [blend.key]: blend.default })}
-            format={pct}
-            locked={blendAuto.locked}
-            laneName={laneName}
-            hint={`${blend.label}: ${blend.hint}`}
-          />
-        </div>
-        <div className="tx-row tx-row--foot">
-          {knob('txInGain')}
-          <p className="tx-hint">Each lane note triggers a grain. With Density at centre, only notes do.</p>
-        </div>
+        {cachedBody('classic', classicBody)}
       </div>
       </div>
     </div>
   )
+
+  // The hidden model's controls are reused from its last render, so React skips
+  // its knobs entirely while the other model is edited (it stays in the DOM
+  // only to hold the card's height). Its handlers are stale but it's inert.
+  function cachedBody(m, render) {
+    if (m === model || !bodyCache.current[m]) bodyCache.current[m] = render()
+    return bodyCache.current[m]
+  }
+
+  function classicBody() {
+    return (
+      <>
+          <div className="tx-strip">
+            <button
+              type="button"
+              className={`tx-freeze${c.txFreeze ? ' is-on' : ''}`}
+              aria-pressed={!!c.txFreeze}
+              onClick={() => onChange({ txFreeze: !c.txFreeze })}
+              title="Stop recording: grains keep playing whatever is in the buffer now."
+            >
+              <span className="tx-lamp" aria-hidden="true" />
+              Freeze
+            </button>
+            <div className="tx-blend-select" role="radiogroup" aria-label="What the Blend knob controls">
+              {TEXTURE_BLEND_PARAMS.map(b => {
+                const value = auto(b.key).live ?? c[b.key]
+                return (
+                  <button
+                    key={b.key}
+                    type="button"
+                    role="radio"
+                    aria-checked={b.key === blend.key}
+                    aria-label={`${b.label}, ${pct(value)}`}
+                    className={`tx-blend-opt${b.key === blend.key ? ' is-active' : ''}`}
+                    onClick={() => setBlendKey(b.key)}
+                    title={`${b.label}: ${b.hint}`}
+                  >
+                    <span className="tx-blend-name" aria-hidden="true">{b.short}</span>
+                    <span className="tx-meter" aria-hidden="true">
+                      <span className="tx-meter-fill" style={{ transform: `scaleX(${clamp01(value)})` }} />
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          <div className="tx-row">
+            {knob('txPosition')}
+            {knob('txSize')}
+            {knob('txPitch')}
+          </div>
+          <div className="tx-row">
+            {knob('txDensity')}
+            {knob('txTexture')}
+            <Knob
+              group="Texture"
+              label={`Blend ${blend.short}`}
+              value={blendAuto.live ?? c[blend.key]}
+              onChange={v => onChange({ [blend.key]: v })}
+              onReset={() => onChange({ [blend.key]: blend.default })}
+              format={pct}
+              locked={blendAuto.locked}
+              laneName={laneName}
+              hint={`${blend.label}: ${blend.hint}`}
+            />
+          </div>
+          <div className="tx-row tx-row--foot">
+            {knob('txInGain')}
+            <p className="tx-hint">Each lane note triggers a grain. With Density at centre, only notes do.</p>
+          </div>
+      </>
+    )
+  }
 
   function bodyClass(m) {
     return `tx-body${on ? '' : ' is-off'}${m === model ? '' : ' is-hidden'}`

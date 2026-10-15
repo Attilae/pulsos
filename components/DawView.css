@@ -1788,10 +1788,14 @@
   filter: invert(1) hue-rotate(180deg) brightness(1.06);
 }
 .eq-loading {
+  /* Same height as the loaded <weq8-ui> (above), so the EQ card doesn't grow
+     when the editor arrives and the device rack never has to reflow. */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 360px;
   color: var(--muted);
   font-size: var(--fs-2xs);
-  padding: 14px 0;
-  text-align: center;
 }
 
 /* Phone stand-in for the weq8 curve editor (see EqPanel in DawView.jsx): the
