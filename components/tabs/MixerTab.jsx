@@ -31,6 +31,7 @@ import {
   isRouteExportable, isRouteAudible, buildLoopMidiEvents,
 } from '@/lib/midiExport.js'
 import { exportRouteAudio, exportMixAudio } from '@/lib/audioExport.js'
+import { alertDialog } from '@/components/Dialog.jsx'
 import { useEntitlements } from '@/lib/shared/EntitlementsContext.jsx'
 import { countActiveLanes, normalizeLaneAccess, normalizeSnapshotLaneAccess } from '@/lib/billing/plans.js'
 import { buildReplacementLaneState, sendsToClear, trackSynthParams, planFilterState } from '@/lib/ai/planApply.js'
@@ -1884,6 +1885,9 @@ export default function MixerTab({ active = true }) {
     setAudioProgress(0)
     try {
       await fn(engineRef.current, { ...midiExportCtx, recorder: undefined }, setAudioProgress)
+    } catch (err) {
+      console.error('[wav export]', err)
+      alertDialog('WAV export failed. Please try again.')
     } finally {
       setAudioExporting(false)
       setAudioProgress(0)
