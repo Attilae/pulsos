@@ -38,6 +38,7 @@ int mc_trigger(float note, float velocity);
 int mc_trigger_held(float note, float velocity, int hold);
 void mc_release(float note);
 void mc_panic();
+void mc_set_envelope(int enabled, float attack, float decay, float sustain, float release);
 void mc_render();
 int mc_block_size();
 float* mc_out();
@@ -45,7 +46,7 @@ float* mc_out();
 
 struct Event {
   long block;
-  char kind;   // t=trigger h=held r=release e=engine p=patch a=aux v=voices x=panic
+  char kind;   // t=trigger h=held r=release e=engine p=patch a=aux v=voices x=panic n=envelope
   float v[9];
 };
 
@@ -61,6 +62,8 @@ int main(int argc, char** argv) {
   int voices = 2, engine = 8;
   float patch[9] = { 0.5f, 0.5f, 0.5f, 0, 0, 0, 0.5f, 0.5f, 0 };
   float aux = 0;
+  float envelope[5] = { 0, 0.005f, 0.3f, 0.7f, 0.4f };
+  bool has_envelope = false;
   long blocks = 0;
   std::vector<Event> events;
 
@@ -86,6 +89,7 @@ int main(int argc, char** argv) {
       else if (!strcmp(cmd, "aux")) { e.kind = 'a'; sscanf(rest, "%f", &v[0]); }
       else if (!strcmp(cmd, "voices")) { e.kind = 'v'; sscanf(rest, "%f", &v[0]); }
       else if (!strcmp(cmd, "panic")) { e.kind = 'x'; }
+      else if (!strcmp(cmd, "envelope")) { e.kind = 'n'; sscanf(rest, "%f %f %f %f %f", &v[0], &v[1], &v[2], &v[3], &v[4]); }
       else continue;
       events.push_back(e);
     } else if (sscanf(line, " seed %u", &seed) == 1) {
@@ -93,6 +97,9 @@ int main(int argc, char** argv) {
     } else if (sscanf(line, " engine %d", &engine) == 1) {
     } else if (sscanf(line, " patch %f %f %f %f %f %f %f %f %f", &patch[0], &patch[1], &patch[2], &patch[3],
                       &patch[4], &patch[5], &patch[6], &patch[7], &patch[8]) == 9) {
+    } else if (sscanf(line, " envelope %f %f %f %f %f", &envelope[0], &envelope[1], &envelope[2],
+                      &envelope[3], &envelope[4]) == 5) {
+      has_envelope = true;
     } else if (sscanf(line, " aux %f", &aux) == 1) {
     } else if (sscanf(line, " blocks %ld", &blocks) == 1) {
     }
@@ -104,6 +111,9 @@ int main(int argc, char** argv) {
   mc_set_engine(engine, 1);
   mc_set_patch(patch[0], patch[1], patch[2], patch[3], patch[4], patch[5], patch[6], patch[7], patch[8], 1);
   mc_set_aux(aux);
+  if (has_envelope) {
+    mc_set_envelope(static_cast<int>(envelope[0]), envelope[1], envelope[2], envelope[3], envelope[4]);
+  }
 
   FILE* out = fopen(argv[2], "wb");
   if (!out) { perror(argv[2]); return 1; }
@@ -121,6 +131,7 @@ int main(int argc, char** argv) {
       else if (e.kind == 'a') mc_set_aux(v[0]);
       else if (e.kind == 'v') mc_set_voices(static_cast<int>(v[0]));
       else if (e.kind == 'x') mc_panic();
+      else if (e.kind == 'n') mc_set_envelope(static_cast<int>(v[0]), v[1], v[2], v[3], v[4]);
     }
     mc_render();
     fwrite(mc_out(), sizeof(float), block, out);

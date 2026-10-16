@@ -17,7 +17,13 @@
 //     the LPG decay/colour settings, smoothed per block like a pot;
 //   - the DSP runs at 48 kHz in upstream's 12-sample blocks. The host
 //     (public/worklets/macro-processor.js) owns scheduling and resampling;
-//   - engine changes and panics fade out, then switch, then fade back in.
+//   - engine changes and panics fade out, then switch, then fade back in;
+//   - an optional per-voice ADSR (mc_set_envelope). Off, a voice renders exactly
+//     as before: the trigger pings the low-pass gate. On, the voice is the module
+//     with LEVEL patched fully up as well: the gate stays open, so every engine
+//     sustains for as long as the trigger is held, and the ADSR scales the
+//     voice's output. The ADSR's gate is the trigger after upstream's delay line,
+//     so the attack starts on the audible edge and the release on the falling one.
 //
 // Deviations from the module, all outside the vendored code:
 //   - Tuning. Upstream tunes against the hardware's real 47872.34 Hz frame clock
@@ -74,6 +80,19 @@ const float kTuningOffset = -0.0460916f;
 // One-pole patch smoothing at the 4 kHz block rate (~6 ms time constant).
 const float kPatchSmoothing = 0.04f;
 const float kMaxTranspose = 24.0f;
+// Envelope segment limits, seconds. Attack has a floor so retriggering a
+// sounding (stolen) voice ramps rather than steps its gain.
+const float kMinAttack = 0.001f, kMaxAttack = 4.0f;
+const float kMinDecay = 0.001f, kMaxDecay = 4.0f;
+const float kMinRelease = 0.01f, kMaxRelease = 8.0f;
+// Decay and release are exponential; a segment of time T falls by ~60 dB.
+const float kEnvLn = 6.9078f;   // ln(1000)
+// Below this a releasing voice is finished (-80 dB of its peak).
+const float kEnvFloor = 1e-4f;
+// LEVEL for an enveloped voice: fully up, so the gate is open and steady.
+const float kEnvelopedLevel = 1.0f;
+
+enum EnvStage { ENV_IDLE, ENV_ATTACK, ENV_DECAY, ENV_SUSTAIN, ENV_RELEASE };
 
 struct Voice {
   float gain;
@@ -87,6 +106,20 @@ struct Voice {
   int32_t low_blocks;    // force the trigger low this many blocks (retrigger)
   int32_t gate;          // samples the trigger stays high; < 0 until mc_release
   bool gate_open;
+  // Envelope. A voice follows the mode its note started in, so switching the
+  // envelope on or off never re-levels a note that is already sounding.
+  bool enveloped;
+  float env;
+  int32_t stage;         // EnvStage
+  uint32_t trigger_history;  // the trigger per block, newest in bit 0
+};
+
+struct EnvSettings {
+  bool enabled;
+  float attack_inc;      // per-sample linear step
+  float decay_coef;      // per-sample exponential factors
+  float release_coef;
+  float sustain;
 };
 
 struct PendingNote {
@@ -124,9 +157,11 @@ bool ctors_done = false;
 
 Settings target = { 0.5f, 0.5f, 0.5f, 0.0f, 0.0f, 0.0f, 0.5f, 0.5f, 0.0f };
 Settings current = target;
+EnvSettings env_settings = { false, 0.0f, 0.0f, 0.0f, 0.7f };
 
 plaits::Voice::Frame frames[kBlock];
 float out[kBlock];
+float env_gain[kBlock];
 
 inline bool finite(float x) { return x == x && !isinf(x); }
 
@@ -136,6 +171,10 @@ inline float clampRange(float x, float lo, float hi, float fallback) {
 }
 
 inline float clamp01(float x, float fallback) { return clampRange(x, 0.0f, 1.0f, fallback); }
+
+inline float SegmentCoef(float seconds) {
+  return expf(-kEnvLn / (seconds * kSampleRate));
+}
 
 void InitVoice(int i) {
   allocators[i].Init(voice_ram[i], kVoiceRam);
@@ -152,6 +191,10 @@ void InitVoice(int i) {
   v.low_blocks = 0;
   v.gate = 0;
   v.gate_open = false;
+  v.enveloped = false;
+  v.env = 0.0f;
+  v.stage = ENV_IDLE;
+  v.trigger_history = 0;
 }
 
 void ResetAll() {
@@ -194,6 +237,19 @@ int Start(float note, float velocity, int32_t hold) {
   v.low_blocks = v.gate_open ? 1 : 0;
   v.gate = hold;
   v.gate_open = true;
+  // The envelope starts on the delayed rising edge (RenderEnvelope); until then
+  // a stolen voice's previous note carries on. An idle voice starts silent, and
+  // one that was sounding without an envelope counts as fully open, fading
+  // until the edge.
+  if (was_idle) {
+    v.env = 0.0f;
+    v.stage = ENV_IDLE;
+    v.trigger_history = 0;
+  } else if (!v.enveloped && env_settings.enabled) {
+    v.env = 1.0f;
+    v.stage = ENV_RELEASE;
+  }
+  v.enveloped = env_settings.enabled;
   v.age = ++note_counter;
   v.silent_samples = 0;
   v.active = true;
@@ -203,6 +259,44 @@ int Start(float note, float velocity, int32_t hold) {
 void FlushPending() {
   for (int i = 0; i < num_pending; ++i) Start(pending[i].note, pending[i].velocity, pending[i].hold);
   num_pending = 0;
+}
+
+// Advance voice `v`'s envelope over one block into env_gain[], given the
+// trigger the module sees this block (after the delay line) and the one before.
+// Returns false once the envelope has run out (the voice is finished).
+bool RenderEnvelope(Voice& v, bool high, bool was_high) {
+  const EnvSettings& e = env_settings;
+  float env = v.env;
+  int32_t stage = v.stage;
+  if (high && !was_high) stage = ENV_ATTACK;
+  else if (!high && stage != ENV_RELEASE && stage != ENV_IDLE) stage = ENV_RELEASE;
+  for (int n = 0; n < kBlock; ++n) {
+    switch (stage) {
+      case ENV_ATTACK:
+        env += e.attack_inc;
+        if (env >= 1.0f) { env = 1.0f; stage = ENV_DECAY; }
+        break;
+      case ENV_DECAY:
+        env = e.sustain + (env - e.sustain) * e.decay_coef;
+        if (fabsf(env - e.sustain) < 1e-5f) { env = e.sustain; stage = ENV_SUSTAIN; }
+        break;
+      case ENV_SUSTAIN:
+        env = e.sustain;
+        break;
+      case ENV_RELEASE:
+        env *= e.release_coef;
+        break;
+      default:
+        break;
+    }
+    env_gain[n] = env;
+  }
+  v.env = env;
+  v.stage = stage;
+  if (stage == ENV_RELEASE && env < kEnvFloor) return false;
+  // Sustain at 0 is silent for good as well.
+  if (stage == ENV_SUSTAIN && env <= 0.0f) return false;
+  return true;
 }
 
 void SmoothPatch() {
@@ -252,6 +346,20 @@ MC_EXPORT(mc_fault_count) uint32_t mc_fault_count() { return fault_count; }
 // Voices beyond a shrunk pool keep ringing out; they just stop taking notes.
 MC_EXPORT(mc_set_voices) void mc_set_voices(int n) {
   num_voices = n < 1 ? 1 : (n > kMaxVoices ? kMaxVoices : n);
+}
+
+// Envelope settings, seconds / 0..1. Segment times and sustain apply to sounding
+// voices at once; switching the envelope on or off applies from the next note
+// (see Voice::enveloped).
+MC_EXPORT(mc_set_envelope) void mc_set_envelope(
+    int enabled, float attack, float decay, float sustain, float release) {
+  EnvSettings& e = env_settings;
+  e.enabled = enabled != 0;
+  const float a = clampRange(attack, kMinAttack, kMaxAttack, 0.005f);
+  e.attack_inc = 1.0f / (a * kSampleRate);
+  e.decay_coef = SegmentCoef(clampRange(decay, kMinDecay, kMaxDecay, 0.3f));
+  e.release_coef = SegmentCoef(clampRange(release, kMinRelease, kMaxRelease, 0.4f));
+  e.sustain = clamp01(sustain, 0.7f);
 }
 
 // The knobs (0..1), attenuverters (-1..1), LPG decay and colour (0..1) and a
@@ -325,7 +433,8 @@ MC_EXPORT(mc_trigger) int mc_trigger(float note, float velocity) {
 }
 
 // Lower the trigger of every voice playing `note` (within half a semitone); a
-// negative note lowers them all. Engines that ring on their own keep ringing.
+// negative note lowers them all. Engines that ring on their own keep ringing,
+// unless the voice has an envelope, whose release then fades it out.
 MC_EXPORT(mc_release) void mc_release(float note) {
   if (!finite(note)) return;
   for (int i = 0; i < kMaxVoices; ++i) {
@@ -407,6 +516,19 @@ MC_EXPORT(mc_render) void mc_render() {
     m.trigger = trigger;
     m.trigger_patched = true;
 
+    const bool enveloped = v.enveloped;
+    bool finished = false;
+    if (enveloped) {
+      m.level = kEnvelopedLevel;
+      m.level_patched = true;
+      // Upstream's delay line (voice.cc) reads the trigger written
+      // kTriggerDelayBlocks blocks ago; the envelope follows that same edge.
+      v.trigger_history = (v.trigger_history << 1) | (trigger > 0.3f ? 1u : 0u);
+      const bool high = (v.trigger_history >> kTriggerDelayBlocks) & 1u;
+      const bool was_high = (v.trigger_history >> (kTriggerDelayBlocks + 1)) & 1u;
+      finished = !RenderEnvelope(v, high, was_high);
+    }
+
     dsp[i].Render(patch, m, frames, kBlock);
 
     float peak = 0.0f;
@@ -420,9 +542,20 @@ MC_EXPORT(mc_render) void mc_render() {
       const float as = fabsf(s);
       if (as > peak) peak = as;
       g += dg;
-      out[n] += g * s;
+      out[n] += (enveloped ? g * env_gain[n] : g) * s;
     }
     v.gain = v.target_gain;
+
+    if (finished) {
+      // Released to silence: the voice is free. Its gate is closed too, so the
+      // next note on it is a clean rising edge.
+      v.active = false;
+      v.gate = 0;
+      v.gate_open = false;
+      v.stage = ENV_IDLE;
+      v.env = 0.0f;
+      continue;
+    }
 
     if (peak < kIdleThreshold && !v.gate_open && v.low_blocks == 0) {
       v.silent_samples += kBlock;

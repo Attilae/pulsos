@@ -88,6 +88,33 @@ export const MACRO_SCENARIOS = [
       held(1.81, 64, 1, 0.3),           // dropped: a panic cancels
     ],
   },
+  // Envelope scenarios: `envelope` is mc_set_envelope's arguments
+  // [enabled, attack, decay, sustain, release], set before the first block.
+  {
+    name: 'envelope-pad-and-release', seed: 9, voices: 3, engine: 6,
+    patch: [0.3, 0.5, 0.4, 0, 0.2, 0, 0.5, 0.5, 0], aux: 0, blocks: sec(3),
+    envelope: [1, 0.3, 0.4, 0.7, 0.6],
+    events: [
+      held(0, 48, 0.9, 1.0),
+      held(0.2, 55, 0.7, 1.0),
+      { at: sec(0.6), kind: 'trigger', note: 60, velocity: 1 },
+      { at: sec(1.4), kind: 'release', note: 60 },
+      held(1.6, 50, 1, 0.5),            // steals a voice that is releasing
+    ],
+  },
+  {
+    name: 'envelope-toggle-and-drums', seed: 10, voices: 2, engine: 21,
+    patch: [0.4, 0.6, 0.8, 0, 0, 0, 0.5, 0.5, 0], aux: 0, blocks: sec(2.5),
+    envelope: [1, 0.001, 0.05, 0, 0.1],
+    events: [
+      ...[0, 0.25, 0.5].map(t => held(t, 36, 1, 0.1)),
+      { at: sec(0.7), kind: 'envelope', envelope: [0, 0.001, 0.05, 0, 0.1] },
+      held(0.75, 36, 1, 0.1),           // pinged again: the drum rings on
+      { at: sec(1.2), kind: 'engine', engine: 8 },
+      { at: sec(1.3), kind: 'envelope', envelope: [1, 0.05, 0.2, 0.5, 0.3] },
+      held(1.35, 48, 1, 0.6),
+    ],
+  },
 ]
 
 export function scenarioToText(sc) {
@@ -95,6 +122,7 @@ export function scenarioToText(sc) {
     `seed ${sc.seed}`, `voices ${sc.voices}`, `engine ${sc.engine}`,
     `patch ${sc.patch.join(' ')}`, `aux ${sc.aux ?? 0}`,
   ]
+  if (sc.envelope) lines.push(`envelope ${sc.envelope.join(' ')}`)
   for (const e of sortEvents(sc.events)) {
     if (e.kind === 'trigger') lines.push(`at ${e.at} trigger ${e.note} ${e.velocity}`)
     else if (e.kind === 'held') lines.push(`at ${e.at} held ${e.note} ${e.velocity} ${e.hold}`)
@@ -104,6 +132,7 @@ export function scenarioToText(sc) {
     else if (e.kind === 'aux') lines.push(`at ${e.at} aux ${e.aux}`)
     else if (e.kind === 'voices') lines.push(`at ${e.at} voices ${e.voices}`)
     else if (e.kind === 'panic') lines.push(`at ${e.at} panic`)
+    else if (e.kind === 'envelope') lines.push(`at ${e.at} envelope ${e.envelope.join(' ')}`)
   }
   lines.push(`blocks ${sc.blocks}`)
   return lines.join('\n') + '\n'
@@ -116,13 +145,16 @@ const sortEvents = (events) => events.map((e, i) => [e, i]).sort((a, b) => a[0].
 // Render a scenario through the wasm module; returns mono float32. Mirrors
 // dsp/macro/reference.cc's event loop exactly (events apply before the block
 // they're scheduled on is rendered).
-export function renderScenarioWasm(module, sc) {
+// `setup(exports)`, when given, runs after the patch and before the first block.
+export function renderScenarioWasm(module, sc, setup) {
   const x = new WebAssembly.Instance(module, {}).exports
   x.mc_init(sc.seed)
   x.mc_set_voices(sc.voices)
   x.mc_set_engine(sc.engine, 1)
   x.mc_set_patch(...sc.patch, 1)
   x.mc_set_aux(sc.aux ?? 0)
+  if (sc.envelope) x.mc_set_envelope(...sc.envelope)
+  setup?.(x)
   const events = sortEvents(sc.events)
   const out = new Float32Array(sc.blocks * BLOCK)
   const buf = new Float32Array(x.memory.buffer, x.mc_out(), BLOCK)
@@ -138,6 +170,7 @@ export function renderScenarioWasm(module, sc) {
       else if (e.kind === 'aux') x.mc_set_aux(e.aux)
       else if (e.kind === 'voices') x.mc_set_voices(e.voices)
       else if (e.kind === 'panic') x.mc_panic()
+      else if (e.kind === 'envelope') x.mc_set_envelope(...e.envelope)
     }
     x.mc_render()
     out.set(buf, b * BLOCK)

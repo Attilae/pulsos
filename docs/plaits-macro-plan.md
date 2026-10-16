@@ -65,12 +65,14 @@ Phase 5 delivered:
   - offers Macro in plan `SYNTH_TYPES`
   - adds prompt text with every engine and what its controls do, generated from `MACRO_ENGINES`
   - adds the vocabulary line and validates `tone.macro`
-- **Apply paths:** `planApply.trackSynthParams` drops a plan envelope on Macro. `planSnapshot`
-  describes the full patch for edits and no envelope. `MixerTab.applyAIPlan` loads the DSP
-  first.
+- **Apply paths:** `planApply.trackSynthParams` maps a plan envelope onto the `macroEnv*` keys and
+  switches the optional envelope on (`tone.macro.envelope` false still wins). `planSnapshot`
+  describes the full patch for edits, plus the envelope while it's on. `MixerTab.applyAIPlan` loads
+  the DSP first.
 - **Advisories** (`planAdvisories.js`):
-  - envelope, legato and glide are inert
-  - noteLength and drone are inert except on the 6-op FM engines
+  - legato and glide are inert
+  - without the envelope, noteLength and drone are inert except on the 6-op FM engines
+  - with it, lpgColour is inert and the usual attack-vs-noteLength check applies
   - granular is inert under the GrainPlayer engine
   - chiptune with no `timbreAmount` drones
   - `fmAmount` beyond ±0.3 on a tonal lane
@@ -223,6 +225,10 @@ module's control layout but uses Leið's design system (DESIGN.md). It is not a 
 artwork. Upstream asks derivatives not to use the "Mutable Instruments" name or the module's name,
 so the UI, plan vocabulary and docs say **Macro**. Only the licences page and the provenance files
 name the source.
+
+Added after the first release: an optional per-voice ADSR (`macroEnvelope` + `macroEnv*`, off by
+default, mirroring the Resonator's). On, each voice is patched with LEVEL fully up so the gate stays
+open and every engine sustains, and the ADSR shapes the output. See `dsp/macro/README.md`.
 
 Out of scope for the first release:
 - the module's MODEL CV, LEVEL input and external FM/TIMBRE/MORPH CVs
