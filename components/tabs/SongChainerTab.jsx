@@ -1,11 +1,12 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { TransitEngine } from '@/lib/engine.js'
 import { setCityBounds } from '@/lib/mappings.js'
 import { useRoutes, useCity } from '@/lib/shared/useRoutes.js'
 import { useCitySelection } from '@/lib/shared/CityContext.jsx'
 import { useSession } from '@/lib/auth-client.js'
 import { useEntitlements } from '@/lib/shared/EntitlementsContext.jsx'
-import { listSongs, loadSong } from '@/lib/persistence.js'
+import { listSongs, loadSong, onSongChanged } from '@/lib/persistence.js'
+import { getOpenSong, subscribeOpenSong } from '@/lib/shared/openSongStore.js'
 import {
   listCompositions, loadComposition, saveComposition, deleteComposition, newCompositionId,
 } from '@/lib/compositions.js'
@@ -13,9 +14,47 @@ import { SongChainPlayer } from '@/lib/songChainPlayer.js'
 import ChainItemLoops from './ChainItemLoops.jsx'
 import { confirmDialog } from '../Dialog.jsx'
 import './SongChainerTab.css'
-import { IconClose, IconMoveDown, IconMoveUp, IconPlay, IconStop } from '../icons.jsx'
+import { IconClose, IconMoveDown, IconMoveUp, IconPlay, IconStop, IconWarning } from '../icons.jsx'
 
 const DEFAULT_BARS = 8
+
+// A number input that lets you type. Clamping on every keystroke made these
+// fields unusable: on the way to "90" the "9" clamped to 40, and clearing the
+// field snapped it back to the default. Now the typed text stays as typed, any
+// in-range value applies immediately (so spinners and arrow keys still work),
+// and an out-of-range or empty draft is clamped once, on Enter or blur.
+function NumberField({ value, min, max, onCommit, ...rest }) {
+  const [draft, setDraft] = useState(null)   // null = not editing, show `value`
+  const cancelRef = useRef(false)              // Escape: blur without committing
+  const inRange = (n) => Number.isFinite(n) && n >= min && n <= max
+  const finish = () => {
+    if (cancelRef.current) { cancelRef.current = false; setDraft(null); return }
+    if (draft == null) return
+    const n = Math.round(Number(draft))
+    setDraft(null)
+    if (draft.trim() === '' || !Number.isFinite(n)) return   // keep the last value
+    const clamped = Math.max(min, Math.min(max, n))
+    if (clamped !== value) onCommit(clamped)
+  }
+  return (
+    <input
+      {...rest}
+      type="number" inputMode="numeric" min={min} max={max}
+      value={draft ?? value}
+      onChange={(e) => {
+        const text = e.target.value
+        setDraft(text)
+        const n = Math.round(Number(text))
+        if (text !== '' && inRange(n) && n !== value) onCommit(n)
+      }}
+      onBlur={finish}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') e.currentTarget.blur()
+        else if (e.key === 'Escape') { cancelRef.current = true; e.currentTarget.blur() }
+      }}
+    />
+  )
+}
 
 export default function SongChainerTab({ active = true }) {
   const routes = useRoutes()
@@ -138,11 +177,30 @@ export default function SongChainerTab({ active = true }) {
     // the JSON, and the sample cache is process-wide so nothing is refetched.
     if (!playing) {
       snapCacheRef.current.clear()
+      playerRef.current?.forget()
       setCacheEpoch(n => n + 1)
       playerRef.current?.preloadChain()
     }
     // `playing` is read as a guard here, not a trigger — deliberately not a dep.
   }, [signedIn, active])
+
+  // The refetch above runs the moment the tab opens, which can beat a save the
+  // Map tab sent just before the switch, and the old copy would then be cached
+  // for the session. Invalidating when the save itself lands closes that race
+  // (and covers a save made while this tab was already open). A section already
+  // built keeps playing what it has; the next time the item comes up it's fresh.
+  useEffect(() => onSongChanged((id) => {
+    snapCacheRef.current.delete(id)
+    playerRef.current?.forget(id)
+    setCacheEpoch(n => n + 1)
+    playerRef.current?.preloadChain()
+    if (signedIn) listSongs().then(setPresets).catch(() => {})
+  }), [signedIn])
+
+  // The preset open in the Map tab, and whether it has unsaved edits there. The
+  // chain plays saved snapshots, so such an item doesn't sound like the Map tab.
+  const openSong = useSyncExternalStore(subscribeOpenSong, getOpenSong, getOpenSong)
+  const unsavedId = openSong.dirty ? openSong.id : null
 
   const refreshComps = useCallback(() => {
     listCompositions().then(setComps).catch(() => {})
@@ -307,12 +365,7 @@ export default function SongChainerTab({ active = true }) {
 
         <div className="chain-field">
           <label htmlFor="chain-bpm">BPM</label>
-          <input
-            id="chain-bpm"
-            type="number" min="40" max="240"
-            value={bpm}
-            onChange={e => setBpm(Math.max(40, Math.min(240, +e.target.value || 120)))}
-          />
+          <NumberField id="chain-bpm" min={40} max={240} value={bpm} onCommit={setBpm} />
         </div>
 
         <label className="chain-toggle">
@@ -354,6 +407,12 @@ export default function SongChainerTab({ active = true }) {
       )}
       {playError && (
         <div className="chain-notice chain-notice--warn" role="alert">{playError}</div>
+      )}
+      {unsavedId && items.some(it => it.presetId === unsavedId) && (
+        <div className="chain-notice chain-notice--warn" role="status">
+          A preset in this chain has unsaved changes in the Map tab. The chain plays its
+          last saved version; save it there to hear your changes here.
+        </div>
       )}
       {cityMismatch && (
         <div className="chain-notice chain-notice--warn">
@@ -403,14 +462,22 @@ export default function SongChainerTab({ active = true }) {
                 <div className="chain-item-row">
                   <span className="chain-item-idx">{idx + 1}</span>
                   <span className="chain-item-name">{it.presetName}</span>
+                  {it.presetId === unsavedId && (
+                    <span
+                      className="chain-item-unsaved"
+                      title="Unsaved changes in the Map tab. This part plays the last saved version."
+                    >
+                      <IconWarning aria-hidden="true" /> Unsaved in Map
+                    </span>
+                  )}
                   {itemLimit != null && idx >= itemLimit ? <button className="chain-pro-lock" onClick={() => openUpgrade('composition_limit')}>PRO</button> : null}
 
                   <label className="chain-item-field">
                     bars
-                    <input
-                      type="number" min="1" max="64"
+                    <NumberField
+                      min={1} max={64}
                       value={it.bars}
-                      onChange={e => updateItem(idx, { bars: Math.max(1, Math.min(64, +e.target.value || 1)) })}
+                      onCommit={n => updateItem(idx, { bars: n })}
                     />
                   </label>
 
@@ -428,10 +495,10 @@ export default function SongChainerTab({ active = true }) {
                   {it.transition === 'crossfade' && (
                     <label className="chain-item-field">
                       xfade bars
-                      <input
-                        type="number" min="1" max="16"
+                      <NumberField
+                        min={1} max={16}
                         value={it.crossfadeBars ?? 1}
-                        onChange={e => updateItem(idx, { crossfadeBars: Math.max(1, Math.min(16, +e.target.value || 1)) })}
+                        onCommit={n => updateItem(idx, { crossfadeBars: n })}
                       />
                     </label>
                   )}

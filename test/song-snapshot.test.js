@@ -187,7 +187,10 @@ test('a full song round-trips through build → apply', () => {
   assert.deepEqual(engine.of('setMerge').map(c => c.args), [['m~1', ['47', '9']]])
   assert.deepEqual(engine.of('setPitchOffsets').map(c => c.args), [['4~dup~1', { s1: 2 }]])
   assert.deepEqual(engine.of('setSendLevel').map(c => c.args), [['M1', 'reverb', 0.5]])
-  assert.deepEqual(engine.of('setDrumPattern').map(c => c.args), [[state.drumPattern]])
+  // The song saved its drum lane muted, so the engine (which is all the Song tab
+  // has) must get every pad silenced, not the raw pattern.
+  const silenced = { ...state.drumPattern, muted: Object.fromEntries(Object.keys(state.drumPattern.patterns).map(k => [k, true])) }
+  assert.deepEqual(engine.of('setDrumPattern').map(c => c.args), [[silenced]])
   assert.deepEqual(
     engine.of('setSynthType').map(c => c.args),
     [['M1', 'metro', 'FMSynth', { attack: 0.1, samplerPreset: 'piano' }]],

@@ -1,5 +1,22 @@
 # Digital product work
 
+## 2026-10-15: first launch video, revised music
+
+- Request: replace the original music example with the founder's prepared song in Chrome, after the WAV export fix.
+- Deliverables: [revised vertical MP4](../_videos/launch/out/reveal/leid-budapest-reveal-v2.mp4), [revised cover](../_videos/launch/out/reveal/leid-budapest-cover-v2.png), [source and reproduction notes](../_videos/launch/REVEAL.md). Original video retained.
+- Content: “a little evening metro ride”, Budapest, 134 BPM, G# Major; tram 41 lead, tram 56 bass, drums and route-driven automation. Captured matching picture and continuous native master-bus audio from the existing session. Updated route labels and removed the old claim that a second route joins partway through. Kept the established design and narration.
+- Validation: video project ESLint/TypeScript passed; full Remotion render completed; opening, lead, automation, bass and CTA frames inspected; H.264 1080×1920 at 30 fps, 23 seconds of picture, stereo 48 kHz AAC confirmed. Final decoded audio measured -15.05 LUFS and -1.49 dBTP; no silence of 0.2 seconds or longer below -50 dB detected.
+- Session handling: stopped playback and restored DAW view after capture; the arrangement was not edited. Temporary local transfer receiver stopped. Short native lossless WAV export retained as a backup.
+- Remaining: founder listens and reviews the video in native upload previews before publishing. No social upload performed.
+
+## 2026-10-15: first launch video
+
+- Request: make the first launch video from the marketing plan.
+- Deliverables: [vertical MP4](../_videos/launch/out/reveal/leid-budapest-reveal.mp4), [cover](../_videos/launch/out/reveal/leid-budapest-cover.png), [platform copy](../_videos/launch/out/reveal/publish-copy.txt), [editable source and reproduction notes](../_videos/launch/REVEAL.md).
+- Content: real Budapest M1/M2 session and native master-bus audio; generated stock ElevenLabs narration; word timing from the TTS alignment; phone-friendly captions and layth.space CTA.
+- Validation: video project ESLint/TypeScript passed; full Remotion render completed; representative final frames inspected; H.264 1080×1920/30 fps and stereo 48 kHz AAC confirmed; captured music checked for sustained silence and final loudness normalized to approximately -15 LUFS with -1.5 dBTP filter target.
+- Remaining: founder listens/reviews the final file in each native upload preview and publishes. No social upload performed.
+
 ## 2026-10-09: map improvement plan
 
 - Request: research similar solutions and create an implementation plan for a more captivating map.

@@ -213,6 +213,20 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.chain-item-unsaved {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-3xs);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--warning-text);
+  background: var(--warning-tint);
+  white-space: nowrap;
+}
 .chain-item-field {
   display: flex;
   flex-direction: column;
