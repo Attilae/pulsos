@@ -109,6 +109,7 @@ song state),
 `composer-guide` (pins the prompt's loop-window/FX-unit/fixed-IR facts and its example plan),
 `musical-policy` (`lib/ai/musicalPolicy.js` — genre recipe selection and prompt size),
 `note-length` (`lib/noteLength.js` + its plan/advisory rules),
+`midi-export` (`lib/midiEvents.js` — one loop pass, shortened loops, same-pitch overlaps, arp steps),
 `sound-policy` (`lib/ai/soundPolicy.js` — every sound recipe survives `validatePlan` and raises no
 advisory), `plan-advisories` (`lib/ai/planAdvisories.js`), `plan-snapshot` (`lib/ai/planSnapshot.js` — round-trips its output through the real
 `applySnapshot`/`buildSnapshot`), `texture-voice` (`lib/textureVoice.js`'s model-switch slot
@@ -355,10 +356,13 @@ visual contract: tokens, named rules, do's and don'ts. The UI conventions it rel
 - renders three children sharing that state: `DawView.jsx` (track-lane DAW UI), `MapView.jsx`
   (Leaflet live map), and `AIComposerPanel.jsx`,
 - wires song persistence via `useSongPersistence` (`lib/`) + `SongMenu.jsx`,
-- offers **MIDI export** (per-track and full-mix) via `lib/midiExport.js` — it reconstructs note
-  events either from a route's loop pitch map (`buildLoopMidiEvents`) or from a live
-  `MidiSessionRecorder` that `engine.js` feeds as notes fire, then writes a `.mid` blob with
-  `@tonejs/midi`,
+- offers **MIDI export** via `lib/midiExport.js` — always **one pass of a lane's loop pattern**
+  (`buildLoopMidiEvents` in `lib/midiEvents.js`: loop window, speed, grid, pitch edits, note length
+  and arp steps), rebased to 0 and clipped so no note starts or rings past the loop end or overlaps
+  the next same-pitch note. The lane button writes that lane; the header button writes **one `.mid`
+  per active lane**, downloaded in sequence. There is no session recording any more: it stamped
+  notes with `Tone.now()` at callback time (off-grid by the lookahead) and spanned every loop and
+  edit of the session, which is what imported as stray notes in a DAW,
 - offers **WAV export** (per-track stem and full-mix) via `lib/audioExport.js` — unlike MIDI
   export this captures **real-time audio** by tapping live Tone.js nodes
   (`engine.getMasterOutputNode()` / `engine.getRouteOutputNode(routeId)`) with a `PcmRecorder`

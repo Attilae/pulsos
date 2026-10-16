@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { Component, useState, useEffect, useRef } from 'react'
 import dynamic          from 'next/dynamic'
 import MixerTab         from './tabs/MixerTab.jsx'
 // LoopCapturerTab, HeadphoneTab and MotifTab are kept but hidden from the menu (see TABS below).
@@ -8,8 +8,38 @@ import MixerTab         from './tabs/MixerTab.jsx'
 // The other tabs only mount on their first visit (see `mounted` below), so
 // their code loads then too instead of with the Map/DAW startup.
 const TabLoading = () => <div className="tab-loading" role="status">Loading…</div>
-const DrumMachineTab = dynamic(() => import('./tabs/DrumMachineTab.jsx'), { ssr: false, loading: TabLoading })
-const SongChainerTab = dynamic(() => import('./tabs/SongChainerTab.jsx'), { ssr: false, loading: TabLoading })
+// A chunk fetch can fail transiently (network blip, or the edge firewall
+// answering a script request with a 429 challenge), and next/dynamic caches the
+// rejection for good. Webpack drops a failed chunk from its registry, so calling
+// import() again refetches it; retry a few times before giving up.
+async function importWithRetry(load, attempts = 3) {
+  for (let i = 0; ; i++) {
+    try { return await load() } catch (err) {
+      if (i + 1 >= attempts) throw err
+      await new Promise(r => setTimeout(r, 500 * 2 ** i))
+    }
+  }
+}
+const DrumMachineTab = dynamic(() => importWithRetry(() => import('./tabs/DrumMachineTab.jsx')), { ssr: false, loading: TabLoading })
+const SongChainerTab = dynamic(() => importWithRetry(() => import('./tabs/SongChainerTab.jsx')), { ssr: false, loading: TabLoading })
+
+// Contains a tab that fails to load or render, so one broken tab can't take
+// down the whole app (and the Map tab's song with it). A failed lazy import
+// stays failed in next/dynamic, so recovery is a reload.
+class TabErrorBoundary extends Component {
+  state = { error: null }
+  static getDerivedStateFromError(error) { return { error } }
+  componentDidCatch(error) { console.error('[tab] failed to load', error) }
+  render() {
+    if (!this.state.error) return this.props.children
+    return (
+      <div className="tab-loading" role="alert">
+        <p>This tab couldn&rsquo;t load. Check your connection and reload the page.</p>
+        <button type="button" onClick={() => window.location.reload()}>Reload</button>
+      </div>
+    )
+  }
+}
 import CitySelect       from './CitySelect.jsx'
 import HeaderMenu       from './HeaderMenu.jsx'
 import ThemeToggle      from './ThemeToggle.jsx'
@@ -152,7 +182,9 @@ export default function App() {
               className="tab-pane"
               style={{ display: tabId === t.id ? undefined : 'none' }}
             >
-              <t.Comp active={tabId === t.id} />
+              <TabErrorBoundary>
+                <t.Comp active={tabId === t.id} />
+              </TabErrorBoundary>
             </div>
           ))}
         </main>

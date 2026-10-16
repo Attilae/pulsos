@@ -123,7 +123,8 @@ test('merged chord MIDI includes every source voice resolved in the merged lane 
   const cells = buildMergedPitchCells(merged, options)
   const midi = buildLoopMidiEvents(merged, { trackScales: { merged: scale }, trackPitchVariety: { merged: pitchVariety },
     trackOctaves: { merged: 1 }, trackSemitones: { merged: -2 } })
-  assert.deepEqual(midi.map(e => e.midi), cells.flatMap(c => c.notes.map(noteToMidi)))
+  const byPitch = (a, b) => a - b
+  assert.deepEqual(midi.map(e => e.midi).sort(byPitch), cells.flatMap(c => c.notes.map(noteToMidi)).sort(byPitch))
   assert.ok(midi.length > stops.length, 'both source voices survive')
 })
 
