@@ -36,3 +36,14 @@
 - Validation: read marketing references, existing launch runbook and video assets; checked primary platform guidance and delegated product-claim inspection through CodeGraph.
 - Evidence limit: content choices and goals are hypotheses, not reach guarantees; platform attribution is directional; TikTok website-link eligibility needs an actual-account check.
 - Remaining: founder prepares music and uploads; video production follows the briefs; reconcile scripts with existing renderer inputs; verify the signed-out trial and measurement before reporting campaign activation.
+
+## 2026-10-16: Budapest preset blog post
+
+- Request: reverse engineer the preset currently open in Chrome and save a company-website blog post as Markdown.
+- Deliverable: [How Budapest Becomes a Synth Patch in Leið](marketing/blog/budapest-evening-metro-ride.md), with title, slug, description, excerpt and tags in YAML frontmatter.
+- Audience and goal: musicians and curious visitors evaluating Leið; explain one concrete patch and invite readers to build their own in the app. Base surface: the existing self-serve music application. Distribution: the company website, as requested.
+- Information gain: documents the actual open arrangement’s five enabled route voices, two modulation sources, granular settings, deliberate rests, sidechains, sends and mastering, rather than a general product overview.
+- Primary proof source: the existing Google Chrome tab at https://layth.space/, inspected through native UI and screenshots on 2026-10-16. Selected preset: “a little evening metro ride 2”; Budapest, Mock, 134 BPM, G# Major, stopped, Autosave off, Unsaved. All numeric patch claims were transcribed from visible controls; disabled metro lanes were distinguished from enabled musical lanes. The 16-step drum description applies only to the visible window.
+- Evidence limits: this is analysis of the current unsaved configuration, not proof of the cloud-saved version or the creator’s intent. No audio was captured or auditioned, and the article makes no firsthand listening claim. Roles and compositional implications are interpretations of observed settings. The preset was not edited, saved, shared or published; no share link was created. No performance, loudness or audience results are claimed.
+- Re-verification: before pairing the article with a later recording or share link, compare that version’s controls with this inspected configuration. The article does not promise that the named preset is publicly available.
+- Handoff: the owner can import the Markdown into the company website. No website implementation is required here. If instrumented, app-link clicks can indicate reader interest but cannot establish incremental adoption; no traffic targets or causal marketing outcomes are asserted.
