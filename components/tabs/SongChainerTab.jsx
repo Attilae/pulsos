@@ -13,10 +13,18 @@ import {
 import { SongChainPlayer } from '@/lib/songChainPlayer.js'
 import ChainItemLoops from './ChainItemLoops.jsx'
 import { confirmDialog } from '../Dialog.jsx'
+import { SaveIndicator } from '../SongMenu.jsx'
 import './SongChainerTab.css'
 import { IconClose, IconMoveDown, IconMoveUp, IconPlay, IconStop, IconWarning } from '../icons.jsx'
 
 const DEFAULT_BARS = 8
+const DEFAULT_NAME = 'Untitled song'
+const DEFAULT_BPM  = 120
+
+// What a save writes, as one string: the composition is unsaved while this
+// differs from the copy taken at the last save/open/new. Loop isn't saved.
+const compositionKey = (name, bpm, items) => JSON.stringify({ name, bpm, items })
+const EMPTY_KEY = compositionKey(DEFAULT_NAME, DEFAULT_BPM, [])
 
 // A number input that lets you type. Clamping on every keystroke made these
 // fields unusable: on the way to "90" the "9" clamped to 40, and clearing the
@@ -78,11 +86,19 @@ export default function SongChainerTab({ active = true }) {
   const [comps,   setComps]   = useState([])     // user's saved compositions
 
   const [items, setItems] = useState([])         // the chain
-  const [name,  setName]  = useState('Untitled song')
-  const [bpm,   setBpm]   = useState(120)
+  const [name,  setName]  = useState(DEFAULT_NAME)
+  const [bpm,   setBpm]   = useState(DEFAULT_BPM)
   const [loop,  setLoop]  = useState(false)
   const [currentCompId, setCurrentCompId] = useState(null)
   const [loadedCityId,  setLoadedCityId]  = useState(null)
+  // Save state, mirroring the Map tab's indicator: Unsaved / Saving… / Save
+  // failed / Saved 2m ago. `savedKey` is the composition as last saved or opened.
+  const [savedKey,  setSavedKey]  = useState(EMPTY_KEY)
+  const [savedAt,   setSavedAt]   = useState(null)
+  const [saving,    setSaving]    = useState(false)
+  const [saveError, setSaveError] = useState(null)
+  const dirty = compositionKey(name, bpm, items) !== savedKey
+  const rootRef = useRef(null)
 
   const [playing, setPlaying] = useState(false)
   const [playError, setPlayError] = useState(null)   // a section's instruments failed to load
@@ -239,6 +255,21 @@ export default function SongChainerTab({ active = true }) {
   }, [])
 
   // ── Transport ────────────────────────────────────────────────────────────
+  // Start the chain at item `fromIndex`. Called while already playing, it
+  // restarts from there (play() stops the current run first).
+  const playFrom = useCallback(async (fromIndex) => {
+    const p = playerRef.current
+    if (!p) return
+    const playableItems = itemLimit == null ? items : items.slice(0, itemLimit)
+    if (fromIndex < 0 || fromIndex >= playableItems.length) return
+    p.setRoutes(routes ?? [])
+    p.setChain(playableItems, bpm)
+    p.setLoop(loop)
+    setPlayError(null)
+    setPlaying(true)
+    await p.play(fromIndex)
+  }, [items, itemLimit, bpm, loop, routes])
+
   const handlePlayStop = useCallback(async () => {
     const p = playerRef.current
     if (!p) return
@@ -246,15 +277,8 @@ export default function SongChainerTab({ active = true }) {
       p.stop(); setPlaying(false); setCurrentIndex(-1); setProgress(0)
       return
     }
-    const playableItems = itemLimit == null ? items : items.slice(0, itemLimit)
-    if (!playableItems.length) return
-    p.setRoutes(routes ?? [])
-    p.setChain(playableItems, bpm)
-    p.setLoop(loop)
-    setPlayError(null)
-    setPlaying(true)
-    await p.play()
-  }, [playing, items, itemLimit, bpm, loop, routes])
+    await playFrom(0)
+  }, [playing, playFrom])
 
   // Keep a live player in sync while it's running (bpm/loop tweaks apply next section).
   // Editing the chain is also the idle moment to warm it: preloadChain fetches each
@@ -267,36 +291,57 @@ export default function SongChainerTab({ active = true }) {
   useEffect(() => { playerRef.current?.setLoop(loop) }, [loop])
 
   // ── Composition persistence ──────────────────────────────────────────────
+  // The one write path, so Save and Save As report progress and failure alike.
+  // Returns the saved row, or null when it failed (shown by the indicator).
+  const persistComposition = useCallback(async (comp) => {
+    setSaving(true); setSaveError(null)
+    try {
+      const saved = await saveComposition(comp)
+      setSavedAt(saved?.updatedAt ?? Date.now())
+      return saved
+    } catch (err) {
+      setSaveError(err instanceof Error ? err : new Error(String(err)))
+      return null
+    } finally {
+      setSaving(false)
+    }
+  }, [])
+
   const handleSave = useCallback(async () => {
     if (!signedIn) return
     if (itemLimit != null && items.length > itemLimit) { openUpgrade('composition_limit'); return }
     const id = currentCompId ?? newCompositionId()
-    const saved = await saveComposition({ id, name, cityId, bpm, items })
+    const key = compositionKey(name, bpm, items)
+    const saved = await persistComposition({ id, name, cityId, bpm, items })
     if (saved) {
       setCurrentCompId(saved.id)
       setLoadedCityId(saved.cityId ?? cityId)
+      setSavedKey(key)
       refreshComps()
     }
-  }, [signedIn, currentCompId, name, cityId, bpm, items, itemLimit, openUpgrade, refreshComps])
+  }, [signedIn, currentCompId, name, cityId, bpm, items, itemLimit, openUpgrade, refreshComps, persistComposition])
 
   const handleSaveAs = useCallback(async () => {
     if (!signedIn) return
     if (itemLimit != null && items.length > itemLimit) { openUpgrade('composition_limit'); return }
     const id = newCompositionId()
-    const saved = await saveComposition({ id, name: `${name} copy`, cityId, bpm, items })
+    const copyName = `${name} copy`
+    const saved = await persistComposition({ id, name: copyName, cityId, bpm, items })
     if (saved) {
       setCurrentCompId(saved.id)
       setName(saved.name)
       setLoadedCityId(saved.cityId ?? cityId)
+      setSavedKey(compositionKey(saved.name ?? copyName, bpm, items))
       refreshComps()
     }
-  }, [signedIn, name, cityId, bpm, items, itemLimit, openUpgrade, refreshComps])
+  }, [signedIn, name, cityId, bpm, items, itemLimit, openUpgrade, refreshComps, persistComposition])
 
   const handleNew = useCallback(() => {
     playerRef.current?.stop()
     setPlaying(false); setCurrentIndex(-1); setProgress(0)
-    setItems([]); setName('Untitled song'); setBpm(120)
+    setItems([]); setName(DEFAULT_NAME); setBpm(DEFAULT_BPM)
     setCurrentCompId(null); setLoadedCityId(null)
+    setSavedKey(EMPTY_KEY); setSavedAt(null); setSaveError(null)
     setSnapshots({})
   }, [])
 
@@ -306,9 +351,15 @@ export default function SongChainerTab({ active = true }) {
     if (!comp) return
     playerRef.current?.stop()
     setPlaying(false); setCurrentIndex(-1); setProgress(0)
-    setItems(Array.isArray(comp.items) ? comp.items : [])
-    setName(comp.name ?? 'Untitled song')
-    setBpm(comp.bpm ?? 120)
+    const nextItems = Array.isArray(comp.items) ? comp.items : []
+    const nextName = comp.name ?? DEFAULT_NAME
+    const nextBpm = comp.bpm ?? DEFAULT_BPM
+    setItems(nextItems)
+    setName(nextName)
+    setBpm(nextBpm)
+    setSavedKey(compositionKey(nextName, nextBpm, nextItems))
+    setSavedAt(comp.updatedAt ?? null)
+    setSaveError(null)
     setCurrentCompId(comp.id)
     setLoadedCityId(comp.cityId ?? null)
   }, [])
@@ -321,6 +372,20 @@ export default function SongChainerTab({ active = true }) {
     if (id === currentCompId) handleNew()
     refreshComps()
   }, [currentCompId, handleNew, refreshComps])
+
+  // ⌘S / ⇧⌘S, as in the Map tab. Every tab stays mounted, so only act while
+  // this one is on screen (the Map tab's SongMenu makes the same check).
+  useEffect(() => {
+    function onKey(e) {
+      if (!(e.metaKey || e.ctrlKey) || e.key.toLowerCase() !== 's') return
+      if (!active || !rootRef.current?.getClientRects().length) return
+      e.preventDefault()
+      if (e.shiftKey) { if (currentCompId) handleSaveAs() }
+      else if (items.length) handleSave()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [active, currentCompId, items.length, handleSave, handleSaveAs])
 
   // ── Derived ──────────────────────────────────────────────────────────────
   const sortedPresets = useMemo(
@@ -352,7 +417,7 @@ export default function SongChainerTab({ active = true }) {
   if (!routes) return <div className="tab-placeholder">Loading routes…</div>
 
   return (
-    <div className="song-chainer-tab">
+    <div className="song-chainer-tab" ref={rootRef}>
       <header className="chain-header">
         <h2 className="chain-title">Song</h2>
         <input
@@ -361,6 +426,15 @@ export default function SongChainerTab({ active = true }) {
           value={name}
           onChange={e => setName(e.target.value)}
           placeholder="Song name"
+        />
+        <SaveIndicator
+          currentSong={currentCompId ? { updatedAt: savedAt } : null}
+          dirty={dirty}
+          saving={saving}
+          saveError={saveError}
+          autosaveOn
+          signedIn={signedIn}
+          dirtyTitle="This song has changes that aren't saved. Press Save or ⌘S."
         />
 
         <div className="chain-field">
@@ -504,6 +578,13 @@ export default function SongChainerTab({ active = true }) {
                   )}
 
                   <div className="chain-item-actions">
+                    <button
+                      className="chain-icon"
+                      onClick={() => playFrom(idx)}
+                      disabled={itemLimit != null && idx >= itemLimit}
+                      title="Play from here"
+                      aria-label={`Play from ${it.presetName}`}
+                    ><IconPlay /></button>
                     <button className="chain-icon" onClick={() => moveItem(idx, -1)} disabled={idx === 0} title="Move up" aria-label={`Move ${it.presetName} up`}><IconMoveUp /></button>
                     <button className="chain-icon" onClick={() => moveItem(idx, +1)} disabled={idx === items.length - 1} title="Move down" aria-label={`Move ${it.presetName} down`}><IconMoveDown /></button>
                     <button className="chain-icon chain-icon--danger" onClick={() => removeItem(idx)} title="Remove" aria-label={`Remove ${it.presetName}`}><IconClose /></button>

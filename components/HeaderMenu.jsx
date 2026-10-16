@@ -126,6 +126,7 @@ function GuestMenu({ onDone, onStartTour }) {
       <p className="header-menu-intro">Save your sets, return to a work in progress, and chain presets into a longer composition.</p>
       <AuthForm className="header-menu-auth-form" onDone={onDone} />
       <MenuDivider label="Explore" />
+      <Link href="/guide" target="_blank" rel="noopener" className="header-menu-item"><span>User guide</span><IconExternal /></Link>
       <button type="button" className="header-menu-item" onClick={onStartTour}>
         <span>Take the tour</span><IconExternal />
       </button>
@@ -165,6 +166,7 @@ function AuthenticatedMenu({ user, view, onNavigate, onClose, onStartTour }) {
       </div>
 
       <MenuDivider label="Explore" />
+      <Link href="/guide" target="_blank" rel="noopener" className="header-menu-item"><span>User guide</span><IconExternal /></Link>
       <button type="button" className="header-menu-item" onClick={onStartTour}>
         <span>Take the tour</span><IconExternal />
       </button>

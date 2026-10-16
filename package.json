@@ -36,7 +36,8 @@
     "build:beads": "node scripts/build_beads.js",
     "compare:beads": "node scripts/build_beads.js --reference && node scripts/beads_compare.js",
     "build:ladder": "node scripts/build_ladder.js",
-    "compare:ladder": "node scripts/build_ladder.js --reference && node scripts/ladder_compare.js"
+    "compare:ladder": "node scripts/build_ladder.js --reference && node scripts/ladder_compare.js",
+    "guide:pdf": "node scripts/build_user_guide_pdf.js"
   },
   "dependencies": {
     "@better-auth/cimd": "1.7.5",

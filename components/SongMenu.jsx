@@ -69,6 +69,9 @@ export default function SongMenu({
     function onKey(e) {
       const mod = e.metaKey || e.ctrlKey
       if (!mod) return
+      // Tabs stay mounted behind display:none, so this listener outlives the Map
+      // tab being on screen. Only the visible tab's ⌘S should save anything.
+      if (!rootRef.current?.getClientRects().length) return
       const k = e.key.toLowerCase()
       if (k === 's' && !e.shiftKey) { e.preventDefault(); handleSave() }
       else if (k === 's' && e.shiftKey) { e.preventDefault(); handleSaveAs() }
@@ -244,7 +247,9 @@ export default function SongMenu({
  * Precedence runs most- to least-urgent — a failure outranks an in-flight
  * write, which outranks a pending change.
  */
-function SaveIndicator({ currentSong, dirty, saving, saveError, autosaveOn, signedIn }) {
+// Also used by the Song tab for compositions. `dirtyTitle` replaces the hover
+// hint for an unsaved state, whose default wording is about Map songs.
+export function SaveIndicator({ currentSong, dirty, saving, saveError, autosaveOn, signedIn, dirtyTitle }) {
   // "Saved 2m ago" has nothing to re-render it while the song sits idle, so
   // tick it ourselves — only while there is a settled timestamp to age.
   const idleSaved = !!currentSong && !dirty && !saving && !saveError
@@ -278,6 +283,8 @@ function SaveIndicator({ currentSong, dirty, saving, saveError, autosaveOn, sign
   } else {
     return null
   }
+
+  if (tone === 'dirty' && signedIn && dirtyTitle) title = dirtyTitle
 
   return (
     <span
