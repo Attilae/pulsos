@@ -28,8 +28,7 @@ import { getMasterBus } from '@/lib/masterBus.js'
 import { normalizeMasterChain } from '@/lib/masterChain.js'
 import { describeSnapshot } from '@/lib/ai/planSnapshot.js'
 import {
-  MidiSessionRecorder, exportRouteMidi, exportMixMidi,
-  isRouteExportable, isRouteAudible, buildLoopMidiEvents,
+  exportRouteMidi, exportMixMidi, exportableMixRoutes,
 } from '@/lib/midiExport.js'
 import { exportRouteAudio, exportMixAudio } from '@/lib/audioExport.js'
 import { alertDialog } from '@/components/Dialog.jsx'
@@ -164,10 +163,8 @@ export default function MixerTab({ active = true }) {
   const resetSessionRef  = useRef(null)
   const masterVolumeRef  = useRef(0)
   const citySwitchAwayRef = useRef(null)
-  const midiRecorderRef  = useRef(null)
   const pendingEventsRef = useRef([])     // notes buffered between animation frames
   const eventsRafRef     = useRef(null)   // pending rAF flush handle
-  const [hasMidiSession, setHasMidiSession] = useState(false)
   const [audioExporting, setAudioExporting] = useState(false)
   const [audioProgress,  setAudioProgress]  = useState(0)
 
@@ -668,12 +665,9 @@ export default function MixerTab({ active = true }) {
     pushEvents(buffered, MAX_EVENTS)
   }, [])
 
-  // Build a fresh engine + MIDI recorder and stash them on the refs. Used both
+  // Build a fresh engine and stash it on the ref. Used both
   // for the initial mount and to get a clean audio graph on "New session".
   const createEngine = useCallback(() => {
-    const recorder = new MidiSessionRecorder()
-    midiRecorderRef.current = recorder
-    setHasMidiSession(false)
     const engine = new TransitEngine((ev) => {
       pendingEventsRef.current.push(ev)
       if (eventsRafRef.current == null) {
@@ -681,7 +675,6 @@ export default function MixerTab({ active = true }) {
       }
     })
     engine.init()
-    engine.setMidiRecorder(recorder)
     engine.onSoundError = (err) => setSoundError({ message: err?.message ?? 'An instrument could not be loaded.' })
     // The weq8 curve editor mutates the EQ runtime directly; mirror each change
     // back into React state so autosave/persistence stays in sync.
@@ -836,7 +829,6 @@ export default function MixerTab({ active = true }) {
         engine.stopMock()
         Tone.getDestination().volume.value = masterVolume
         setStarted(false)
-        setHasMidiSession(midiRecorderRef.current?.hasData() ?? false)
         stoppingRef.current = false
         // Stop holding the OS audio session open (iOS lock-screen controls).
         releaseAudioSession()
@@ -961,7 +953,6 @@ export default function MixerTab({ active = true }) {
     engine?.stopMock()
     stoppingRef.current = false
     setStarted(false)
-    setHasMidiSession(midiRecorderRef.current?.hasData() ?? false)
   }, [active, started, masterVolume])
 
   // Ableton-style solo: plain click solos only this lane (muting all others);
@@ -1695,7 +1686,6 @@ export default function MixerTab({ active = true }) {
       engine.stopMock()
       Tone.getDestination().volume.value = masterVolume
       setStarted(false)
-      setHasMidiSession(midiRecorderRef.current?.hasData() ?? false)
       stoppingRef.current = false
     }
 
@@ -1842,36 +1832,29 @@ export default function MixerTab({ active = true }) {
     trackDroneModes,
     automationSourceIds,
     perStopSteps: trackPitchOffsets,
-    recorder: midiRecorderRef.current,
+    trackArps,
+    trackLabels,
   }), [
     bpm, disabledRoutes, soloRoutes, trackScales, trackOctaves, trackSemitones, trackSoundModes,
     trackLegatos, trackSpeeds, trackLoopRegions, trackGridResolutions, trackPitchVariety, trackStopVelocities, trackDroneModes,
-    trackNoteChances, trackStopChances, trackNoteLengths, automationSourceIds, trackPitchOffsets, hasMidiSession,
+    trackNoteChances, trackStopChances, trackNoteLengths, automationSourceIds, trackPitchOffsets, trackArps, trackLabels,
   ])
 
-  const canExportMix = useMemo(() => {
-    if (!mergedRoutes?.length) return false
-    const ctx = { ...midiExportCtx, recorder: midiRecorderRef.current }
-    if (midiRecorderRef.current?.hasData()) {
-      return mergedRoutes.some(r =>
-        isRouteExportable(r, r.id, ctx) && midiRecorderRef.current.getRouteEvents(r.id).length,
-      )
-    }
-    return mergedRoutes.some(r =>
-      isRouteExportable(r, r.id, ctx) && isRouteAudible(r.id, ctx) && buildLoopMidiEvents(r, ctx).length,
-    )
-  }, [mergedRoutes, midiExportCtx])
+  const canExportMix = useMemo(
+    () => exportableMixRoutes(mergedRoutes, midiExportCtx).length > 0,
+    [mergedRoutes, midiExportCtx],
+  )
 
   const handleExportRouteMidi = useCallback(async (routeId) => {
     const route = mergedRoutes?.find(r => r.id === routeId)
     if (!route) return
     if (!(await claim('export', 'export_limit'))) return
-    exportRouteMidi(route, { ...midiExportCtx, recorder: midiRecorderRef.current })
+    exportRouteMidi(route, midiExportCtx)
   }, [mergedRoutes, midiExportCtx, claim])
 
   const handleExportMixMidi = useCallback(async () => {
     if (!(await claim('export', 'export_limit'))) return
-    exportMixMidi(mergedRoutes ?? [], { ...midiExportCtx, recorder: midiRecorderRef.current })
+    await exportMixMidi(mergedRoutes ?? [], midiExportCtx)
   }, [mergedRoutes, midiExportCtx, claim])
 
   // Real-time WAV capture taps the live engine, so it needs playback running.
@@ -1880,7 +1863,7 @@ export default function MixerTab({ active = true }) {
     setAudioExporting(true)
     setAudioProgress(0)
     try {
-      await fn(engineRef.current, { ...midiExportCtx, recorder: undefined }, setAudioProgress)
+      await fn(engineRef.current, midiExportCtx, setAudioProgress)
     } catch (err) {
       console.error('[wav export]', err)
       alertDialog('WAV export failed. Please try again.')
@@ -2212,10 +2195,10 @@ export default function MixerTab({ active = true }) {
 
         <button
           type="button"
-          className={`midi-export-btn midi-export-btn--global${hasMidiSession ? ' has-session' : ''}`}
+          className="midi-export-btn midi-export-btn--global"
           onClick={handleExportMixMidi}
           disabled={!canExportMix}
-          title="Download multi-track MIDI (session if recorded, else 4-bar loop of audible lines)"
+          title="Download one MIDI file per active lane (each lane's loop pattern)"
         ><IconDownload /> MIDI</button>
 
         <button

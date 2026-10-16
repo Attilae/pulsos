@@ -695,19 +695,6 @@
   opacity: 0.35;
   cursor: not-allowed;
 }
-.midi-export-btn--global.has-session {
-  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
-}
-.midi-export-btn--global.has-session::after {
-  content: '';
-  display: inline-block;
-  width: 5px;
-  height: 5px;
-  margin-left: 5px;
-  border-radius: 50%;
-  background: var(--accent);
-  vertical-align: middle;
-}
 .lt-mix .midi-export-btn {
   min-width: 30px;
   min-height: 30px;
