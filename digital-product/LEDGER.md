@@ -47,3 +47,10 @@
 - Evidence limits: this is analysis of the current unsaved configuration, not proof of the cloud-saved version or the creator’s intent. No audio was captured or auditioned, and the article makes no firsthand listening claim. Roles and compositional implications are interpretations of observed settings. The preset was not edited, saved, shared or published; no share link was created. No performance, loudness or audience results are claimed.
 - Re-verification: before pairing the article with a later recording or share link, compare that version’s controls with this inspected configuration. The article does not promise that the named preset is publicly available.
 - Handoff: the owner can import the Markdown into the company website. No website implementation is required here. If instrumented, app-link clicks can indicate reader interest but cannot establish incremental adoption; no traffic targets or causal marketing outcomes are asserted.
+
+## 2026-10-16: preset article cover
+
+- Request: a cover using the site’s own material, avoiding generic AI imagery.
+- Deliverable: [landscape cover PNG](marketing/blog/assets/budapest-evening-metro-ride-cover.png); image path and alt text added to the article frontmatter.
+- Method: image generation referenced the actual Chrome screenshot of the preset, with Leið’s palette, typography, transit chips and route 72/37 modulation as the composition. This is an editorial illustration of the UI, not an exact screenshot or reproduction of note data.
+- Validation: inspected finished image for headline spelling, brand name, route labels, layout and readable contrast. No website publication performed.

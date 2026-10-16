@@ -11,7 +11,9 @@
 //     note's decay envelope moves those controls (the module with TRIG patched
 //     and the CV inputs empty);
 //   - the low-pass gate's Decay and Colour, which the module keeps behind a
-//     button hold, as plain small knobs, next to the OUT/AUX blend.
+//     button hold, as plain small knobs, next to the OUT/AUX blend;
+//   - an optional ADSR (not on the module): switched on, it holds the gate open
+//     and shapes each note itself, so every engine can sustain.
 // Drawn in Leið's own rack language, not as a copy of the module's panel.
 // HARMONICS, TIMBRE and MORPH show what they do on the selected engine.
 //
@@ -20,7 +22,7 @@
 
 import { useCallback, useSyncExternalStore } from 'react'
 import {
-  MACRO_BANKS, MACRO_ENGINES, MACRO_PARAM, MACRO_SELF_ENVELOPED, MACRO_VOICE_OPTIONS,
+  MACRO_BANKS, MACRO_ENGINES, MACRO_ENVELOPE_PARAMS, MACRO_PARAM, MACRO_SELF_ENVELOPED, MACRO_VOICE_OPTIONS,
   macroEngine, macroTransposeSemitones, normalizeMacroParams,
 } from '@/lib/macroSpecs.js'
 import { getMacroStatus, subscribeMacroStatus } from '@/lib/macroLoader.js'
@@ -59,6 +61,20 @@ const KNOBS = {
 const toKnob = (spec, v) => (v - spec.min) / (spec.max - spec.min)
 const fromKnob = (spec, x) => spec.min + x * (spec.max - spec.min)
 
+// Envelope times (spec.unit 's') use a cubic taper so the short end, where
+// attacks and decays mostly live, gets most of the travel. Sustain is linear.
+const isTime = (spec) => spec.unit === 's'
+const toEnvKnob = (spec, v) => (isTime(spec) ? Math.cbrt(toKnob(spec, v)) : toKnob(spec, v))
+const fromEnvKnob = (spec, x) => {
+  if (!isTime(spec)) return fromKnob(spec, x)
+  const v = spec.min + x ** 3 * (spec.max - spec.min)
+  return v < 1 ? Math.round(v * 1000) / 1000 : Math.round(v * 100) / 100
+}
+const formatEnv = (spec, v) => {
+  if (!isTime(spec)) return pct(v)
+  return v < 1 ? `${Math.round(v * 1000)} ms` : `${v.toFixed(2)} s`
+}
+
 function useMacroStatus() {
   return useSyncExternalStore(subscribeMacroStatus, getMacroStatus, () => 'idle')
 }
@@ -69,6 +85,7 @@ export default function MacroControls({ params, onChange, granularEnabled = fals
   const engine = macroEngine(p.macroEngine)
   const bankEngines = MACRO_ENGINES.filter(e => e.bank === engine.bank)
   const selfEnveloped = MACRO_SELF_ENVELOPED.includes(engine.id)
+  const enveloped = p.macroEnvelope
   const sheet = variant === 'sheet'
 
   // An armed synth.<key> lane owns the knob. Its live value arrives normalized
@@ -101,6 +118,22 @@ export default function MacroControls({ params, onChange, granularEnabled = fals
       />
     )
   }
+
+  // The envelope isn't automatable, so its knobs never lock.
+  const envKnob = (spec) => (
+    <Knob
+      key={spec.key}
+      group="Macro envelope"
+      label={spec.label}
+      value={toEnvKnob(spec, p[spec.key])}
+      onChange={x => onChange({ [spec.key]: fromEnvKnob(spec, x) })}
+      onReset={() => onChange({ [spec.key]: spec.default })}
+      format={x => formatEnv(spec, fromEnvKnob(spec, x))}
+      size={sheet ? 'sm' : 'xs'}
+      laneName={laneName}
+      hint={spec.hint}
+    />
+  )
 
   // The module's bank buttons keep the row: bank 2, row 3 → bank 3, row 3.
   const pickBank = (bank) => {
@@ -179,13 +212,45 @@ export default function MacroControls({ params, onChange, granularEnabled = fals
       <div className="mc-section">
         <span className="mc-caption">Gate and output</span>
         <div className="mc-row mc-row--3">
-          {knob('macroDecay')}
-          {knob('macroColour', { dim: selfEnveloped })}
+          {knob('macroDecay', { sublabel: enveloped ? 'Amounts only' : undefined })}
+          {knob('macroColour', { dim: selfEnveloped || enveloped })}
           {knob('macroAux', { sublabel: engine.aux })}
         </div>
-        {selfEnveloped && (
+        {enveloped ? (
+          <p className="mc-hint">The envelope holds the gate open: Colour does nothing, and Decay only times the envelope amounts.</p>
+        ) : selfEnveloped && (
           <p className="mc-hint">{engine.label} shapes its own notes: Colour does nothing, and Decay only times the envelope amounts.</p>
         )}
+      </div>
+
+      <div className="mc-section">
+        <div className="mc-head">
+          <span className="mc-caption">Envelope</span>
+          <div className="mc-choices" role="radiogroup" aria-label="Macro envelope">
+            {[[false, 'Off'], [true, 'On']].map(([v, text]) => (
+              <button
+                key={text}
+                type="button"
+                role="radio"
+                aria-checked={enveloped === v}
+                className={`mc-choice${enveloped === v ? ' is-active' : ''}`}
+                onClick={() => onChange({ macroEnvelope: v })}
+              >{text}</button>
+            ))}
+          </div>
+        </div>
+        {enveloped && (
+          <div className="mc-row mc-row--4">
+            {MACRO_ENVELOPE_PARAMS.map(envKnob)}
+          </div>
+        )}
+        <p className="mc-hint">
+          {enveloped
+            ? (selfEnveloped
+              ? `Each note is held for its note length, then fades over the release. ${engine.label} still decays on its own inside the envelope.`
+              : 'Each note is held for its note length, then fades over the release.')
+            : 'Off: the low-pass gate pings on each note and fades, as on the module.'}
+        </p>
       </div>
 
       <div className="mc-section mc-voices">

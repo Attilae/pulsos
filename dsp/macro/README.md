@@ -43,6 +43,29 @@ Each note is the module with TRIG and V/OCT patched and LEVEL unpatched:
 - Retriggering a voice whose trigger is still high forces one low block, so the
   module sees a new rising edge.
 
+**Optional envelope** (`mc_set_envelope(enabled, attack, decay, sustain,
+release)`, seconds / 0..1; off by default). Not on the module:
+- Off, the render path is untouched: every pre-envelope scenario renders
+  bit-identical to the build before it (`test/macro-dsp.test.js`).
+- On, a voice is also patched with LEVEL fully up (`level_patched`, level 1). That
+  holds the LPG open, so every engine sustains while the trigger is held. Accent
+  is 1 instead of the unpatched 0.8, as on the module with LEVEL up. The ADSR
+  then scales the voice's output: linear attack, exponential decay and release
+  (−60 dB over the set time), clamped to 1 ms–4 s, 1 ms–4 s and 10 ms–8 s.
+- The ADSR's gate is the trigger after upstream's delay line, so the attack
+  starts on the audible edge and the release on the falling edge
+  (`hold` samples or `mc_release`, plus the same 48-sample latency).
+- A release that falls below −80 dB, or a sustain of 0 that has decayed, frees
+  the voice. Self-enveloped engines (drums, string, modal) still decay on their
+  own inside the envelope, and the release cuts their ring.
+- LPG Decay still times the decay envelope the attenuverters use; Colour has no
+  audible effect while the gate is held open.
+- A voice keeps the mode its note started in, so toggling the envelope never
+  re-levels a sounding note.
+- Measured at the default patch with a 0.5 s note: sustaining engines sit about
+  5 dB higher in RMS than their pinged notes, at the same peak. That is the
+  sustain, not a gain change, so there is no makeup for it.
+
 The rest of the voice handling:
 - **Allocation:** idle voice first, else the oldest note.
 - **Velocity:** a per-voice output gain, ramped across one block.

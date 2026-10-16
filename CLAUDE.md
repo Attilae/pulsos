@@ -857,9 +857,17 @@ the FM-patch licence check: `docs/plaits-macro-plan.md`. Build, measurements, en
   panel's sub-labels and the AI prompt.
 - **A note is the module with TRIG + V/OCT patched.** The trigger is held for the note's length,
   but the low-pass gate *pings*: only the 6-op FM engines sustain while it's held (measured). There
-  is no ADSR (`NO_STANDARD_ENV`), no legato, glide or harmony layer. Self-enveloped engines
+  is no standard ADSR (`NO_STANDARD_ENV`), no legato, glide or harmony layer. Self-enveloped engines
   (`MACRO_SELF_ENVELOPED`: 6-op, chiptune, string, modal, drums) ignore the gate's Colour.
   Chiptune with TRIG patched is a clocked arpeggiator that drones unless `macroTimbreAmt` is set.
+- **The optional envelope** (`macroEnvelope`, default `false`; times in `macroEnv*`, never
+  `macroDecay`, which is the gate's Decay) works like the Resonator's. Off, the DSP render path is
+  bit-identical to the pre-envelope build (pinned by `test/macro-dsp.test.js`). On, each voice also
+  gets LEVEL patched fully up, so the gate stays open and every engine sustains for the note length.
+  An ADSR in `bridge.cc` scales the output, gated by the *delayed* trigger so it lines up with the
+  audible edge. Release caps self-enveloped engines' ring. A voice keeps the mode it started in. A
+  plan `envelope` maps onto `macroEnv*` and switches it on; `tone.macro.envelope` toggles it. It
+  isn't automatable.
 - **Upstream quirks the bridge corrects**: tuning against the hardware's 47872.34 Hz clock (a
   −4.6 cent offset), and a 4-block (48-sample) trigger delay that `MacroHost` schedules ahead of.
 - **Panel**: `components/MacroControls.jsx` (desktop `EnvPanel` + phone `LaneSheet`), laid out
@@ -868,8 +876,8 @@ the FM-patch licence check: `docs/plaits-macro-plan.md`. Build, measurements, en
   each note's decay moves Timbre, pitch and Morph.
 - **Plans** set it through one nested `tone.macro` object (`validateMacroTone`,
   `macroToneToParams`, `macroParamsToTone`), so the strict OpenRouter schema gains one key per
-  track; `transpose` is whole semitones. A plan `envelope` is dropped (not written) on Macro.
-  Recipes R18/R19 and the prompt text exist only while the flag is on.
+  track; `transpose` is whole semitones. Recipes R18–R20 (R20 uses the envelope) and the prompt
+  text exist only while the flag is on.
 
 ### Lane filter: Classic and Analog
 

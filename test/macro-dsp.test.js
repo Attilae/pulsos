@@ -63,7 +63,7 @@ test('the committed wasm matches its manifest and imports nothing', () => {
   assert.equal(createHash('sha256').update(bytes).digest('hex'), manifest.sha256)
   assert.deepEqual(WebAssembly.Module.imports(module), [])
   for (const name of ['mc_init', 'mc_trigger', 'mc_trigger_held', 'mc_release', 'mc_render', 'mc_panic',
-    'mc_set_engine', 'mc_set_patch', 'mc_set_aux', 'mc_set_voices', 'mc_trigger_latency', 'mc_out']) {
+    'mc_set_engine', 'mc_set_patch', 'mc_set_aux', 'mc_set_voices', 'mc_set_envelope', 'mc_trigger_latency', 'mc_out']) {
     assert.ok(manifest.exports.includes(name), name)
   }
   const x = instance()
@@ -228,4 +228,112 @@ test('bad input is clamped or rejected, never fatal', () => {
   const sig = render(x, 0.5)
   assert.ok(sig.every(Number.isFinite))
   assert.equal(x.mc_fault_count(), 0)
+})
+
+// ── Envelope (mc_set_envelope) ───────────────────────────────────────────────
+// [enabled, attack, decay, sustain, release], seconds / 0..1.
+const ENV = ({ a = 0.005, d = 0.3, s = 0.7, r = 0.4 } = {}) => [1, a, d, s, r]
+
+test('with the envelope off, output is identical to never setting it', () => {
+  for (const sc of MACRO_SCENARIOS.filter(s => !s.envelope)) {
+    const plain = renderScenarioWasm(module, sc).out
+    // Set it on and back off before any note: nothing may leak into the render.
+    const wrapped = renderScenarioWasm(module, sc, ex => { ex.mc_set_envelope(1, 2, 1, 0.1, 5); ex.mc_set_envelope(0, 2, 1, 0.1, 5) }).out
+    assert.deepEqual(wrapped, plain, sc.name)
+  }
+})
+
+test('with the envelope on, every engine sustains for the note and releases after it', () => {
+  // VA, waveshaping, additive: engines whose pinged gate would have faded.
+  for (const engine of [8, 9, 12]) {
+    const play = (env) => {
+      const x = instance({ engine })
+      if (env) x.mc_set_envelope(...env)
+      return render(x, 2, b => { if (b === 0) x.mc_trigger_held(48, 1, sec(1)) })
+    }
+    const pinged = play(null), held = play(ENV({ s: 1, r: 0.2 }))
+    assert.ok(rms(held, sec(0.8), sec(0.95)) > 20 * rms(pinged, sec(0.8), sec(0.95)), `engine ${engine} holds`)
+    assert.ok(rms(held, sec(1.5), sec(2)) < 1e-4, `engine ${engine} released`)
+  }
+})
+
+test('the envelope starts on the audible edge, not before it', () => {
+  const x = instance({ engine: 8 })
+  x.mc_set_envelope(...ENV({ a: 0.001 }))
+  const sig = render(x, 0.1, b => { if (b === 10) x.mc_trigger(60, 1) })
+  const onset = sig.findIndex(v => Math.abs(v) > 1e-3)
+  assert.ok(onset >= 10 * BLOCK + x.mc_trigger_latency(), `onset ${onset}`)
+  assert.ok(onset < 10 * BLOCK + x.mc_trigger_latency() + sec(0.002), `onset ${onset}`)
+})
+
+test('attack, sustain and release shape the level', () => {
+  const play = (env, hold = 1) => {
+    const x = instance({ engine: 8 })
+    x.mc_set_envelope(...env)
+    return { x, sig: render(x, 2.5, b => { if (b === 0) x.mc_trigger_held(48, 1, sec(hold)) }) }
+  }
+  // A 0.5 s attack is still rising 100 ms in.
+  const slow = play(ENV({ a: 0.5, s: 1 })).sig, fast = play(ENV({ a: 0.005, s: 1 })).sig
+  assert.ok(rms(slow, sec(0.05), sec(0.1)) < 0.4 * rms(fast, sec(0.05), sec(0.1)))
+  // Sustain sets the held level.
+  const half = play(ENV({ s: 0.5 })).sig, full = play(ENV({ s: 1 })).sig
+  const ratio = rms(half, sec(0.7), sec(0.9)) / rms(full, sec(0.7), sec(0.9))
+  assert.ok(Math.abs(ratio - 0.5) < 0.03, `sustain ratio ${ratio}`)
+  // A longer release keeps the tail longer; once it has run out the voice is free.
+  const short = play(ENV({ s: 1, r: 0.05 })), long = play(ENV({ s: 1, r: 1 }))
+  assert.ok(rms(long.sig, sec(1.2), sec(1.4)) > 10 * rms(short.sig, sec(1.2), sec(1.4)))
+  assert.equal(short.x.mc_active_voices(), 0)
+  // Sustain 0 ends the voice after its decay, even while the trigger is held.
+  const pluck = play(ENV({ d: 0.05, s: 0 }), 2)
+  assert.equal(pluck.x.mc_active_voices(), 0)
+})
+
+test('mc_release ends a held enveloped note; self-enveloped engines are cut by the release', () => {
+  const x = instance({ engine: 8 })
+  x.mc_set_envelope(...ENV({ s: 1, r: 0.05 }))
+  const sig = render(x, 1.5, b => {
+    if (b === 0) x.mc_trigger(48, 1)                       // held until released
+    if (b === sec(0.5) / BLOCK) x.mc_release(48)
+  })
+  assert.ok(rms(sig, sec(0.3), sec(0.45)) > 0.01)
+  assert.ok(rms(sig, sec(1), sec(1.5)) < 1e-4)
+  assert.equal(x.mc_active_voices(), 0)
+
+  // The modal engine rings for seconds on its own; the release caps it.
+  const ring = (env) => {
+    const y = instance({ engine: 20, patch: [0.5, 0.5, 0.9, 0, 0, 0, 0.5, 0.5, 0] })
+    if (env) y.mc_set_envelope(...env)
+    return render(y, 2, b => { if (b === 0) y.mc_trigger_held(60, 1, sec(0.2)) })
+  }
+  assert.ok(rms(ring(ENV({ s: 1, r: 0.05 })), sec(1), sec(2)) < 0.01 * rms(ring(null), sec(1), sec(2)))
+})
+
+test('a note keeps the mode it started in when the envelope is toggled', () => {
+  const x = instance({ engine: 8 })
+  x.mc_set_envelope(...ENV({ s: 1, r: 0.05 }))
+  const sig = render(x, 1.5, b => {
+    if (b === 0) x.mc_trigger_held(48, 1, sec(1))
+    if (b === sec(0.3) / BLOCK) x.mc_set_envelope(0, 0.005, 0.3, 1, 0.05)
+  })
+  // Still held open after the toggle (a pinged VA note would have faded by now).
+  assert.ok(rms(sig, sec(0.8), sec(0.95)) > 0.01)
+})
+
+test('enveloped renders are deterministic and bounded at extremes', () => {
+  const play = () => {
+    const x = instance({ engine: 13, voices: 4, patch: [1, 1, 1, 1, 1, 1, 1, 1, 24] })
+    x.mc_set_envelope(1, 0.001, 0.001, 1, 8)
+    const sig = render(x, 1, b => {
+      if (b % 40 === 0) x.mc_trigger_held(40 + (b % 7) * 5, 1, sec(0.05))
+    })
+    return { x, sig }
+  }
+  const a = play(), b = play()
+  assert.deepEqual(a.sig, b.sig)
+  assert.ok(a.sig.every(v => Number.isFinite(v) && Math.abs(v) <= 4))
+  assert.equal(a.x.mc_fault_count(), 0)
+  const y = instance()
+  y.mc_set_envelope(1, NaN, -1, 7, Infinity)
+  const sig = render(y, 0.5, bl => { if (bl === 0) y.mc_trigger(60, 1) })
+  assert.ok(sig.every(Number.isFinite))
 })

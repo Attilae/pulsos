@@ -30,6 +30,9 @@
 //     leak notes into whatever plays next.
 //   - The DSP output is mono; both output channels carry it and the lane's
 //     panner places it.
+//   - With the envelope on, the DSP's ADSR follows the same delayed trigger
+//     edges, so its attack and release land on the same timestamps as the notes
+//     and releases scheduled here.
 
 const DSP_RATE = 48000
 const BLOCK = 12
@@ -41,7 +44,7 @@ const PROCESSOR_NAME = 'leid-macro'
 
 class MacroHost {
   // exports: the wasm instance's exports; sampleRate: the context rate.
-  constructor(exports, sampleRate, { seed = 1, voices = 2, engine = 8, patch = null, aux = 0 } = {}) {
+  constructor(exports, sampleRate, { seed = 1, voices = 2, engine = 8, patch = null, aux = 0, envelope = null } = {}) {
     this.x = exports
     this.sampleRate = sampleRate
     this.ratio = DSP_RATE / sampleRate
@@ -58,6 +61,7 @@ class MacroHost {
     exports.mc_set_engine(engine, 1)
     if (patch) this.setPatch(patch, true)
     exports.mc_set_aux(aux)
+    if (envelope) this.setEnvelope(envelope)
     this.latency = exports.mc_trigger_latency()
     const mem = exports.memory.buffer
     this.out = new Float32Array(mem, exports.mc_out(), BLOCK)
@@ -140,6 +144,12 @@ class MacroHost {
   setEngine(engine, immediate = false) { this.x.mc_set_engine(engine, immediate ? 1 : 0) }
   setVoices(n) { this.x.mc_set_voices(n) }
   setAux(mix) { this.x.mc_set_aux(+mix) }
+
+  // { enabled, attack, decay, sustain, release } — seconds / 0..1. See
+  // macroEnvelopePatch() in lib/macroSpecs.js.
+  setEnvelope(e) {
+    this.x.mc_set_envelope(e.enabled ? 1 : 0, +e.attack, +e.decay, +e.sustain, +e.release)
+  }
 
   _renderBlock() {
     const block = this.nextBlock
@@ -228,6 +238,7 @@ if (typeof registerProcessor === 'function') {
         case 'engine':  h.setEngine(m.engine, m.immediate); break
         case 'voices':  h.setVoices(m.voices); break
         case 'aux':     h.setAux(m.aux); break
+        case 'envelope': h.setEnvelope(m); break
         case 'cancel':  h.cancel(m.gen); break
         case 'panic':   h.panic(m.gen); break
         case 'dispose':
