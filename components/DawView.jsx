@@ -1331,8 +1331,10 @@ function LineTrack({
                   ? 'The Resonator rings out on its own (Damping sets how long). Turn on its envelope to make note length hold and release each note'
                   : synthType === 'Resonator'
                   ? 'How long each note is held before the Resonator envelope releases it'
+                  : synthType === 'Macro' && adsr?.macroEnvelope
+                  ? 'How long each note is held before the Macro envelope releases it'
                   : synthType === 'Macro'
-                  ? "How long each note holds the Macro trigger. Only the 6-op FM engines sustain for it; the others ring for the gate's Decay or their own decay"
+                  ? "How long each note holds the Macro trigger. Without its envelope only the 6-op FM engines sustain for it; the others ring for the gate's Decay or their own decay"
                   : legato || arp?.enabled || synthType === 'PluckSynth'
                   ? 'Note length has no effect while legato, the arpeggiator or PluckSynth is in use'
                   : 'How long each note is held before its release'}

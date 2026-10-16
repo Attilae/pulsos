@@ -81,7 +81,7 @@ test('invalid tone.macro values are clamped or reported by key', () => {
   assert.ok(onSynth.dropped.some(d => d.includes('tone.macro on Synth lane')))
 })
 
-test('both apply paths write the same Macro lane params (new and edit), never an envelope', () => {
+test('both apply paths write the same Macro lane params (new and edit); a plan envelope switches the Macro envelope on', () => {
   const { plan } = validatePlan({ tracks: [{
     routeId: 'M1', synthType: 'Macro', tone: { macro: MACRO },
     envelope: { attack: 0.5, decay: 0.1, sustain: 1, release: 1 },
@@ -93,6 +93,12 @@ test('both apply paths write the same Macro lane params (new and edit), never an
   assert.equal(snapshot.trackSynthTypes.M1, 'Macro')
   assert.deepEqual(snapshot.trackADSRs.M1, mixerTab)
   assert.equal(snapshot.trackADSRs.M1.attack, undefined, 'a plan envelope is not written as inert keys')
+  assert.equal(snapshot.trackADSRs.M1.macroEnvelope, true)
+  assert.equal(snapshot.trackADSRs.M1.macroEnvAttack, 0.5)
+  assert.equal(snapshot.trackADSRs.M1.macroEnvSustain, 1)
+  const described = describeSnapshot(snapshot, CITY, { detail: true }).lanes.find(l => l.routeId === 'M1')
+  assert.deepEqual(described.envelope, { attack: 0.5, decay: 0.1, sustain: 1, release: 1 })
+  assert.equal(described.tone.macro.envelope, true)
 
   // An edit that omits synthType keeps the lane's instrument and filters by it.
   const edit = validatePlan({ tracks: [{ routeId: 'M1', tone: { macro: { morph: 0.2 }, oscillator: 'square' } }] }, CITY).plan
@@ -100,6 +106,35 @@ test('both apply paths write the same Macro lane params (new and edit), never an
   assert.equal(edited.trackADSRs.M1.macroMorph, 0.2)
   assert.equal(edited.trackADSRs.M1.macroEngine, 'modal', 'the rest of the patch stays')
   assert.equal(edited.trackADSRs.M1.oscillatorType, undefined)
+})
+
+test('tone.macro.envelope toggles the envelope; an explicit false beats a plan envelope', () => {
+  assert.deepEqual(trackSynthParams({ envelope: { attack: 1 }, tone: { macro: { envelope: false } } }, 'Macro'), {
+    macroEnvelope: false, macroEnvAttack: 1,
+  })
+  assert.deepEqual(trackSynthParams({ tone: { macro: { envelope: true } } }, 'Macro'), { macroEnvelope: true })
+  const { plan, dropped } = validatePlan({ tracks: [{ routeId: 'M1', synthType: 'Macro', tone: { macro: { envelope: 'yes' } } }] }, CITY)
+  assert.ok(dropped.some(d => d.includes('tone.macro.envelope')))
+  assert.equal(plan.tracks[0].tone, undefined)
+  assert.ok(PLAN_INPUT_SCHEMA.safeParse({ tracks: [{ routeId: 'M1', tone: { macro: { envelope: true } } }] }).success)
+  assert.match(JSON.stringify(COMPOSITION_RESPONSE_FORMAT), /"envelope":\{"type":\["boolean","null"\]/)
+  // An edit can switch it off again, keeping the stored times.
+  const on = applyPlanToSnapshot(defaultSnapshot('budapest'), validatePlan({ tracks: [{
+    routeId: 'M1', synthType: 'Macro', envelope: { attack: 0.3, release: 2 },
+  }] }, CITY).plan).snapshot
+  const offPlan = validatePlan({ tracks: [{ routeId: 'M1', tone: { macro: { envelope: false } } }] }, CITY).plan
+  const off = applyPlanToSnapshot(on, offPlan).snapshot.trackADSRs.M1
+  assert.equal(off.macroEnvelope, false)
+  assert.equal(off.macroEnvAttack, 0.3)
+  assert.equal(off.macroEnvRelease, 2)
+})
+
+test('an enveloped Macro song survives the DAW load → save round trip unchanged', () => {
+  const { plan } = validatePlan({ tracks: [{
+    routeId: 'M1', synthType: 'Macro', envelope: { attack: 0.4, decay: 0.2, sustain: 0.5, release: 3 }, tone: { macro: MACRO },
+  }] }, CITY)
+  const { snapshot } = applyPlanToSnapshot(defaultSnapshot('budapest'), plan)
+  assert.deepEqual(roundTrip(snapshot, CITY), snapshot)
 })
 
 test('a Macro song survives the DAW load → save round trip unchanged', () => {
@@ -129,15 +164,31 @@ test('advisories flag inert settings, chiptune drones, wild FM and the voice bud
   const clean = validatePlan({ tracks: [{ routeId: 'M1', synthType: 'Macro', tone: { macro: { engine: 'va', lpgDecay: 0.4 } } }] }, CITY).plan
   assert.deepEqual(planAdvisories(clean), [])
 
+  // Without the envelope, note length and drone only hold the 6-op FM engines.
   const noisy = validatePlan({ tracks: [{
     routeId: 'M1', synthType: 'Macro', legato: true, glide: 0.2, noteLength: '2n',
-    envelope: { attack: 2, decay: 0.1, sustain: 1, release: 1 },
     tone: { macro: { engine: 'va' } },
   }] }, CITY).plan
   const advice = planAdvisories(noisy)
   assert.equal(advice.length, 1, advice.join(' | '))
-  for (const word of ['envelope', 'legato', 'glide', 'noteLength']) assert.ok(advice[0].includes(word), word)
-  assert.ok(!advice[0].includes('2 s attack'), 'no generic attack-vs-length advice')
+  for (const word of ['legato', 'glide', 'noteLength', 'Give it an envelope']) assert.ok(advice[0].includes(word), word)
+
+  // With it, every engine holds the note: the envelope is judged like any other.
+  const enveloped = validatePlan({ tracks: [{
+    routeId: 'M1', synthType: 'Macro', noteLength: '2n',
+    envelope: { attack: 2, decay: 0.1, sustain: 1, release: 1 },
+    tone: { macro: { engine: 'va', lpgColour: 0.8 } },
+  }] }, CITY).plan
+  const envAdvice = planAdvisories(enveloped)
+  assert.equal(envAdvice.length, 2, envAdvice.join(' | '))
+  assert.ok(envAdvice.some(a => a.includes('2 s attack')), 'attack longer than the note')
+  assert.ok(envAdvice.some(a => a.includes('lpgColour')), 'colour is inert with the gate held open')
+  assert.ok(!envAdvice.some(a => a.includes('noteLength (')), 'note length holds every engine')
+  const off = validatePlan({ tracks: [{
+    routeId: 'M1', synthType: 'Macro', noteLength: '2n',
+    envelope: { attack: 0.01 }, tone: { macro: { engine: 'va', envelope: false } },
+  }] }, CITY).plan
+  assert.ok(planAdvisories(off).some(a => a.includes('noteLength')), 'an explicit envelope false wins')
 
   // On a 6-op FM engine the note length is real.
   const sixOp = validatePlan({ tracks: [{ routeId: 'M1', synthType: 'Macro', noteLength: '1n', tone: { macro: { engine: 'sixOpB' } } }] }, CITY).plan
@@ -163,15 +214,21 @@ test('advisories flag inert settings, chiptune drones, wild FM and the voice bud
 
 test('every Macro sound recipe validates untouched and raises no advisory', () => {
   const recipes = SOUND_RECIPES.filter(s => s.synthType === 'Macro')
-  assert.deepEqual(recipes.map(r => r.id), ['R18', 'R19'])
+  assert.deepEqual(recipes.map(r => r.id), ['R18', 'R19', 'R20'])
   for (const r of recipes) {
     const track = soundRecipeTrack(r, 'M1')
-    assert.equal(track.envelope, undefined, r.id)
+    assert.equal(!!track.envelope, !!r.envelope, r.id)
     const { plan, dropped } = validatePlan({ tracks: [track] }, CITY)
     assert.deepEqual(dropped, [], r.id)
     assert.deepEqual(plan.tracks[0].tone, track.tone, r.id)
     assert.deepEqual(planAdvisories(plan), [], r.id)
-    assert.match(soundRecipeLine(r), /no envelope \(a low-pass gate/, r.id)
+    if (r.envelope) {
+      assert.match(soundRecipeLine(r), /env 0\.6\/0\.5\/0\.8\/1\.2/, r.id)
+      const { snapshot } = applyPlanToSnapshot(defaultSnapshot('budapest'), withNewCompositionBaseline(plan))
+      assert.equal(snapshot.trackADSRs.M1.macroEnvelope, true, r.id)
+    } else {
+      assert.match(soundRecipeLine(r), /no envelope \(a low-pass gate/, r.id)
+    }
   }
 })
 

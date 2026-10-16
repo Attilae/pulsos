@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { macroPatch } from '../lib/macroSpecs.js'
+import { macroPatch, macroEnvelopePatch } from '../lib/macroSpecs.js'
 
 // The worklet file has no exports (see its header), so evaluate it the way
 // standardized-audio-context does — as a function body — and pull the host class
@@ -194,6 +194,27 @@ test('engine, patch and aux messages reach the DSP', () => {
   const differs = (a, b) => rms(a.map((v, i) => v - b[i])) > 0.005
   assert.ok(differs(base, play(h => h.setAux(1))), 'aux')
   assert.ok(differs(base, play(h => h.setPatch({ ...OPEN, timbre: 1 }, true))), 'patch')
+})
+
+test('the envelope option and message reach the DSP, and its release lands on the note length', () => {
+  // VA with the default (pinging) gate: only the envelope holds it.
+  const patch = macroPatch({})
+  const envelope = macroEnvelopePatch({ macroEnvelope: true, macroEnvSustain: 1, macroEnvRelease: 0.05 })
+  for (const sr of [44100, 48000]) {
+    const play = (opts, setup) => {
+      const host = makeHost(sr, { voices: 1, engine: 8, patch, ...opts })
+      setup?.(host)
+      host.note({ time: 0.05, midi: 48, velocity: 1, gen: 0, hold: 0.8 })
+      return run(host, sr, 1.5).L
+    }
+    const at = (sig, a, b) => rms(sig, Math.round(a * sr), Math.round(b * sr))
+    const pinged = play({})
+    const viaOption = play({ envelope })
+    const viaMessage = play({}, h => h.setEnvelope(envelope))
+    assert.ok(at(viaOption, 0.7, 0.84) > 10 * at(pinged, 0.7, 0.84), `${sr} Hz: held`)
+    assert.ok(at(viaOption, 1.0, 1.5) < 1e-4, `${sr} Hz: released`)
+    assert.deepEqual(viaMessage, viaOption, `${sr} Hz: message = option`)
+  }
 })
 
 test('panic and dispose silence the lane', () => {

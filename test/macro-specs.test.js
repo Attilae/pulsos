@@ -4,6 +4,8 @@ import { readFileSync } from 'node:fs'
 import {
   DEFAULT_MACRO_ENGINE, MACRO_AUTOMATION_TARGETS, MACRO_DEFAULTS, MACRO_ENGINES, MACRO_PARAMS,
   MACRO_SELF_ENVELOPED, macroEngineIndex, macroPatch, macroTransposeSemitones, normalizeMacroParams, usesMacro,
+  MACRO_ENVELOPE_PARAMS, MACRO_AUTOMATION_TARGETS as TARGETS, macroCapabilities, macroEnvelopePatch,
+  macroEnvelopeToParams, macroParamsToEnvelope, macroParamsToTone,
 } from '../lib/macroSpecs.js'
 
 // The vocabulary must agree with the vendored DSP: engine indices are upstream's
@@ -88,4 +90,29 @@ test('usesMacro reads synth-type maps and lists', () => {
   assert.equal(usesMacro({ a: 'Synth', b: 'Macro' }), true)
   assert.equal(usesMacro(['Synth']), false)
   assert.equal(usesMacro(null), false)
+})
+
+test('the envelope is off by default, namespaced, clamped and round-trips through a plan', () => {
+  assert.equal(MACRO_DEFAULTS.macroEnvelope, false)
+  assert.equal(macroCapabilities(MACRO_DEFAULTS).envelope, false)
+  // Stale plain ADSR keys from another synth type never switch it on or leak in.
+  const stale = normalizeMacroParams({ attack: 2, sustain: 1, decay: 0.9 })
+  assert.equal(stale.macroEnvelope, false)
+  assert.equal(stale.macroDecay, MACRO_DEFAULTS.macroDecay, 'macroDecay is the gate, not the ADSR')
+  const on = normalizeMacroParams({ macroEnvelope: true, macroEnvAttack: 9, macroEnvSustain: -1, macroEnvRelease: '2' })
+  assert.deepEqual(macroEnvelopePatch(on), { enabled: true, attack: 4, decay: 0.3, sustain: 0, release: 2 })
+  assert.equal(macroCapabilities(on).envelope, true)
+  assert.equal(normalizeMacroParams({ macroEnvelope: 'yes' }).macroEnvelope, false)
+  for (const p of MACRO_ENVELOPE_PARAMS) assert.ok(p.default >= p.min && p.default <= p.max, p.key)
+  // Plan envelope ↔ lane params.
+  assert.equal(macroParamsToEnvelope(MACRO_DEFAULTS), null)
+  assert.deepEqual(macroParamsToEnvelope(on), { attack: 4, decay: 0.3, sustain: 0, release: 2 })
+  assert.deepEqual(normalizeMacroParams({ ...MACRO_DEFAULTS, ...macroEnvelopeToParams(macroParamsToEnvelope(on)) }), on)
+  assert.deepEqual(macroEnvelopeToParams({ attack: 0.2 }), { macroEnvelope: true, macroEnvAttack: 0.2 })
+  assert.deepEqual(macroEnvelopeToParams(null), {})
+  // tone.macro only says `envelope: true` while it's on.
+  assert.equal('envelope' in macroParamsToTone(MACRO_DEFAULTS), false)
+  assert.equal(macroParamsToTone(on).envelope, true)
+  // The envelope isn't automatable (yet).
+  assert.ok(!TARGETS.some(t => t.id.startsWith('synth.macroEnv')))
 })

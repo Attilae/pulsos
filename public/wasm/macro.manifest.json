@@ -1,7 +1,7 @@
 {
-  "asset": "macro-ed63b582.wasm",
-  "sha256": "ed63b582f28f58d20de1d15ffe207dbf86cb2c808f64e7d51b690dda258f65da",
-  "bytes": 208625,
+  "asset": "macro-22a19882.wasm",
+  "sha256": "22a1988297b187667c122916c93fe5ea8599a82bee8f21e71a0f75abfec83112",
+  "bytes": 211489,
   "toolchain": {
     "name": "wasi-sdk",
     "tag": "wasi-sdk-34",
@@ -60,7 +60,7 @@
   "sources": [
     {
       "path": "dsp/macro/bridge.cc",
-      "sha256": "32532632dae57ea0b48e6c5759b2915a34e7e9bf6f325bfd749c57ff9d6106b7"
+      "sha256": "a3d870438a9a03a932b88348716a1a9b66dc0f7bff93905b2dcbb70edc9d4e0f"
     },
     {
       "path": "vendor/plaits/src/plaits/dsp/chords/chord_bank.cc",
@@ -230,6 +230,7 @@
     "mc_out",
     "mc_fault_count",
     "mc_set_voices",
+    "mc_set_envelope",
     "mc_set_patch",
     "mc_set_aux",
     "mc_set_engine",

@@ -1,6 +1,8 @@
 ---
 title: "How Budapest Becomes a Synth Patch in Leið"
 slug: "budapest-generative-music-evening-metro-ride"
+cover_image: "./assets/budapest-evening-metro-ride-cover.png"
+cover_alt: "Leið blog cover with the Budapest synth patch title, yellow tram lanes, red and yellow route automation curves, and a blue noise lane."
 description: "Inside a Budapest preset in Leið: route-driven synths, granular processing, resonator voices and deliberate silences turn transit data into an arrangement."
 excerpt: "A breakdown of ‘a little evening metro ride 2’, where Budapest’s tram, trolleybus and bus routes become instruments, modulation sources and musical phrases."
 tags:
