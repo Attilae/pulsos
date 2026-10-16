@@ -23,6 +23,7 @@ import AIComposerPanel from '../AIComposerPanel.jsx'
 import SongMenu from '../SongMenu.jsx'
 import { useSongPersistence } from '../../lib/useSongPersistence.js'
 import { applySnapshot, buildSnapshot } from '@/lib/songState.js'
+import { audibleDrumPattern } from '@/lib/drumSpecs.js'
 import { getMasterBus } from '@/lib/masterBus.js'
 import { normalizeMasterChain } from '@/lib/masterChain.js'
 import { describeSnapshot } from '@/lib/ai/planSnapshot.js'
@@ -295,7 +296,7 @@ export default function MixerTab({ active = true }) {
   const [drumPattern, setDrumPatternState] = useState(null)
   const drumPatternRef = useRef(null)
   const pendingPublishedDrumRef = useRef(null)
-  const [drumsMuted,  setDrumsMuted]  = useState(false)   // session-only UI toggle
+  const [drumsMuted,  setDrumsMuted]  = useState(false)   // saved with the song (snapshot.drumsMuted)
   const drumClipboard = useDrumClipboard()
 
   const setLocalDrumPattern = useCallback((next) => {
@@ -724,12 +725,7 @@ export default function MixerTab({ active = true }) {
   useEffect(() => {
     const engine = engineRef.current
     if (!engine) return
-    if (drumPattern && drumsMuted) {
-      const silenced = { ...drumPattern, muted: Object.fromEntries(Object.keys(drumPattern.patterns ?? {}).map(k => [k, true])) }
-      engine.setDrumPattern(silenced)
-    } else {
-      engine.setDrumPattern(drumPattern)
-    }
+    engine.setDrumPattern(audibleDrumPattern(drumPattern, drumsMuted))
   }, [drumPattern, drumsMuted])
 
   const clipboardDrums = drumClipboard.pattern
