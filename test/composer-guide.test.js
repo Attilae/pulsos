@@ -78,7 +78,8 @@ test('the guide states how instruments and notes really behave', () => {
 test('the guide documents tone with the real waveform list and per-instrument support', () => {
   const text = composerVocabularyText()
   assert.ok(text.includes(`tone.oscillator ∈ {${OSC_TYPES.join(', ')}}`))
-  assert.match(text, /tone\.modulationIndex 0\.\.40 \(FM brightness\) for FMSynth;/)
+  assert.match(text, /tone\.modulationIndex 0\.\.40 \(FM brightness\) for PolySynth, FMSynth;/)
+  assert.match(text, /tone\.voice ∈ \{Synth, FMSynth, AMSynth\} for PolySynth/)
 })
 
 test('prompts carry the policy, one selected recipe, and the current song only in edit mode', () => {
