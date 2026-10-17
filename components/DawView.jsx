@@ -7,7 +7,9 @@ import { ANALOG_SLOPES, FILTER_RANGES, filterTargetActive, FILTER_TARGET_MODELS,
 import { PAD_DEFS as DRUM_PAD_DEFS, STEPS as DRUM_STEPS, SOURCE_STEPS as DRUM_SOURCE_STEPS, emptyPattern as emptyDrumPattern } from '@/lib/engines/drumEngine.js'
 import { noteToMidi, hashStopValue, snapStopsToGrid, GRID_TOTAL_CELLS, GRID_BARS, GRID_STEPS_PER_BAR, GRID_RESOLUTION_STEPS_PER_BAR, DEFAULT_GRID_RESOLUTION, denormalizeToRange, denormalizeExp, transposeNoteInScale, PITCH_CONTOURS, DEFAULT_PITCH_VARIETY, PITCH_SPANS, PITCH_LEAPS } from '@/lib/mappings.js'
 import { buildLanePitchMaps } from '@/lib/laneNotes.js'
-import { pickerSynthTypes, OSC_TYPES } from '@/lib/soundSpecs.js'
+import {
+  pickerSynthTypes, synthTypeLabel, POLY_VOICES, POLY_VOICE_LABELS, POLY_TARGET_VOICES, polyVoiceOf, polyTargetActive, OSC_TYPES,
+} from '@/lib/soundSpecs.js'
 import MacroControls from './MacroControls.jsx'
 import { NOTE_LENGTHS, NOTE_LENGTH_LABELS, DEFAULT_NOTE_LENGTH } from '@/lib/noteLength.js'
 import { useResetGesture } from '@/lib/shared/useResetGesture.js'
@@ -480,6 +482,8 @@ export default function DawView(props) {
               const autoTargets = {}
               for (const [laneId, cfg] of lanes) {
                 if (!cfg?.sourceRouteId) continue
+                // An inactive lane (its target needs another PolySynth voice) doesn't lock the control.
+                if (!polyTargetActive(cfg.paramTarget, synthTypeFor, trackADSRs?.[route.id])) continue
                 const live = liveAuto[route.id]?.[laneId]
                 autoTargets[cfg.paramTarget] = {
                   spec: findTargetSpec(cfg.paramTarget, synthTypeFor),
@@ -591,6 +595,7 @@ export default function DawView(props) {
                       disabled={disabled}
                       soloRoutes={soloRoutes}
                       synthType={trackSynthTypes?.[route.id] ?? 'Synth'}
+                      adsr={trackADSRs?.[route.id]}
                       granularEnabled={!!trackGranulars?.[route.id]?.enabled}
                       granular={trackGranulars?.[route.id]}
                       filter={trackFilters?.[route.id]}
@@ -1156,7 +1161,7 @@ function LineTrack({
               onChange={e => onSynthType(e.target.value)}
               aria-label="Instrument type"
             >
-              {pickerSynthTypes(synthType).map(t => <option key={t} value={t}>{t}</option>)}
+              {pickerSynthTypes(synthType).map(t => <option key={t} value={t}>{synthTypeLabel(t)}</option>)}
             </select>
           </div>
 
@@ -1690,7 +1695,7 @@ function LineTrack({
 // laneCb/laneObj there), so a plain shallow memo is enough.
 const MemoLineTrack = memo(LineTrack)
 
-function AutomationLane({ laneId, instRoute, laneCfg, allRoutes, activeFxTracks, disabled, soloRoutes, synthType = 'Synth', granularEnabled = false, granular = null, filter, started = false, visible = true, srcLoopRegion, srcGridResolution, onUpdate, onRemove, onLiveValue }) {
+function AutomationLane({ laneId, instRoute, laneCfg, allRoutes, activeFxTracks, disabled, soloRoutes, synthType = 'Synth', adsr = null, granularEnabled = false, granular = null, filter, started = false, visible = true, srcLoopRegion, srcGridResolution, onUpdate, onRemove, onLiveValue }) {
   const sourceRouteId = laneCfg?.sourceRouteId ?? ''
   const paramTarget   = laneCfg?.paramTarget   ?? 'volume'
   const points        = laneCfg?.points        ?? {}
@@ -1757,6 +1762,7 @@ function AutomationLane({ laneId, instRoute, laneCfg, allRoutes, activeFxTracks,
               {targets.map(t => (
                 <option key={t.id} value={t.id}>
                   {t.label}{FILTER_TARGET_MODELS[t.id] ? ` (${FILTER_MODEL_LABELS[FILTER_TARGET_MODELS[t.id]]})` : ''}
+                  {synthType === 'PolySynth' && POLY_TARGET_VOICES[t.id] ? ` (${POLY_TARGET_VOICES[t.id].map(v => POLY_VOICE_LABELS[v]).join(', ')})` : ''}
                 </option>
               ))}
             </optgroup>
@@ -1768,6 +1774,12 @@ function AutomationLane({ laneId, instRoute, laneCfg, allRoutes, activeFxTracks,
         {!filterTargetActive(paramTarget, filter) && (
           <p className="auto-lane-inactive" role="status">
             Inactive: this target needs the {FILTER_MODEL_LABELS[FILTER_TARGET_MODELS[paramTarget]]} filter.
+            It resumes when the lane switches back.
+          </p>
+        )}
+        {!polyTargetActive(paramTarget, synthType, adsr) && (
+          <p className="auto-lane-inactive" role="status">
+            Inactive: this target needs the {POLY_TARGET_VOICES[paramTarget].map(v => POLY_VOICE_LABELS[v]).join(' or ')} voice.
             It resumes when the lane switches back.
           </p>
         )}
@@ -2571,7 +2583,28 @@ function SpSliderWithCurve({ label, min, max, step, value, onChange, curveValue,
 
 const AMP_ENV_KEYS = new Set(['attack', 'decay', 'sustain', 'release'])
 
-function EnvPanel({ synthType, adsr, onADSR, onSamplerPreset, onDrumVoice, onSamplerUpload, autoTargets = {}, granularEnabled = false, laneName }) {
+function EnvPanel(props) {
+  // A PolySynth stacks copies of one voice, so it edits that voice's controls,
+  // headed by the voice picker. Defaults follow the voice, as the engine's do.
+  if (props.synthType === 'PolySynth') {
+    const voice = polyVoiceOf(props.adsr)
+    const header = (
+      <>
+        <SpSection label="POLY" />
+        <div className="sp-row sp-row--select">
+          <span className="sp-label">Voice</span>
+          <select className="sp-select" value={voice} onChange={e => props.onADSR({ voice: e.target.value })}>
+            {POLY_VOICES.map(v => <option key={v.id} value={v.id}>{v.label}</option>)}
+          </select>
+        </div>
+      </>
+    )
+    return <EnvPanelBody {...props} synthType={voice} header={header} />
+  }
+  return <EnvPanelBody {...props} />
+}
+
+function EnvPanelBody({ synthType, adsr, onADSR, onSamplerPreset, onDrumVoice, onSamplerUpload, autoTargets = {}, granularEnabled = false, laneName, header = null }) {
   const resonatorStatus = useResonatorStatus()
   const def = SYNTH_DEFAULTS[synthType] ?? SYNTH_DEFAULTS['Synth']
   const p = { ...def, ...adsr }
@@ -2740,6 +2773,7 @@ function EnvPanel({ synthType, adsr, onADSR, onSamplerPreset, onDrumVoice, onSam
 
   if (synthType === 'FMSynth') return (
     <div className="sp-panel">
+      {header}
       <SpSection label="CARRIER OSC" />
       <SpSelect label="Type"   value={p.oscillatorType ?? 'sine'}     options={OSC_TYPES} onChange={v => onADSR({ oscillatorType: v })} />
       <SpSlider label="Phase"  min={0} max={360} step={1}              value={p.phase ?? 0}              onChange={v => onADSR({ phase: v })} unit="°" />
@@ -2760,6 +2794,7 @@ function EnvPanel({ synthType, adsr, onADSR, onSamplerPreset, onDrumVoice, onSam
 
   if (synthType === 'AMSynth') return (
     <div className="sp-panel">
+      {header}
       <SpSection label="CARRIER OSC" />
       <SpSelect label="Type"   value={p.oscillatorType ?? 'sine'}      options={OSC_TYPES} onChange={v => onADSR({ oscillatorType: v })} />
       <SpSlider label="Phase"  min={0} max={360} step={1}               value={p.phase ?? 0}             onChange={v => onADSR({ phase: v })} unit="°" />
@@ -2795,6 +2830,7 @@ function EnvPanel({ synthType, adsr, onADSR, onSamplerPreset, onDrumVoice, onSam
   // Default: basic Synth
   return (
     <div className="sp-panel">
+      {header}
       <SpSection label="OSC" />
       <SpSelect label="Type"  value={p.oscillatorType ?? 'sine'} options={OSC_TYPES} onChange={v => onADSR({ oscillatorType: v })} />
       <SpSlider label="Phase" min={0} max={360} step={1}          value={p.phase ?? 0}  onChange={v => onADSR({ phase: v })} unit="°" />

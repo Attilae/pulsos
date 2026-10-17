@@ -766,13 +766,19 @@ classes.
   (engine + plan vocabulary); the DAW lane picker (desktop rack + phone `LaneSheet`) offers only
   `PICKER_SYNTH_TYPES` (Synth, FMSynth, NoiseSynth, PolySynth, Sampler, Drums). `pickerSynthTypes(current)`
   appends a lane's hidden type so a plan- or song-set instrument still displays correctly.
-- **Plan `tone`** covers `oscillator`, `harmonicity`, `modulationIndex`, `modEnvelope`, MonoSynth's
+- **Plan `tone`** covers `oscillator`, PolySynth's `voice`, `harmonicity`, `modulationIndex`, `modEnvelope`, MonoSynth's
   `filterEnvelope`/`filterQ` and PluckSynth's `resonance`/`dampening`/`attackNoise`. It is
   flattened by `toneToSynthParams` (`soundSpecs.js`) / `trackSynthParams` (`planApply.js`) into the
   same `trackADSRs` keys the synth editors write. Both apply paths merge it after the synthType
   reset. `TONE_SUPPORT` says which instrument honours which key; `validatePlan` drops the rest when
   the plan names the synthType, and the apply paths filter an edit's tone by the lane's *current*
   instrument — `resonance` is comb feedback on PluckSynth but Hz on MetalSynth.
+- **PolySynth ("Poly / Pad" in the picker) stacks one voice type**, `voice` = `Synth` | `FMSynth` |
+  `AMSynth` (`POLY_VOICES` in `soundSpecs.js`), so overlapping notes ring on. The voice is its
+  constructor: `updateEnvelope` rebuilds the synth when it changes. A key the lane hasn't stored
+  falls back to the voice's default (`buildSynthOpts`, the panel, readback). Its FM/AM targets are
+  always listed; one the current voice lacks is kept and shown inactive (`polyTargetActive`), like
+  the lane filter's model-specific targets. Tested in `test/poly-voice.test.js`.
 - **MonoSynth's cutoff is its filter envelope.** Tone connects `filterEnvelope` into
   `filter.frequency` and zeroes its base, so `buildSynthOpts` never passes a filter frequency (a
   later `set()` would add it back as an offset). The cutoff sweeps `filterEnvBaseFreq` →

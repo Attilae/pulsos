@@ -36,6 +36,7 @@ import {
   LOOP_PATTERN_PRESETS, MAX_PATTERN_PLAY, MAX_PATTERN_REST,
   normalizeLoopPattern, normalizeNoteChance,
 } from '@/lib/laneGating.js'
+import { synthTypeLabel, POLY_VOICES, polyVoiceOf } from '@/lib/soundSpecs.js'
 
 const SEGMENTS = [
   { id: 'sound', label: 'Tone' },
@@ -138,9 +139,20 @@ export default function LaneSheet({
                 value={synthType ?? 'Synth'}
                 onChange={e => onSynthType(route.id, route.type, e.target.value)}
               >
-                {pickerSynthTypes(synthType ?? 'Synth').map(t => <option key={t} value={t}>{t}</option>)}
+                {pickerSynthTypes(synthType ?? 'Synth').map(t => <option key={t} value={t}>{synthTypeLabel(t)}</option>)}
               </select>
             </Field>
+
+            {synthType === 'PolySynth' && (
+              <Field label="Voice" hint="Which synth each note of the pad plays. Notes overlap instead of cutting each other off.">
+                <select
+                  value={polyVoiceOf(adsr)}
+                  onChange={e => onADSR?.(route.id, { voice: e.target.value })}
+                >
+                  {POLY_VOICES.map(v => <option key={v.id} value={v.id}>{v.label}</option>)}
+                </select>
+              </Field>
+            )}
 
             {/* Same controls as the desktop label modal, imported rather than
                 re-implemented, so the two can't drift on presets or swatches. */}

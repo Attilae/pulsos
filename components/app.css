@@ -221,7 +221,10 @@
 }
 .mode-btn:last-child { border-right: none; }
 .mode-btn.active { background: var(--hover-surface); color: var(--accent); }
-.mode-btn:hover:not(.active) { background: var(--hover-surface); color: var(--text); }
+.mode-btn:hover:not(.active):not(:disabled) { background: var(--hover-surface); color: var(--text); }
+.mode-btn:disabled { cursor: not-allowed; opacity: 0.45; }
+.mode-control { display: flex; align-items: center; gap: 8px; }
+.mode-note { color: var(--muted); font-size: var(--fs-xs); white-space: nowrap; }
 
 .ws-status { font-size: var(--fs-xs); }
 .ws-status--connected    { color: var(--success-text); }
