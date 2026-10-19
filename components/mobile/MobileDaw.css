@@ -568,6 +568,9 @@
   font-size: var(--fs-xs); color: var(--text);
 }
 .lsheet-noterow-value.is-inherited { color: var(--muted); }
+/* Read-only row (stop-driven hold): label + a sentence, no slider or reset. */
+.lsheet-noterow-param--text { grid-template-columns: 4.5rem minmax(0, 1fr); }
+.lsheet-noterow-param--text .lsheet-noterow-value { text-align: left; }
 .lsheet-noterow-reset {
   display: grid; place-items: center;
   width: var(--tap-min); height: var(--tap-min);

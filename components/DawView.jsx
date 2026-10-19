@@ -12,6 +12,11 @@ import {
 } from '@/lib/soundSpecs.js'
 import MacroControls from './MacroControls.jsx'
 import { NOTE_LENGTHS, NOTE_LENGTH_LABELS, DEFAULT_NOTE_LENGTH } from '@/lib/noteLength.js'
+import {
+  DEFAULT_STOP_NOTE_LENGTH, normalizeStopNoteLength, stopNoteLengthStatus, STOP_NOTE_LENGTH_SYNTHS,
+  STOP_NOTE_LENGTH_HINT, STOP_NOTE_LENGTH_HELP, STOP_NOTE_LENGTH_MERGED_HELP,
+  previewStopHolds, stopDemand,
+} from '@/lib/stopNoteLength.js'
 import { useResetGesture } from '@/lib/shared/useResetGesture.js'
 import { useIsPhone } from '@/lib/shared/useViewport.js'
 import { subscribePlayhead } from '@/lib/shared/playheadTicker.js'
@@ -268,6 +273,7 @@ export default function DawView(props) {
   trackStopVelocities, onStopVelocity,
   trackNoteChances, onNoteChance, trackStopChances, onStopChance, trackLoopPatterns, onLoopPattern,
   trackNoteLengths, onNoteLength,
+  trackStopNoteLengths, onStopNoteLength,
   trackLabels, onLaneTag,
   trackDroneModes, trackDroneRoots, onDroneMode, onDroneRoot,
   onVolume, onDisable, onPan, onSolo,
@@ -537,6 +543,8 @@ export default function DawView(props) {
                     onNoteChance={laneCb(id, 'chance', (p, c) => p.onNoteChance?.(id, c))}
                     noteLength={trackNoteLengths?.[route.id]}
                     onNoteLength={laneCb(id, 'noteLength', (p, len) => p.onNoteLength?.(id, len))}
+                    stopNoteLength={trackStopNoteLengths?.[route.id]}
+                    onStopNoteLength={laneCb(id, 'stopNoteLength', (p, cfg) => p.onStopNoteLength?.(id, cfg))}
                     stopChances={trackStopChances?.[route.id]}
                     loopPattern={trackLoopPatterns?.[route.id]}
                     onLoopPattern={laneCb(id, 'loopPattern', (p, lp) => p.onLoopPattern?.(id, lp))}
@@ -909,7 +917,7 @@ function LineTrack({
   pitchVariety, onPitchVariety,
   stopVelocities, onStopOpen,
   noteChance, onNoteChance, stopChances, loopPattern, onLoopPattern,
-  noteLength, onNoteLength,
+  noteLength, onNoteLength, stopNoteLength, onStopNoteLength,
   onVolume, onDisable, onPan, onSolo, onSoundMode, onScale, onSynthType, onADSR,
   onSamplerPreset, onDrumVoice, onSamplerUpload,
   onFilter,
@@ -925,6 +933,13 @@ function LineTrack({
   const isMerged    = !!route.isMerged
   // Only plain base lanes can be folded into a merged lane.
   const mergeEligible = mergeMode && !isMerged && !isDuplicate
+  // The stop-driven note length config when it drives this lane's notes (else
+  // null) — the stop rail previews holds from it.
+  const arpOn = !!arp?.enabled
+  const stopHoldCfg = useMemo(() => {
+    const cfg = normalizeStopNoteLength(stopNoteLength)
+    return stopNoteLengthStatus({ cfg, synthType, arp: arpOn, legato, drone: droneMode, merged: isMerged }).active ? cfg : null
+  }, [stopNoteLength, synthType, arpOn, legato, droneMode, isMerged])
 
   // Automation locks: when a lane targets one of these, the control greys out and (during
   // playback) reads the swept value. Pan/glide convert from the spec unit to the slider unit.
@@ -1135,6 +1150,9 @@ function LineTrack({
         laneChance={laneChance}
         stopChances={stopChances}
         loopPattern={pattern}
+        holdCfg={stopHoldCfg}
+        noteLength={noteLength}
+        fallbackBeats={soundMode === 'percussive' ? 0.5 : 1}
       />
 
       {rackOpen && (
@@ -1359,6 +1377,70 @@ function LineTrack({
                 })}
               </div>
             </div>
+            {(() => {
+              // Stop-driven note length (lib/stopNoteLength.js). Fixed keeps the
+              // LENGTH row above; Demand maps each stop's demand into a range,
+              // and LENGTH stays the fallback for stops without demand.
+              const snl = normalizeStopNoteLength(stopNoteLength)
+              const status = stopNoteLengthStatus({
+                cfg: snl, synthType, arp: arp?.enabled, legato, drone: droneMode, merged: isMerged,
+              })
+              const setBound = (key, len) => onStopNoteLength?.({ ...snl, [key]: len })
+              // Offered on Poly / Pad lanes; another instrument only shows a mapping
+              // it kept from before the switch, inactive.
+              if (!snl && !STOP_NOTE_LENGTH_SYNTHS.has(synthType)) return null
+              return (
+                <>
+                  <div className="speed-row">
+                    <span className="speed-label">HOLD</span>
+                    <div className="speed-btns" title={`${STOP_NOTE_LENGTH_HINT} ${STOP_NOTE_LENGTH_HELP}`}>
+                      {[['fixed', 'Fixed'], ['demand', 'Demand']].map(([src, label]) => {
+                        const on = (snl ? 'demand' : 'fixed') === src
+                        return (
+                          <button
+                            key={src}
+                            className={`speed-btn ${on ? 'active' : ''}`}
+                            style={on ? { borderColor: route.color, color: route.color } : {}}
+                            aria-pressed={on}
+                            onClick={() => onStopNoteLength?.(src === 'demand' ? (snl ?? { ...DEFAULT_STOP_NOTE_LENGTH }) : null)}
+                          >
+                            {label}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                  {snl && (
+                    <div className="speed-row">
+                      <span className="speed-label">RANGE</span>
+                      <select className="scale-root-select" value={snl.min} aria-label="Shortest hold"
+                        onChange={e => setBound('min', e.target.value)}>
+                        {NOTE_LENGTHS.map(len => <option key={len} value={len}>{NOTE_LENGTH_LABELS[len]}</option>)}
+                      </select>
+                      <span className="speed-label" aria-hidden="true">to</span>
+                      <select className="scale-root-select" value={snl.max} aria-label="Longest hold"
+                        onChange={e => setBound('max', e.target.value)}>
+                        {NOTE_LENGTHS.map(len => <option key={len} value={len}>{NOTE_LENGTH_LABELS[len]}</option>)}
+                      </select>
+                      <button
+                        className={`legato-btn ${snl.invert ? 'active' : ''}`}
+                        style={snl.invert ? { borderColor: route.color, color: route.color } : {}}
+                        aria-pressed={snl.invert}
+                        onClick={() => onStopNoteLength?.({ ...snl, invert: !snl.invert })}
+                        title={snl.invert ? 'Inverted: quieter stops sustain longer' : 'Invert: make quieter stops sustain longer'}
+                      >INV</button>
+                    </div>
+                  )}
+                  {snl && (
+                    <p className="rack-card-note">
+                      {status.active
+                        ? `${snl.invert ? 'Quieter stops sustain longer.' : STOP_NOTE_LENGTH_HINT}${isMerged ? ` ${STOP_NOTE_LENGTH_MERGED_HELP}` : ''} Stops without demand use LENGTH.`
+                        : `${status.reason}. The mapping is kept for later.`}
+                    </p>
+                  )}
+                </>
+              )
+            })()}
             <div className="glide-row">
               <span className="glide-label">CHANCE</span>
               <input
@@ -2972,6 +3054,7 @@ function StopRail({
   pitchVariety = null,
   stopVelocities = null, perStopSteps = null, onStopOpen = null,
   laneChance = 1, stopChances = null, loopPattern = null,
+  holdCfg = null, noteLength = null, fallbackBeats = 1,
 }) {
   const needleRef = useRef(null)
   const railRef   = useRef(null)
@@ -3162,6 +3245,24 @@ function StopRail({
   }, [route, noteTotalCells, noteStepsPerBar, trackScale, pitchVariety, perStopSteps,
     octaveShift, semitoneShift, gridResolution, loopRegion, automationValues, startCell, endCell, regionLen])
 
+  // Stop-driven note length preview: each in-loop stop's hold, cut where the
+  // engine cuts it (the next onset of the same pitch). Recomputed on config
+  // edits only; nothing here moves per frame.
+  const holdPreview = useMemo(() => {
+    if (!holdCfg || !geo || geo.isMergedRail || automationValues) return null
+    const points = geo.stopPoints
+      .filter(p => p.cellIdx / noteTotalCells >= startCell / GRID_TOTAL_CELLS && p.cellIdx / noteTotalCells < endCell / GRID_TOTAL_CELLS)
+      .map(p => ({
+        key: p.id, x: p.x, y: p.y, midi: noteToMidi(p.noteName), demand: stopDemand(p),
+        frac: (p.cellIdx / noteTotalCells - startCell / GRID_TOTAL_CELLS) / (regionLen / GRID_TOTAL_CELLS),
+      }))
+    const holds = previewStopHolds(points, {
+      cfg: holdCfg, fixedLength: noteLength, fallbackBeats, loopBeats: 16 * (regionLen / GRID_TOTAL_CELLS) / speed,
+    })
+    // Bars in rail % (the rail is 16 beats at speed 1; hold time ignores speed).
+    return { holds, bars: points.map(p => ({ ...p, hold: holds.get(p.key) })) }
+  }, [holdCfg, geo, automationValues, noteTotalCells, startCell, endCell, regionLen, noteLength, fallbackBeats, speed])
+
   if (!geo) return <div className="stop-rail stop-rail--empty" />
   const { minLat, latRange, stopPoints, isMergedRail, mergedPoints, mergedSourceLines, geoDisplayMap } = geo
   const PAD = 0.1  // keep dots 10% from top/bottom edges (same as inside geo)
@@ -3274,6 +3375,18 @@ function StopRail({
           )}
       </svg>
 
+      {holdPreview?.bars.map(b => (
+        <div
+          key={`hold_${b.key}`}
+          className={`stop-hold-bar${b.hold.requested.fallback ? ' stop-hold-bar--fallback' : ''}`}
+          style={{
+            '--pos': `${b.x}%`, '--y-pos': `${b.y}%`, '--line-color': route.color,
+            '--hold-w': `${Math.min(100 - b.x, b.hold.effectiveBeats * speed / 16 * 100)}%`,
+          }}
+          aria-hidden="true"
+        />
+      ))}
+
       {mergedPoints
         ? mergedPoints.map((p) => (
             <div
@@ -3329,6 +3442,7 @@ function StopRail({
                 velocity: vel ?? 1,
                 chance: stopChance ?? null,
                 laneChance,
+                hold: holdPreview?.holds.get(stop.id) ?? null,
                 root: trackScale.root,
                 scaleType: trackScale.scaleType,
                 semitoneShift,
