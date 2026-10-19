@@ -33,6 +33,7 @@ import {
 import { exportRouteAudio, exportMixAudio } from '@/lib/audioExport.js'
 import { alertDialog } from '@/components/Dialog.jsx'
 import { useEntitlements } from '@/lib/shared/EntitlementsContext.jsx'
+import { decodeCustomAudio, checkDecodedAudio } from '@/lib/customAudio.js'
 import { countActiveLanes, normalizeLaneAccess, normalizeSnapshotLaneAccess } from '@/lib/billing/plans.js'
 import { buildReplacementLaneState, sendsToClear, trackSynthParams, planFilterState } from '@/lib/ai/planApply.js'
 import { trackProductEvent } from '@/lib/productAnalytics.js'
@@ -1081,16 +1082,22 @@ export default function MixerTab({ active = true }) {
     })
   }, [])
 
+  // Custom samples and IRs are Pro-only. The upload buttons already open the
+  // upgrade modal on Free; this is the backstop for any other caller.
+  const customUploadsAllowed = useCallback(() => {
+    if (limitsRef.current?.customUploads === true) return true
+    openUpgrade('custom_upload')
+    return false
+  }, [openUpgrade])
+
+  // Throws with a message for the upload row to show.
   const handleSamplerUpload = useCallback(async (routeId, file, note) => {
     if (!file) return
-    try {
-      const buf = await file.arrayBuffer()
-      const audioBuffer = await Tone.getContext().rawContext.decodeAudioData(buf)
-      engineRef.current?.setSamplerBuffer(routeId, note, audioBuffer)
-    } catch (err) {
-      console.error('Sampler sample decode failed:', err)
-    }
-  }, [])
+    if (!customUploadsAllowed()) throw new Error('Pro feature')
+    const raw = Tone.getContext().rawContext
+    const audioBuffer = await decodeCustomAudio(file, 'sample', buf => raw.decodeAudioData(buf))
+    engineRef.current?.setSamplerBuffer(routeId, note, audioBuffer)
+  }, [customUploadsAllowed])
 
   const handleGranular = useCallback((routeId, params) => {
     setTrackGranulars(g => {
@@ -1192,12 +1199,13 @@ export default function MixerTab({ active = true }) {
   }, [])
 
   const handleFxBusCustomIR = useCallback((busId, audioBuffer) => {
+    if (!customUploadsAllowed() || checkDecodedAudio(audioBuffer, 'ir')) return
     setFxBusParams(p => ({
       ...p,
       [busId]: { ...(p[busId] ?? {}), irType: 'custom' },
     }))
     engineRef.current?.setFxBusCustomIR(busId, audioBuffer)
-  }, [])
+  }, [customUploadsAllowed])
 
   const handleFxBusSolo = useCallback((busId) => {
     setFxBusSoloed(s => {

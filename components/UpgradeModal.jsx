@@ -3,13 +3,14 @@
 import { useRef, useState } from 'react'
 import { useModal } from '@/lib/shared/useModal.js'
 import './UpgradeModal.css'
-import { IconClose, IconDownload } from './icons.jsx'
+import { IconClose, IconDownload, IconMusic } from './icons.jsx'
 
 const REASON_COPY = {
   lane_limit: ['Six lines are playing', 'Free sessions can run six instrument lanes at once. Keep this set, or unlock a larger network.'],
   composition_limit: ['Your chain is full', 'Free songs can chain three presets. Pro removes the ceiling so the arrangement can keep moving.'],
   export_limit: ['The last sample export is gone', 'Pro unlocks unlimited MIDI and real-time WAV capture across every instrument.'],
   ai_limit: ['AI Composer allowance reached', 'Pro includes 50 new composition prompts every month.'],
+  custom_upload: ['Bring your own sounds', 'Loading your own sampler samples and reverb impulse responses is part of Pro.'],
   sign_in: ['Save your free credits', 'Sign in to claim three MIDI/WAV exports and three AI compositions.'],
   billing_error: ['Billing connection interrupted', 'The music is safe. Try checkout again, or return later if Lemon Squeezy is unavailable.'],
   upgrade: ['Take the full network', 'Build wider arrangements, export every idea, and keep AI Composer in the session.'],
@@ -43,6 +44,7 @@ export default function UpgradeModal({ reason, signedIn, busy, onClose, onChecko
           <li><strong>∞</strong><span>presets in every Song chain</span></li>
           <li><strong><IconDownload /></strong><span>unlimited MIDI + WAV exports</span></li>
           <li><strong>50</strong><span>AI compositions each month</span></li>
+          <li><strong><IconMusic /></strong><span>your own samples and reverb IRs</span></li>
         </ul>
 
         {signedIn ? (
