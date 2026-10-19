@@ -2175,7 +2175,10 @@ export default function MixerTab({ active = true }) {
           >DAW</button>
         </div>
 
-        <div className="mode-control">
+        <div
+          className="mode-control"
+          data-tooltip={cityEntry.liveWsUrl ? undefined : 'Live data not available yet'}
+        >
           <div className="mode-toggle" role="group" aria-label="Data source">
             <button
               className={`mode-btn ${mode === 'mock' ? 'active' : ''}`}
@@ -2187,12 +2190,11 @@ export default function MixerTab({ active = true }) {
               aria-pressed={mode === 'live'}
               disabled={!cityEntry.liveWsUrl}
               aria-describedby={cityEntry.liveWsUrl ? undefined : 'live-unavailable-note'}
-              title={cityEntry.liveWsUrl ? undefined : 'Live data is not available yet'}
               onClick={() => { if (started) { engineRef.current?.stopMock(); setStarted(false) }; setMode('live') }}
             >Live</button>
           </div>
           {!cityEntry.liveWsUrl && (
-            <span id="live-unavailable-note" className="mode-note">Live data not available yet</span>
+            <span id="live-unavailable-note" className="visually-hidden">Live data not available yet</span>
           )}
         </div>
 

@@ -223,8 +223,35 @@
 .mode-btn.active { background: var(--hover-surface); color: var(--accent); }
 .mode-btn:hover:not(.active):not(:disabled) { background: var(--hover-surface); color: var(--text); }
 .mode-btn:disabled { cursor: not-allowed; opacity: 0.45; }
-.mode-control { display: flex; align-items: center; gap: 8px; }
-.mode-note { color: var(--muted); font-size: var(--fs-xs); white-space: nowrap; }
+/* The tooltip hangs off the wrapper, not the Live button: .mode-toggle clips
+   its children (overflow: hidden), and a disabled button gets no mouse events
+   for a native title in every browser. Same look as .lane-icon-btn tooltips. */
+.mode-control { position: relative; display: flex; }
+@media (hover: hover) {
+  .mode-control[data-tooltip]::after {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 7px);
+    z-index: var(--z-tooltip);
+    transform: translateY(-2px);
+    padding: 5px 7px;
+    border: 1px solid var(--border-strong);
+    border-radius: 3px;
+    background: var(--surface-overlay);
+    box-shadow: var(--elevation-overlay);
+    color: var(--text);
+    font-size: var(--fs-3xs);
+    font-weight: 600;
+    line-height: 1.2;
+    letter-spacing: var(--tracking-tight);
+    white-space: nowrap;
+    pointer-events: none;
+  }
+  .mode-control[data-tooltip]:has(.mode-btn:disabled:hover)::after {
+    content: attr(data-tooltip);
+    transform: translateY(0);
+  }
+}
 
 .ws-status { font-size: var(--fs-xs); }
 .ws-status--connected    { color: var(--success-text); }
