@@ -998,6 +998,7 @@ function LineTrack({
               style={laneTag.color ? { '--lane-tag-color': laneTag.color } : undefined}
               onClick={onOpenTag}
               title="Label this lane (bass, lead, pad…)"
+              data-tour="lane-tag"
             >
               {laneTag.text || 'label'}
             </button>
@@ -1005,6 +1006,7 @@ function LineTrack({
               className={`add-lane-btn lane-icon-btn ${laneCount > 0 ? 'has-lanes' : ''}`}
               onClick={onAddLane}
               aria-label="Add automation lane"
+              data-tour="lane-automation"
               data-tooltip="Add automation lane"
             >
               {laneCount > 0 ? `+${laneCount}` : '+'}
@@ -1024,7 +1026,7 @@ function LineTrack({
           )}
         </div>
 
-        <div className="lt-mix">
+        <div className="lt-mix" data-tour="lane-mix">
           <button className={`disable-btn lane-icon-btn ${disabled ? 'active' : ''}`} onClick={onDisable} aria-pressed={!disabled} aria-label={`Enable ${route.name}`} data-tooltip={disabled ? 'Enable track' : 'Disable track'}><IconPower /></button>
           <button className={`solo-btn lane-icon-btn ${isSoloed ? 'active' : ''}`} onClick={onSolo} aria-pressed={isSoloed} aria-label={`Solo ${route.name}`} data-tooltip="Solo · Cmd/Ctrl-click to add">S</button>
           <input type="range" min="-40" max="6" step="1"
@@ -1082,6 +1084,7 @@ function LineTrack({
             className="dup-btn lane-icon-btn"
             onClick={onDuplicate}
             aria-label={`Duplicate ${route.name}`}
+            data-tour="lane-duplicate"
             data-tooltip="Duplicate lane · stack a chord"
           ><IconDuplicate /></button>
         )}
@@ -1109,6 +1112,7 @@ function LineTrack({
           onClick={() => setRackOpen(o => !o)}
           title={rackOpen ? 'Collapse device rack' : 'Expand device rack'}
           aria-expanded={rackOpen}
+          data-tour="lane-rack"
         >
           DEVICE RACK
           <IconCaretDown className={`rack-chevron ${rackOpen ? 'up' : ''}`} />
@@ -1153,7 +1157,7 @@ function LineTrack({
           </div>
 
           <DeviceRack layoutKey={synthType}>
-          <div className="rack-card rack-card--sound">
+          <div className="rack-card rack-card--sound" data-tour="rack-instrument">
             <div className="rack-card-head">Instrument</div>
             <select
               className="synth-select"
@@ -1165,7 +1169,7 @@ function LineTrack({
             </select>
           </div>
 
-          <div className="rack-card rack-card--sound">
+          <div className="rack-card rack-card--sound" data-tour="rack-pitch">
             <div className="rack-card-head">Pitch map</div>
             <div className="sound-mode-row">
               <select className="scale-root-select" value={trackScale.root}
@@ -1249,22 +1253,22 @@ function LineTrack({
             })()}
           </div>
 
-          <div className="rack-card rack-card--sound">
+          <div className="rack-card rack-card--sound" data-tour="rack-voice">
             <div className="rack-card-head">{synthType}</div>
             <EnvPanel synthType={synthType} adsr={adsr} onADSR={onADSR} onSamplerPreset={onSamplerPreset} onDrumVoice={onDrumVoice} onSamplerUpload={onSamplerUpload} autoTargets={autoTargets} granularEnabled={!!granular?.enabled && !supportsGranular(synthType)} laneName={route.name} />
           </div>
 
-          <div className="rack-card rack-card--sound">
+          <div className="rack-card rack-card--sound" data-tour="rack-filter">
             <div className="rack-card-head">Filter</div>
             <FilterPanel filter={filter} onFilter={onFilter} autoTargets={autoTargets} />
           </div>
 
-          <div className="rack-card rack-card-eq rack-card--sound">
+          <div className="rack-card rack-card-eq rack-card--sound" data-tour="rack-eq">
             <div className="rack-card-head">EQ</div>
             <EqPanel getRuntime={getEqRuntime} />
           </div>
 
-          <div className="rack-card rack-card--sound">
+          <div className="rack-card rack-card--sound" data-tour="rack-expression">
             <div className="rack-card-head">Expression</div>
             <div className="octave-row">
               <span className="octave-label">OCT</span>
@@ -1294,7 +1298,7 @@ function LineTrack({
             </div>}
           </div>
 
-          <div className="rack-card rack-card--rhythm">
+          <div className="rack-card rack-card--rhythm" data-tour="rack-timing">
             <div className="rack-card-head">Timing</div>
             <div className="speed-row">
               <span className="speed-label">SPEED</span>
@@ -1415,7 +1419,7 @@ function LineTrack({
             const arpOn = !!ag.enabled
             const dim = arpOn ? {} : { opacity: 0.4, pointerEvents: 'none' }
             return (
-              <div className="rack-card rack-card--rhythm">
+              <div className="rack-card rack-card--rhythm" data-tour="rack-arp">
                 <div className="rack-card-head">
                   Arpeggiator
                   <button
@@ -1496,7 +1500,7 @@ function LineTrack({
             // GrainPlayer layer's card (lib/granularEngine.js).
             <TextureControls cfg={granular} onChange={onGranular} autoTargets={autoTargets} laneName={route.name} />
           ) : !supportsGranular(synthType) ? (
-            <div className="rack-card rack-card--sound">
+            <div className="rack-card rack-card--sound" data-tour="rack-granular">
               <div className="rack-card-head">Granular</div>
               <p className="rack-card-note">
                 Not available on the {synthType} yet.
@@ -1531,7 +1535,7 @@ function LineTrack({
             const pct = v => `${Math.round(v * 100)}%`
             const ms  = v => `${Math.round(v * 1000)}ms`
             return (
-              <div className="rack-card rack-card--sound">
+              <div className="rack-card rack-card--sound" data-tour="rack-granular">
                 <div className="rack-card-head">
                   Granular
                   <button
@@ -1618,7 +1622,7 @@ function LineTrack({
             )
             const ms = v => `${Math.round(v * 1000)}ms`
             return (
-              <div className="rack-card rack-card--rhythm">
+              <div className="rack-card rack-card--rhythm" data-tour="rack-sidechain">
                 <div className="rack-card-head">
                   Sidechain
                   <button
@@ -1657,7 +1661,7 @@ function LineTrack({
           })()}
 
           {activeFxTracks?.length > 0 && (
-            <div className="rack-card rack-card--sound">
+            <div className="rack-card rack-card--sound" data-tour="rack-sends">
               <div className="rack-card-head">Sends</div>
               <div className="line-sends">
                 {activeFxTracks.map(busId => {
@@ -3210,6 +3214,7 @@ function StopRail({
     <div
       className="stop-rail"
       ref={railRef}
+      data-tour="lane-rail"
       style={{ '--cells-total': noteTotalCells, '--cells-per-beat': noteStepsPerBar / 4 }}
     >
       {/* Dim regions outside the loop band */}
