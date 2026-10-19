@@ -21,7 +21,7 @@ import { confirmDialog } from './Dialog.jsx'
 import { useEntitlements } from '@/lib/shared/EntitlementsContext.jsx'
 import { trackProductEvent } from '@/lib/productAnalytics.js'
 import './ProfilePanel.css'
-import { IconClose } from './icons.jsx'
+import { IconCheck, IconClose, IconCopy, IconDownload, IconExternal } from './icons.jsx'
 
 export default function ProfilePanel({ onClose }) {
   const { data: session } = useSession()
@@ -157,51 +157,101 @@ export function McpSection({ onDone }) {
     }
   }
 
+  const copyUrl = async () => {
+    try {
+      await navigator.clipboard.writeText(url)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch {
+      setMessage('Could not copy the URL. Select it from the field instead.')
+    }
+  }
+
   return (
-    <section className="profile-section">
+    <section className="profile-section mcp-section">
       <h3>Connect an AI client</h3>
       {loading ? <p className="profile-empty">Checking signal…</p> : isPro ? (
         <>
-          <p>In your AI client, add a remote MCP server using this URL. Sign in to Leið when prompted. <a href="/guides/mcp" target="_blank" rel="noopener">Step-by-step guide</a></p>
-          <div className="profile-field">
-            <label htmlFor="mcp-server-url">MCP server URL</label>
-            <div className="profile-inline">
-              <input id="mcp-server-url" value={url} readOnly />
-              <button className="profile-btn" type="button" disabled={!url} onClick={async () => {
-                try {
-                  await navigator.clipboard.writeText(url)
-                  setCopied(true)
-                } catch {
-                  setMessage('Could not copy the URL. Select it from the field instead.')
-                }
-              }}>{copied ? 'Copied' : 'Copy'}</button>
-            </div>
+          <p className="mcp-lede">
+            Let Claude or another MCP client read and compose your saved songs.
+            Edits show up the next time you open the song in Leið.
+          </p>
+
+          <ol className="mcp-steps">
+            <li className="mcp-step">
+              <div className="mcp-step-head">
+                <span className="mcp-step-num" aria-hidden="true">1</span>
+                <h4>Add the server</h4>
+              </div>
+              <p>In your AI client, add a remote MCP server with this URL, then sign in to Leið when prompted.</p>
+              <div className="mcp-url">
+                <label className="visually-hidden" htmlFor="mcp-server-url">MCP server URL</label>
+                <input id="mcp-server-url" value={url} readOnly spellCheck={false}
+                  onFocus={(event) => event.target.select()} />
+                <button type="button" className="mcp-url-copy" disabled={!url} onClick={copyUrl}
+                  aria-label={copied ? 'Copied' : 'Copy MCP server URL'}>
+                  {copied ? <IconCheck /> : <IconCopy />}
+                  <span>{copied ? 'Copied' : 'Copy'}</span>
+                </button>
+              </div>
+              <a className="mcp-link" href="/guides/mcp" target="_blank" rel="noopener">
+                Step-by-step guide <IconExternal />
+              </a>
+            </li>
+
+            <li className="mcp-step">
+              <div className="mcp-step-head">
+                <span className="mcp-step-num" aria-hidden="true">2</span>
+                <h4>Install the composer skill</h4>
+                <span className="mcp-tag">Optional</span>
+              </div>
+              <p>Teaches Claude the Leið workflow and a set of genre recipes. Upload the zip in Claude under Settings, Capabilities, Skills.</p>
+              <div className="mcp-actions">
+                <a className="profile-btn mcp-btn" href="/skills/leid-composer.zip" download
+                  onClick={() => trackProductEvent('mcp_skill_download')}>
+                  <IconDownload /> Download skill
+                </a>
+                <a className="mcp-link" href="/guides/composer-skill" target="_blank" rel="noopener">
+                  How to install <IconExternal />
+                </a>
+              </div>
+            </li>
+          </ol>
+
+          <div className="mcp-clients">
+            <h4 className="mcp-clients-title">
+              Connected clients
+              {connections?.length ? <span className="profile-count">{connections.length}</span> : null}
+            </h4>
+            {connections === null ? <p className="profile-empty">Loading connections…</p>
+              : connections.length === 0 ? <p className="mcp-clients-empty">No clients connected yet.</p>
+                : (
+                  <ul className="mcp-client-list">
+                    {connections.map((connection) => (
+                      <li className="mcp-client" key={connection.id}>
+                        <span className="mcp-client-dot" aria-hidden="true" />
+                        <span className="mcp-client-name">{connection.name}</span>
+                        <button className="preset-action preset-action--danger" type="button"
+                          onClick={() => disconnect(connection.id)}>
+                          Disconnect
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
           </div>
-          <p>The connected client can work with your saved songs. Changes to a saved song appear when you open it in Leið.</p>
-          <h4>Composer skill</h4>
-          <p>Teaches Claude the Leið composing workflow and a set of genre recipes. In Claude, open Settings → Capabilities → Skills and upload the zip. <a href="/guides/composer-skill" target="_blank" rel="noopener">How to install</a></p>
-          <a className="profile-btn" href="/skills/leid-composer.zip" download
-            onClick={() => trackProductEvent('mcp_skill_download')}>
-            Download skill
-          </a>
-          <h4>Connected clients</h4>
-          {connections === null ? <p className="profile-empty">Loading connections…</p>
-            : connections.length === 0 ? <p className="profile-empty">No clients connected yet.</p>
-              : connections.map((connection) => (
-                <div className="profile-inline" key={connection.id}>
-                  <span className="profile-readonly">{connection.name}</span>
-                  <button className="profile-btn" type="button" onClick={() => disconnect(connection.id)}>
-                    Disconnect
-                  </button>
-                </div>
-              ))}
         </>
       ) : (
         <>
-          <p>AI client connections are available with Leið Pro. <a href="/guides/mcp" target="_blank" rel="noopener">See what they do</a></p>
-          <button className="profile-btn" type="button" onClick={() => { onDone?.(); openUpgrade('upgrade') }}>
-            Upgrade to Pro
-          </button>
+          <p className="mcp-lede">AI client connections are available with Leið Pro.</p>
+          <div className="mcp-actions">
+            <button className="profile-btn" type="button" onClick={() => { onDone?.(); openUpgrade('upgrade') }}>
+              Upgrade to Pro
+            </button>
+            <a className="mcp-link" href="/guides/mcp" target="_blank" rel="noopener">
+              See what they do <IconExternal />
+            </a>
+          </div>
         </>
       )}
       {message && <p className="profile-msg" role="status">{message}</p>}

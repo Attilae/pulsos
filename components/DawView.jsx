@@ -12,6 +12,11 @@ import {
 } from '@/lib/soundSpecs.js'
 import MacroControls from './MacroControls.jsx'
 import { NOTE_LENGTHS, NOTE_LENGTH_LABELS, DEFAULT_NOTE_LENGTH } from '@/lib/noteLength.js'
+import {
+  DEFAULT_STOP_NOTE_LENGTH, normalizeStopNoteLength, stopNoteLengthStatus, STOP_NOTE_LENGTH_SYNTHS,
+  STOP_NOTE_LENGTH_HINT, STOP_NOTE_LENGTH_HELP, STOP_NOTE_LENGTH_MERGED_HELP,
+  previewStopHolds, stopDemand,
+} from '@/lib/stopNoteLength.js'
 import { useResetGesture } from '@/lib/shared/useResetGesture.js'
 import { useIsPhone } from '@/lib/shared/useViewport.js'
 import { subscribePlayhead } from '@/lib/shared/playheadTicker.js'
@@ -31,6 +36,8 @@ import { NOTE_ROOTS, SCALE_TYPES } from '@/lib/harmony.js'
 import { getMasterBus } from '@/lib/masterBus.js'
 import { MASTER_CHAIN_DEFAULTS, MASTER_CHAIN_SPECS, MASTER_CHAIN_STAGES, isDefaultMasterChain } from '@/lib/masterChain.js'
 import { installWeq8Lifecycle, observeWeq8 } from '@/lib/shared/weq8Lifecycle.js'
+import { useEntitlements } from '@/lib/shared/EntitlementsContext.jsx'
+import { decodeCustomAudio } from '@/lib/customAudio.js'
 import './DawView.css'
 import { IconAdd, IconCaretDown, IconChangeLine, IconClose, IconDuplicate, IconPower, IconRepick, IconReset } from './icons.jsx'
 
@@ -268,6 +275,7 @@ export default function DawView(props) {
   trackStopVelocities, onStopVelocity,
   trackNoteChances, onNoteChance, trackStopChances, onStopChance, trackLoopPatterns, onLoopPattern,
   trackNoteLengths, onNoteLength,
+  trackStopNoteLengths, onStopNoteLength,
   trackLabels, onLaneTag,
   trackDroneModes, trackDroneRoots, onDroneMode, onDroneRoot,
   onVolume, onDisable, onPan, onSolo,
@@ -537,6 +545,8 @@ export default function DawView(props) {
                     onNoteChance={laneCb(id, 'chance', (p, c) => p.onNoteChance?.(id, c))}
                     noteLength={trackNoteLengths?.[route.id]}
                     onNoteLength={laneCb(id, 'noteLength', (p, len) => p.onNoteLength?.(id, len))}
+                    stopNoteLength={trackStopNoteLengths?.[route.id]}
+                    onStopNoteLength={laneCb(id, 'stopNoteLength', (p, cfg) => p.onStopNoteLength?.(id, cfg))}
                     stopChances={trackStopChances?.[route.id]}
                     loopPattern={trackLoopPatterns?.[route.id]}
                     onLoopPattern={laneCb(id, 'loopPattern', (p, lp) => p.onLoopPattern?.(id, lp))}
@@ -909,7 +919,7 @@ function LineTrack({
   pitchVariety, onPitchVariety,
   stopVelocities, onStopOpen,
   noteChance, onNoteChance, stopChances, loopPattern, onLoopPattern,
-  noteLength, onNoteLength,
+  noteLength, onNoteLength, stopNoteLength, onStopNoteLength,
   onVolume, onDisable, onPan, onSolo, onSoundMode, onScale, onSynthType, onADSR,
   onSamplerPreset, onDrumVoice, onSamplerUpload,
   onFilter,
@@ -925,6 +935,13 @@ function LineTrack({
   const isMerged    = !!route.isMerged
   // Only plain base lanes can be folded into a merged lane.
   const mergeEligible = mergeMode && !isMerged && !isDuplicate
+  // The stop-driven note length config when it drives this lane's notes (else
+  // null) — the stop rail previews holds from it.
+  const arpOn = !!arp?.enabled
+  const stopHoldCfg = useMemo(() => {
+    const cfg = normalizeStopNoteLength(stopNoteLength)
+    return stopNoteLengthStatus({ cfg, synthType, arp: arpOn, legato, drone: droneMode, merged: isMerged }).active ? cfg : null
+  }, [stopNoteLength, synthType, arpOn, legato, droneMode, isMerged])
 
   // Automation locks: when a lane targets one of these, the control greys out and (during
   // playback) reads the swept value. Pan/glide convert from the spec unit to the slider unit.
@@ -998,6 +1015,7 @@ function LineTrack({
               style={laneTag.color ? { '--lane-tag-color': laneTag.color } : undefined}
               onClick={onOpenTag}
               title="Label this lane (bass, lead, pad…)"
+              data-tour="lane-tag"
             >
               {laneTag.text || 'label'}
             </button>
@@ -1005,6 +1023,7 @@ function LineTrack({
               className={`add-lane-btn lane-icon-btn ${laneCount > 0 ? 'has-lanes' : ''}`}
               onClick={onAddLane}
               aria-label="Add automation lane"
+              data-tour="lane-automation"
               data-tooltip="Add automation lane"
             >
               {laneCount > 0 ? `+${laneCount}` : '+'}
@@ -1024,7 +1043,7 @@ function LineTrack({
           )}
         </div>
 
-        <div className="lt-mix">
+        <div className="lt-mix" data-tour="lane-mix">
           <button className={`disable-btn lane-icon-btn ${disabled ? 'active' : ''}`} onClick={onDisable} aria-pressed={!disabled} aria-label={`Enable ${route.name}`} data-tooltip={disabled ? 'Enable track' : 'Disable track'}><IconPower /></button>
           <button className={`solo-btn lane-icon-btn ${isSoloed ? 'active' : ''}`} onClick={onSolo} aria-pressed={isSoloed} aria-label={`Solo ${route.name}`} data-tooltip="Solo · Cmd/Ctrl-click to add">S</button>
           <input type="range" min="-40" max="6" step="1"
@@ -1082,6 +1101,7 @@ function LineTrack({
             className="dup-btn lane-icon-btn"
             onClick={onDuplicate}
             aria-label={`Duplicate ${route.name}`}
+            data-tour="lane-duplicate"
             data-tooltip="Duplicate lane · stack a chord"
           ><IconDuplicate /></button>
         )}
@@ -1109,6 +1129,7 @@ function LineTrack({
           onClick={() => setRackOpen(o => !o)}
           title={rackOpen ? 'Collapse device rack' : 'Expand device rack'}
           aria-expanded={rackOpen}
+          data-tour="lane-rack"
         >
           DEVICE RACK
           <IconCaretDown className={`rack-chevron ${rackOpen ? 'up' : ''}`} />
@@ -1135,6 +1156,9 @@ function LineTrack({
         laneChance={laneChance}
         stopChances={stopChances}
         loopPattern={pattern}
+        holdCfg={stopHoldCfg}
+        noteLength={noteLength}
+        fallbackBeats={soundMode === 'percussive' ? 0.5 : 1}
       />
 
       {rackOpen && (
@@ -1153,7 +1177,7 @@ function LineTrack({
           </div>
 
           <DeviceRack layoutKey={synthType}>
-          <div className="rack-card rack-card--sound">
+          <div className="rack-card rack-card--sound" data-tour="rack-instrument">
             <div className="rack-card-head">Instrument</div>
             <select
               className="synth-select"
@@ -1165,7 +1189,7 @@ function LineTrack({
             </select>
           </div>
 
-          <div className="rack-card rack-card--sound">
+          <div className="rack-card rack-card--sound" data-tour="rack-pitch">
             <div className="rack-card-head">Pitch map</div>
             <div className="sound-mode-row">
               <select className="scale-root-select" value={trackScale.root}
@@ -1249,22 +1273,22 @@ function LineTrack({
             })()}
           </div>
 
-          <div className="rack-card rack-card--sound">
+          <div className="rack-card rack-card--sound" data-tour="rack-voice">
             <div className="rack-card-head">{synthType}</div>
             <EnvPanel synthType={synthType} adsr={adsr} onADSR={onADSR} onSamplerPreset={onSamplerPreset} onDrumVoice={onDrumVoice} onSamplerUpload={onSamplerUpload} autoTargets={autoTargets} granularEnabled={!!granular?.enabled && !supportsGranular(synthType)} laneName={route.name} />
           </div>
 
-          <div className="rack-card rack-card--sound">
+          <div className="rack-card rack-card--sound" data-tour="rack-filter">
             <div className="rack-card-head">Filter</div>
             <FilterPanel filter={filter} onFilter={onFilter} autoTargets={autoTargets} />
           </div>
 
-          <div className="rack-card rack-card-eq rack-card--sound">
+          <div className="rack-card rack-card-eq rack-card--sound" data-tour="rack-eq">
             <div className="rack-card-head">EQ</div>
             <EqPanel getRuntime={getEqRuntime} />
           </div>
 
-          <div className="rack-card rack-card--sound">
+          <div className="rack-card rack-card--sound" data-tour="rack-expression">
             <div className="rack-card-head">Expression</div>
             <div className="octave-row">
               <span className="octave-label">OCT</span>
@@ -1294,7 +1318,7 @@ function LineTrack({
             </div>}
           </div>
 
-          <div className="rack-card rack-card--rhythm">
+          <div className="rack-card rack-card--rhythm" data-tour="rack-timing">
             <div className="rack-card-head">Timing</div>
             <div className="speed-row">
               <span className="speed-label">SPEED</span>
@@ -1359,6 +1383,70 @@ function LineTrack({
                 })}
               </div>
             </div>
+            {(() => {
+              // Stop-driven note length (lib/stopNoteLength.js). Fixed keeps the
+              // LENGTH row above; Demand maps each stop's demand into a range,
+              // and LENGTH stays the fallback for stops without demand.
+              const snl = normalizeStopNoteLength(stopNoteLength)
+              const status = stopNoteLengthStatus({
+                cfg: snl, synthType, arp: arp?.enabled, legato, drone: droneMode, merged: isMerged,
+              })
+              const setBound = (key, len) => onStopNoteLength?.({ ...snl, [key]: len })
+              // Offered on Poly / Pad lanes; another instrument only shows a mapping
+              // it kept from before the switch, inactive.
+              if (!snl && !STOP_NOTE_LENGTH_SYNTHS.has(synthType)) return null
+              return (
+                <>
+                  <div className="speed-row">
+                    <span className="speed-label">HOLD</span>
+                    <div className="speed-btns" title={`${STOP_NOTE_LENGTH_HINT} ${STOP_NOTE_LENGTH_HELP}`}>
+                      {[['fixed', 'Fixed'], ['demand', 'Demand']].map(([src, label]) => {
+                        const on = (snl ? 'demand' : 'fixed') === src
+                        return (
+                          <button
+                            key={src}
+                            className={`speed-btn ${on ? 'active' : ''}`}
+                            style={on ? { borderColor: route.color, color: route.color } : {}}
+                            aria-pressed={on}
+                            onClick={() => onStopNoteLength?.(src === 'demand' ? (snl ?? { ...DEFAULT_STOP_NOTE_LENGTH }) : null)}
+                          >
+                            {label}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                  {snl && (
+                    <div className="speed-row">
+                      <span className="speed-label">RANGE</span>
+                      <select className="scale-root-select" value={snl.min} aria-label="Shortest hold"
+                        onChange={e => setBound('min', e.target.value)}>
+                        {NOTE_LENGTHS.map(len => <option key={len} value={len}>{NOTE_LENGTH_LABELS[len]}</option>)}
+                      </select>
+                      <span className="speed-label" aria-hidden="true">to</span>
+                      <select className="scale-root-select" value={snl.max} aria-label="Longest hold"
+                        onChange={e => setBound('max', e.target.value)}>
+                        {NOTE_LENGTHS.map(len => <option key={len} value={len}>{NOTE_LENGTH_LABELS[len]}</option>)}
+                      </select>
+                      <button
+                        className={`legato-btn ${snl.invert ? 'active' : ''}`}
+                        style={snl.invert ? { borderColor: route.color, color: route.color } : {}}
+                        aria-pressed={snl.invert}
+                        onClick={() => onStopNoteLength?.({ ...snl, invert: !snl.invert })}
+                        title={snl.invert ? 'Inverted: quieter stops sustain longer' : 'Invert: make quieter stops sustain longer'}
+                      >INV</button>
+                    </div>
+                  )}
+                  {snl && (
+                    <p className="rack-card-note">
+                      {status.active
+                        ? `${snl.invert ? 'Quieter stops sustain longer.' : STOP_NOTE_LENGTH_HINT}${isMerged ? ` ${STOP_NOTE_LENGTH_MERGED_HELP}` : ''} Stops without demand use LENGTH.`
+                        : `${status.reason}. The mapping is kept for later.`}
+                    </p>
+                  )}
+                </>
+              )
+            })()}
             <div className="glide-row">
               <span className="glide-label">CHANCE</span>
               <input
@@ -1415,7 +1503,7 @@ function LineTrack({
             const arpOn = !!ag.enabled
             const dim = arpOn ? {} : { opacity: 0.4, pointerEvents: 'none' }
             return (
-              <div className="rack-card rack-card--rhythm">
+              <div className="rack-card rack-card--rhythm" data-tour="rack-arp">
                 <div className="rack-card-head">
                   Arpeggiator
                   <button
@@ -1496,7 +1584,7 @@ function LineTrack({
             // GrainPlayer layer's card (lib/granularEngine.js).
             <TextureControls cfg={granular} onChange={onGranular} autoTargets={autoTargets} laneName={route.name} />
           ) : !supportsGranular(synthType) ? (
-            <div className="rack-card rack-card--sound">
+            <div className="rack-card rack-card--sound" data-tour="rack-granular">
               <div className="rack-card-head">Granular</div>
               <p className="rack-card-note">
                 Not available on the {synthType} yet.
@@ -1531,7 +1619,7 @@ function LineTrack({
             const pct = v => `${Math.round(v * 100)}%`
             const ms  = v => `${Math.round(v * 1000)}ms`
             return (
-              <div className="rack-card rack-card--sound">
+              <div className="rack-card rack-card--sound" data-tour="rack-granular">
                 <div className="rack-card-head">
                   Granular
                   <button
@@ -1618,7 +1706,7 @@ function LineTrack({
             )
             const ms = v => `${Math.round(v * 1000)}ms`
             return (
-              <div className="rack-card rack-card--rhythm">
+              <div className="rack-card rack-card--rhythm" data-tour="rack-sidechain">
                 <div className="rack-card-head">
                   Sidechain
                   <button
@@ -1657,7 +1745,7 @@ function LineTrack({
           })()}
 
           {activeFxTracks?.length > 0 && (
-            <div className="rack-card rack-card--sound">
+            <div className="rack-card rack-card--sound" data-tour="rack-sends">
               <div className="rack-card-head">Sends</div>
               <div className="line-sends">
                 {activeFxTracks.map(busId => {
@@ -2307,11 +2395,16 @@ function GainReductionMeter({ label, db, title = `${label} gain reduction` }) {
   )
 }
 
+// The "Custom…" IR needs an uploaded file, which is Pro-only, so Free doesn't list it.
+const CUSTOM_IR_VALUES = ['custom']
+
 function FxTrackCard({ bus, wet, muted, soloed, params, onWet, onMute, onSolo, onParam, onCustomIR, onRemove }) {
   const specs = FX_PARAM_SPECS[bus.id] ?? []
   // When tempo-synced, the raw ms/Hz slider for the synced param is inert.
   const syncTarget = FX_SYNC_TARGETS[bus.id]
   const synced = (params?.sync ?? bus.defaults?.sync ?? 'free') !== 'free'
+  const { limits } = useEntitlements()
+  const customUploads = limits?.customUploads === true
   return (
     <div className={`fx-track-card ${muted ? 'fx-track-card--muted' : ''}`}>
       <div className="fx-track-card-header">
@@ -2338,6 +2431,7 @@ function FxTrackCard({ bus, wet, muted, soloed, params, onWet, onMute, onSolo, o
               value={params?.[spec.id] ?? bus.defaults?.[spec.id]}
               onChange={v => onParam(spec.id, v)}
               disabled={synced && spec.id === syncTarget}
+              hiddenValues={spec.id === 'irType' && !customUploads ? CUSTOM_IR_VALUES : null}
             />
           ))}
           {bus.id === 'reverb' && onCustomIR && (
@@ -2349,23 +2443,37 @@ function FxTrackCard({ bus, wet, muted, soloed, params, onWet, onMute, onSolo, o
   )
 }
 
+// Custom uploads (IRs here, sampler files below) are Pro-only: on Free the
+// button opens the upgrade modal instead of the file picker.
+function useCustomUploadGate(inputRef) {
+  const { limits, openUpgrade } = useEntitlements()
+  const allowed = limits?.customUploads === true
+  const choose = useCallback(() => {
+    if (allowed) inputRef.current?.click()
+    else openUpgrade('custom_upload')
+  }, [allowed, inputRef, openUpgrade])
+  return { allowed, choose }
+}
+
 function CustomIRPicker({ onCustomIR }) {
   const inputRef = useRef(null)
   const [name, setName] = useState(null)
   const [error, setError] = useState(null)
+  const { allowed, choose } = useCustomUploadGate(inputRef)
 
   async function handleFile(e) {
     const file = e.target.files?.[0]
+    e.target.value = ''   // so picking the same file again still fires onChange
     if (!file) return
     setError(null)
     try {
-      const buf = await file.arrayBuffer()
-      const audioBuffer = await Tone.getContext().rawContext.decodeAudioData(buf)
+      const raw = Tone.getContext().rawContext
+      const audioBuffer = await decodeCustomAudio(file, 'ir', buf => raw.decodeAudioData(buf))
       setName(file.name)
       onCustomIR(audioBuffer)
     } catch (err) {
-      console.error('Custom IR decode failed:', err)
-      setError('decode failed')
+      console.error('Custom IR load failed:', err)
+      setError(err.message)
     }
   }
 
@@ -2375,9 +2483,10 @@ function CustomIRPicker({ onCustomIR }) {
       <button
         type="button"
         className="fx-param-select"
-        onClick={() => inputRef.current?.click()}
+        onClick={choose}
+        title={allowed ? undefined : 'Custom impulse responses are a Pro feature'}
       >
-        {error ?? name ?? 'Choose WAV…'}
+        {allowed ? (error ?? name ?? 'Choose WAV…') : 'Pro'}
       </button>
       <input
         ref={inputRef}
@@ -2395,18 +2504,20 @@ function SamplerUploadRow({ onSamplerUpload }) {
   const [note, setNote] = useState('C4')
   const [name, setName] = useState(null)
   const [error, setError] = useState(null)
+  const { allowed, choose } = useCustomUploadGate(inputRef)
   const baseNotes = ['C2', 'C3', 'C4', 'C5', 'A3', 'A4']
 
-  function handleFile(e) {
+  async function handleFile(e) {
     const file = e.target.files?.[0]
+    e.target.value = ''   // so picking the same file again still fires onChange
     if (!file) return
     setError(null)
     try {
+      await onSamplerUpload?.(file, note)
       setName(file.name)
-      onSamplerUpload?.(file, note)
     } catch (err) {
       console.error('Sampler upload failed:', err)
-      setError('failed')
+      setError(err.message)
     }
   }
 
@@ -2417,8 +2528,9 @@ function SamplerUploadRow({ onSamplerUpload }) {
         title="Base note for the uploaded sample">
         {baseNotes.map(n => <option key={n} value={n}>{n}</option>)}
       </select>
-      <button type="button" className="sp-select" onClick={() => inputRef.current?.click()}>
-        {error ?? name ?? 'Choose…'}
+      <button type="button" className="sp-select" onClick={choose}
+        title={allowed ? undefined : 'Custom samples are a Pro feature'}>
+        {allowed ? (error ?? name ?? 'Choose…') : 'Pro'}
       </button>
       <input
         ref={inputRef}
@@ -2433,18 +2545,22 @@ function SamplerUploadRow({ onSamplerUpload }) {
 
 // `disabledText` replaces the value readout while disabled (a tempo-synced delay
 // time reads "synced"); null keeps showing the value.
-function FxParamControl({ spec, value, onChange, disabled = false, disabledText = 'synced' }) {
+// `hiddenValues` drops enum options from the list; one that is the current value
+// stays, disabled, so a song that already uses it still reads correctly.
+function FxParamControl({ spec, value, onChange, disabled = false, disabledText = 'synced', hiddenValues = null }) {
   if (spec.kind === 'enum') {
+    const current = value ?? spec.values[0]
+    const values = hiddenValues ? spec.values.filter(v => v === current || !hiddenValues.includes(v)) : spec.values
     return (
       <div className="fx-param-row">
         <span className="fx-param-label">{spec.label}</span>
         <select
           className="fx-param-select"
-          value={value ?? spec.values[0]}
+          value={current}
           onChange={e => onChange(e.target.value)}
         >
-          {spec.values.map(v => (
-            <option key={v} value={v}>{spec.valueLabels?.[v] ?? v}</option>
+          {values.map(v => (
+            <option key={v} value={v} disabled={hiddenValues?.includes(v)}>{spec.valueLabels?.[v] ?? v}</option>
           ))}
         </select>
       </div>
@@ -2972,6 +3088,7 @@ function StopRail({
   pitchVariety = null,
   stopVelocities = null, perStopSteps = null, onStopOpen = null,
   laneChance = 1, stopChances = null, loopPattern = null,
+  holdCfg = null, noteLength = null, fallbackBeats = 1,
 }) {
   const needleRef = useRef(null)
   const railRef   = useRef(null)
@@ -3162,6 +3279,24 @@ function StopRail({
   }, [route, noteTotalCells, noteStepsPerBar, trackScale, pitchVariety, perStopSteps,
     octaveShift, semitoneShift, gridResolution, loopRegion, automationValues, startCell, endCell, regionLen])
 
+  // Stop-driven note length preview: each in-loop stop's hold, cut where the
+  // engine cuts it (the next onset of the same pitch). Recomputed on config
+  // edits only; nothing here moves per frame.
+  const holdPreview = useMemo(() => {
+    if (!holdCfg || !geo || geo.isMergedRail || automationValues) return null
+    const points = geo.stopPoints
+      .filter(p => p.cellIdx / noteTotalCells >= startCell / GRID_TOTAL_CELLS && p.cellIdx / noteTotalCells < endCell / GRID_TOTAL_CELLS)
+      .map(p => ({
+        key: p.id, x: p.x, y: p.y, midi: noteToMidi(p.noteName), demand: stopDemand(p),
+        frac: (p.cellIdx / noteTotalCells - startCell / GRID_TOTAL_CELLS) / (regionLen / GRID_TOTAL_CELLS),
+      }))
+    const holds = previewStopHolds(points, {
+      cfg: holdCfg, fixedLength: noteLength, fallbackBeats, loopBeats: 16 * (regionLen / GRID_TOTAL_CELLS) / speed,
+    })
+    // Bars in rail % (the rail is 16 beats at speed 1; hold time ignores speed).
+    return { holds, bars: points.map(p => ({ ...p, hold: holds.get(p.key) })) }
+  }, [holdCfg, geo, automationValues, noteTotalCells, startCell, endCell, regionLen, noteLength, fallbackBeats, speed])
+
   if (!geo) return <div className="stop-rail stop-rail--empty" />
   const { minLat, latRange, stopPoints, isMergedRail, mergedPoints, mergedSourceLines, geoDisplayMap } = geo
   const PAD = 0.1  // keep dots 10% from top/bottom edges (same as inside geo)
@@ -3210,6 +3345,7 @@ function StopRail({
     <div
       className="stop-rail"
       ref={railRef}
+      data-tour="lane-rail"
       style={{ '--cells-total': noteTotalCells, '--cells-per-beat': noteStepsPerBar / 4 }}
     >
       {/* Dim regions outside the loop band */}
@@ -3274,6 +3410,18 @@ function StopRail({
           )}
       </svg>
 
+      {holdPreview?.bars.map(b => (
+        <div
+          key={`hold_${b.key}`}
+          className={`stop-hold-bar${b.hold.requested.fallback ? ' stop-hold-bar--fallback' : ''}`}
+          style={{
+            '--pos': `${b.x}%`, '--y-pos': `${b.y}%`, '--line-color': route.color,
+            '--hold-w': `${Math.min(100 - b.x, b.hold.effectiveBeats * speed / 16 * 100)}%`,
+          }}
+          aria-hidden="true"
+        />
+      ))}
+
       {mergedPoints
         ? mergedPoints.map((p) => (
             <div
@@ -3329,6 +3477,7 @@ function StopRail({
                 velocity: vel ?? 1,
                 chance: stopChance ?? null,
                 laneChance,
+                hold: holdPreview?.holds.get(stop.id) ?? null,
                 root: trackScale.root,
                 scaleType: trackScale.scaleType,
                 semitoneShift,

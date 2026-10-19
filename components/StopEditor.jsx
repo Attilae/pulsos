@@ -5,7 +5,9 @@
 //
 // Driven by an `editingStop` payload assembled in DawView's StopRail:
 //   { routeId, stopId, stopName, geoNote, degrees, velocity, chance, laneChance,
-//     root, scaleType, semitoneShift }
+//     root, scaleType, semitoneShift, hold }
+// `hold` is the stop-driven note length preview (lib/stopNoteLength.js
+// previewStopHolds) when the lane maps demand to note length, else null.
 // `chance` is the stop's own override, or null when it follows `laneChance`.
 // `geoNote` is the octave-shifted, offset-free geographic note; the displayed pitch
 // applies its diatonic edit first, then the lane's chromatic transpose.
@@ -15,6 +17,7 @@ import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useModal } from '@/lib/shared/useModal.js'
 import { shiftSemitones, transposeNoteInScale } from '@/lib/mappings.js'
+import { holdLabel } from '@/lib/stopNoteLength.js'
 import './StopEditor.css'
 import { IconClose } from './icons.jsx'
 
@@ -72,6 +75,8 @@ export default function StopEditor({ editingStop, onClose, onPitch, onVelocity, 
   )
   const velPct = Math.round(velocity * 100)
   const chancePct = Math.round((chance ?? laneChance) * 100)
+  const hold = editingStop.hold
+  const beats = (b) => `${Math.round(b * 100) / 100} beat${b === 1 ? '' : 's'}`
 
   return createPortal(
     <div className="dlg-overlay" onPointerDown={onClose}>
@@ -117,6 +122,20 @@ export default function StopEditor({ editingStop, onClose, onPitch, onVelocity, 
           </div>
           <button className="stop-editor-reset" onClick={resetVelocity} disabled={velPct === 100}>Reset</button>
         </div>
+
+        {hold && (
+          <div className="stop-editor-row">
+            <span className="stop-editor-label">Hold</span>
+            <div className="stop-editor-control">
+              <span className="stop-editor-note">{holdLabel(hold.requested)}</span>
+              <span className="stop-editor-meta">
+                {hold.requested.fallback
+                  ? 'Fixed fallback: demand unavailable'
+                  : `demand ${Math.round(hold.requested.demand * 100)}%${hold.cut ? ` · held ${beats(hold.effectiveBeats)}, cut by the next same pitch` : ''}`}
+              </span>
+            </div>
+          </div>
+        )}
 
         {onChance && (
           <div className="stop-editor-row">

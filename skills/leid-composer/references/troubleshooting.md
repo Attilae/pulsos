@@ -35,6 +35,8 @@ was dropped. Fix the ones that matter to the idea and preview again.
 | --- | --- | --- |
 | … attack but each note is held for … | Each note is held for the lane's `noteLength` (default `4n`, one beat), so the attack never reaches full level. | Shorten the attack, set a longer `noteLength` (`2n`, `1n`), or hold the note with drone or legato on a mono synth. |
 | sets noteLength … which does nothing here | Legato, drone, an enabled arp and PluckSynth decide note length themselves. | Remove `noteLength`, or use `arp.gate` on an arp lane. |
+| sets stopNoteLength from demand, which does nothing here | The demand hold only drives PolySynth lanes, and legato, drone or an enabled arp override it. The setting is kept; the lane plays `noteLength`. | Switch the lane to PolySynth, turn off legato/drone/arp, or send `{ "source": "fixed" }`. |
+| `stopNoteLength on "…"` (dropped) | `source` isn't `demand` or `fixed`, or `min`/`max` isn't a noteLength value. | Use `16n` … `1n` for the bounds. |
 | FMSynth … blooms late | The default modulator attack is 0.5 s, so a fast carrier attack still sounds soft at first. | Set `tone.modEnvelope` (e.g. attack 0.001, decay 0.12, sustain 0, release 0.08). |
 | PluckSynth ignores envelope | The string model only takes a note-on. | Drop the envelope and set `tone.resonance` (ring length) and `tone.dampening` (brightness). |
 | legato … voices pile up | Legato holds notes on Sampler/PolySynth instead of gliding. | Use legato on a mono synth only. |

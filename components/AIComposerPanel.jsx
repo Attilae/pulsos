@@ -273,6 +273,7 @@ function PlanPreview({ result, routeName, applied, applying, onApply, onDiscard 
                     t.speed != null && `${t.speed}×`,
                     t.gridResolution,
                     t.noteLength && `hold ${t.noteLength}`,
+                    t.stopNoteLength?.source === 'demand' && `hold ${t.stopNoteLength.min}–${t.stopNoteLength.max} by demand${t.stopNoteLength.invert ? ' (inverted)' : ''}`,
                     t.loopRegion && `cells ${t.loopRegion.startCell}–${t.loopRegion.endCell}`,
                     t.pitchVariety && `${t.pitchVariety.contour} ${Math.round(t.pitchVariety.variety * 100)}%`,
                     t.noteChance != null && t.noteChance < 1 && `chance ${Math.round(t.noteChance * 100)}%`,

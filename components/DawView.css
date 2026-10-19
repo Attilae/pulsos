@@ -1179,6 +1179,21 @@
   height: 10px;
 }
 
+/* Stop-driven note length preview: each stop's hold as a faint bar from its
+   dot, already cut where a same-pitch note retriggers. Static, not animated. */
+.stop-hold-bar {
+  position: absolute;
+  left: var(--pos);
+  top: var(--y-pos, 50%);
+  width: var(--hold-w);
+  height: 2px;
+  transform: translateY(-50%);
+  background: color-mix(in srgb, var(--line-color) 45%, transparent);
+  border-radius: var(--radius-sm);
+  pointer-events: none;
+}
+.stop-hold-bar--fallback { background: color-mix(in srgb, var(--muted-line) 70%, transparent); }
+
 /* Note name label — always visible below dot */
 .stop-note-label {
   position: absolute;

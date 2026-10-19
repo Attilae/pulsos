@@ -30,6 +30,11 @@ import { useResonatorStatus } from '@/lib/shared/useResonatorStatus.js'
 import { ARP_RATES, ARP_STYLES, DEFAULT_ARP, DEFAULT_SIDECHAIN, supportsGranular } from '@/lib/engine.js'
 import { DEFAULT_GRID_RESOLUTION, DEFAULT_PITCH_VARIETY, PITCH_CONTOURS, PITCH_SPANS, PITCH_LEAPS } from '@/lib/mappings.js'
 import { NOTE_LENGTHS, NOTE_LENGTH_LABELS, DEFAULT_NOTE_LENGTH } from '@/lib/noteLength.js'
+import {
+  DEFAULT_STOP_NOTE_LENGTH, normalizeStopNoteLength, stopNoteLengthStatus, STOP_NOTE_LENGTH_SYNTHS,
+  STOP_NOTE_LENGTH_HINT, STOP_NOTE_LENGTH_HELP, STOP_NOTE_LENGTH_MERGED_HELP,
+  stopDemand, resolveStopHold, holdLabel,
+} from '@/lib/stopNoteLength.js'
 import { FX_BUSES } from '@/lib/fxTrack.js'
 import { buildLanePitchMaps, buildLaneNoteRows } from '@/lib/laneNotes.js'
 import {
@@ -69,6 +74,9 @@ export default function LaneSheet({
   stopVelocities,
   noteChance,
   noteLength,
+  stopNoteLength,
+  legato = false,
+  drone = false,
   stopChances,
   loopPattern,
   sendMatrix,
@@ -81,7 +89,7 @@ export default function LaneSheet({
   onVolume, onPan, onDisable, onSolo, onSynthType, onADSR, onScale, onOctaveShift,
   onPitchVariety, onTrackSpeed, onGridResolution, onArp,
   onSendLevel, onSidechain, onStopPitch, onStopVelocity, onLaneTag,
-  onNoteChance, onStopChance, onLoopPattern, onNoteLength, onFilter,
+  onNoteChance, onStopChance, onLoopPattern, onNoteLength, onStopNoteLength, onFilter,
 }) {
   const [segment, setSegment] = useState('sound')
   const resonatorStatus = useResonatorStatus()
@@ -91,6 +99,12 @@ export default function LaneSheet({
   const ag = { ...DEFAULT_ARP, ...arp }
   const laneChance = normalizeNoteChance(noteChance)
   const pattern = normalizeLoopPattern(loopPattern)
+  // Stop-driven note length (lib/stopNoteLength.js) — same rules as the desktop rack.
+  const snl = normalizeStopNoteLength(stopNoteLength)
+  const snlStatus = stopNoteLengthStatus({
+    cfg: snl, synthType, arp: ag.enabled, legato, drone, merged: !!route?.isMerged,
+  })
+  const setSnlBound = (key, len) => onStopNoteLength?.(route.id, { ...snl, [key]: len })
 
   const noteRows = useMemo(() => {
     if (!route || segment !== 'notes') return []
@@ -333,6 +347,59 @@ export default function LaneSheet({
                 })}
               </div>
             </Field>
+
+            {(snl || STOP_NOTE_LENGTH_SYNTHS.has(synthType)) && (
+              <Field
+                label="Hold from"
+                hint={!snl
+                  ? `Fixed uses the note length above. Demand: ${STOP_NOTE_LENGTH_HINT.toLowerCase()} ${STOP_NOTE_LENGTH_HELP}`
+                  : snlStatus.active
+                  ? `${snl.invert ? 'Quieter stops sustain longer.' : STOP_NOTE_LENGTH_HINT}${route.isMerged ? ` ${STOP_NOTE_LENGTH_MERGED_HELP}` : ''} Stops without demand use the note length above. ${STOP_NOTE_LENGTH_HELP}`
+                  : `${snlStatus.reason}. The mapping is kept for later.`}
+              >
+                <div className="lsheet-choice-grid lsheet-choice-grid--compact">
+                  {[['fixed', 'Fixed'], ['demand', 'Demand']].map(([src, label]) => {
+                    const on = (snl ? 'demand' : 'fixed') === src
+                    return (
+                      <button
+                        key={src}
+                        type="button"
+                        className={on ? 'is-active' : ''}
+                        aria-pressed={on}
+                        onClick={() => onStopNoteLength?.(route.id, src === 'demand' ? (snl ?? { ...DEFAULT_STOP_NOTE_LENGTH }) : null)}
+                      >{label}</button>
+                    )
+                  })}
+                </div>
+              </Field>
+            )}
+            {snl && (
+              <>
+                <Field label="Shortest">
+                  <select value={snl.min} onChange={e => setSnlBound('min', e.target.value)} aria-label="Shortest hold">
+                    {NOTE_LENGTHS.map(len => <option key={len} value={len}>{NOTE_LENGTH_LABELS[len]}</option>)}
+                  </select>
+                </Field>
+                <Field label="Longest">
+                  <select value={snl.max} onChange={e => setSnlBound('max', e.target.value)} aria-label="Longest hold">
+                    {NOTE_LENGTHS.map(len => <option key={len} value={len}>{NOTE_LENGTH_LABELS[len]}</option>)}
+                  </select>
+                </Field>
+                <Field label="Invert">
+                  <div className="lsheet-choice-grid lsheet-choice-grid--compact">
+                    {[[false, 'Busy = long'], [true, 'Quiet = long']].map(([inv, label]) => (
+                      <button
+                        key={label}
+                        type="button"
+                        className={snl.invert === inv ? 'is-active' : ''}
+                        aria-pressed={snl.invert === inv}
+                        onClick={() => onStopNoteLength?.(route.id, { ...snl, invert: inv })}
+                      >{label}</button>
+                    ))}
+                  </div>
+                </Field>
+              </>
+            )}
           </section>
 
           <section className="lsheet-group lsheet-group--rhythm">
@@ -606,6 +673,20 @@ export default function LaneSheet({
                   </div>
                   <span className="lsheet-note-name mono">{row.note}</span>
                 </div>
+                {snlStatus.active && !route.isMerged && (() => {
+                  const stop = route.stops?.[row.index]
+                  const hold = resolveStopHold(snl, stopDemand(stop), noteLength)
+                  return (
+                    <div className="lsheet-noterow-param lsheet-noterow-param--text">
+                      <span className="lsheet-noterow-label">Hold</span>
+                      <span className="lsheet-noterow-value mono">
+                        {hold.fallback
+                          ? 'Fixed fallback: demand unavailable'
+                          : `${holdLabel(hold)} · demand ${Math.round(hold.demand * 100)}%`}
+                      </span>
+                    </div>
+                  )
+                })()}
                 <div className="lsheet-noterow-param">
                   <span className="lsheet-noterow-label">Velocity</span>
                   <input
