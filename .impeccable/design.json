@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-09-29T23:18:00+00:00",
+  "generatedAt": "2026-10-18T21:01:23.046979+00:00",
   "title": "Design System: Leið",
   "extensions": {
     "colorMeta": {
@@ -9,14 +9,29 @@
         "displayName": "Signal Lime",
         "canonical": "#b6d94c",
         "tonalRamp": [
-          "#2c3510",
-          "#43521a",
-          "#5c7a1a",
-          "#7a9a2c",
-          "#9dbf3d",
-          "#b6d94c",
-          "#cfe68a",
-          "#e9f3c8"
+          "oklch(15% 0.16938 122.11)",
+          "oklch(26% 0.16938 122.11)",
+          "oklch(38% 0.16938 122.11)",
+          "oklch(49% 0.16938 122.11)",
+          "oklch(61% 0.16938 122.11)",
+          "oklch(72% 0.16938 122.11)",
+          "oklch(84% 0.16938 122.11)",
+          "oklch(95% 0.16938 122.11)"
+        ]
+      },
+      "signal-lime-deep": {
+        "role": "primary",
+        "displayName": "Signal Lime Deep",
+        "canonical": "#5c7a1a",
+        "tonalRamp": [
+          "oklch(15% 0.12449 125.91)",
+          "oklch(26% 0.12449 125.91)",
+          "oklch(38% 0.12449 125.91)",
+          "oklch(49% 0.12449 125.91)",
+          "oklch(61% 0.12449 125.91)",
+          "oklch(72% 0.12449 125.91)",
+          "oklch(84% 0.12449 125.91)",
+          "oklch(95% 0.12449 125.91)"
         ]
       },
       "night-ink": {
@@ -25,13 +40,88 @@
         "canonical": "#0e0f11",
         "tonalRamp": [
           "#0a0a0b",
-          "#0e0f11",
           "#17181b",
-          "#202226",
           "#282b30",
-          "#34383f",
           "#434850",
-          "#565c66"
+          "#868d99",
+          "#bcc1cb",
+          "#e3e6eb",
+          "#f7f8fa"
+        ]
+      },
+      "platform-slate": {
+        "role": "neutral",
+        "displayName": "Platform Slate",
+        "canonical": "#17181b",
+        "tonalRamp": [
+          "#0a0a0b",
+          "#17181b",
+          "#282b30",
+          "#434850",
+          "#868d99",
+          "#bcc1cb",
+          "#e3e6eb",
+          "#f7f8fa"
+        ]
+      },
+      "carriage-slate": {
+        "role": "neutral",
+        "displayName": "Carriage Slate",
+        "canonical": "#202226",
+        "tonalRamp": [
+          "#0a0a0b",
+          "#17181b",
+          "#282b30",
+          "#434850",
+          "#868d99",
+          "#bcc1cb",
+          "#e3e6eb",
+          "#f7f8fa"
+        ]
+      },
+      "tunnel-black": {
+        "role": "neutral",
+        "displayName": "Tunnel Black",
+        "canonical": "#0a0a0b",
+        "tonalRamp": [
+          "#0a0a0b",
+          "#17181b",
+          "#282b30",
+          "#434850",
+          "#868d99",
+          "#bcc1cb",
+          "#e3e6eb",
+          "#f7f8fa"
+        ]
+      },
+      "rail-line": {
+        "role": "neutral",
+        "displayName": "Rail Line",
+        "canonical": "#282b30",
+        "tonalRamp": [
+          "#0a0a0b",
+          "#17181b",
+          "#282b30",
+          "#434850",
+          "#868d99",
+          "#bcc1cb",
+          "#e3e6eb",
+          "#f7f8fa"
+        ]
+      },
+      "rail-line-strong": {
+        "role": "neutral",
+        "displayName": "Rail Line Strong",
+        "canonical": "#34383f",
+        "tonalRamp": [
+          "#0a0a0b",
+          "#17181b",
+          "#282b30",
+          "#434850",
+          "#868d99",
+          "#bcc1cb",
+          "#e3e6eb",
+          "#f7f8fa"
         ]
       },
       "timetable-white": {
@@ -39,35 +129,120 @@
         "displayName": "Timetable White",
         "canonical": "#eef0f3",
         "tonalRamp": [
-          "#6b7280",
+          "#0a0a0b",
+          "#17181b",
+          "#282b30",
+          "#434850",
           "#868d99",
-          "#a4abb6",
           "#bcc1cb",
-          "#d2d6dd",
           "#e3e6eb",
-          "#eef0f3",
+          "#f7f8fa"
+        ]
+      },
+      "schedule-grey": {
+        "role": "neutral",
+        "displayName": "Schedule Grey",
+        "canonical": "#a4abb6",
+        "tonalRamp": [
+          "#0a0a0b",
+          "#17181b",
+          "#282b30",
+          "#434850",
+          "#868d99",
+          "#bcc1cb",
+          "#e3e6eb",
+          "#f7f8fa"
+        ]
+      },
+      "muted-grey": {
+        "role": "neutral",
+        "displayName": "Muted Grey",
+        "canonical": "#868d99",
+        "tonalRamp": [
+          "#0a0a0b",
+          "#17181b",
+          "#282b30",
+          "#434850",
+          "#868d99",
+          "#bcc1cb",
+          "#e3e6eb",
+          "#f7f8fa"
+        ]
+      },
+      "quiet-line": {
+        "role": "neutral",
+        "displayName": "Quiet Line",
+        "canonical": "#6b7280",
+        "tonalRamp": [
+          "#0a0a0b",
+          "#17181b",
+          "#282b30",
+          "#434850",
+          "#868d99",
+          "#bcc1cb",
+          "#e3e6eb",
           "#f7f8fa"
         ]
       },
       "alarm-red": {
         "role": "status",
         "displayName": "Alarm Red",
-        "canonical": "#e5534b"
+        "canonical": "#e5534b",
+        "tonalRamp": [
+          "oklch(15% 0.18285 26.71)",
+          "oklch(26% 0.18285 26.71)",
+          "oklch(38% 0.18285 26.71)",
+          "oklch(49% 0.18285 26.71)",
+          "oklch(61% 0.18285 26.71)",
+          "oklch(72% 0.18285 26.71)",
+          "oklch(84% 0.18285 26.71)",
+          "oklch(95% 0.18285 26.71)"
+        ]
       },
       "amber-lamp": {
         "role": "status",
         "displayName": "Amber Lamp",
-        "canonical": "#e2a53b"
+        "canonical": "#e2a53b",
+        "tonalRamp": [
+          "oklch(15% 0.13783 77.29)",
+          "oklch(26% 0.13783 77.29)",
+          "oklch(38% 0.13783 77.29)",
+          "oklch(49% 0.13783 77.29)",
+          "oklch(61% 0.13783 77.29)",
+          "oklch(72% 0.13783 77.29)",
+          "oklch(84% 0.13783 77.29)",
+          "oklch(95% 0.13783 77.29)"
+        ]
       },
       "go-green": {
         "role": "status",
         "displayName": "Go Green",
-        "canonical": "#4caf7d"
+        "canonical": "#4caf7d",
+        "tonalRamp": [
+          "oklch(15% 0.11989 158.73)",
+          "oklch(26% 0.11989 158.73)",
+          "oklch(38% 0.11989 158.73)",
+          "oklch(49% 0.11989 158.73)",
+          "oklch(61% 0.11989 158.73)",
+          "oklch(72% 0.11989 158.73)",
+          "oklch(84% 0.11989 158.73)",
+          "oklch(95% 0.11989 158.73)"
+        ]
       },
       "route-blue": {
         "role": "status",
         "displayName": "Route Blue",
-        "canonical": "#5ab0e6"
+        "canonical": "#5ab0e6",
+        "tonalRamp": [
+          "oklch(15% 0.11446 238.65)",
+          "oklch(26% 0.11446 238.65)",
+          "oklch(38% 0.11446 238.65)",
+          "oklch(49% 0.11446 238.65)",
+          "oklch(61% 0.11446 238.65)",
+          "oklch(72% 0.11446 238.65)",
+          "oklch(84% 0.11446 238.65)",
+          "oklch(95% 0.11446 238.65)"
+        ]
       }
     },
     "typographyMeta": {
@@ -82,18 +257,31 @@
     },
     "shadows": [
       {
+        "name": "elevation-raised",
+        "value": "0 1px 2px rgba(0,0,0,0.5)",
+        "lightValue": "0 1px 2px rgba(20,25,35,0.12)",
+        "cssVariable": "--elevation-raised",
+        "purpose": "Rarely lifted controls."
+      },
+      {
         "name": "elevation-overlay",
         "value": "0 8px 24px rgba(0,0,0,0.55)",
+        "lightValue": "0 8px 24px rgba(20,25,35,0.18)",
+        "cssVariable": "--elevation-overlay",
         "purpose": "Menus, popovers, tooltips."
       },
       {
         "name": "elevation-modal",
         "value": "0 24px 64px rgba(0,0,0,0.6)",
+        "lightValue": "0 24px 64px rgba(20,25,35,0.24)",
+        "cssVariable": "--elevation-modal",
         "purpose": "Dialogs, editors, the paywall."
       },
       {
         "name": "scrim",
         "value": "rgba(0,0,0,0.55)",
+        "lightValue": "rgba(20,25,35,0.38)",
+        "cssVariable": "--scrim",
         "purpose": "Behind every modal, sheet and drawer."
       }
     ],
@@ -146,16 +334,16 @@
       "kind": "custom",
       "refersTo": "segment",
       "description": "Joined toggle (Map/DAW, Mock/Live).",
-      "html": "<div class=\"ds-seg\" role=\"group\" aria-label=\"View\"><button aria-pressed=\"false\">Map</button><button aria-pressed=\"true\" class=\"on\">DAW</button></div>",
-      "css": ".ds-seg{display:inline-flex;border:1px solid var(--border,#282b30);border-radius:3px;overflow:hidden}.ds-seg button{padding:5px 14px;border:0;border-right:1px solid var(--border,#282b30);background:var(--surface2,#202226);color:var(--muted,#868d99);font:inherit;font-size:.78rem;cursor:pointer}.ds-seg button:last-child{border-right:0}.ds-seg button.on{background:var(--hover-surface,#282b30);color:var(--accent,#b6d94c)}.ds-seg button:hover:not(.on){color:var(--text,#eef0f3)}"
+      "html": "<div class=\"ds-seg\" role=\"group\" aria-label=\"View\"><button aria-pressed=\"false\">Map</button><button aria-pressed=\"true\" class=\"ds-on\">DAW</button></div>",
+      "css": ".ds-seg{display:inline-flex;border:1px solid var(--border,#282b30);border-radius:3px;overflow:hidden}.ds-seg button{padding:5px 14px;border:0;border-right:1px solid var(--border,#282b30);background:var(--surface2,#202226);color:var(--muted,#868d99);font:inherit;font-size:.78rem;cursor:pointer}.ds-seg button:last-child{border-right:0}.ds-seg button.ds-on{background:var(--hover-surface,#282b30);color:var(--accent,#b6d94c)}.ds-seg button:hover:not(.ds-on){color:var(--text,#eef0f3)}.ds-seg button:focus-visible{outline:2px solid var(--accent,#b6d94c);outline-offset:-2px}"
     },
     {
       "name": "Filter Chip",
       "kind": "chip",
       "refersTo": "chip",
       "description": "Line-type filter in the line picker.",
-      "html": "<button class=\"ds-chip\">Tram</button><button class=\"ds-chip on\">Metro</button>",
-      "css": ".ds-chip{padding:3px 10px;margin-right:6px;border:1px solid var(--border,#282b30);background:transparent;color:var(--muted,#868d99);border-radius:999px;font:inherit;font-size:.68rem;letter-spacing:.06em;cursor:pointer}.ds-chip:hover{color:var(--text,#eef0f3)}.ds-chip.on{color:var(--text,#eef0f3);border-color:var(--accent,#b6d94c);background:var(--surface2,#202226)}"
+      "html": "<button class=\"ds-chip\">Tram</button><button class=\"ds-chip ds-on\">Metro</button>",
+      "css": ".ds-chip{padding:3px 10px;margin-right:6px;border:1px solid var(--border,#282b30);background:transparent;color:var(--muted,#868d99);border-radius:999px;font:inherit;font-size:.68rem;letter-spacing:.06em;cursor:pointer}.ds-chip:hover{color:var(--text,#eef0f3)}.ds-chip.ds-on{color:var(--text,#eef0f3);border-color:var(--accent,#b6d94c);background:var(--surface2,#202226)}.ds-chip:focus-visible{outline:2px solid var(--accent,#b6d94c);outline-offset:2px}"
     },
     {
       "name": "Numeric Input",
