@@ -321,7 +321,9 @@ them trigger a preview advisory.
   - A quiet grain shadow on the synth pad (R11): mix around 0.08, no jitter.
 - **Envelopes:** a slow attack longer than the note (one beat is 0.91 s at 66 BPM) never peaks, so
   the pads take their softness from a moderate attack, a long release and the reverb. For a real
-  swell, set `noteLength` to `2n` or `1n` on a sparse pad and lengthen the attack to match.
+  swell, set `noteLength` to `2n` or `1n` on a sparse pad and lengthen the attack to match. The
+  PolySynth pad takes its hold from each stop's demand instead (`stopNoteLength`): quiet stops
+  hold a beat, busy interchanges a whole bar, so its density breathes with the line.
 - **FX:** a long `synthetic` reverb does most of the work, plus a slow ping-pong delay. Only
   `synthetic` follows `decay`; the named rooms are fixed recordings.
 
@@ -358,6 +360,7 @@ them trigger a preview advisory.
       "speed": 0.25,
       "gridResolution": "4n",
       "pitchVariety": { "contour": "arch", "variety": 0.1 },
+      "stopNoteLength": { "source": "demand", "min": "4n", "max": "1n", "invert": false },
       "granular": { "enabled": true, "mix": 0.08, "grainSize": 0.1, "overlap": 0.05, "playbackRate": 0.5, "loopStart": 0.1, "loopEnd": 0.55, "jitter": 0, "reverse": false, "attack": 0.1, "release": 1.5 },
       "label": "Pad"
     },

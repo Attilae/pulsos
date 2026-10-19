@@ -107,6 +107,11 @@ the Leið DAW and plays.
   a slow swell a `2n` or `1n` note on a sparse lane. Use `8n` or `16n` for tight stabs and bass. A
   short release alone does not shorten the note. Note length does nothing with legato, drone, an
   arp (use `arp.gate`) or PluckSynth.
+- On a PolySynth lane, `stopNoteLength: { "source": "demand", "min": "4n", "max": "1n" }` holds each
+  stop for a length taken from its demand (estimated from scheduled service, not passenger counts):
+  quiet stops short, busy interchanges long, so overlapping pad notes thicken at hubs. `invert` flips
+  it. Stops without demand and other instruments keep `noteLength`; `{ "source": "fixed" }` switches
+  back without touching it.
 - A Sampler or Drums lane only uses attack and release. PluckSynth ignores the envelope, note length
   and velocity. NoiseSynth and Drums lanes have no melodic pitch.
 - `tone` shapes the sound beyond the envelope:

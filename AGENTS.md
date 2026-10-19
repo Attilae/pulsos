@@ -108,6 +108,8 @@ song state),
 `composer-guide` (pins the prompt's loop-window/FX-unit/fixed-IR facts and its example plan),
 `musical-policy` (`lib/ai/musicalPolicy.js` — genre recipe selection and prompt size),
 `note-length` (`lib/noteLength.js` + its plan/advisory rules),
+`stop-note-length` (`lib/stopNoteLength.js`: mapping, merged-chord demand, MIDI holds, song state,
+plans, and a replay of PolySynth's release matching under same-pitch protection),
 `midi-export` (`lib/midiEvents.js` — one loop pass, shortened loops, same-pitch overlaps, arp steps),
 `sound-policy` (`lib/ai/soundPolicy.js` — every sound recipe survives `validatePlan` and raises no
 advisory), `plan-advisories` (`lib/ai/planAdvisories.js`), `plan-snapshot` (`lib/ai/planSnapshot.js` — round-trips its output through the real
@@ -432,6 +434,21 @@ visual contract: tokens, named rules, do's and don'ts. The UI conventions it rel
   and there's no schema bump. Like chance it's read at callback time (`engine._noteLengths`, no Part
   rebuild), and MIDI export (`noteDurationSec`) resolves it the same way. It doesn't touch arp
   steps (`arp.gate`), legato, drone, or PluckSynth.
+- **Stop-driven note length** (`lib/stopNoteLength.js`, pure and tested): `trackStopNoteLengths`
+  (routeId → `{source: 'demand', min, max, invert}`) makes a **PolySynth** lane hold each stop for a
+  length mapped from its baked-in `signals.demand` (quantized to `NOTE_LENGTHS` between the bounds,
+  ties shorter). Sparse, absent = Fixed; it never overwrites `trackNoteLengths`, which stays the
+  fallback for stops without demand. Precedence: drone → arp → legato → Demand (PolySynth only) →
+  fixed gate; an inactive mapping is kept and shown with its reason. Merged chord lanes use the
+  busiest contributing stop (`buildMergedPitchCells` now returns `sources` + `demand` per cell).
+  Read at callback time (`engine._stopNoteLengths`, `_mappedHoldSec`). **Same-pitch protection**:
+  each mapped gate ends no later than the next scheduled onset of that pitch, wrapping the loop —
+  Tone's PolySynth releases the *oldest* unreleased voice of a pitch, so an outliving gate would
+  release the newer voice (pinned by a simulation in `test/stop-note-length.test.js`). PolySynth's
+  32-voice ceiling is explicit (`POLY_MAX_VOICES`); past it Tone drops the note with a warning.
+  MIDI export resolves the same holds (then its usual one-loop clip). Live notes stay fixed.
+  Plans carry it as `stopNoteLength` (`{source: 'fixed'}` switches back). Plan:
+  `docs/stop-driven-note-length-plan.md`.
 - Fresh sessions now start with `DEFAULT_FX_TRACKS = ['reverb', 'delay', 'chorus', 'distortion']`
   pre-activated (was empty), so automation targets like `send.reverb` are available immediately.
 

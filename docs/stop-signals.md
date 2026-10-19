@@ -38,6 +38,13 @@ version 4; songs saved before that are migrated with every lane pinned to
 Geographic, so they still play what they were saved with). Demand falls back to
 Geographic when an older route file has no signals.
 
+`demand` also drives **stop-driven note length** (`lib/stopNoteLength.js`): a
+PolySynth lane set to Hold from Demand holds each stop for a length between its
+Shortest and Longest bounds, busier stops longer (or quieter, with Invert). The
+value is read as stored, never re-normalized over a lane or loop window. A stop
+without a numeric `demand` plays the lane's fixed note length rather than being
+treated as quiet. See `docs/stop-driven-note-length-plan.md`.
+
 ## Optional ridership exports
 
 Ridership source files are intentionally ignored by Git. Put downloads in
