@@ -92,7 +92,7 @@ export default function TextureControls({ cfg, onChange, autoTargets, laneName }
   const blendAuto = auto(blend.key)
 
   return (
-    <div className="rack-card rack-card--sound tx-card">
+    <div className="rack-card rack-card--sound tx-card" data-tour="rack-granular">
       <div className="rack-card-head">
         Texture
         <button
