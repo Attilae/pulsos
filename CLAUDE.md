@@ -83,7 +83,7 @@ logic** — nothing boots Tone.js, React, or the DB: `billing-plans` (`lib/billi
 `ai-plan-apply` (`lib/ai/planApply.js` + `lib/shared/cityFacts.js`), `song-lanes`
 (`lib/songLanes.js`), `song-snapshot` + `song-migrate` (`lib/songState.js`), `stop-signals`
 (`scripts/lib/stopSignals.js`), `ridership-adapters` (`scripts/ridership/`),
-`feedback-validate` (`lib/feedback.js`), `turnstile-hostnames` (`lib/turnstile.js`),
+`feedback-validate` (`lib/feedback.js`), `custom-audio` (`lib/customAudio.js`), `turnstile-hostnames` (`lib/turnstile.js`),
 `lane-cycles` (`lib/laneCycles.js`), `master-curves` (`lib/masterCurves.js`),
 `true-peak-limiter` (`public/worklets/true-peak-limiter.js`), `master-chain` (`lib/masterChain.js`), `wav-pcm` (`lib/wavPcm.js` — dithered
 16-bit conversion for WAV export), `lane-gating` (`lib/laneGating.js`), `auth-origins`
@@ -930,7 +930,12 @@ is `lib/billing/plans.js` (tested in `test/billing-plans.test.js`) — `resolveA
 picks a plan in priority order **superadmin → override → subscription → free**, returning the
 `limits` object. `FREE_LIMITS` caps `activeLanes: 6`, `compositionItems: 3`, `exports: 3`, `ai: 3`
 (lifetime); Pro lifts all but `ai: 50`/month; superadmin is unlimited. `null` in a limit means
-unlimited.
+unlimited. `customUploads` is a boolean feature flag in the same `limits` object (Free `false`):
+custom sampler files and reverb IRs. The upload buttons in `DawView.jsx` (`useCustomUploadGate`)
+open the upgrade modal instead of the file picker on Free, and MixerTab's handlers refuse too;
+Free also doesn't list the "Custom…" reverb IR. Uploaded files never leave the browser —
+`lib/customAudio.js` (pure, tested in `test/custom-audio.test.js`) caps size, type, decoded duration
+and IR channel count before anything reaches the audio graph.
 
 - **Server**: `lib/billing/server.js` resolves + records usage against Postgres; webhooks are the
   source of truth. `lib/db/schema.js` holds `billingSubscriptions` (one row per LS subscription,

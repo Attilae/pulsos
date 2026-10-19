@@ -76,6 +76,13 @@ test('usage periods and limits distinguish lifetime Free credits from monthly Pr
   assert.equal(metricLimit('pro', 'ai'), 50)
 })
 
+test('custom sample and IR uploads are Pro-only', () => {
+  assert.equal(resolveAccess({}).limits.customUploads, false)
+  assert.equal(resolveAccess({ override: { plan: 'pro' } }).limits.customUploads, true)
+  assert.equal(resolveAccess({ subscription: { status: 'active' } }).limits.customUploads, true)
+  assert.equal(resolveAccess({ role: 'superadmin' }).limits.customUploads, true)
+})
+
 test('legacy snapshot normalization only considers base lanes present in saved state', () => {
   const routes = ['picked1', 'picked2', 'picked3', 'unpicked1', 'unpicked2'].map(id => ({ id }))
   const snapshot = { muted: { picked1: false, picked2: false, picked3: false } }

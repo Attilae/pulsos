@@ -31,6 +31,8 @@ import { NOTE_ROOTS, SCALE_TYPES } from '@/lib/harmony.js'
 import { getMasterBus } from '@/lib/masterBus.js'
 import { MASTER_CHAIN_DEFAULTS, MASTER_CHAIN_SPECS, MASTER_CHAIN_STAGES, isDefaultMasterChain } from '@/lib/masterChain.js'
 import { installWeq8Lifecycle, observeWeq8 } from '@/lib/shared/weq8Lifecycle.js'
+import { useEntitlements } from '@/lib/shared/EntitlementsContext.jsx'
+import { decodeCustomAudio } from '@/lib/customAudio.js'
 import './DawView.css'
 import { IconAdd, IconCaretDown, IconChangeLine, IconClose, IconDuplicate, IconPower, IconRepick, IconReset } from './icons.jsx'
 
@@ -2307,11 +2309,16 @@ function GainReductionMeter({ label, db, title = `${label} gain reduction` }) {
   )
 }
 
+// The "Custom…" IR needs an uploaded file, which is Pro-only, so Free doesn't list it.
+const CUSTOM_IR_VALUES = ['custom']
+
 function FxTrackCard({ bus, wet, muted, soloed, params, onWet, onMute, onSolo, onParam, onCustomIR, onRemove }) {
   const specs = FX_PARAM_SPECS[bus.id] ?? []
   // When tempo-synced, the raw ms/Hz slider for the synced param is inert.
   const syncTarget = FX_SYNC_TARGETS[bus.id]
   const synced = (params?.sync ?? bus.defaults?.sync ?? 'free') !== 'free'
+  const { limits } = useEntitlements()
+  const customUploads = limits?.customUploads === true
   return (
     <div className={`fx-track-card ${muted ? 'fx-track-card--muted' : ''}`}>
       <div className="fx-track-card-header">
@@ -2338,6 +2345,7 @@ function FxTrackCard({ bus, wet, muted, soloed, params, onWet, onMute, onSolo, o
               value={params?.[spec.id] ?? bus.defaults?.[spec.id]}
               onChange={v => onParam(spec.id, v)}
               disabled={synced && spec.id === syncTarget}
+              hiddenValues={spec.id === 'irType' && !customUploads ? CUSTOM_IR_VALUES : null}
             />
           ))}
           {bus.id === 'reverb' && onCustomIR && (
@@ -2349,23 +2357,37 @@ function FxTrackCard({ bus, wet, muted, soloed, params, onWet, onMute, onSolo, o
   )
 }
 
+// Custom uploads (IRs here, sampler files below) are Pro-only: on Free the
+// button opens the upgrade modal instead of the file picker.
+function useCustomUploadGate(inputRef) {
+  const { limits, openUpgrade } = useEntitlements()
+  const allowed = limits?.customUploads === true
+  const choose = useCallback(() => {
+    if (allowed) inputRef.current?.click()
+    else openUpgrade('custom_upload')
+  }, [allowed, inputRef, openUpgrade])
+  return { allowed, choose }
+}
+
 function CustomIRPicker({ onCustomIR }) {
   const inputRef = useRef(null)
   const [name, setName] = useState(null)
   const [error, setError] = useState(null)
+  const { allowed, choose } = useCustomUploadGate(inputRef)
 
   async function handleFile(e) {
     const file = e.target.files?.[0]
+    e.target.value = ''   // so picking the same file again still fires onChange
     if (!file) return
     setError(null)
     try {
-      const buf = await file.arrayBuffer()
-      const audioBuffer = await Tone.getContext().rawContext.decodeAudioData(buf)
+      const raw = Tone.getContext().rawContext
+      const audioBuffer = await decodeCustomAudio(file, 'ir', buf => raw.decodeAudioData(buf))
       setName(file.name)
       onCustomIR(audioBuffer)
     } catch (err) {
-      console.error('Custom IR decode failed:', err)
-      setError('decode failed')
+      console.error('Custom IR load failed:', err)
+      setError(err.message)
     }
   }
 
@@ -2375,9 +2397,10 @@ function CustomIRPicker({ onCustomIR }) {
       <button
         type="button"
         className="fx-param-select"
-        onClick={() => inputRef.current?.click()}
+        onClick={choose}
+        title={allowed ? undefined : 'Custom impulse responses are a Pro feature'}
       >
-        {error ?? name ?? 'Choose WAV…'}
+        {allowed ? (error ?? name ?? 'Choose WAV…') : 'Pro'}
       </button>
       <input
         ref={inputRef}
@@ -2395,18 +2418,20 @@ function SamplerUploadRow({ onSamplerUpload }) {
   const [note, setNote] = useState('C4')
   const [name, setName] = useState(null)
   const [error, setError] = useState(null)
+  const { allowed, choose } = useCustomUploadGate(inputRef)
   const baseNotes = ['C2', 'C3', 'C4', 'C5', 'A3', 'A4']
 
-  function handleFile(e) {
+  async function handleFile(e) {
     const file = e.target.files?.[0]
+    e.target.value = ''   // so picking the same file again still fires onChange
     if (!file) return
     setError(null)
     try {
+      await onSamplerUpload?.(file, note)
       setName(file.name)
-      onSamplerUpload?.(file, note)
     } catch (err) {
       console.error('Sampler upload failed:', err)
-      setError('failed')
+      setError(err.message)
     }
   }
 
@@ -2417,8 +2442,9 @@ function SamplerUploadRow({ onSamplerUpload }) {
         title="Base note for the uploaded sample">
         {baseNotes.map(n => <option key={n} value={n}>{n}</option>)}
       </select>
-      <button type="button" className="sp-select" onClick={() => inputRef.current?.click()}>
-        {error ?? name ?? 'Choose…'}
+      <button type="button" className="sp-select" onClick={choose}
+        title={allowed ? undefined : 'Custom samples are a Pro feature'}>
+        {allowed ? (error ?? name ?? 'Choose…') : 'Pro'}
       </button>
       <input
         ref={inputRef}
@@ -2433,18 +2459,22 @@ function SamplerUploadRow({ onSamplerUpload }) {
 
 // `disabledText` replaces the value readout while disabled (a tempo-synced delay
 // time reads "synced"); null keeps showing the value.
-function FxParamControl({ spec, value, onChange, disabled = false, disabledText = 'synced' }) {
+// `hiddenValues` drops enum options from the list; one that is the current value
+// stays, disabled, so a song that already uses it still reads correctly.
+function FxParamControl({ spec, value, onChange, disabled = false, disabledText = 'synced', hiddenValues = null }) {
   if (spec.kind === 'enum') {
+    const current = value ?? spec.values[0]
+    const values = hiddenValues ? spec.values.filter(v => v === current || !hiddenValues.includes(v)) : spec.values
     return (
       <div className="fx-param-row">
         <span className="fx-param-label">{spec.label}</span>
         <select
           className="fx-param-select"
-          value={value ?? spec.values[0]}
+          value={current}
           onChange={e => onChange(e.target.value)}
         >
-          {spec.values.map(v => (
-            <option key={v} value={v}>{spec.valueLabels?.[v] ?? v}</option>
+          {values.map(v => (
+            <option key={v} value={v} disabled={hiddenValues?.includes(v)}>{spec.valueLabels?.[v] ?? v}</option>
           ))}
         </select>
       </div>
