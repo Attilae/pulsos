@@ -1157,7 +1157,10 @@
   background: color-mix(in srgb, var(--line-color) 60%, var(--surface));
   border: 1.5px solid var(--line-color);
   cursor: default;
-  transition: background 0.15s, transform 0.1s, box-shadow 0.15s, opacity 0.15s;
+  /* Compositor properties only. Fading background and box-shadow repainted the
+     rail for 150 ms on every stop change of every playing lane, about half the
+     DAW's paint time while playing (docs/performance-audit-2026-10-21.md). */
+  transition: transform 0.1s, opacity 0.15s;
   z-index: 1;
   /* Authored per-stop velocity (Alt+drag) dims the dot toward 0.2 velocity. */
   opacity: calc(0.35 + 0.65 * var(--vel, 1));

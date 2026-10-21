@@ -52,12 +52,21 @@ import FirstRunNotice, { hasSeenIntro } from './FirstRunNotice.jsx'
 import { runProductTour } from '@/lib/tourSteps.js'
 import { getTourStatus }  from '@/lib/tourState.js'
 import { initAudioSession } from '@/lib/audioSession.js'
+import { startPerfMonitor, perfHudEnabled } from '@/lib/perfMonitor.js'
+import PerfHud from './PerfHud.jsx'
 import { formFactor } from '@/lib/shared/platform.js'
 import { trackProductEvent } from '@/lib/productAnalytics.js'
 import { useIsPhone } from '@/lib/shared/useViewport.js'
 import './app.css'
 // After app.css: the responsive layer overrides it on equal specificity.
 import './mobile.css'
+
+// Share of page loads that report a `perf_session` event (lib/perfMonitor.js).
+// One event per load at most, and only after 30 s of playback.
+const PERF_SAMPLE_RATE = (() => {
+  const v = Number(process.env.NEXT_PUBLIC_PERF_SAMPLE_RATE)
+  return Number.isFinite(v) && v >= 0 && v <= 1 ? v : 1
+})()
 
 const TABS = [
   { id: 'mixer',  label: 'Map',            Comp: MixerTab },
@@ -77,6 +86,7 @@ export default function App() {
   // seeded so we don't boot all engines/Leaflet up front.
   const [mounted, setMounted] = useState(() => new Set(['mixer']))
   const pendingTourRef = useRef(false)
+  const [perfHud, setPerfHud] = useState(false)
   // The tour waits for the first-run notice: on a phone both would open at
   // once, and driver.js would anchor its popover behind the sheet.
   const [introDone, setIntroDone] = useState(() => hasSeenIntro())
@@ -129,6 +139,8 @@ export default function App() {
   // any engine exists, so a page restored from the bfcache is already watched.
   useEffect(() => {
     initAudioSession()
+    startPerfMonitor({ sampleRate: PERF_SAMPLE_RATE })
+    setPerfHud(perfHudEnabled())
     const kind = formFactor()
     // desktop_app_viewed predates the mobile work — keep the series continuous.
     trackProductEvent(kind === 'desktop' ? 'desktop_app_viewed' : 'mobile_app_viewed', {
@@ -190,6 +202,7 @@ export default function App() {
         </main>
         <FirstRunNotice onDismiss={() => setIntroDone(true)} />
         <DialogHost />
+        {perfHud && <PerfHud onClose={() => setPerfHud(false)} />}
       </div>
       </DrumClipboardProvider>
     </CityProvider>

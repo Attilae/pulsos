@@ -38,6 +38,7 @@ import { decodeCustomAudio, checkDecodedAudio } from '@/lib/customAudio.js'
 import { countActiveLanes, normalizeLaneAccess, normalizeSnapshotLaneAccess } from '@/lib/billing/plans.js'
 import { buildReplacementLaneState, sendsToClear, trackSynthParams, planFilterState } from '@/lib/ai/planApply.js'
 import { trackProductEvent } from '@/lib/productAnalytics.js'
+import { setPerfWorkload } from '@/lib/perfMonitor.js'
 import { unlockAudio, releaseAudioSession, probeOutputPeak } from '@/lib/audioSession.js'
 import { registerSoundCheck } from '@/lib/shared/soundCheck.js'
 import { pushEvents, clearEvents } from '@/lib/shared/eventLogStore.js'
@@ -869,6 +870,20 @@ export default function MixerTab({ active = true }) {
       Tone.getDestination().volume.rampTo(masterVolume, 0.5)
     }
   }
+
+  // What the perf monitor's reports are grouped by (lib/perfMonitor.js). Worklet
+  // instruments are counted apart: they cost the audio thread far more than a
+  // native Tone synth.
+  useEffect(() => {
+    if (!started) return
+    const active = Object.entries(disabledRoutes).filter(([, disabled]) => !disabled).map(([id]) => id)
+    setPerfWorkload({
+      activeLanes: active.length,
+      workletLanes: active.filter(id => ['Resonator', 'Macro'].includes(trackSynthTypes[id])).length,
+      view,
+      city: cityId,
+    })
+  }, [started, disabledRoutes, trackSynthTypes, view, cityId])
 
   // AI Apply batches a large set of React updates. Starting from an effect makes
   // the engine read the committed BPM, harmony, instruments, and lane state
