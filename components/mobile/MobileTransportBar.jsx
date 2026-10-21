@@ -38,7 +38,7 @@ export default function MobileTransportBar({
       const el = playheadRef.current
       if (el) {
         // Position within the 4-bar grid the lanes are quantised to.
-        const bars = Tone.Transport.seconds / ((60 / (Tone.Transport.bpm.value || 120)) * 4)
+        const bars = Tone.getTransport().seconds / ((60 / (Tone.getTransport().bpm.value || 120)) * 4)
         el.style.transform = `scaleX(${(bars % 4) / 4})`
       }
       raf = requestAnimationFrame(tick)

@@ -76,6 +76,7 @@ npm run build:macro    # rebuild the Macro (Plaits) wasm (only after dsp/macro o
 npm run compare:macro  # native vs wasm renders of the Macro bridge
 npm run build:ladder   # rebuild the Analog filter (DaisySP ladder) wasm (only after dsp/ladder or vendor/daisysp changes)
 npm run compare:ladder # native vs wasm renders of the ladder bridge
+node scripts/perf_bench.mjs --lanes 6 --cpu 4 --runs 3  # playback benchmark vs a running prod build (needs Playwright)
 ```
 
 `npm test` runs the built-in Node test runner (`node --test`) over `test/`. Every test is **pure
@@ -116,7 +117,8 @@ plans, and a replay of PolySynth's release matching under same-pitch protection)
 advisory), `plan-advisories` (`lib/ai/planAdvisories.js`), `plan-snapshot` (`lib/ai/planSnapshot.js` — round-trips its output through the real
 `applySnapshot`/`buildSnapshot`), `texture-voice` (`lib/textureVoice.js`'s model-switch slot
 bookkeeping on the real class with mocked Tone/loaders: reversed switches, superseded and failed
-loads, disposal with a load pending), `server-purity` (loads the MCP module graph in a child process
+loads, disposal with a load pending), `perf-stats` (`lib/perfStats.js` — the monitor's budgets, histogram, noise floor, GPU
+classes and analytics profile), `server-purity` (loads the MCP module graph in a child process
 that throws on any Tone/React/`.jsx` import, plus `lib/server/routeIndex.js`). There is **no linter
 configured** and the audio/UI code has no tests. Run a single file with
 `node --test test/ai-plan-apply.test.js`.
@@ -171,6 +173,8 @@ restart it with a fresh `.next` afterwards.
   falls back to the committed `/data/lines.<city>.slim.json`. The full file is now only fetched by
   the desktop map for its detailed polylines.
   `NEXT_PUBLIC_DEFAULT_CITY` — initial city id (default `budapest`).
+- `NEXT_PUBLIC_PERF_SAMPLE_RATE` — 0–1, default 1: share of page loads whose performance
+  monitor sends its `perf_session` event (see **Performance monitoring** below). 0 disables it.
 - `RESEND_API_KEY`, `EMAIL_FROM` — magic-link **and feedback** email; **optional in dev** (mail
   prints to the server console when unset).
 - `FEEDBACK_TO` — where `/api/feedback` mails reports; defaults to `LEGAL_DETAILS.contactEmail`.
@@ -523,6 +527,10 @@ NetworkState (drone hum + hub-convergence chords) → AlertLayer input
   and `_installTruePeak` swaps the worklet in once ready (the stand-in stays if it can't load).
   Load it with `rawContext.audioWorklet.addModule`, **not** Tone's `addAudioWorkletModule`, which
   caches the first module per context and returns that promise for every later URL.
+- **Use `Tone.getTransport()` / `Tone.getDraw()`, never `Tone.Transport` / `Tone.Draw`.**
+  Tone's `index.js` binds those constants to the context that exists at import time, and
+  `?latency=` (`lib/audioSession.js`) replaces that context at module load, so the
+  constants would point at a dead one. Every module goes through the getters.
 - **FX buses are built on demand** (`_createFxBuses`/`_ensureFxBus`): at start only the buses
   something sends to (a non-zero send, or an armed `send.<bus>` automation lane), the rest the first
   time a send to them is wired. Code that needs a bus calls `_ensureFxBus`, never
@@ -1154,6 +1162,31 @@ element but not the thumb. Every `onDoubleClick` reset also takes a long-press v
 `lib/shared/useResetGesture.js` **and** has a visible control in a sheet. Modal scrims use
 `onPointerDown`, always changed in pairs (overlay handler + panel `stopPropagation`).
 
+### Performance monitoring
+
+Slow machines fail on two budgets the M4 development machine never shows: the audio render
+thread (one real-time thread for the whole graph) and the main thread. Measurements, what's
+been fixed and the launch plan: `docs/performance-audit-2026-10-21.md`.
+- `lib/perfMonitor.js` (browser, framework-free, started from `App.jsx`) measures audio
+  dropouts as audio-clock lag behind wall time, late notes as Tone scheduler-tick gaps longer
+  than the lookahead (after a 2 s warm-up; the warm-up's worst gap is the *Play stall*),
+  frames and Long Animation Frames while playing, and device facts including the GPU class.
+  MixerTab feeds it the workload (`setPerfWorkload`). Pure maths and the budgets
+  (`PERF_BUDGETS`) are in `lib/perfStats.js`, tested in `test/perf-stats.test.js`.
+- A page load that plays for 30 s sends one `perf_session` event with **two** properties
+  (Vercel Analytics Pro's limit): `verdict` and a packed ≤255-char `profile`.
+- `?perf=1` shows `components/PerfHud.jsx` (remembered; `?perf=0` hides), with Copy report
+  and an output-buffer picker. `window.leidPerf.report()` in the console.
+- `?latency=playback|balanced|interactive|default` rebuilds Tone's context with that
+  `latencyHint` at module load of `lib/audioSession.js`, remembered per browser. The default
+  is still Tone's `interactive`; this is an A/B switch for slow machines.
+- `scripts/perf_bench.mjs` plays the production build headlessly and reports render capacity
+  (Chrome's WebAudio domain) and frame stats, optionally with `--cpu` throttling. Audio
+  readings on shared VMs wander about ±5 points: compare repeated runs on one machine.
+- Per-frame DAW work only animates *enabled* lanes (`StopRail` gets `started && !disabled`),
+  and per-frame DOM writes must be idempotent (`classList` calls rewrite the attribute and
+  invalidate style even when nothing changes).
+
 ### Other tabs
 
 `DrumMachineTab`, `LoopCapturerTab`, `HeadphoneTab`, `MotifTab` are largely self-contained, each
@@ -1309,6 +1342,8 @@ port), `docs/mobile-app-plan.md` (native-app direction behind the mobile gate), 
 `docs/admin-access.md` (superadmin role + manual Pro entitlement overrides), `docs/stop-signals.md`
 (the baked-in `signals` block, the Demand contour, and the optional per-city ridership adapters),
 `docs/mcp-plan.md` (Pro MCP server phases, release gates, rollout checklist),
+`docs/performance-audit-2026-10-15.md` and `docs/performance-audit-2026-10-21.md` (main-thread
+fixes; slow-machine audit, monitoring and the launch performance plan),
 `docs/social-launch-runbook.md` (marketing/launch copy — not engineering guidance).
 
 ## Planned (not yet wired in)
