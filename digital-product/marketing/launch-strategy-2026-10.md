@@ -78,7 +78,7 @@ Use a clean 1080 × 1920 master, real recordings, large captions, and close crop
 | Instagram Reels | Strong city cover, clear before/after audio, one explanatory caption | Profile link; optionally share the Reel to a Story with a website link if available | Shares, saves, profile activity, website traffic |
 | YouTube Shorts | Literal title such as “I turned Budapest tram routes into music” | Channel profile website link; show the domain in the video | Engaged views and retention within YouTube; site traffic |
 
-Use one founder-operated Leið account per platform. “I built…” makes authorship clear without requiring a separate personal brand campaign. Upload the clean master separately on each platform; change the title, caption, and destination wording. Avoid a downloaded version carrying another platform's watermark.
+**Updated October 20:** use the existing founder-operated **Deettalabs** account on each platform. The company will also make audio plugins and other products, so retain its identity and present this product as **Leið by Deettalabs**. Make Leið the editorial focus during launch and name it clearly in posts. “I built…” makes authorship clear without requiring a separate personal brand campaign. Upload the clean master separately on each platform; change the title, caption, and destination wording. Avoid a downloaded version carrying another platform's watermark. Company profile bios and the conditions for reconsidering separate product accounts are in the [profile guide](social-profile-and-posting-guide-2026-10.md).
 
 **Verified October 14, 2026:** YouTube says URLs in Shorts descriptions and comments are non-clickable; channel profile links are clickable. Use “website on my channel,” not “click the link in this description.” [YouTube link guidance](https://support.google.com/youtube/answer/13748639?hl=en).
 
@@ -96,7 +96,7 @@ Recheck these source pages and the actual account interfaces on October 18. Prev
 
 Allow roughly five to seven focused hours; this is a time budget, not a measured production estimate.
 
-- Create consistent account names, a simple avatar, and one-line bios. Bio copy: **“Turn your city into music. Public transport routes become tracks. Play in your browser.”**
+- Update the existing Deettalabs profiles with consistent company names and avatar, plus a featured Leið bio and direct product link. Example bio: **“Independent tools for making music. Building Leið: city routes → music. Play it in your browser ↓”**
 - Check the real signed-out phone and desktop journey: open the URL, understand the introduction, enable an available lane, press Play, hear audio. Confirm any limits and load time. Keep the CTA aligned with what a stranger can do.
 - Prepare one pleasing Budapest arrangement and one Berlin arrangement. Record clean system audio plus matching map and DAW footage. Obtain three publishable edits from these recordings.
 - Add one platform-tagged profile URL to each available link field. Check that it opens the correct app and preserves the parameters.

@@ -19,3 +19,8 @@ After editing guide content or print styles:
 The PDF uses browser print layout, A4 pages, internal contents links and numbered
 footers. It needs no account, database access or audio engine. PDF generation is
 an explicit maintenance step, not part of a Vercel build.
+
+Last content review: 20 October 2026. Compared changes since the guide's initial
+release, including Poly / Pad voices and demand-driven holds, Macro envelopes,
+one-loop MIDI exports, Pro custom audio, MCP setup, the expanded tour and tab-load
+recovery. The page and PDF share the revision date in `GUIDE_VERSION`.
