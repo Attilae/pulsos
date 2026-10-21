@@ -23,6 +23,7 @@ import { CaretDown as CaretDownIcon } from '@phosphor-icons/react/dist/csr/Caret
 import { CaretRight as CaretRightIcon } from '@phosphor-icons/react/dist/csr/CaretRight'
 import { Check as CheckIcon } from '@phosphor-icons/react/dist/csr/Check'
 import { Copy as CopyIcon } from '@phosphor-icons/react/dist/csr/Copy'
+import { DotsSixVertical as DotsSixVerticalIcon } from '@phosphor-icons/react/dist/csr/DotsSixVertical'
 import { DotsThree as DotsThreeIcon } from '@phosphor-icons/react/dist/csr/DotsThree'
 import { DownloadSimple as DownloadSimpleIcon } from '@phosphor-icons/react/dist/csr/DownloadSimple'
 import { MusicNotes as MusicNotesIcon } from '@phosphor-icons/react/dist/csr/MusicNotes'
@@ -64,6 +65,7 @@ export const IconDuplicate   = wrap(CopyIcon)
 export const IconCopy        = wrap(CopyIcon)
 export const IconPower       = wrap(PowerIcon)
 export const IconMore        = wrap(DotsThreeIcon)
+export const IconGrip        = wrap(DotsSixVerticalIcon)
 export const IconPlay        = wrap(PlayIcon, 'fill')
 export const IconStop        = wrap(StopIcon, 'fill')
 export const IconMusic       = wrap(MusicNotesIcon)
