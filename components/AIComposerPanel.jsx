@@ -6,8 +6,10 @@ import { useEntitlements } from '@/lib/shared/EntitlementsContext.jsx'
 import { shuffledFactsForCity } from '@/lib/shared/cityFacts.js'
 import { trackProductEvent } from '@/lib/productAnalytics.js'
 import { unlockAudio } from '@/lib/audioSession.js'
+import { useDraggablePanel } from '@/lib/shared/useDraggablePanel.js'
+import { useIsPhone } from '@/lib/shared/useViewport.js'
 import './AIComposerPanel.css'
-import { IconCaretDown, IconCaretRight, IconCheck, IconWarning } from './icons.jsx'
+import { IconCaretDown, IconCaretRight, IconCheck, IconGrip, IconWarning } from './icons.jsx'
 
 // Natural-language composer overlay for the Map tab. The user describes the
 // sound they want; we ask the model for a structured plan, show a preview, and
@@ -22,6 +24,11 @@ export default function AIComposerPanel({
   open: openProp, onOpenChange,
 }) {
   const { openUpgrade, refresh, usage, limits } = useEntitlements()
+  // Desktop: the card floats and can be dragged anywhere by its header, so it
+  // never has to sit on top of the lanes you're editing. The phone keeps its
+  // bottom sheet.
+  const draggable = !useIsPhone()
+  const drag = useDraggablePanel({ storageKey: 'leid-ai-composer-pos', enabled: draggable })
   const [prompt,  setPrompt]  = useState('')
   const [loading, setLoading] = useState(false)
   const [error,   setError]   = useState(null)
@@ -141,8 +148,18 @@ export default function AIComposerPanel({
         </div>
       ) : null}
 
-      <div className={`ai-composer ${className}`}>
-      <button className="ai-composer-head" onClick={() => setOpen(o => !o)}>
+      <div
+        ref={drag.panelRef}
+        style={drag.style}
+        className={`ai-composer${draggable ? ' ai-composer--draggable' : ''}${drag.dragging ? ' is-dragging' : ''} ${className}`}
+      >
+      <button
+        className="ai-composer-head"
+        onClick={() => setOpen(o => !o)}
+        title={draggable ? 'Drag to move. Click to show or hide.' : undefined}
+        {...drag.handleProps}
+      >
+        {draggable ? <IconGrip className="ai-composer-grip" /> : null}
         <span className="ai-composer-title">AI Composer</span>
         <span className="ai-composer-chevron">{open ? <IconCaretDown /> : <IconCaretRight />}</span>
       </button>

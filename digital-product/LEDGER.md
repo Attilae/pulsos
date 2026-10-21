@@ -1,5 +1,22 @@
 # Digital product work
 
+## 2026-10-20: company versus product social accounts
+
+- Context: Deettalabs already has Instagram, TikTok, and YouTube accounts and plans audio plugins and other products alongside Leið.
+- Decision: recommend the existing company accounts for launch, with Leið as a clearly named product series and direct featured product link. Reconsider separation if audience, content needs, and operating capacity justify it.
+- Artifacts updated: [Profile and posting guide](marketing/social-profile-and-posting-guide-2026-10.md), [launch strategy](marketing/launch-strategy-2026-10.md). Replaced dedicated-product-account instructions and bios with company identity plus featured Leið copy.
+- Evidence: founder's portfolio plans and solo-founder constraints; official Klevgrand and AudioThing sites illustrate multi-product music-tool branding, not a measured social growth advantage. Account audiences and histories have not been inspected.
+- Remaining: founder applies approved profile wording and publishes. No account changes or public actions performed.
+
+## 2026-10-19: social profiles and posting guide
+
+- Request: check YouTube Shorts, Instagram, and TikTok guidance and prepare profile setup, bios, posting steps, descriptions, and CTAs.
+- Artifact: [Leið social profile and posting guide](marketing/social-profile-and-posting-guide-2026-10.md).
+- Content: consistent proposed identity, platform-specific profile copy, first-video captions, profile/Story UTM links, original-audio handling, own-brand and AI-narration disclosure settings, and a repeatable publishing checklist.
+- Validation: checked official YouTube, TikTok, and readable Meta guidance. YouTube Shorts links and thumbnail limitations verified; TikTok's specific website-link eligibility and own-brand disclosure verified. Instagram Help Center access was blocked; exact account-specific setup and upload menus remain an in-app check, documented in the guide.
+- Evidence limits: profile handles and live account eligibility were not inspected; CTA and hashtag choices are editorial recommendations, not reach guarantees; tags do not establish video-level causality.
+- Remaining: founder sets up profiles, tests links/previews, and publishes. No account changes, uploads, or messages performed.
+
 ## 2026-10-15: first launch video, revised music
 
 - Request: replace the original music example with the founder's prepared song in Chrome, after the WAV export fix.

@@ -33,7 +33,13 @@
   color: var(--accent);
 }
 
-.ai-composer-chevron { color: var(--muted); }
+.ai-composer-chevron { color: var(--muted); margin-left: auto; }
+
+/* Desktop: the header doubles as a drag handle (lib/shared/useDraggablePanel.js). */
+.ai-composer-grip { color: var(--muted); margin-right: 6px; }
+.ai-composer--draggable .ai-composer-head { cursor: grab; touch-action: none; }
+.ai-composer--draggable.is-dragging { user-select: none; }
+.ai-composer--draggable.is-dragging .ai-composer-head { cursor: grabbing; }
 
 .ai-composer-body {
   padding: 0 12px 12px;

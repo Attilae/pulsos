@@ -122,10 +122,12 @@
 @media (prefers-reduced-motion: reduce) { .guide-chapter summary svg { transition: none; } }
 @page {
   size: A4; margin: 18mm 20mm 20mm;
+  background: white;
   @bottom-left { content: "Leið · User guide"; font: 8pt Arial, sans-serif; color: #565c66; }
   @bottom-right { content: counter(page); font: 8pt Arial, sans-serif; color: #565c66; }
 }
 @media print {
+  :root { color-scheme: light; }
   html, body, .user-guide { background: white !important; color: #17181b !important; }
   .guide-header, .guide-layout, .guide-skip { display: none !important; }
   .guide-print { display: block; font: 10.5pt/1.55 Arial, sans-serif; color: #17181b; }
