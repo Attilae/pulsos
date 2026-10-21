@@ -1,0 +1,72 @@
+/* Performance monitor (components/PerfHud.jsx). Fixed and small so it can stay
+   open while playing; nothing in it animates. */
+.perf-hud {
+  position: fixed;
+  left: var(--space-200);
+  bottom: var(--space-200);
+  z-index: var(--z-floating);
+  width: min(320px, calc(100vw - 2 * var(--space-200)));
+  padding: var(--space-100) var(--space-150);
+  background: var(--surface-overlay);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  box-shadow: var(--elevation-overlay);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: var(--fs-2xs);
+}
+.perf-hud-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-100);
+  margin-bottom: var(--space-075);
+}
+.perf-hud-title { font-weight: 600; font-size: var(--fs-xs); }
+.perf-hud-verdict {
+  padding: 0 var(--space-075);
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--success);
+  color: var(--success-text);
+}
+.perf-hud-verdict--bad { border-color: var(--warning); color: var(--warning-text); }
+.perf-hud-icon {
+  margin-left: auto;
+  background: none;
+  border: 0;
+  color: var(--muted);
+  cursor: pointer;
+  display: inline-flex;
+  padding: var(--space-025);
+}
+.perf-hud dl { margin: 0; display: grid; gap: var(--space-025); }
+.perf-hud-row { display: grid; grid-template-columns: 72px 1fr; gap: var(--space-100); }
+.perf-hud-row dt { color: var(--muted); }
+.perf-hud-row dd { margin: 0; overflow-wrap: anywhere; }
+.perf-hud-row--bad dd { color: var(--warning-text); }
+.perf-hud-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-075);
+  margin-top: var(--space-100);
+  flex-wrap: wrap;
+}
+.perf-hud-actions button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-050);
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font: inherit;
+  padding: var(--space-025) var(--space-075);
+  cursor: pointer;
+}
+.perf-hud-latency { display: inline-flex; align-items: center; gap: var(--space-050); color: var(--muted); }
+.perf-hud-latency select {
+  background: var(--surface2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font: inherit;
+}

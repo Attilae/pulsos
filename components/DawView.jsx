@@ -370,7 +370,7 @@ export default function DawView(props) {
     const tick = () => {
       // The global Transport no longer loops (each Part self-loops for polyrhythm), so
       // Transport.progress stays 0. Compute the 4-bar visual cycle phase manually.
-      const bpm = Tone.Transport.bpm.value || 120
+      const bpm = Tone.getTransport().bpm.value || 120
       const loopSec = (16 / bpm) * 60
       const progress = (Tone.getTransport().seconds % loopSec) / loopSec
 
@@ -744,8 +744,10 @@ function EventLog({ visible }) {
     <aside className="event-log">
       <h2>Event Log</h2>
       <ul>
-        {events.slice(0, 24).map((ev, i) => (
-          <li key={i}>
+        {/* Keyed by event, not index: a new note then inserts one row instead
+            of rewriting the text of all 24 (a layout per note burst). */}
+        {events.slice(0, 24).map((ev) => (
+          <li key={ev.seq}>
             <span className="ev-line">{ev.routeShortName ?? ev.lineId}</span>
             <span className="ev-stop">{ev.stopName}</span>
             <span className="ev-note">{ev.note}</span>
@@ -778,7 +780,7 @@ function DrumLane({
     const unsubscribe = subscribePlayhead(() => {
       // Drum sequencer step (16th-note loop of DRUM_STEPS cells). The drum loop
       // is shorter than the 16-beat visual cycle, so derive it independently.
-      const stepDur = (60 / (Tone.Transport.bpm.value || 120)) / 4
+      const stepDur = (60 / (Tone.getTransport().bpm.value || 120)) / 4
       const step = Math.floor(Tone.getTransport().seconds / stepDur) % DRUM_STEPS
       if (step === playingStepRef.current) return
       root.querySelectorAll('.drum-lane-step.playing').forEach(el => el.classList.remove('playing'))
@@ -1140,7 +1142,9 @@ function LineTrack({
         route={route}
         visible={visible}
         speed={speed ?? 1}
-        started={started}
+        // A disabled lane plays no notes, so it gets no moving playhead either;
+        // animating every disabled rail cost ~2/3 of the DAW's per-frame work.
+        started={started && !disabled}
         mode={mode}
         vehicles={vehicles}
         trackScale={trackScale}
@@ -2043,7 +2047,7 @@ function AutoCurveRail({ route, laneId, points, spec, started = false, visible =
     }
     let reported = -1
     const unsubscribe = subscribePlayhead(() => {
-      const bpm = Tone.Transport.bpm.value || 120
+      const bpm = Tone.getTransport().bpm.value || 120
       const loopSec = (16 / bpm) * 60
       const partLoopSec = (regionLen / GRID_TOTAL_CELLS) * loopSec / (speed || 1)
       const t = Tone.getTransport().seconds
@@ -3108,7 +3112,8 @@ function StopRail({
   // the applied key and let the next frame put the highlight back.
   const activeTargetsRef = useRef([])
   const activeKeyRef     = useRef(null)
-  useLayoutEffect(() => { activeKeyRef.current = null })
+  const restingRef       = useRef(null)
+  useLayoutEffect(() => { activeKeyRef.current = null; restingRef.current = null })
 
   // Drive the playhead from the track's local part progress so a shrunk
   // section visibly loops at its own (faster) rate.
@@ -3130,7 +3135,7 @@ function StopRail({
       return undefined
     }
     const unsubscribe = subscribePlayhead(() => {
-      const bpm = Tone.Transport.bpm.value || 120
+      const bpm = Tone.getTransport().bpm.value || 120
       const loopSec = (16 / bpm) * 60  // 4 bars
       const partLoopSec = (regionLen / GRID_TOTAL_CELLS) * loopSec / (speed || 1)
       const t = Tone.getTransport().seconds
@@ -3151,20 +3156,25 @@ function StopRail({
       // DOM, not via state, so the per-frame tick doesn't re-render the rail.
       // Counted in ticks like the engine's _laneGate (a Part's loop is fixed in
       // ticks, so BPM changes don't shift it); MixerTab anchors Parts at 0.
+      // Written only when it changes: every classList call rewrites the class
+      // attribute and invalidates style, even when the class is already right.
       const rail = railRef.current
+      let rest = false
       if (rail && loopPattern?.rest) {
         const transport = Tone.getTransport()
         const loopTicks = (regionLen / GRID_TOTAL_CELLS) * 16 * transport.PPQ / (speed || 1)
-        rail.classList.toggle('stop-rail--resting',
-          !loopPlays(loopIndexAt(transport.ticks, 0, loopTicks), loopPattern))
-      } else {
-        rail.classList.remove('stop-rail--resting')
+        rest = !loopPlays(loopIndexAt(transport.ticks, 0, loopTicks), loopPattern)
+      }
+      if (rail && rest !== restingRef.current) {
+        rail.classList.toggle('stop-rail--resting', rest)
+        restingRef.current = rest
       }
     })
     return () => {
       unsubscribe()
       setActive(null)
       rail.classList.remove('stop-rail--resting')
+      restingRef.current = null
     }
   }, [started, visible, mode, speed, startPct, endPct, regionLen, loopPattern])
 
