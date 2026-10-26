@@ -8,6 +8,7 @@ import { trackProductEvent } from '@/lib/productAnalytics.js'
 import { unlockAudio } from '@/lib/audioSession.js'
 import { useDraggablePanel } from '@/lib/shared/useDraggablePanel.js'
 import { useIsPhone } from '@/lib/shared/useViewport.js'
+import { COMPOSE_MAX_PROMPT_CHARS } from '@/lib/ai/composeRequest.js'
 import './AIComposerPanel.css'
 import { IconCaretDown, IconCaretRight, IconCheck, IconGrip, IconWarning } from './icons.jsx'
 
@@ -89,7 +90,7 @@ export default function AIComposerPanel({
       const maxTracks = Math.min(routes?.length ?? 1, limits.activeLanes ?? 8)
       const currentSong = effectiveMode === 'edit' ? describeCurrentSong?.() ?? null : null
       const { raw, recipe } = await requestComposition(prompt.trim(), routes, {
-        cityId, cityName, maxTracks, recipeId, mode: effectiveMode, currentSong,
+        cityId, recipeId, mode: effectiveMode, currentSong,
       })
       const validated = validatePlan(raw, routes, { activeLaneLimit: maxTracks })
       const advisories = planAdvisories(validated.plan, { mode: effectiveMode, bpm: currentSong?.bpm })
@@ -201,6 +202,7 @@ export default function AIComposerPanel({
             onChange={e => setPrompt(e.target.value)}
             onKeyDown={onKeyDown}
             rows={4}
+            maxLength={COMPOSE_MAX_PROMPT_CHARS}
             disabled={loading}
           />
 

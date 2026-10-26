@@ -1,27 +1,36 @@
 // Feedback / bug-report intake. Open to signed-out visitors, so this is the one
 // route in the app that has to defend itself: honeypot → Turnstile → validation
-// → per-IP rate limit, in that order, before anything touches the database.
+// → admission (per-IP and global budgets), in that order, before the report is
+// stored. Admission is an atomic counter (lib/server/rateCounter.js), so parallel
+// requests can't all pass together, and it fails closed: if it can't be checked,
+// nothing is stored or mailed.
 //
 // The row is written first and the two emails are best-effort after it. A
 // Resend outage must not make someone retype a bug report they already sent.
+// The auto-reply goes to an unverified address, so it has its own per-recipient
+// and global budgets and never quotes the submission.
 
 import { randomUUID, createHash } from 'node:crypto'
-import { and, eq, gt, sql } from 'drizzle-orm'
 import { auth } from '@/lib/auth.js'
 import { db } from '@/lib/db/index.js'
 import { feedback } from '@/lib/db/schema.js'
 import { sendEmail } from '@/lib/email.js'
 import { LEGAL_DETAILS } from '@/lib/legal.js'
 import { verifyTurnstile, clientIp } from '@/lib/turnstile.js'
+import { consumeBudget } from '@/lib/server/rateCounter.js'
+import { DAY_MS, HOUR_MS } from '@/lib/rateWindow.js'
 import {
+  FEEDBACK_MAX_BODY_BYTES,
   normalizeFeedback,
   formatFeedbackEmail,
   formatFeedbackAutoReply,
   TURNSTILE_ACTION,
 } from '@/lib/feedback.js'
 
-const RATE_LIMIT = 5          // reports per IP…
-const RATE_WINDOW_MS = 3600e3 // …per hour
+const RATE_LIMIT = 5 // reports per IP per hour
+const GLOBAL_DAILY_LIMIT = Number(process.env.FEEDBACK_DAILY_LIMIT) || 200
+const REPLIES_PER_RECIPIENT = 2 // auto-replies per address per day
+const GLOBAL_DAILY_REPLIES = Number(process.env.FEEDBACK_DAILY_REPLY_LIMIT) || 100
 
 const NO_STORE = { 'Cache-Control': 'private, no-store' }
 
@@ -32,18 +41,33 @@ function hashIp(ip) {
   return createHash('sha256').update(`${ip}:${process.env.BETTER_AUTH_SECRET || ''}`).digest('hex')
 }
 
-async function recentCount(ipHash) {
-  if (!ipHash) return 0
-  const since = new Date(Date.now() - RATE_WINDOW_MS)
-  const [row] = await db
-    .select({ n: sql`count(*)::int` })
-    .from(feedback)
-    .where(and(eq(feedback.ipHash, ipHash), gt(feedback.createdAt, since)))
-  return row?.n ?? 0
+function hashEmail(email) {
+  return createHash('sha256').update(`${email.toLowerCase()}:${process.env.BETTER_AUTH_SECRET || ''}`).digest('hex')
+}
+
+// Per-IP first, then global, so one noisy address can't burn the global budget
+// once it is over its own. Requests with no resolvable IP share one bucket.
+async function admit(ipHash) {
+  const own = await consumeBudget(`feedback:ip:${ipHash ?? 'unknown'}`, { limit: RATE_LIMIT, windowMs: HOUR_MS })
+  if (!own.allowed) return false
+  const global = await consumeBudget('feedback:global', { limit: GLOBAL_DAILY_LIMIT, windowMs: DAY_MS })
+  return global.allowed
+}
+
+async function mayAutoReply(email) {
+  const own = await consumeBudget(`feedback_reply:${hashEmail(email)}`, { limit: REPLIES_PER_RECIPIENT, windowMs: DAY_MS })
+  if (!own.allowed) return false
+  const global = await consumeBudget('feedback_reply:global', { limit: GLOBAL_DAILY_REPLIES, windowMs: DAY_MS })
+  return global.allowed
 }
 
 export async function POST(req) {
-  const body = await req.json().catch(() => null)
+  const raw = await req.text().catch(() => '')
+  if (Buffer.byteLength(raw) > FEEDBACK_MAX_BODY_BYTES) {
+    return Response.json({ error: 'report too large' }, { status: 413, headers: NO_STORE })
+  }
+  let body = null
+  try { body = JSON.parse(raw) } catch {}
   if (!body || typeof body !== 'object') {
     return Response.json({ error: 'invalid payload' }, { status: 400, headers: NO_STORE })
   }
@@ -70,16 +94,21 @@ export async function POST(req) {
   const value = parsed.value
 
   const ipHash = hashIp(ip)
+  let admitted
   try {
-    if (await recentCount(ipHash) >= RATE_LIMIT) {
-      return Response.json(
-        { error: 'too many reports from here — please try again later' },
-        { status: 429, headers: NO_STORE },
-      )
-    }
+    admitted = await admit(ipHash)
   } catch (err) {
-    // A failed rate-limit read must not block a legitimate report.
-    console.error('[feedback] rate-limit check failed', err)
+    console.error('[feedback] admission check failed', err)
+    return Response.json(
+      { error: 'could not accept reports right now — please try again later' },
+      { status: 503, headers: NO_STORE },
+    )
+  }
+  if (!admitted) {
+    return Response.json(
+      { error: 'too many reports right now — please try again later' },
+      { status: 429, headers: NO_STORE },
+    )
   }
 
   // Signed-in is a nice-to-have for triage, never a gate.
@@ -114,8 +143,10 @@ export async function POST(req) {
   }
 
   try {
-    const reply = formatFeedbackAutoReply(value, { serviceName })
-    await sendEmail({ to: value.email, subject: reply.subject, text: reply.text })
+    if (await mayAutoReply(value.email)) {
+      const reply = formatFeedbackAutoReply(value, { serviceName })
+      await sendEmail({ to: value.email, subject: reply.subject, text: reply.text })
+    }
   } catch (err) {
     console.error('[feedback] auto-reply failed', err)
   }

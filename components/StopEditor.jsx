@@ -5,7 +5,10 @@
 //
 // Driven by an `editingStop` payload assembled in DawView's StopRail:
 //   { routeId, stopId, stopName, geoNote, degrees, velocity, chance, laneChance,
-//     root, scaleType, semitoneShift, hold }
+//     root, scaleType, semitoneShift, hold, velocityAuthored, laneVelocity, laneVelocitySource }
+// `velocityAuthored` says the stop has its own velocity; `laneVelocity` is what it
+// plays without one (the lane's stop-driven mapping, lib/stopVelocity.js, or 1),
+// and `laneVelocitySource` names that mapping ('demand' | 'hubs') or is null.
 // `hold` is the stop-driven note length preview (lib/stopNoteLength.js
 // previewStopHolds) when the lane maps demand to note length, else null.
 // `chance` is the stop's own override, or null when it follows `laneChance`.
@@ -18,6 +21,7 @@ import { createPortal } from 'react-dom'
 import { useModal } from '@/lib/shared/useModal.js'
 import { shiftSemitones, transposeNoteInScale } from '@/lib/mappings.js'
 import { holdLabel } from '@/lib/stopNoteLength.js'
+import { STOP_VELOCITY_LABELS } from '@/lib/stopVelocity.js'
 import './StopEditor.css'
 import { IconClose } from './icons.jsx'
 
@@ -27,6 +31,9 @@ export default function StopEditor({ editingStop, onClose, onPitch, onVelocity, 
   const { routeId, stopId, stopName, geoNote, root, scaleType, semitoneShift = 0 } = editingStop
   const [degrees,  setDegrees]  = useState(editingStop.degrees ?? 0)
   const [velocity, setVelocity] = useState(editingStop.velocity ?? 1)
+  const laneVelocity = editingStop.laneVelocity ?? 1
+  const laneVelocitySource = editingStop.laneVelocitySource ?? null
+  const [velAuthored, setVelAuthored] = useState(!!editingStop.velocityAuthored)
   const laneChance = editingStop.laneChance ?? 1
   const [chance, setChance] = useState(editingStop.chance ?? null)
 
@@ -49,13 +56,16 @@ export default function StopEditor({ editingStop, onClose, onPitch, onVelocity, 
   const changeVelocity = useCallback((pct) => {
     const v = Math.max(0.2, Math.min(1, pct / 100))
     setVelocity(v)
+    setVelAuthored(true)
     onVelocity?.(routeId, stopId, v)
   }, [routeId, stopId, onVelocity])
 
+  // Back to the lane: its stop-driven velocity, or full level.
   const resetVelocity = useCallback(() => {
-    setVelocity(1)
-    onVelocity?.(routeId, stopId, 1)
-  }, [routeId, stopId, onVelocity])
+    setVelocity(laneVelocity)
+    setVelAuthored(false)
+    onVelocity?.(routeId, stopId, null)
+  }, [routeId, stopId, onVelocity, laneVelocity])
 
   const changeChance = useCallback((pct) => {
     const c = Math.max(0, Math.min(1, pct / 100))
@@ -119,8 +129,11 @@ export default function StopEditor({ editingStop, onClose, onPitch, onVelocity, 
               onChange={e => changeVelocity(Number(e.target.value))}
             />
             <span className="stop-editor-note stop-editor-note--vel">{velPct}%</span>
+            {!velAuthored && laneVelocitySource && (
+              <span className="stop-editor-meta">from {STOP_VELOCITY_LABELS[laneVelocitySource].toLowerCase()}</span>
+            )}
           </div>
-          <button className="stop-editor-reset" onClick={resetVelocity} disabled={velPct === 100}>Reset</button>
+          <button className="stop-editor-reset" onClick={resetVelocity} disabled={!velAuthored}>Reset</button>
         </div>
 
         {hold && (

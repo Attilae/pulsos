@@ -4,7 +4,7 @@
 
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { allowedHostnames } from '../lib/turnstile.js'
+import { allowedHostnames, captchaRequired, clientIp } from '../lib/turnstile.js'
 
 const VARS = ['TURNSTILE_HOSTNAMES', 'NEXT_PUBLIC_APP_URL', 'BETTER_AUTH_URL']
 
@@ -72,4 +72,18 @@ test('both app URLs contribute', () => {
   )
   assert.ok(names.has('a.test'))
   assert.ok(names.has('b.test'))
+})
+
+test('a production build requires a captcha secret unless explicitly disabled', () => {
+  assert.equal(captchaRequired({ NODE_ENV: 'production' }), true)
+  assert.equal(captchaRequired({ NODE_ENV: 'production', TURNSTILE_DISABLED: 'true' }), false)
+  assert.equal(captchaRequired({ NODE_ENV: 'development' }), false)
+})
+
+test('client IP prefers the platform-set headers over a client-supplied x-forwarded-for', () => {
+  const h = (o) => new Headers(o)
+  assert.equal(clientIp(h({ 'x-forwarded-for': '6.6.6.6', 'x-real-ip': '1.2.3.4' })), '1.2.3.4')
+  assert.equal(clientIp(h({ 'x-forwarded-for': '6.6.6.6', 'x-vercel-forwarded-for': '5.5.5.5' })), '5.5.5.5')
+  assert.equal(clientIp(h({ 'x-forwarded-for': '7.7.7.7, 8.8.8.8' })), '7.7.7.7')
+  assert.equal(clientIp(h({})), null)
 })

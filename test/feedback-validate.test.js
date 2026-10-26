@@ -117,11 +117,11 @@ test('operator email says so when the sender was signed out', () => {
   assert.ok(mail.text.includes('signed out'))
 })
 
-test('auto-reply quotes the message back', () => {
+test('auto-reply never quotes the submitted message to the unverified address', () => {
   const value = normalizeFeedback(valid).value
   const reply = formatFeedbackAutoReply(value, { serviceName: 'Leið' })
   assert.ok(reply.subject.includes('bug report'))
-  assert.ok(reply.text.includes(value.message))
+  assert.ok(!reply.text.includes(value.message))
 })
 
 test('kind labels cover every kind and fall back safely', () => {

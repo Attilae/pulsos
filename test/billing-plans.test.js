@@ -1,7 +1,10 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
+  AI_ATTEMPT_BUDGETS,
   FREE_LIMITS,
+  PAYMENT_GRACE_MS,
+  aiAttemptBudget,
   SUPERADMIN_LIMITS,
   countActiveLanes,
   isOverrideEntitled,
@@ -15,13 +18,68 @@ import {
 
 test('subscription access follows provider status and cancellation end date', () => {
   const now = new Date('2026-07-21T12:00:00Z')
-  for (const status of ['on_trial', 'active', 'paused', 'past_due', 'unpaid']) {
+  for (const status of ['on_trial', 'active']) {
     assert.equal(isSubscriptionEntitled({ status }, now), true, status)
   }
-  assert.equal(isSubscriptionEntitled({ status: 'expired' }, now), false)
+  for (const status of ['paused', 'unpaid', 'expired']) {
+    assert.equal(isSubscriptionEntitled({ status, renewsAt: '2026-07-20T00:00:00Z' }, now), false, status)
+  }
   assert.equal(isSubscriptionEntitled({ status: 'cancelled' }, now), false)
   assert.equal(isSubscriptionEntitled({ status: 'cancelled', endsAt: '2026-07-22T00:00:00Z' }, now), true)
   assert.equal(isSubscriptionEntitled({ status: 'cancelled', endsAt: '2026-07-20T00:00:00Z' }, now), false)
+})
+
+test('past_due keeps Pro only through a finite grace after the failed renewal', () => {
+  const renewsAt = '2026-07-01T00:00:00Z'
+  const due = new Date(renewsAt).getTime()
+  const sub = { status: 'past_due', renewsAt }
+  assert.equal(isSubscriptionEntitled(sub, new Date(due + PAYMENT_GRACE_MS - 1)), true)
+  assert.equal(isSubscriptionEntitled(sub, new Date(due + PAYMENT_GRACE_MS)), false)
+  assert.equal(isSubscriptionEntitled(sub, new Date('2026-10-21T00:00:00Z')), false)
+  // No dates at all can't grant open-ended access.
+  assert.equal(isSubscriptionEntitled({ status: 'past_due' }, new Date(due)), false)
+  // Falls back to the provider update time when renewsAt is missing.
+  assert.equal(isSubscriptionEntitled({ status: 'past_due', providerUpdatedAt: renewsAt }, new Date(due + 1)), true)
+  // Recovery: the provider flips the status back to active.
+  assert.equal(isSubscriptionEntitled({ ...sub, status: 'active' }, new Date('2026-10-21T00:00:00Z')), true)
+})
+
+test('the audit reproduction no longer grants Pro for stale unpaid/past_due/paused records', () => {
+  const now = new Date('2026-10-21T00:00:00Z')
+  for (const status of ['unpaid', 'past_due', 'paused']) {
+    const subscription = { status, endsAt: '2000-01-01T00:00:00Z', renewsAt: '2000-01-01T00:00:00Z' }
+    assert.equal(resolveAccess({ subscription }, now).plan, 'free', status)
+  }
+})
+
+test('trials end after their trial date plus grace', () => {
+  const trialEndsAt = '2026-07-01T00:00:00Z'
+  const end = new Date(trialEndsAt).getTime()
+  assert.equal(isSubscriptionEntitled({ status: 'on_trial', trialEndsAt }, new Date(end)), true)
+  assert.equal(isSubscriptionEntitled({ status: 'on_trial', trialEndsAt }, new Date(end + PAYMENT_GRACE_MS)), false)
+})
+
+test('test-mode subscriptions only entitle when the deployment allows them', () => {
+  const now = new Date('2026-07-21T12:00:00Z')
+  const subscription = { status: 'active', testMode: true }
+  assert.equal(isSubscriptionEntitled(subscription, now), false)
+  assert.equal(isSubscriptionEntitled(subscription, now, { allowTestMode: true }), true)
+  assert.equal(resolveAccess({ subscription }, now).plan, 'free')
+  assert.equal(resolveAccess({ subscription, allowTestMode: true }, now).plan, 'pro')
+  // Overrides are unaffected.
+  assert.equal(resolveAccess({ subscription, override: { plan: 'pro' } }, now).plan, 'pro')
+})
+
+test('AI attempt budgets are finite for every access source', () => {
+  for (const source of ['free', 'subscription', 'override', 'superadmin', undefined]) {
+    const budget = aiAttemptBudget(source)
+    assert.ok(Number.isInteger(budget.limit) && budget.limit > 0, String(source))
+  }
+  assert.equal(aiAttemptBudget('free'), AI_ATTEMPT_BUDGETS.free)
+  assert.equal(AI_ATTEMPT_BUDGETS.free.windowMs, null)
+  // Two provider calls per success credit always fit, with slack.
+  assert.ok(AI_ATTEMPT_BUDGETS.free.limit >= FREE_LIMITS.ai * 2)
+  assert.equal(aiAttemptBudget('subscription'), AI_ATTEMPT_BUDGETS.pro)
 })
 
 test('access resolution prioritizes superadmins, then overrides, then subscriptions', () => {

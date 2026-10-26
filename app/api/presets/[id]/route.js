@@ -1,6 +1,7 @@
 // /api/presets/:id — read (GET), upsert (PUT), delete (DELETE), user-scoped.
 import { auth } from '@/lib/auth.js'
-import { deleteSong, getSong, upsertSong } from '@/lib/server/presets.js'
+import { deleteSong, getSong, upsertSong, StorageLimitError } from '@/lib/server/presets.js'
+import { validateRecordId } from '@/lib/storageLimits.js'
 
 async function requireUser(req) {
   const session = await auth.api.getSession({ headers: req.headers })
@@ -22,7 +23,16 @@ export async function PUT(req, { params }) {
   const { id } = await params
   const body = await req.json().catch(() => null)
   if (!body) return Response.json({ error: 'body required' }, { status: 400 })
-  const song = await upsertSong(user.id, id, body)
+  if (!validateRecordId(id)) return Response.json({ error: 'invalid id' }, { status: 400 })
+  let song
+  try {
+    song = await upsertSong(user.id, id, body)
+  } catch (err) {
+    if (err instanceof StorageLimitError) {
+      return Response.json({ error: err.message, code: err.code }, { status: err.status })
+    }
+    throw err
+  }
   if (!song) return Response.json({ error: 'conflict' }, { status: 409 })
   return Response.json(song)
 }

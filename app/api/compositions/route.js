@@ -4,6 +4,8 @@ import { auth } from '@/lib/auth.js'
 import { db } from '@/lib/db/index.js'
 import { compositions } from '@/lib/db/schema.js'
 import { compositionLimitError, getEntitlements } from '@/lib/billing/server.js'
+import { LIBRARY_LIMITS } from '@/lib/storageLimits.js'
+import { admitCompositionWrite, checkCompositionBudget, storageErrorResponse } from '@/lib/server/compositionLimits.js'
 
 async function requireUser(req) {
   const session = await auth.api.getSession({ headers: req.headers })
@@ -26,6 +28,7 @@ export async function GET(req) {
     .from(compositions)
     .where(eq(compositions.userId, u.id))
     .orderBy(desc(compositions.updatedAt))
+    .limit(LIBRARY_LIMITS.maxCompositions)
 
   return Response.json(rows.map((r) => ({
     id: r.id,
@@ -48,23 +51,33 @@ export async function POST(req) {
   const limitError = compositionLimitError(await getEntitlements(u.id), body.items)
   if (limitError) return Response.json(limitError, { status: 403 })
 
-  const now = new Date()
-  const [row] = await db
-    .insert(compositions)
-    .values({
-      id: body.id,
-      userId: u.id,
-      name: body.name,
-      schemaVersion: body.schemaVersion ?? 1,
-      cityId: body.cityId ?? null,
-      bpm: body.bpm ?? 120,
-      items: body.items,
-      createdAt: now,
-      updatedAt: now,
+  try {
+    await admitCompositionWrite(u.id, body.id, body)
+    const now = new Date()
+    const row = await db.transaction(async (tx) => {
+      await checkCompositionBudget(tx, u.id, body.id)
+      const [inserted] = await tx
+        .insert(compositions)
+        .values({
+          id: body.id,
+          userId: u.id,
+          name: body.name,
+          schemaVersion: body.schemaVersion ?? 1,
+          cityId: body.cityId ?? null,
+          bpm: body.bpm ?? 120,
+          items: body.items,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .returning()
+      return inserted
     })
-    .returning()
-
-  return Response.json(serialize(row), { status: 201 })
+    return Response.json(serialize(row), { status: 201 })
+  } catch (err) {
+    const res = storageErrorResponse(err)
+    if (res) return res
+    throw err
+  }
 }
 
 export function serialize(row) {

@@ -10,7 +10,7 @@
 import 'dotenv/config'
 import express from 'express'
 import http from 'http'
-import { WebSocketServer } from 'ws'
+import { createFeedSocketServer } from './wsServer.js'
 import { loadGtfs } from './gtfsLoader.js'
 import { GtfsRtFeed } from './bkkFeed.js'
 import { getCity } from './cities/index.js'
@@ -30,7 +30,12 @@ if (cfg.apiKeyEnv && !API_KEY) {
 
 const app    = express()
 const server = http.createServer(app)
-const wss    = new WebSocketServer({ server })
+const { broadcast } = createFeedSocketServer(server, {
+  allowedOrigins: ALLOWED_ORIGINS,
+  maxConnections: Number(process.env.WS_MAX_CONNECTIONS) || undefined,
+  maxConnectionsPerIp: Number(process.env.WS_MAX_CONNECTIONS_PER_IP) || undefined,
+  trustProxy: process.env.TRUST_PROXY === 'true',
+})
 
 app.use((req, res, next) => {
   const origin = req.headers.origin
@@ -58,13 +63,6 @@ app.get('/api/metro-debug', (_req, res) => {
   res.json(feed.getMetroDebug())
 })
 
-function broadcast(msg) {
-  const text = JSON.stringify(msg)
-  for (const client of wss.clients) {
-    if (client.readyState === 1) client.send(text)
-  }
-}
-
 async function main() {
   console.log(`[feed] City: ${cfg.name}`)
   console.log('[feed] Loading GTFS static data…')
@@ -77,13 +75,6 @@ async function main() {
   feed.on('alert_update',   (alerts) => broadcast({ type: 'alert_update', alerts }))
   feed.start()
   console.log(`[feed] ${cfg.name} polling every ${(cfg.pollMs ?? 5000) / 1000} s`)
-
-  wss.on('connection', (ws, req) => {
-    const ip = req.socket.remoteAddress
-    console.log(`[ws] client connected (${ip})`)
-    ws.send(JSON.stringify({ type: 'status', connected: true }))
-    ws.on('close', () => console.log(`[ws] client disconnected (${ip})`))
-  })
 
   server.listen(PORT, () => console.log(`[feed] http://localhost:${PORT}`))
 }

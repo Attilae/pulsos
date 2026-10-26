@@ -83,7 +83,11 @@ logic** — nothing boots Tone.js, React, or the DB: `billing-plans` (`lib/billi
 `ai-plan-apply` (`lib/ai/planApply.js` + `lib/shared/cityFacts.js`), `song-lanes`
 (`lib/songLanes.js`), `song-snapshot` + `song-migrate` (`lib/songState.js`), `stop-signals`
 (`scripts/lib/stopSignals.js`), `ridership-adapters` (`scripts/ridership/`),
-`feedback-validate` (`lib/feedback.js`), `custom-audio` (`lib/customAudio.js`), `turnstile-hostnames` (`lib/turnstile.js`),
+`feedback-validate` (`lib/feedback.js`), `custom-audio` (`lib/customAudio.js`), `turnstile-hostnames` (`lib/turnstile.js`,
+also its production captcha requirement and client-IP header order), `compose-request` (`lib/ai/composeRequest.js`: request bounds and the server-built prompt),
+`feed-ws` (a loopback load test of `feed/wsServer.js`: admission budgets, inbound messages, a slow
+reader under a ~32 MB paced broadcast, heartbeat eviction),
+`storage-limits` (`lib/storageLimits.js` + `lib/rateWindow.js`),
 `lane-cycles` (`lib/laneCycles.js`), `master-curves` (`lib/masterCurves.js`),
 `true-peak-limiter` (`public/worklets/true-peak-limiter.js`), `master-chain` (`lib/masterChain.js`), `wav-pcm` (`lib/wavPcm.js` — dithered
 16-bit conversion for WAV export), `lane-gating` (`lib/laneGating.js`), `auth-origins`
@@ -111,6 +115,8 @@ song state),
 `note-length` (`lib/noteLength.js` + its plan/advisory rules),
 `stop-note-length` (`lib/stopNoteLength.js`: mapping, merged-chord demand, MIDI holds, song state,
 plans, and a replay of PolySynth's release matching under same-pitch protection),
+`stop-velocity` (`lib/stopVelocity.js`: mapping, precedence, merged chords, MIDI, note rows, song
+state, plans and advisories),
 `midi-export` (`lib/midiEvents.js` — one loop pass, shortened loops, same-pitch overlaps, arp steps),
 `sound-policy` (`lib/ai/soundPolicy.js` — every sound recipe survives `validatePlan` and raises no
 advisory), `plan-advisories` (`lib/ai/planAdvisories.js`), `plan-snapshot` (`lib/ai/planSnapshot.js` — round-trips its output through the real
@@ -145,6 +151,8 @@ restart it with a fresh `.next` afterwards.
   trusting only `BETTER_AUTH_URL` made every sign-in from the other half fail with `INVALID_ORIGIN`.
 - `OPENROUTER_API_KEY` — required only for the AI Composer (`POST /api/compose`).
 - `OPENROUTER_MODEL` — optional override (default `anthropic/claude-sonnet-4.5`).
+- `AI_GLOBAL_DAILY_ATTEMPTS` — optional, default 1000: provider calls `/api/compose` may make per UTC
+  day across all users (see **Abuse budgets** below).
 - `NEXT_PUBLIC_GRANULAR_ENGINE` — `grainplayer` (default, the original `Tone.GrainPlayer` layer)
   or `clouds` (the **Texture** insert). Build-time and app-wide, not song state. See
   **Granular engines** below.
@@ -161,6 +169,9 @@ restart it with a fresh `.next` afterwards.
   `LEMONSQUEEZY_VARIANT_ID_ANNUAL`, `LEMONSQUEEZY_WEBHOOK_SECRET` — the Free/Pro billing surface
   (`app/api/billing/*`, see **Billing & entitlements** below). Unset → checkout/portal/webhook
   fail; everything else, including Free-tier gating, still works.
+- `LEMONSQUEEZY_TEST_MODE` — `true` only on a deployment wired to LS test mode. Otherwise test-mode
+  subscriptions are ignored by the webhook and by entitlement resolution, so a signed test checkout
+  can't grant live Pro.
 - `NEXT_PUBLIC_LINES_URL` — Vercel Blob URL for the **default city's** `lines.json` in production;
   unset locally (falls back to `public/data/lines.json`). `BLOB_READ_WRITE_TOKEN` — only for
   `upload:lines`.
@@ -177,10 +188,13 @@ restart it with a fresh `.next` afterwards.
 - `RESEND_API_KEY`, `EMAIL_FROM` — magic-link **and feedback** email; **optional in dev** (mail
   prints to the server console when unset).
 - `FEEDBACK_TO` — where `/api/feedback` mails reports; defaults to `LEGAL_DETAILS.contactEmail`.
+  `FEEDBACK_DAILY_LIMIT` (200) / `FEEDBACK_DAILY_REPLY_LIMIT` (100) cap stored reports and
+  auto-replies per day across everyone.
 - `NEXT_PUBLIC_TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY` — Cloudflare Turnstile on the feedback
   form. The **site key is public** (it ships to the browser); only the secret is sensitive, and an
-  unset secret skips server-side verification, deliberately mirroring the `RESEND_API_KEY` fallback
-  so dev needs no Cloudflare account. `TURNSTILE_SECRET` is accepted as an alias because that's the
+  unset secret skips server-side verification in dev, deliberately mirroring the `RESEND_API_KEY`
+  fallback so dev needs no Cloudflare account. A **production** build (`NODE_ENV=production`) with no
+  secret rejects every report instead, unless `TURNSTILE_DISABLED=true` says that's intended. `TURNSTILE_SECRET` is accepted as an alias because that's the
   name Cloudflare's own tooling writes. Cloudflare's always-pass/always-fail test keys are in
   `.env.example`.
 - `TURNSTILE_HOSTNAMES` — optional comma-separated allowlist of hostnames a token may come from.
@@ -201,6 +215,11 @@ restart it with a fresh `.next` afterwards.
 - `PORT` — default 3005.
 - `ALLOWED_ORIGINS` — comma-separated CORS allowlist (`*` default; set to the Vercel origin
   in production).
+  Also enforced on WebSocket upgrades by `Origin`. The socket server (`feed/wsServer.js`,
+  `createFeedSocketServer`, load-tested by `test/feed-ws.test.js`) also caps connections
+  (`WS_MAX_CONNECTIONS` 1000, `WS_MAX_CONNECTIONS_PER_IP` 10; set `TRUST_PROXY=true` behind a proxy
+  so per-IP sees clients), limits inbound payloads to 1 KB (the protocol is server → client only;
+  any message closes the socket), pings every 30 s, and terminates clients buffering over 1 MB.
 
 ### Data pipeline gotchas
 
@@ -272,7 +291,11 @@ one cold.
 ### `lib/` — auth, DB, persistence, and the audio engine (non-UI logic)
 
 - `auth.js` / `auth-client.js` — Better Auth (email+password + magic link) via the Drizzle
-  adapter; server config + React client.
+  adapter; server config + React client. **Password sign-up requires email verification**
+  (`requireEmailVerification`): sign-up mails a confirmation link and returns no session, and an
+  unverified sign-in gets `EMAIL_NOT_VERIFIED` plus a fresh link (`sendOnSignIn`, message in
+  `lib/authFormValidation.js`). Migration `0009` marked every account that existed before this as
+  verified. Magic-link sign-in verifies by itself.
 - `email.js` — Resend sender with a dev console fallback.
 - `db/schema.js` — Drizzle schema: `user`/`session`/`account`/`verification` (Better Auth) +
   `feedback` (open-submission bug reports; nullable `user_id`, salted `ip_hash` for rate limiting) +
@@ -453,6 +476,15 @@ visual contract: tokens, named rules, do's and don'ts. The UI conventions it rel
   MIDI export resolves the same holds (then its usual one-loop clip). Live notes stay fixed.
   Plans carry it as `stopNoteLength` (`{source: 'fixed'}` switches back). Plan:
   `docs/stop-driven-note-length-plan.md`.
+- **Stop-driven velocity** (`lib/stopVelocity.js`, pure and tested): `trackStopVelocityMaps`
+  (routeId → `{source: 'demand'|'hubs', min, max, invert}`, velocities 0.2–1) sets each stop's
+  velocity from `signals.demand` (linear) or `signals.centrality` (squared, so only interchanges
+  accent). Sparse, absent = off, any instrument (inactive on PluckSynth). `resolveStopVelocity` is
+  the one precedence engine, MIDI export and the note displays share: authored `trackStopVelocities`
+  → mapping → variety's gap map → 1. Because a mapped lane can be quieter than 1, an authored 100%
+  is now stored (`handleStopVelocity(…, null)` is what clears an override). Merged chords use their
+  strongest stop (`cell.signals`). Read at callback time (`engine._stopVelocityMaps`). Plans:
+  `stopVelocity` (`{source: 'off'}` switches back; the new-composition baseline resets it).
 - Fresh sessions now start with `DEFAULT_FX_TRACKS = ['reverb', 'delay', 'chorus', 'distortion']`
   pre-activated (was empty), so automation targets like `send.reverb` are available immediately.
 
@@ -975,6 +1007,40 @@ and IR channel count before anything reaches the audio graph.
   the plan's `activeLanes` cap **without discarding them** — an oversized saved song loads verbatim
   with the overflow lanes muted, so upgrading restores them. `countActiveLanes` excludes the drum
   pseudo-route (`__drums__`).
+- **Status policy** (`isSubscriptionEntitled`): `active` → Pro; `on_trial` until `trialEndsAt` +
+  `PAYMENT_GRACE_MS` (14 days); `past_due` until `renewsAt` (else `providerUpdatedAt`) + that grace,
+  then Free even if LS never updates the status; `cancelled` until `endsAt`; `unpaid`/`paused`/
+  `expired` → Free. Test-mode rows never count unless `LEMONSQUEEZY_TEST_MODE=true`.
+
+### Abuse budgets
+
+Security audit `docs/security-audit-2026-10-21.md` (S01, S03, S06). One primitive backs them:
+`rate_counters` (migration `0008`), a fixed-window counter that `lib/server/rateCounter.js`'s
+`consumeBudget(key, {limit, windowMs})` increments **only if it stays within the limit, in one
+statement**: the check and the record at once, so concurrent requests can't all pass. Window maths
+is the pure `lib/rateWindow.js` (null `windowMs` = lifetime). Expired rows are swept lazily.
+- **AI Composer**: the `ai` allowance is still refunded when generation fails, but every provider
+  call also spends an **attempt budget that is never refunded**: per user (`AI_ATTEMPT_BUDGETS` in
+  `plans.js`: Free 12 lifetime, Pro 40/day, superadmin 200/day) and global
+  (`AI_GLOBAL_DAILY_ATTEMPTS`). Out of budget → 429 `ai_attempt_limit` before the call. The body is
+  bounded first, and each call has a 90 s deadline.
+- **The compose prompt is built on the server.** The client (`requestComposition`) sends structured
+  fields: `{prompt, cityId, routes: [{id, name, type, stopCount}], recipeId, mode, currentSong}`.
+  `validateComposeRequest` (`lib/ai/composeRequest.js`) bounds them: ≤256 KB body, prompt ≤4000
+  chars (the textarea's `maxLength`), a registered city, ≤64 lanes with safe ids, a known recipe,
+  and `currentSong` only in edit mode, size-bounded. `buildComposeMessages` builds the system prompt.
+  Lane name, type and stop count come from the city's route index where it knows the id, and the
+  lane cap comes from the user's plan rather than the client. A finished prompt or chat transcript
+  from the client is no longer accepted, so the endpoint can't be used as a general LLM proxy.
+  `selectRecipe` is deterministic, so the panel still computes the recipe it shows locally.
+- **Song/composition storage**: `lib/storageLimits.js` bounds each record (bytes, depth, array/
+  string length, key count; songs 2 MB, compositions 64 KB) and the per-user library (500 songs /
+  100 MB stored, 200 compositions, 180 writes/min shared). `lib/server/presets.js` (every song
+  writer, MCP included) and `lib/server/compositionLimits.js` check the row/byte budget **inside the
+  write's transaction under a per-user `pg_advisory_xact_lock`**, which is what makes it atomic.
+  Refusals are `StorageLimitError` (`status` for HTTP, `message` for MCP tool errors; `updateSongState`
+  returns `{error: 'storage_limit'}`). List endpoints are capped at the same row limits.
+- **Feedback**: see **Legal & SEO**.
 
 ### MCP server (Pro, flag-gated, in progress)
 
@@ -1035,6 +1101,20 @@ intended long-term replacement for the in-app AI Composer. Status, phases and re
   deletes the consent and revokes that client's access + refresh tokens. UI is `McpSection` in
   `ProfilePanel.jsx`, backed by `app/api/mcp/connections`.
 
+### Security headers
+
+`next.config.js` sends baseline headers on every route: an enforced CSP limited to directives that
+can't break a page (`frame-ancestors 'none'; base-uri 'self'; object-src 'none'`), `X-Frame-Options:
+DENY`, `nosniff`, `Referrer-Policy` and a deny-by-default `Permissions-Policy` (the app uses no
+camera/mic/location). The full policy runs as **`Content-Security-Policy-Report-Only`** until
+production has been checked against it; widen it there (map tiles, worklets, Turnstile, analytics)
+before moving it to the enforced header. HSTS is left to the host.
+
+**MapLibre 6** locates its module worker relative to its own bundle URL, which webpack chunking
+breaks ("Worker failed to load"). `scripts/copy_maplibre_worker.js` (prebuild/predev) copies it to
+`public/vendor/maplibre-gl-worker-<version>.mjs` (gitignored) and `MapView.jsx` calls
+`setWorkerUrl` with that path.
+
 ### Legal & SEO
 
 `app/{privacy,terms,legal,licenses}` are static legal pages, all four rendered through
@@ -1049,8 +1129,14 @@ from the header drawer directly under the legal block (`FeedbackItem` in `Header
 to `app/api/feedback/route.js`, which is **the only route open to signed-out visitors that
 writes**, and therefore the only place in the app with abuse defences. They run in a fixed order:
 honeypot → Turnstile (`lib/turnstile.js`) → validation (`lib/feedback.js`, pure and tested in
-`test/feedback-validate.test.js`) → a Postgres-backed per-IP rate limit (5/hour, keyed on a
-**salted hash** of the IP — the raw address is never stored).
+`test/feedback-validate.test.js`) → admission: an atomic per-IP budget (5/hour, keyed on a
+**salted hash** of the IP — the raw address is never stored) then a global daily one, both via
+`consumeBudget` (see **Abuse budgets**). Admission **fails closed**: if the counter can't be
+reached the route answers 503 and stores/mails nothing. The body is capped at
+`FEEDBACK_MAX_BODY_BYTES` before parsing. `clientIp` prefers `x-vercel-forwarded-for`/`x-real-ip`
+(platform-set) over a client-supplied `x-forwarded-for`. The auto-reply goes to an **unverified**
+address, so it never quotes the submission and has its own budgets (2 per address per day, plus a
+global daily cap).
 
 `verifyTurnstile` follows Cloudflare's canonical siteverify pattern, and the non-obvious half of it
 is why `success: true` alone is **not** enough. A sitekey is public, so anyone can embed the same

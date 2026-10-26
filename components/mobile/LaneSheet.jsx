@@ -35,6 +35,10 @@ import {
   STOP_NOTE_LENGTH_HINT, STOP_NOTE_LENGTH_HELP, STOP_NOTE_LENGTH_MERGED_HELP,
   stopDemand, resolveStopHold, holdLabel,
 } from '@/lib/stopNoteLength.js'
+import {
+  DEFAULT_STOP_VELOCITY, STOP_VELOCITY_SOURCES, STOP_VELOCITY_LABELS, STOP_VELOCITY_HINTS, STOP_VELOCITY_HELP,
+  normalizeVelocityMapping, stopVelocityStatus,
+} from '@/lib/stopVelocity.js'
 import { FX_BUSES } from '@/lib/fxTrack.js'
 import { buildLanePitchMaps, buildLaneNoteRows } from '@/lib/laneNotes.js'
 import {
@@ -75,6 +79,7 @@ export default function LaneSheet({
   noteChance,
   noteLength,
   stopNoteLength,
+  stopVelocityMap,
   legato = false,
   drone = false,
   stopChances,
@@ -89,7 +94,7 @@ export default function LaneSheet({
   onVolume, onPan, onDisable, onSolo, onSynthType, onADSR, onScale, onOctaveShift,
   onPitchVariety, onTrackSpeed, onGridResolution, onArp,
   onSendLevel, onSidechain, onStopPitch, onStopVelocity, onLaneTag,
-  onNoteChance, onStopChance, onLoopPattern, onNoteLength, onStopNoteLength, onFilter,
+  onNoteChance, onStopChance, onLoopPattern, onNoteLength, onStopNoteLength, onStopVelocityMap, onFilter,
 }) {
   const [segment, setSegment] = useState('sound')
   const resonatorStatus = useResonatorStatus()
@@ -105,6 +110,10 @@ export default function LaneSheet({
     cfg: snl, synthType, arp: ag.enabled, legato, drone, merged: !!route?.isMerged,
   })
   const setSnlBound = (key, len) => onStopNoteLength?.(route.id, { ...snl, [key]: len })
+  // Stop-driven velocity (lib/stopVelocity.js) — same rules as the desktop rack.
+  const svm = normalizeVelocityMapping(stopVelocityMap)
+  const svmStatus = stopVelocityStatus({ cfg: svm, synthType })
+  const setSvm = patch => onStopVelocityMap?.(route.id, { ...svm, ...patch })
 
   const noteRows = useMemo(() => {
     if (!route || segment !== 'notes') return []
@@ -113,8 +122,8 @@ export default function LaneSheet({
       octaveShift: octave, semitoneShift: semitone,
       gridResolution, loopRegion,
     })
-    return buildLaneNoteRows(route, { pitchMap, perStopSteps, stopVelocities, stopChances, laneChance })
-  }, [route, segment, trackScale.root, trackScale.scaleType, pitchVariety, perStopSteps, stopVelocities, stopChances, laneChance, octave, semitone, gridResolution, loopRegion])
+    return buildLaneNoteRows(route, { pitchMap, perStopSteps, stopVelocities, stopChances, laneChance, velocityMapping: svm })
+  }, [route, segment, trackScale.root, trackScale.scaleType, pitchVariety, perStopSteps, stopVelocities, stopChances, laneChance, octave, semitone, gridResolution, loopRegion, svm?.source, svm?.min, svm?.max, svm?.invert])
 
   if (!route) return null
 
@@ -394,6 +403,64 @@ export default function LaneSheet({
                         className={snl.invert === inv ? 'is-active' : ''}
                         aria-pressed={snl.invert === inv}
                         onClick={() => onStopNoteLength?.(route.id, { ...snl, invert: inv })}
+                      >{label}</button>
+                    ))}
+                  </div>
+                </Field>
+              </>
+            )}
+          </section>
+
+          <section className="lsheet-group lsheet-group--rhythm">
+            <GroupHead title="Dynamics" description="Set each stop's velocity from the line's data." />
+            <Field
+              label="Velocity from"
+              hint={!svm
+                ? `Off plays every stop at full level (plus pitch variety's gap accents). Demand: ${STOP_VELOCITY_HINTS.demand.toLowerCase()} Hubs: ${STOP_VELOCITY_HINTS.hubs.toLowerCase()}`
+                : svmStatus.active
+                ? `${svm.invert ? 'Inverted: quiet stops play louder.' : STOP_VELOCITY_HINTS[svm.source]} ${STOP_VELOCITY_HELP}`
+                : `${svmStatus.reason}. The mapping is kept for later.`}
+            >
+              <div className="lsheet-choice-grid lsheet-choice-grid--compact">
+                {['off', ...STOP_VELOCITY_SOURCES].map(src => {
+                  const on = (svm?.source ?? 'off') === src
+                  return (
+                    <button
+                      key={src}
+                      type="button"
+                      className={on ? 'is-active' : ''}
+                      aria-pressed={on}
+                      onClick={() => onStopVelocityMap?.(route.id, src === 'off' ? null : { ...(svm ?? DEFAULT_STOP_VELOCITY), source: src })}
+                    >{src === 'off' ? 'Off' : STOP_VELOCITY_LABELS[src]}</button>
+                  )
+                })}
+              </div>
+            </Field>
+            {svm && (
+              <>
+                <Field label={`Softest · ${Math.round(svm.min * 100)}%`}>
+                  <input
+                    type="range" min={0.2} max={1} step={0.05} value={svm.min}
+                    onChange={e => setSvm({ min: Math.min(Number(e.target.value), svm.max) })}
+                    aria-label="Softest velocity"
+                  />
+                </Field>
+                <Field label={`Loudest · ${Math.round(svm.max * 100)}%`}>
+                  <input
+                    type="range" min={0.2} max={1} step={0.05} value={svm.max}
+                    onChange={e => setSvm({ max: Math.max(Number(e.target.value), svm.min) })}
+                    aria-label="Loudest velocity"
+                  />
+                </Field>
+                <Field label="Invert">
+                  <div className="lsheet-choice-grid lsheet-choice-grid--compact">
+                    {[[false, 'Busy = loud'], [true, 'Quiet = loud']].map(([inv, label]) => (
+                      <button
+                        key={label}
+                        type="button"
+                        className={svm.invert === inv ? 'is-active' : ''}
+                        aria-pressed={svm.invert === inv}
+                        onClick={() => setSvm({ invert: inv })}
                       >{label}</button>
                     ))}
                   </div>
@@ -695,7 +762,10 @@ export default function LaneSheet({
                     onChange={e => onStopVelocity(route.id, row.id, Number(e.target.value))}
                     aria-label={`${row.name}: velocity`}
                   />
-                  <span className="lsheet-noterow-value mono">{Math.round(row.velocity * 100)}%</span>
+                  <span
+                    className={`lsheet-noterow-value mono${row.velocityOrigin === 'authored' ? '' : ' is-inherited'}`}
+                    title={row.velocityOrigin === 'authored' ? 'Set for this stop' : row.velocityOrigin === 'variety' ? 'Lane default' : `From ${STOP_VELOCITY_LABELS[row.velocityOrigin].toLowerCase()}`}
+                  >{Math.round(row.velocity * 100)}%</span>
                   <span aria-hidden="true" />
                 </div>
                 <div className="lsheet-noterow-param">
