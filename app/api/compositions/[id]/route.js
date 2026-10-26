@@ -5,6 +5,7 @@ import { db } from '@/lib/db/index.js'
 import { compositions } from '@/lib/db/schema.js'
 import { serialize } from '../route.js'
 import { compositionLimitError, getEntitlements } from '@/lib/billing/server.js'
+import { admitCompositionWrite, checkCompositionBudget, storageErrorResponse } from '@/lib/server/compositionLimits.js'
 
 async function requireUser(req) {
   const session = await auth.api.getSession({ headers: req.headers })
@@ -39,34 +40,46 @@ export async function PUT(req, { params }) {
   const limitError = compositionLimitError(await getEntitlements(u.id), items)
   if (limitError) return Response.json(limitError, { status: 403 })
 
-  const now = new Date()
-  const [row] = await db
-    .insert(compositions)
-    .values({
-      id,
-      userId: u.id,
-      name: body.name ?? 'Untitled',
-      schemaVersion: body.schemaVersion ?? 1,
-      cityId: body.cityId ?? null,
-      bpm: body.bpm ?? 120,
-      items,
-      createdAt: now,
-      updatedAt: now,
+  let row
+  try {
+    await admitCompositionWrite(u.id, id, body)
+    const now = new Date()
+    row = await db.transaction(async (tx) => {
+      await checkCompositionBudget(tx, u.id, id)
+      const [written] = await tx
+        .insert(compositions)
+        .values({
+          id,
+          userId: u.id,
+          name: body.name ?? 'Untitled',
+          schemaVersion: body.schemaVersion ?? 1,
+          cityId: body.cityId ?? null,
+          bpm: body.bpm ?? 120,
+          items,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .onConflictDoUpdate({
+          target: compositions.id,
+          set: {
+            name: body.name ?? 'Untitled',
+            schemaVersion: body.schemaVersion ?? 1,
+            cityId: body.cityId ?? null,
+            bpm: body.bpm ?? 120,
+            items,
+            updatedAt: now,
+          },
+          // Don't let a user overwrite another user's row of the same id.
+          where: eq(compositions.userId, u.id),
+        })
+        .returning()
+      return written
     })
-    .onConflictDoUpdate({
-      target: compositions.id,
-      set: {
-        name: body.name ?? 'Untitled',
-        schemaVersion: body.schemaVersion ?? 1,
-        cityId: body.cityId ?? null,
-        bpm: body.bpm ?? 120,
-        items,
-        updatedAt: now,
-      },
-      // Don't let a user overwrite another user's row of the same id.
-      where: eq(compositions.userId, u.id),
-    })
-    .returning()
+  } catch (err) {
+    const res = storageErrorResponse(err)
+    if (res) return res
+    throw err
+  }
 
   if (!row) return Response.json({ error: 'conflict' }, { status: 409 })
   return Response.json(serialize(row))

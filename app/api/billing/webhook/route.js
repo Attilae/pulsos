@@ -2,6 +2,7 @@ import { createHash, createHmac, timingSafeEqual } from 'node:crypto'
 import { eq, lte } from 'drizzle-orm'
 import { db } from '@/lib/db/index.js'
 import { billingSubscriptions, billingWebhookEvents } from '@/lib/db/schema.js'
+import { billingTestModeAllowed } from '@/lib/billing/server.js'
 
 const SUBSCRIPTION_EVENTS = new Set([
   'subscription_created', 'subscription_updated', 'subscription_cancelled',
@@ -41,6 +42,9 @@ export async function POST(req) {
     const subscriptionId = String(payload.data.id)
     if (expectedStoreId && String(attrs.store_id) !== String(expectedStoreId)) return
     if (allowedVariants.size && !allowedVariants.has(String(attrs.variant_id))) return
+    // Test checkouts only reach a deployment that opted into them; a live one
+    // ignores them even when they are validly signed.
+    if (attrs.test_mode && !billingTestModeAllowed()) return
 
     const [existing] = await tx
       .select()

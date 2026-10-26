@@ -17,6 +17,10 @@ import {
   STOP_NOTE_LENGTH_HINT, STOP_NOTE_LENGTH_HELP, STOP_NOTE_LENGTH_MERGED_HELP,
   previewStopHolds, stopDemand,
 } from '@/lib/stopNoteLength.js'
+import {
+  DEFAULT_STOP_VELOCITY, STOP_VELOCITY_SOURCES, STOP_VELOCITY_LABELS, STOP_VELOCITY_HINTS, STOP_VELOCITY_HELP,
+  normalizeVelocityMapping, stopVelocityStatus, resolveStopVelocity, stopSignals,
+} from '@/lib/stopVelocity.js'
 import { useResetGesture } from '@/lib/shared/useResetGesture.js'
 import { useIsPhone } from '@/lib/shared/useViewport.js'
 import { subscribePlayhead } from '@/lib/shared/playheadTicker.js'
@@ -276,6 +280,7 @@ export default function DawView(props) {
   trackNoteChances, onNoteChance, trackStopChances, onStopChance, trackLoopPatterns, onLoopPattern,
   trackNoteLengths, onNoteLength,
   trackStopNoteLengths, onStopNoteLength,
+  trackStopVelocityMaps, onStopVelocityMap,
   trackLabels, onLaneTag,
   trackDroneModes, trackDroneRoots, onDroneMode, onDroneRoot,
   onVolume, onDisable, onPan, onSolo,
@@ -547,6 +552,8 @@ export default function DawView(props) {
                     onNoteLength={laneCb(id, 'noteLength', (p, len) => p.onNoteLength?.(id, len))}
                     stopNoteLength={trackStopNoteLengths?.[route.id]}
                     onStopNoteLength={laneCb(id, 'stopNoteLength', (p, cfg) => p.onStopNoteLength?.(id, cfg))}
+                    stopVelocityMap={trackStopVelocityMaps?.[route.id]}
+                    onStopVelocityMap={laneCb(id, 'stopVelocityMap', (p, cfg) => p.onStopVelocityMap?.(id, cfg))}
                     stopChances={trackStopChances?.[route.id]}
                     loopPattern={trackLoopPatterns?.[route.id]}
                     onLoopPattern={laneCb(id, 'loopPattern', (p, lp) => p.onLoopPattern?.(id, lp))}
@@ -922,6 +929,7 @@ function LineTrack({
   stopVelocities, onStopOpen,
   noteChance, onNoteChance, stopChances, loopPattern, onLoopPattern,
   noteLength, onNoteLength, stopNoteLength, onStopNoteLength,
+  stopVelocityMap, onStopVelocityMap,
   onVolume, onDisable, onPan, onSolo, onSoundMode, onScale, onSynthType, onADSR,
   onSamplerPreset, onDrumVoice, onSamplerUpload,
   onFilter,
@@ -944,6 +952,8 @@ function LineTrack({
     const cfg = normalizeStopNoteLength(stopNoteLength)
     return stopNoteLengthStatus({ cfg, synthType, arp: arpOn, legato, drone: droneMode, merged: isMerged }).active ? cfg : null
   }, [stopNoteLength, synthType, arpOn, legato, droneMode, isMerged])
+  // Stop-driven velocity config (null = off); the rail shows its velocities.
+  const velocityMapping = useMemo(() => normalizeVelocityMapping(stopVelocityMap), [stopVelocityMap])
 
   // Automation locks: when a lane targets one of these, the control greys out and (during
   // playback) reads the swept value. Pan/glide convert from the spec unit to the slider unit.
@@ -1161,6 +1171,7 @@ function LineTrack({
         stopChances={stopChances}
         loopPattern={pattern}
         holdCfg={stopHoldCfg}
+        velocityMapping={velocityMapping}
         noteLength={noteLength}
         fallbackBeats={soundMode === 'percussive' ? 0.5 : 1}
       />
@@ -1445,6 +1456,72 @@ function LineTrack({
                     <p className="rack-card-note">
                       {status.active
                         ? `${snl.invert ? 'Quieter stops sustain longer.' : STOP_NOTE_LENGTH_HINT}${isMerged ? ` ${STOP_NOTE_LENGTH_MERGED_HELP}` : ''} Stops without demand use LENGTH.`
+                        : `${status.reason}. The mapping is kept for later.`}
+                    </p>
+                  )}
+                </>
+              )
+            })()}
+            {(() => {
+              // Stop-driven velocity (lib/stopVelocity.js). Off keeps today's
+              // flat / variety-derived velocity; edited stop velocities still win.
+              const svm = velocityMapping
+              const status = stopVelocityStatus({ cfg: svm, synthType })
+              const setSvm = patch => onStopVelocityMap?.({ ...svm, ...patch })
+              return (
+                <>
+                  <div className="speed-row">
+                    <span className="speed-label">VEL</span>
+                    <div className="speed-btns" title={`Velocity from the line's data. ${STOP_VELOCITY_HELP}`}>
+                      {['off', ...STOP_VELOCITY_SOURCES].map(src => {
+                        const on = (svm?.source ?? 'off') === src
+                        return (
+                          <button
+                            key={src}
+                            className={`speed-btn ${on ? 'active' : ''}`}
+                            style={on ? { borderColor: route.color, color: route.color } : {}}
+                            aria-pressed={on}
+                            title={src === 'off' ? 'Flat velocity (pitch variety still adds gap accents)' : STOP_VELOCITY_HINTS[src]}
+                            onClick={() => onStopVelocityMap?.(src === 'off' ? null : { ...(svm ?? DEFAULT_STOP_VELOCITY), source: src })}
+                          >
+                            {src === 'off' ? 'Off' : STOP_VELOCITY_LABELS[src]}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                  {svm && (
+                    <div className="speed-row">
+                      <span className="speed-label">RANGE</span>
+                      <input
+                        type="range" min="0.2" max="1" step="0.05" className="glide-slider"
+                        value={svm.min} aria-label={`${route.name} softest velocity`}
+                        aria-valuetext={`${Math.round(svm.min * 100)}%`}
+                        onChange={e => setSvm({ min: Math.min(parseFloat(e.target.value), svm.max) })}
+                        title="Softest stop velocity"
+                      />
+                      <span className="glide-val">{Math.round(svm.min * 100)}</span>
+                      <input
+                        type="range" min="0.2" max="1" step="0.05" className="glide-slider"
+                        value={svm.max} aria-label={`${route.name} loudest velocity`}
+                        aria-valuetext={`${Math.round(svm.max * 100)}%`}
+                        onChange={e => setSvm({ max: Math.max(parseFloat(e.target.value), svm.min) })}
+                        title="Loudest stop velocity"
+                      />
+                      <span className="glide-val">{Math.round(svm.max * 100)}</span>
+                      <button
+                        className={`legato-btn ${svm.invert ? 'active' : ''}`}
+                        style={svm.invert ? { borderColor: route.color, color: route.color } : {}}
+                        aria-pressed={svm.invert}
+                        onClick={() => setSvm({ invert: !svm.invert })}
+                        title={svm.invert ? 'Inverted: quieter stops play louder' : 'Invert: make quieter stops louder'}
+                      >INV</button>
+                    </div>
+                  )}
+                  {svm && (
+                    <p className="rack-card-note">
+                      {status.active
+                        ? `${svm.invert ? 'Inverted: quiet stops play louder.' : STOP_VELOCITY_HINTS[svm.source]}${isMerged ? ' A chord follows its strongest stop.' : ''} ${STOP_VELOCITY_HELP}`
                         : `${status.reason}. The mapping is kept for later.`}
                     </p>
                   )}
@@ -3092,7 +3169,7 @@ function StopRail({
   pitchVariety = null,
   stopVelocities = null, perStopSteps = null, onStopOpen = null,
   laneChance = 1, stopChances = null, loopPattern = null,
-  holdCfg = null, noteLength = null, fallbackBeats = 1,
+  holdCfg = null, velocityMapping = null, noteLength = null, fallbackBeats = 1,
 }) {
   const needleRef = useRef(null)
   const railRef   = useRef(null)
@@ -3445,8 +3522,13 @@ function StopRail({
             </div>
           ))
         : stopPoints.map((stop, i) => {
-        const vel = stopVelocities?.[stop.id]
-        const velSuffix = vel != null ? ` · vel ${Math.round(vel * 100)}%` : ''
+        const authoredVel = stopVelocities?.[stop.id]
+        // Lane velocity without an edit: the stop-driven mapping, or 1.
+        const laneVel = resolveStopVelocity({ cfg: velocityMapping, signals: stopSignals(stop) })
+        const vel = authoredVel ?? (laneVel.origin === 'variety' ? null : laneVel.velocity)
+        const velSuffix = vel != null
+          ? ` · vel ${Math.round(vel * 100)}%${authoredVel == null ? ` (${STOP_VELOCITY_LABELS[laneVel.origin].toLowerCase()})` : ''}`
+          : ''
         const stopChance = stopChances?.[stop.id]
         const chance     = stopChance ?? laneChance
         const chanceSuffix = chance < 1 || stopChance != null ? ` · ${Math.round(chance * 100)}% chance` : ''
@@ -3485,6 +3567,9 @@ function StopRail({
                 geoNote: geoDisplayMap[stop.originalIdx],
                 degrees: perStopSteps?.[stop.id] ?? 0,
                 velocity: vel ?? 1,
+                velocityAuthored: authoredVel != null,
+                laneVelocity: laneVel.velocity,
+                laneVelocitySource: laneVel.origin === 'variety' ? null : laneVel.origin,
                 chance: stopChance ?? null,
                 laneChance,
                 hold: holdPreview?.holds.get(stop.id) ?? null,

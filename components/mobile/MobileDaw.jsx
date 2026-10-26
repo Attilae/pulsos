@@ -96,6 +96,7 @@ export default function MobileDaw({ controls, lanes }) {
         noteChance={lanes.noteChances?.[openLaneId]}
         noteLength={lanes.noteLengths?.[openLaneId]}
         stopNoteLength={lanes.stopNoteLengths?.[openLaneId]}
+        stopVelocityMap={lanes.stopVelocityMaps?.[openLaneId]}
         legato={!!lanes.legatos?.[openLaneId]}
         drone={!!lanes.droneModes?.[openLaneId]}
         stopChances={lanes.stopChances?.[openLaneId]}
@@ -119,6 +120,7 @@ export default function MobileDaw({ controls, lanes }) {
         onGridResolution={lanes.onGridResolution}
         onNoteLength={lanes.onNoteLength}
         onStopNoteLength={lanes.onStopNoteLength}
+        onStopVelocityMap={lanes.onStopVelocityMap}
         onArp={lanes.onArp}
         onSendLevel={lanes.onSendLevel}
         onSidechain={lanes.onSidechain}

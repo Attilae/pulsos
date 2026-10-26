@@ -42,7 +42,7 @@ export function AuthForm({ onDone, className = '', callbackURL = '/' }) {
         </button>
       ) : (
         <>
-          <button className="auth-btn" onClick={() => run('signup', (addr) => authClient.signUp.email({ email: addr, password, name: name || addr }), '')}>
+          <button className="auth-btn" onClick={() => run('signup', (addr) => authClient.signUp.email({ email: addr, password, name: name || addr, callbackURL }), 'Account created. Check your email for a link to confirm it.')}>
             Create account
           </button>
           <p className="auth-legal">

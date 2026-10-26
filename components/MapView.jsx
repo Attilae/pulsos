@@ -3,6 +3,7 @@ import { memo, useEffect, useMemo, useRef } from 'react'
 import { MapContainer, Polyline, CircleMarker, Tooltip, LayersControl, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import { maplibreGL } from '@maplibre/maplibre-gl-leaflet'
+import { setWorkerUrl, getVersion } from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { useIsPhone } from '@/lib/shared/useViewport.js'
 import { normalizeLaneTag } from '@/lib/laneTags.js'
@@ -10,6 +11,10 @@ import { findTargetSpec } from '@/lib/engine.js'
 import { hashStopValue } from '@/lib/mappings.js'
 import { lanePlayhead, trailFracs, wrapFade } from '@/lib/mapPlayhead.js'
 import { subscribeEvents, getEvents } from '@/lib/shared/eventLogStore.js'
+
+// MapLibre 6 can't find its worker inside a webpack chunk; it is served from
+// public/vendor by scripts/copy_maplibre_worker.js (prebuild/predev).
+setWorkerUrl(`/vendor/maplibre-gl-worker-${getVersion()}.mjs`)
 import { subscribePlayhead } from '@/lib/shared/playheadTicker.js'
 import { useCitySelection } from '@/lib/shared/CityContext.jsx'
 import { useDetailPolylines } from '@/lib/shared/useDetailPolylines.js'

@@ -45,6 +45,20 @@ value is read as stored, never re-normalized over a lane or loop window. A stop
 without a numeric `demand` plays the lane's fixed note length rather than being
 treated as quiet. See `docs/stop-driven-note-length-plan.md`.
 
+`demand` and `centrality` also drive **stop-driven velocity**
+(`lib/stopVelocity.js`), an opt-in per-lane setting (`trackStopVelocityMaps`,
+plans: `stopVelocity`). **Demand** maps `demand` linearly from the lane's
+Softest to Loudest velocity, so busier stops play louder. **Hubs** maps
+`centrality` squared, so only real interchanges accent: most stops sit around
+0.5–0.7, and a linear map would lift nearly all of them. Invert flips either.
+Precedence, shared by the engine and MIDI export through
+`resolveStopVelocity`: an authored stop velocity (StopEditor / phone Notes
+list) wins, then the mapping, then pitch variety's gap-derived velocity, then
+1. A stop without the signal falls back the same way. Merged chord lanes take
+their strongest contributing stop. It works on every instrument except
+PluckSynth (which ignores velocity). Sidechain ducks from the lane scale with
+it. Live arrivals carry no stop and stay at full velocity.
+
 ## Optional ridership exports
 
 Ridership source files are intentionally ignored by Git. Put downloads in

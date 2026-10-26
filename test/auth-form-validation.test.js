@@ -26,3 +26,8 @@ test('server schema errors lose their field prefix', () => {
   assert.equal(friendlyAuthError({ message: 'Invalid email or password' }), 'Invalid email or password')
   assert.equal(friendlyAuthError({}), 'Something went wrong. Please try again.')
 })
+
+test('an unverified password sign-in explains the new confirmation link', () => {
+  const msg = friendlyAuthError({ code: 'EMAIL_NOT_VERIFIED', message: 'Email not verified' })
+  assert.match(msg, /confirm your email/i)
+})
