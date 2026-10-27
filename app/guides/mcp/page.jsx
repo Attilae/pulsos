@@ -1,12 +1,9 @@
+import { pageMetadata } from '@/lib/siteMetadata.js'
 import { notFound } from 'next/navigation'
 import { DataTable, LegalSection } from '@/components/legal/LegalShell.jsx'
 import { GuideShell, MCP_GUIDES_ENABLED, MCP_URL } from '@/components/guides/GuideShell.jsx'
 
-export const metadata = {
-  title: 'Connect an AI client',
-  description: 'Connect Claude or another MCP client to Leið and compose songs from a city’s transit lines in conversation.',
-  alternates: { canonical: '/guides/mcp' },
-}
+export const metadata = pageMetadata('Connect an AI client', 'Connect Claude or another MCP client to Leið and compose songs from a city’s transit lines in conversation.', '/guides/mcp')
 
 const TOOLS = [
   ['list_cities', 'Lists the cities you can compose in.', 'Read'],

@@ -1,0 +1,7 @@
+export const metadata = {
+  robots: { index: false, follow: true },
+}
+
+export default function McpLayout({ children }) {
+  return children
+}

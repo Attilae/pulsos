@@ -1,5 +1,14 @@
 # Digital product work
 
+## 2026-10-26: Reddit community research
+
+- Request: find relevant subreddits for sharing the Leið video and product.
+- Artifact: [Reddit community shortlist](marketing/reddit-community-shortlist-2026-10.md), including fit, verified rules, conditional placements, title options, and draft introductory copy.
+- Recommendation: start with GenerativeMusic and SideProject after checking current submission requirements; adapt a process post for creativecoding and resolve its AI-content restriction. WATMM's weekly promotion thread explicitly allows project promotion. Transit is a secondary candidate; Budapest needs moderator clarification.
+- Validation: checked public community feeds, About/rules pages, pinned welcome guidance, and the current WATMM thread. Excluded musicprogramming and InternetIsBeautiful from the launch-promotion shortlist because their displayed rules conflict with the proposed submission.
+- Limits: rankings are editorial fit judgments; no moderator approval, account eligibility, or reach guarantee. Public pages can be cached. The launch video's generated narration needs attention in communities with AI-content restrictions.
+- Remaining: founder chooses a community, checks current rules, and submits. No posts, comments, or messages sent.
+
 ## 2026-10-20: company versus product social accounts
 
 - Context: Deettalabs already has Instagram, TikTok, and YouTube accounts and plans audio plugins and other products alongside Leið.

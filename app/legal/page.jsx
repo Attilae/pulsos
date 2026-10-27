@@ -1,11 +1,8 @@
+import { pageMetadata } from '@/lib/siteMetadata.js'
 import Link from 'next/link'
 import { LegalSection, LegalShell } from '@/components/legal/LegalShell.jsx'
 
-export const metadata = {
-  title: 'Legal',
-  description: 'Privacy, terms, and licences for Leið, the public-transport sonification instrument.',
-  alternates: { canonical: '/legal' },
-}
+export const metadata = pageMetadata('Legal', 'Privacy, terms, and licences for Leið, the public-transport sonification instrument.', '/legal')
 
 export default function LegalPage() {
   return (

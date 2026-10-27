@@ -1,12 +1,9 @@
+import { pageMetadata } from '@/lib/siteMetadata.js'
 import { LegalSection, LegalShell } from '@/components/legal/LegalShell.jsx'
 import FeedbackForm from '@/components/FeedbackForm.jsx'
 import { LEGAL_DETAILS } from '@/lib/legal.js'
 
-export const metadata = {
-  title: 'Feedback & Bug Reports',
-  description: 'Report a bug or send feedback about Leið, the transit-driven web DAW.',
-  alternates: { canonical: '/feedback' },
-}
+export const metadata = pageMetadata('Feedback & Bug Reports', 'Report a bug or send feedback about Leið, the transit-driven web DAW.', '/feedback')
 
 export default function FeedbackPage() {
   return (

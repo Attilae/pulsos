@@ -1,11 +1,8 @@
+import { pageMetadata } from '@/lib/siteMetadata.js'
 import { DataTable, LegalSection, LegalShell } from '@/components/legal/LegalShell.jsx'
 import styles from '@/components/legal/LegalShell.module.css'
 
-export const metadata = {
-  title: 'Licences & Credits',
-  description: 'Third-party audio, map, transit-data, and software credits for Leið.',
-  alternates: { canonical: '/licenses' },
-}
+export const metadata = pageMetadata('Licences & Credits', 'Third-party audio, map, transit-data, and software credits for Leið.', '/licenses')
 
 const impulseResponses = [
   ['room.wav', "Terry's Typing Room, York", 'Audiolab, University of York; Dr. Damian T. Murphy'],
