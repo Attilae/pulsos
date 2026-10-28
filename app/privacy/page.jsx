@@ -1,11 +1,8 @@
+import { pageMetadata } from '@/lib/siteMetadata.js'
 import { DataTable, LegalSection, LegalShell } from '@/components/legal/LegalShell.jsx'
 import { LEGAL_DETAILS } from '@/lib/legal.js'
 
-export const metadata = {
-  title: 'Privacy Notice',
-  description: 'How Leið collects, uses, stores, and shares personal data.',
-  alternates: { canonical: '/privacy' },
-}
+export const metadata = pageMetadata('Privacy Notice', 'How Leið collects, uses, stores, and shares personal data.', '/privacy')
 
 const dataRows = [
   ['Account', 'Internal user and authentication-account IDs, display name, email address, password hash, role, verification state or records, and account timestamps.', 'Create, administer, and secure your account.'],

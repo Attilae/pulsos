@@ -1,12 +1,9 @@
+import { pageMetadata } from '@/lib/siteMetadata.js'
 import { notFound } from 'next/navigation'
 import { LegalSection } from '@/components/legal/LegalShell.jsx'
 import { GuideShell, MCP_GUIDES_ENABLED } from '@/components/guides/GuideShell.jsx'
 
-export const metadata = {
-  title: 'Leið composer skill',
-  description: 'An Agent Skill that teaches Claude how to compose Leið loops: the workflow, genre recipes and how to fix what goes wrong.',
-  alternates: { canonical: '/guides/composer-skill' },
-}
+export const metadata = pageMetadata('Leið composer skill', 'An Agent Skill that teaches Claude how to compose Leið loops: the workflow, genre recipes and how to fix what goes wrong.', '/guides/composer-skill')
 
 const SKILL_ZIP = '/skills/leid-composer.zip'
 

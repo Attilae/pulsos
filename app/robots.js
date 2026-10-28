@@ -1,4 +1,4 @@
-const siteUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+import { SITE_URL } from '@/lib/siteMetadata.js'
 
 export default function robots() {
   return {
@@ -7,6 +7,7 @@ export default function robots() {
       allow: '/',
       disallow: ['/api/'],
     },
-    host: siteUrl,
+    host: SITE_URL,
+    sitemap: `${SITE_URL}/sitemap.xml`,
   }
 }

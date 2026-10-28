@@ -2,6 +2,7 @@ import './globals.css'
 import 'leaflet/dist/leaflet.css'
 import { Analytics } from '@vercel/analytics/next'
 import { Inter, JetBrains_Mono } from 'next/font/google'
+import { SITE_URL } from '@/lib/siteMetadata.js'
 
 // UI type: Inter (Atlassian Sans is an Inter derivative — this is the faithful,
 // freely-hostable stand-in). Mono: JetBrains Mono for numeric/data readouts.
@@ -12,8 +13,7 @@ const jetbrains = JetBrains_Mono({ subsets: ['latin'], variable: '--font-jetbrai
 // <html> so there is no flash of the wrong theme on load.
 const themeInit = `(function(){try{var t=localStorage.getItem('leid-theme');if(t!=='light'&&t!=='dark'){t=window.matchMedia('(prefers-color-scheme: light)').matches?'light':'dark';}document.documentElement.setAttribute('data-theme',t);}catch(e){}})();`
 
-const siteUrl =
-  process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+const siteUrl = SITE_URL
 
 const title = 'Leið · sonify the city'
 const description =
