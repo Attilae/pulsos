@@ -244,7 +244,7 @@
   font-size: var(--fs-base); /* ≥16px keeps iOS Safari from zooming on focus */
 }
 
-.authForm input::placeholder { color: var(--muted); text-transform: capitalize; }
+.authForm input::placeholder { color: var(--muted); }
 
 .authForm input:focus-visible {
   outline: none;
@@ -280,8 +280,7 @@
 
 .authForm :global(.auth-btn--ghost):hover { background: var(--hover-bg); border-color: var(--border-strong); }
 
-.authForm :global(.auth-legal),
-.authForm :global(.auth-msg) {
+.authForm :global(.auth-legal) {
   margin: 0;
   color: var(--muted-strong);
   font-size: var(--fs-sm);
@@ -291,13 +290,11 @@
 .authForm :global(.auth-legal) a { color: var(--text); text-underline-offset: 2px; }
 .authForm :global(.auth-legal) a:hover { color: var(--accent); }
 
-.authForm :global(.auth-msg) {
-  padding: var(--space-100) var(--space-150);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  background: var(--surface-sunken);
-  color: var(--text-subtle);
-}
+.authForm :global(.auth-label) { font-size: var(--fs-xs); }
+.authForm :global(.auth-field-hint),
+.authForm :global(.auth-field-error),
+.authForm :global(.auth-field-ok) { font-size: var(--fs-sm); }
+.authForm :global(.auth-notice) { border-radius: var(--radius-md); font-size: var(--fs-md); }
 
 .footer {
   margin: var(--space-300) 0 0;

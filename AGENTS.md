@@ -295,7 +295,9 @@ one cold.
   (`requireEmailVerification`): sign-up mails a confirmation link and returns no session, and an
   unverified sign-in gets `EMAIL_NOT_VERIFIED` plus a fresh link (`sendOnSignIn`, message in
   `lib/authFormValidation.js`). Migration `0009` marked every account that existed before this as
-  verified. Magic-link sign-in verifies by itself.
+  verified. Magic-link sign-in verifies by itself. A `databaseHooks.session.create.before` guard
+  refuses a session for any unverified user whatever the path, so a future plugin can't bypass it.
+  `AuthForm`'s copy and field routing live in `lib/authFormValidation.js` (pure, tested).
 - `email.js` — Resend sender with a dev console fallback.
 - `db/schema.js` — Drizzle schema: `user`/`session`/`account`/`verification` (Better Auth) +
   `feedback` (open-submission bug reports; nullable `user_id`, salted `ip_hash` for rate limiting) +
