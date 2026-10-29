@@ -80,3 +80,20 @@
 - Deliverable: [landscape cover PNG](marketing/blog/assets/budapest-evening-metro-ride-cover.png); image path and alt text added to the article frontmatter.
 - Method: image generation referenced the actual Chrome screenshot of the preset, with Leið’s palette, typography, transit chips and route 72/37 modulation as the composition. This is an editorial illustration of the UI, not an exact screenshot or reproduction of note data.
 - Validation: inspected finished image for headline spelling, brand name, route labels, layout and readable contrast. No website publication performed.
+## 2026-10-29: first video soft launch on DeettaLabs
+
+- Request: publish the approved first short video on the three existing company accounts and provide profile bios and platform follow-up. Founder supplied the public preset URL and approved YouTube's upload terms.
+- Artifact: [Publication record, bios and follow-up](marketing/soft-launch-2026-10-29.md).
+- Published and verified: [YouTube Short](https://youtube.com/shorts/8cBn0F1lZHA), [TikTok](https://www.tiktok.com/@deettalabs/video/7702049865928314134), [Instagram Reel](https://www.instagram.com/reel/DfE6ROAIpov/). Uploaded the approved `leid-budapest-reveal-v2.mp4` with the replacement music. No paid promotion.
+- Preset destination: `https://www.layth.space/?shared=shr_656e05229dc64946` in YouTube/Instagram descriptions; saved as YouTube's clickable channel website link. TikTok submission preceded the new URL instruction and retains `layth.space`; desktop actions did not offer a caption edit.
+- Verification: YouTube displayed Published and clean copyright checks; TikTok Studio listed the post and its public page showed Promotional content and Creator labeled as AI-generated; a separate Instagram profile tab showed 1 post and the Reel caption with the exact preset URL. Instagram's upload modal remained on Sharing, so no duplicate upload was attempted. AI disclosure enabled on all three.
+- Remaining: founder adds/checks Instagram's external profile link, checks TikTok mobile caption editing/website eligibility, optionally applies the supplied company bios, and reviews playback on phones. No account-type change or automated bio rewrite was performed. Metrics are observational and do not establish incremental demand.
+
+## 2026-10-29: second short, Every stop is a note
+
+- Request: create the next short video after publishing the reveal.
+- Deliverables: [finished vertical MP4](../_videos/launch/out/route-notes/leid-every-stop-a-note.mp4), [cover](../_videos/launch/out/route-notes/leid-every-stop-a-note-cover.png), [platform copy](../_videos/launch/out/route-notes/publish-copy.txt), [editable source/reproduction notes](../_videos/launch/ROUTE-NOTES.md).
+- Content: L02 mechanism explanation, using the approved Budapest paired footage/music. Route 41 lead and 56 bass close-ups match their actual captured view changes. The full mix remains continuous; new stock George narration and timed word captions leave a listening break. Copy uses the owner's shared preset URL.
+- Validation: video-project ESLint/TypeScript passed; complete Remotion render; map, lead, bass, listening and CTA frames inspected; H.264 1080×1920/30 fps, stereo 48 kHz AAC, 23 seconds of picture confirmed; entire encoded file decoded without errors; no silence longer than 0.5 seconds below -50 dB detected; encoded audio measured -15.11 LUFS / -1.50 dBTP. No automated test verifies musical taste or pronunciation; owner listens/reviews the rendered file before publication.
+- Status: production complete, ready for review. This new video has not been uploaded or published.
+

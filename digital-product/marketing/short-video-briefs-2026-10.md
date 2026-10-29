@@ -46,6 +46,8 @@ All timings are editable production starting points. If the actual narration nee
 
 ## L02 — Every stop is a note
 
+**Produced October 29:** [finished video](../../_videos/launch/out/route-notes/leid-every-stop-a-note.mp4), [cover](../../_videos/launch/out/route-notes/leid-every-stop-a-note-cover.png), [publishing copy](../../_videos/launch/out/route-notes/publish-copy.txt), [production notes](../../_videos/launch/ROUTE-NOTES.md). The final 23-second edit reuses the approved Budapest performance. It identifies tram 41's lead and tram 56's bass with matched close-ups, followed by a listening section. It does not depict adding a lane; the full mix plays continuously. This supersedes the draft shot list below for the rendered version. Creation only; not yet published.
+
 **Date:** October 22. **Length:** approximately 22 seconds. **Audience:** producers who want to understand the mechanism. **Goal:** try a route. **New information:** the map supplies the note sequence, while the person can shape how it sounds.
 
 **Cover:** THIS ROUTE IS A MELODY

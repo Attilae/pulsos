@@ -1,0 +1,99 @@
+/* Feedback for AuthForm (components/AuthControl.jsx): field labels, inline
+   errors, the request notice and the check-your-inbox panel.
+
+   Imported by the component itself, not app.css, because the /mcp/sign-in
+   page renders the same form without loading app.css. Base input and button
+   looks stay with each host (app.css + HeaderMenu.css for the drawer,
+   app/mcp/mcpCard.module.css for the card); these rules only add what both
+   share, at single-class specificity so a host can still override them.
+
+   Messages use --text, not --muted: the old one-line status in --muted at
+   --fs-2xs was the thing people couldn't read. */
+
+.auth-field { display: flex; flex-direction: column; gap: var(--space-050); }
+
+.auth-label {
+  color: var(--muted-strong, var(--text));
+  font-size: var(--fs-2xs);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+}
+.auth-label-optional { color: var(--muted); letter-spacing: 0; text-transform: none; }
+
+.auth-form input[aria-invalid='true'] { border-color: var(--danger); }
+.auth-form input[aria-invalid='true']:focus-visible {
+  border-color: var(--danger);
+  box-shadow: 0 0 0 3px var(--danger-tint-strong);
+}
+
+.auth-field-hint,
+.auth-field-error,
+.auth-field-ok {
+  margin: 0;
+  font-size: var(--fs-xs);
+  line-height: 1.45;
+}
+.auth-field-hint { color: var(--muted); }
+.auth-field-error,
+.auth-field-ok {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-050);
+}
+.auth-field-error { color: var(--danger); }
+.auth-field-ok { color: var(--success-text); }
+.auth-field-error .icon,
+.auth-field-ok .icon { flex: none; margin-top: 0.15em; }
+
+/* A failed request: what happened (bold) and what to do next. */
+.auth-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-100);
+  padding: var(--space-100) var(--space-150);
+  border: 1px solid color-mix(in srgb, var(--danger) 45%, transparent);
+  border-left-width: 3px;
+  border-radius: var(--radius-sm);
+  background: var(--danger-tint);
+  color: var(--text);
+  font-size: var(--fs-sm);
+  line-height: 1.5;
+}
+.auth-notice-icon { flex: none; margin-top: 0.2em; color: var(--danger); font-size: 1.1em; }
+.auth-notice strong { display: block; font-weight: 600; }
+
+.auth-form button:disabled { opacity: 0.55; cursor: progress; }
+
+.auth-or {
+  display: flex;
+  align-items: center;
+  gap: var(--space-100);
+  color: var(--muted);
+  font-size: var(--fs-2xs);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+}
+.auth-or::before,
+.auth-or::after { content: ''; flex: 1; border-top: 1px solid var(--border); }
+
+/* Shown in place of the form after sign-up, an unconfirmed sign-in, or a
+   magic-link request. */
+.auth-inbox { display: flex; flex-direction: column; gap: var(--space-100); }
+.auth-inbox-icon {
+  width: 32px;
+  height: 32px;
+  padding: 7px;
+  border-radius: var(--radius-pill);
+  background: var(--accent-tint);
+  color: var(--accent);
+}
+.auth-inbox-title {
+  margin: var(--space-050) 0 0;
+  color: var(--text);
+  font-size: var(--fs-base);
+  font-weight: 600;
+  outline: none;
+}
+.auth-inbox-body { margin: 0; color: var(--text); font-size: var(--fs-sm); line-height: 1.55; }
+.auth-inbox-email { overflow-wrap: anywhere; color: var(--accent); font-weight: 600; }
+.auth-inbox-hint { margin: 0 0 var(--space-050); color: var(--muted); font-size: var(--fs-xs); line-height: 1.5; }

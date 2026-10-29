@@ -22,16 +22,19 @@ import { Backspace as BackspaceIcon } from '@phosphor-icons/react/dist/csr/Backs
 import { CaretDown as CaretDownIcon } from '@phosphor-icons/react/dist/csr/CaretDown'
 import { CaretRight as CaretRightIcon } from '@phosphor-icons/react/dist/csr/CaretRight'
 import { Check as CheckIcon } from '@phosphor-icons/react/dist/csr/Check'
+import { CheckCircle as CheckCircleIcon } from '@phosphor-icons/react/dist/csr/CheckCircle'
 import { Copy as CopyIcon } from '@phosphor-icons/react/dist/csr/Copy'
 import { DotsSixVertical as DotsSixVerticalIcon } from '@phosphor-icons/react/dist/csr/DotsSixVertical'
 import { DotsThree as DotsThreeIcon } from '@phosphor-icons/react/dist/csr/DotsThree'
 import { DownloadSimple as DownloadSimpleIcon } from '@phosphor-icons/react/dist/csr/DownloadSimple'
+import { EnvelopeSimple as EnvelopeSimpleIcon } from '@phosphor-icons/react/dist/csr/EnvelopeSimple'
 import { MusicNotes as MusicNotesIcon } from '@phosphor-icons/react/dist/csr/MusicNotes'
 import { Play as PlayIcon } from '@phosphor-icons/react/dist/csr/Play'
 import { Plus as PlusIcon } from '@phosphor-icons/react/dist/csr/Plus'
 import { Power as PowerIcon } from '@phosphor-icons/react/dist/csr/Power'
 import { Stop as StopIcon } from '@phosphor-icons/react/dist/csr/Stop'
 import { Warning as WarningIcon } from '@phosphor-icons/react/dist/csr/Warning'
+import { WarningCircle as WarningCircleIcon } from '@phosphor-icons/react/dist/csr/WarningCircle'
 import { X as XIcon } from '@phosphor-icons/react/dist/csr/X'
 
 function wrap(Glyph, defaultWeight = 'bold') {
@@ -55,6 +58,9 @@ export const IconCaretDown   = wrap(CaretDownIcon)
 export const IconCaretRight  = wrap(CaretRightIcon)
 export const IconWarning     = wrap(WarningIcon)
 export const IconCheck       = wrap(CheckIcon)
+export const IconCheckCircle = wrap(CheckCircleIcon)
+export const IconError       = wrap(WarningCircleIcon)
+export const IconMail        = wrap(EnvelopeSimpleIcon)
 export const IconDownload    = wrap(DownloadSimpleIcon)
 export const IconExternal    = wrap(ArrowUpRightIcon)
 export const IconReset       = wrap(ArrowCounterClockwiseIcon)
