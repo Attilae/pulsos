@@ -15,7 +15,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { authClient, useSession } from '../lib/auth-client.js'
 import {
   listSongs, deleteSong as deleteSongRaw,
-  shareSong, unshareSong, shareUrl, setLastSongId,
+  shareSong, unshareSong, shareUrl, setLastSongId, markSongOpening,
 } from '../lib/persistence.js'
 import { confirmDialog } from './Dialog.jsx'
 import { useEntitlements } from '@/lib/shared/EntitlementsContext.jsx'
@@ -330,8 +330,9 @@ export function PresetsSection() {
 
   useEffect(() => { refresh() }, [refresh])
 
-  const handleOpen = (id) => {
+  const handleOpen = (id, name) => {
     setLastSongId(id)
+    markSongOpening(name)
     // MixerTab (default Map tab) hydrates from lastSongId on load.
     window.location.href = '/'
   }
@@ -390,7 +391,7 @@ export function PresetsSection() {
                 </span>
               </div>
               <div className="preset-actions">
-                <button className="preset-action" onClick={() => handleOpen(s.id)}>Open</button>
+                <button className="preset-action" onClick={() => handleOpen(s.id, s.name)}>Open</button>
                 {s.shareId ? (
                   <>
                     <button className="preset-action" onClick={() => copy(shareUrl(s.shareId), s.id)}>

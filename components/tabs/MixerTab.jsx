@@ -2159,10 +2159,23 @@ export default function MixerTab({ active = true }) {
 
   return (
     <div className={`daw ${view === 'map' ? 'daw--map' : ''} ${isPhone ? 'daw--phone' : ''}`}>
-      {switching && (
-        <div className="city-switch-overlay" role="status" aria-live="polite">
+      {(switching || song.loadingSong) && (
+        // One overlay for both waits: a city's route data and a song load (its
+        // fetch, plus any city switch it causes). It covers the stage on
+        // purpose, so nothing can be clicked into a session about to be replaced.
+        <div className="city-switch-overlay" role="status" aria-live="polite" aria-busy="true">
           <div className="city-switch-pulse" />
-          <div className="city-switch-label">Loading {cityEntry.name}…</div>
+          <div className="city-switch-label">
+            {song.loadingSong
+              ? (song.loadingSong.name ? <>Opening <span className="city-switch-name">{song.loadingSong.name}</span></> : 'Opening song')
+              : `Loading ${cityEntry.name}`}
+          </div>
+          <div className="city-switch-detail">
+            {song.loadingSong
+              ? (switching ? `Loading ${cityEntry.name}’s lines and sounds…` : 'Loading lanes and sounds…')
+              : 'Loading lines…'}
+          </div>
+          <div className="city-switch-bar" aria-hidden="true"><span /></div>
         </div>
       )}
       {presetWarning && (
