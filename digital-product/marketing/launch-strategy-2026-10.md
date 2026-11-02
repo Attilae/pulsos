@@ -4,6 +4,8 @@ Prepared October 14, 2026 using the [marketing skill](https://marketing-skill.ve
 
 ## The decision
 
+**Updated October 30:** the actual soft launch began October 29. Use the [current dated publishing calendar](publishing-calendar-2026-10-30.md) instead of the original dates and cadence below: next short October 31 at 18:00 Budapest time, then two shorts plus one useful article per week. Existing DeettaLabs blog posts join the plan; Reddit is on hold at the founder's request. This is a plan, not confirmation of platform scheduling.
+
 Launch during the week of **October 19**, with the first main video on **Tuesday, October 20**. Spend **€0 on advertising**. Publish **three original videos a week**, adapted for TikTok, Instagram Reels, and YouTube Shorts. This produces nine uploads from three production jobs, rather than nine separate videos.
 
 Lead with **“Turn your city into music.”** Let the viewer hear a good musical result immediately, then reveal the transit route that generated it. Build recognition through repeated city performances, not a tour of every feature.
