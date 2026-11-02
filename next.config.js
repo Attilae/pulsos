@@ -1,4 +1,10 @@
 import path from 'node:path'
+import { withPostHogConfig } from '@posthog/nextjs-config'
+
+// The browser SDK lazy-loads replay and exception modules from this asset host.
+const posthogAssetOrigin = process.env.NEXT_PUBLIC_POSTHOG_HOST
+  ? new URL(process.env.NEXT_PUBLIC_POSTHOG_HOST).origin.replace(/\.i\.posthog\.com$/, '-assets.i.posthog.com')
+  : ''
 
 // Baseline response headers for every route. The enforced CSP only carries
 // directives that can't break a page (framing, <base>, plugins); the full policy
@@ -7,7 +13,7 @@ import path from 'node:path'
 // been checked against it — then move it into Content-Security-Policy.
 const CSP_REPORT_ONLY = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://challenges.cloudflare.com https://va.vercel-scripts.com",
+  `script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://challenges.cloudflare.com https://va.vercel-scripts.com ${posthogAssetOrigin}`.trim(),
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https:",
   "font-src 'self' data:",
@@ -76,4 +82,15 @@ const nextConfig = {
   },
 }
 
-export default nextConfig
+// Build credentials are server-only. Ordinary local builds need no upload token.
+const uploadSourceMaps = Boolean(process.env.POSTHOG_API_KEY && process.env.POSTHOG_PROJECT_ID)
+if (process.env.VERCEL && process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN && !uploadSourceMaps) {
+  console.warn('[PostHog] Source-map upload is disabled: set POSTHOG_API_KEY and POSTHOG_PROJECT_ID in Vercel.')
+}
+
+export default uploadSourceMaps ? withPostHogConfig(nextConfig, {
+  personalApiKey: process.env.POSTHOG_API_KEY,
+  projectId: process.env.POSTHOG_PROJECT_ID,
+  host: process.env.NEXT_PUBLIC_POSTHOG_HOST,
+  sourcemaps: { enabled: true, deleteAfterUpload: true, failOnError: true },
+}) : nextConfig

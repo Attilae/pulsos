@@ -1,0 +1,33 @@
+{
+  "articleTitle": "How I Made a Track from Berlin's Transport Map",
+  "authorization": "User explicitly requested blog publication, X post, Instagram Story and an article item on Lnk.Bio.",
+  "date": "2026-11-02",
+  "blog": {
+    "state": "published-verified",
+    "slug": "berlin-transport-map-music",
+    "cover": "https://emzjpnqmakq5fdrs.public.blob.vercel-storage.com/blog/berlin-transport-map-cover-liZlaEeq9b5rbPVUX80wsEMsUSMXX2.png",
+    "u4Image": "https://emzjpnqmakq5fdrs.public.blob.vercel-storage.com/blog/berlin-u4-fm-bass-rssUUzym0e4RJ8fXneAa20mspOd6Cg.png",
+    "n36Image": "https://emzjpnqmakq5fdrs.public.blob.vercel-storage.com/blog/berlin-n36-plucked-strings-TXHNUSIibp72OO9U1ghj0m6BGgBymv.png",
+    "url": "https://www.deettalabs.com/blog/berlin-transport-map-music",
+    "adminUrl": "https://www.deettalabs.com/admin/blog/6",
+    "evidence": "Admin PUBLISHED, saved=published; live page November 2 shows title, three images, all sections and matching Berlin links."
+  },
+  "x": {
+    "state": "published-verified",
+    "url": "https://x.com/deettalabs/status/2117283852611641627",
+    "evidence": "Refreshed own profile shows the exact complete announcement, correct blog card title, and new status permalink."
+  },
+  "instagramStory": {
+    "state": "published-verified",
+    "asset": "_videos/launch/out/blog/berlin-blog-story.png",
+    "evidence": "Submitted the final safe-margin PNG once through mobile browser Add to your story. A separate freshly loaded desktop profile subsequently shows a Story ring; opening it displays Stories viewer for deettalabs with 1m timestamp. Story expires normally after 24 hours. No link sticker was added; CTA uses verified Lnk.Bio entry.",
+    "url": "https://www.instagram.com/stories/deettalabs/",
+    "cta": "Read the breakdown · link in bio"
+  },
+  "lnkBio": {
+    "state": "published-verified",
+    "url": "https://lnk.bio/deettalabs",
+    "label": "Read the Berlin track breakdown",
+    "evidence": "Public page shows new article item plus both existing city preset links."
+  }
+}

@@ -11,13 +11,20 @@ import { useEntitlements } from '@/lib/shared/EntitlementsContext.jsx'
 import { signOut, useSession } from '../lib/auth-client.js'
 import { useModal } from '@/lib/shared/useModal.js'
 import './HeaderMenu.css'
-import { IconClose, IconExternal } from './icons.jsx'
+import { IconClose, IconExternal, IconInstagram, IconTiktok, IconXLogo, IconYoutube } from './icons.jsx'
 
 const LEGAL_ITEMS = [
   { href: '/legal', label: 'Legal overview' },
   { href: '/terms', label: 'Terms of service' },
   { href: '/privacy', label: 'Privacy notice' },
   { href: '/licenses', label: 'Licences & credits' },
+]
+
+const SOCIAL_LINKS = [
+  { href: 'https://x.com/deettalabs', label: 'Deetta Labs on X', Icon: IconXLogo },
+  { href: 'https://www.tiktok.com/@deettalabs', label: 'Deetta Labs on TikTok', Icon: IconTiktok },
+  { href: 'https://www.instagram.com/deettalabs/', label: 'Deetta Labs on Instagram', Icon: IconInstagram },
+  { href: 'https://www.youtube.com/@DeettaLabs', label: 'Deetta Labs on YouTube', Icon: IconYoutube },
 ]
 
 export default function HeaderMenu({ startTour, showSessionControls = false }) {
@@ -133,6 +140,7 @@ function GuestMenu({ onDone, onStartTour }) {
       <SoundCheckItem onDone={onDone} />
       <LegalItems />
       <FeedbackItem />
+      <SocialLinks />
     </>
   )
 }
@@ -173,6 +181,7 @@ function AuthenticatedMenu({ user, view, onNavigate, onClose, onStartTour }) {
       <SoundCheckItem onDone={onClose} />
       <LegalItems />
       <FeedbackItem />
+      <SocialLinks />
 
       <button type="button" className="header-menu-signout" onClick={() => { signOut(); onClose() }}>
         Sign out
@@ -231,6 +240,21 @@ function FeedbackItem() {
     <Link href="/feedback" className="header-menu-item">
       <span>Feedback &amp; bug reports</span><IconExternal />
     </Link>
+  )
+}
+
+function SocialLinks() {
+  return (
+    <>
+      <MenuDivider label="Follow Deetta Labs" />
+      <nav className="header-menu-social" aria-label="Deetta Labs on social media">
+        {SOCIAL_LINKS.map(({ href, label, Icon }) => (
+          <a key={href} href={href} target="_blank" rel="noopener noreferrer" aria-label={label} title={label}>
+            <Icon />
+          </a>
+        ))}
+      </nav>
+    </>
   )
 }
 

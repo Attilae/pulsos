@@ -3,6 +3,7 @@ import 'leaflet/dist/leaflet.css'
 import { Analytics } from '@vercel/analytics/next'
 import { Inter, JetBrains_Mono } from 'next/font/google'
 import { SITE_URL } from '@/lib/siteMetadata.js'
+import { PostHogIdentity } from '@/lib/auth-client.js'
 
 // UI type: Inter (Atlassian Sans is an Inter derivative — this is the faithful,
 // freely-hostable stand-in). Mono: JetBrains Mono for numeric/data readouts.
@@ -82,6 +83,7 @@ export default function RootLayout({ children }) {
         <script dangerouslySetInnerHTML={{ __html: themeInit }} />
       </head>
       <body style={{ margin: 0 }}>
+        <PostHogIdentity />
         {children}
         <Analytics />
       </body>

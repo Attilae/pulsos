@@ -1,6 +1,6 @@
 # Leið: first three launch videos
 
-Production briefs for October 20, 22, and 24, 2026. Companion: [launch strategy](launch-strategy-2026-10.md). These are scripts and requirements, not rendered videos. New IDs L01–L03 distinguish them from the existing `_videos/launch/content/posts.json` records.
+Originally drafted for October 20, 22, and 24, 2026; L03 updated November 2 to follow the current publishing calendar. Companion: [launch strategy](launch-strategy-2026-10.md). These are scripts and requirements, not rendered videos. New IDs L01–L03 distinguish them from the existing `_videos/launch/content/posts.json` records.
 
 ## Shared direction
 
@@ -82,39 +82,27 @@ If the actual anonymous journey restricts city selection or lane count, adjust t
 
 **Distribution:** All three native uploads. This is the useful explanation to link from genuine “how does it work?” replies and to feature on the account alongside the reveal.
 
-## L03 — Budapest or Berlin?
+## L03 — Your next melody could start with a transport map
 
-**Date:** October 24. **Length:** approximately 18 seconds. **Audience:** city fans and music-curious viewers. **Goal:** choose the next city. **New information:** different networks provide different structures for a playable arrangement.
+**Updated November 2; replaces the city-vote script. Target:** November 3, 18:00 Europe/Budapest (CET). **Length:** approximately 27 seconds, final timing follows the founder recordings. **Goal:** play one or both arrangements.
 
-**Cover:** BUDAPEST OR BERLIN?
+**Hook:** “Your next melody could start with a transport map.”
 
-Prepare comparable arrangements with the same BPM and a similar sound palette and loudness. Name them as the founder's arrangements, not as the true sound of each city. Record each city separately; footage and audio must match.
+| Part | Voiceover / sound |
+|---|---|
+| Hook | Your next melody could start with a transport map. |
+| Budapest | I started with Budapest's routes. |
+| Listen | Four seconds of Budapest music alone. |
+| Berlin | Then I tried Berlin. |
+| Listen | Four seconds of Berlin music alone. |
+| Explanation | The stops give me a pattern. I choose the instruments and shape the track. |
+| CTA | Play both through the link in bio. |
 
-| Time | Picture | Audio / spoken words | Overlay |
-|---|---|---|---|
-| 0–2 s | Budapest map in motion; audible music | “Budapest or Berlin? Listen to both.” | “Budapest or Berlin?” |
-| 2–7 s | Budapest performance | No narration | “My Budapest arrangement” |
-| 7–12 s | Berlin performance | No narration | “My Berlin arrangement” |
-| 12–15 s | Short return to the preferred visual; music continues | “Both started with transport routes.” | “Routes become music in Leið” |
-| 15–18 s | Readable city choices, modest brand/domain | “Which city should I play next?” | “Helsinki / Prague / New York / Zürich / Warsaw” |
+Uses the approved 134 BPM Budapest and 111 BPM Berlin arrangements. Their tempo, key, routes and sounds differ; no claim that geography is the only variable. Both maps are actual preset-view stills with editorial camera motion; the meter follows the actual audio. No fabricated synchronized note highlights.
 
-**Full voiceover:**
+**Prepared:** [ElevenLabs packet](../../_videos/launch/content/map-melodies/README.md), [picture/music preview](../../_videos/launch/out/map-melodies/leid-map-melodies-preview.mp4), [cover](../../_videos/launch/out/map-melodies/cover.png), [draft platform copy](../../_videos/launch/out/map-melodies/publish-copy.txt). Custom composition `MapMelodiesFinal`; existing generic `content/posts.json` city-vote record is legacy and is not used for this edit.
 
-> Budapest or Berlin? Listen to both. Both started with transport routes. Which city should I play next?
-
-**TikTok caption:** “Two city networks, two arrangements I made in Leið. What should I play next: Helsinki, Prague, New York, Zürich or Warsaw?”
-
-**Instagram caption:** “Budapest or Berlin? I made both arrangements from their transport routes in Leið. Tell me which supported city you want to hear next.”
-
-**YouTube title:** “Budapest vs Berlin: transport routes turned into music”
-
-**YouTube description:** “Two arrangements made in Leið with different city networks. Which supported city should I play next? The browser instrument is on my channel's website link.”
-
-**Primary CTA:** A genuine city request. Keep `layth.space` visible for curious viewers, but do not add a second spoken request. A comment is a creative input, not a lead or signup.
-
-**Proof sources:** `lib/shared/cities.js`, actual Budapest and Berlin playback. The output also depends on route choices, instrument settings, and arrangement; no controlled city comparison is claimed.
-
-**Distribution:** All three platforms; use answers to choose L09. If someone asks for an unsupported city, say it is not available yet and note the interest without promising a release date.
+**Destination:** https://lnk.bio/deettalabs with both matching public presets. Current preview has no narration and is visibly marked pending. Founder generates five voice clips, then the final edit is aligned and rendered. Nothing scheduled or published for L03.
 
 ## Caption and reply bank
 

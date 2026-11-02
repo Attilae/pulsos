@@ -1922,20 +1922,23 @@ export default function MixerTab({ active = true }) {
     if (!route) return
     if (!(await claim('export', 'export_limit'))) return
     exportRouteMidi(route, midiExportCtx)
+    trackProductEvent('midi_exported', { export_scope: 'route' })
   }, [mergedRoutes, midiExportCtx, claim])
 
   const handleExportMixMidi = useCallback(async () => {
     if (!(await claim('export', 'export_limit'))) return
     await exportMixMidi(mergedRoutes ?? [], midiExportCtx)
+    trackProductEvent('midi_exported', { export_scope: 'mix' })
   }, [mergedRoutes, midiExportCtx, claim])
 
   // Real-time WAV capture taps the live engine, so it needs playback running.
-  const runAudioExport = useCallback(async (fn) => {
+  const runAudioExport = useCallback(async (fn, exportScope) => {
     if (!engineRef.current || !started || audioExporting) return
     setAudioExporting(true)
     setAudioProgress(0)
     try {
       await fn(engineRef.current, midiExportCtx, setAudioProgress)
+      trackProductEvent('wav_exported', { export_scope: exportScope })
     } catch (err) {
       console.error('[wav export]', err)
       alertDialog('WAV export failed. Please try again.')
@@ -1949,12 +1952,12 @@ export default function MixerTab({ active = true }) {
     const route = mergedRoutes?.find(r => r.id === routeId)
     if (!route) return
     if (!(await claim('export', 'export_limit'))) return
-    runAudioExport((engine, ctx, onProgress) => exportRouteAudio(engine, route, ctx, { onProgress }))
+    runAudioExport((engine, ctx, onProgress) => exportRouteAudio(engine, route, ctx, { onProgress }), 'route')
   }, [mergedRoutes, runAudioExport, claim])
 
   const handleExportMixAudio = useCallback(async () => {
     if (!(await claim('export', 'export_limit'))) return
-    runAudioExport((engine, ctx, onProgress) => exportMixAudio(engine, mergedRoutes ?? [], ctx, { onProgress }))
+    runAudioExport((engine, ctx, onProgress) => exportMixAudio(engine, mergedRoutes ?? [], ctx, { onProgress }), 'mix')
   }, [mergedRoutes, runAudioExport, claim])
 
   const songState = useMemo(() => ({
@@ -2159,10 +2162,23 @@ export default function MixerTab({ active = true }) {
 
   return (
     <div className={`daw ${view === 'map' ? 'daw--map' : ''} ${isPhone ? 'daw--phone' : ''}`}>
-      {switching && (
-        <div className="city-switch-overlay" role="status" aria-live="polite">
+      {(switching || song.loadingSong) && (
+        // One overlay for both waits: a city's route data and a song load (its
+        // fetch, plus any city switch it causes). It covers the stage on
+        // purpose, so nothing can be clicked into a session about to be replaced.
+        <div className="city-switch-overlay" role="status" aria-live="polite" aria-busy="true">
           <div className="city-switch-pulse" />
-          <div className="city-switch-label">Loading {cityEntry.name}…</div>
+          <div className="city-switch-label">
+            {song.loadingSong
+              ? (song.loadingSong.name ? <>Opening <span className="city-switch-name">{song.loadingSong.name}</span></> : 'Opening song')
+              : `Loading ${cityEntry.name}`}
+          </div>
+          <div className="city-switch-detail">
+            {song.loadingSong
+              ? (switching ? `Loading ${cityEntry.name}’s lines and sounds…` : 'Loading lanes and sounds…')
+              : 'Loading lines…'}
+          </div>
+          <div className="city-switch-bar" aria-hidden="true"><span /></div>
         </div>
       )}
       {presetWarning && (

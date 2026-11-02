@@ -15,6 +15,7 @@ import { useEffect, useId, useRef, useState } from 'react'
 import Link from 'next/link'
 import { authClient } from '../lib/auth-client.js'
 import { MIN_PASSWORD_LENGTH, authFieldErrors, describeAuthError } from '../lib/authFormValidation.js'
+import { trackProductEvent } from '@/lib/productAnalytics.js'
 import { IconCheck, IconError, IconMail } from './icons.jsx'
 import './AuthForm.css'
 
@@ -73,7 +74,12 @@ export function AuthForm({ onDone, className = '', callbackURL = '/' }) {
     setBusy(null)
 
     if (!error) {
-      if (action === 'signin') { onDone(); return }
+      if (action === 'signin') {
+        trackProductEvent('sign_in_succeeded')
+        onDone()
+        return
+      }
+      trackProductEvent(action === 'signup' ? 'account_created' : 'magic_link_requested')
       setInbox({ kind: action === 'magic' ? 'magic' : 'verify', email: addr, reason: action })
       return
     }
