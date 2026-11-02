@@ -14,6 +14,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import Turnstile, { turnstileEnabled } from './Turnstile.jsx'
 import { useSession } from '@/lib/auth-client.js'
 import { MESSAGE_MIN, MESSAGE_MAX, TURNSTILE_ACTION } from '@/lib/feedback.js'
+import { trackProductEvent } from '@/lib/productAnalytics.js'
 import './FeedbackForm.css'
 import { IconCaretDown, IconCaretRight } from './icons.jsx'
 
@@ -112,6 +113,7 @@ export default function FeedbackForm() {
       return
     }
 
+    trackProductEvent('feedback_submitted', { kind })
     setSent(true)
     setMessage('')
   }

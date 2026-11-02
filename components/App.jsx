@@ -29,7 +29,10 @@ const SongChainerTab = dynamic(() => importWithRetry(() => import('./tabs/SongCh
 class TabErrorBoundary extends Component {
   state = { error: null }
   static getDerivedStateFromError(error) { return { error } }
-  componentDidCatch(error) { console.error('[tab] failed to load', error) }
+  componentDidCatch(error) {
+    console.error('[tab] failed to load', error)
+    captureProductException(error)
+  }
   render() {
     if (!this.state.error) return this.props.children
     return (
@@ -55,7 +58,7 @@ import { initAudioSession } from '@/lib/audioSession.js'
 import { startPerfMonitor, perfHudEnabled } from '@/lib/perfMonitor.js'
 import PerfHud from './PerfHud.jsx'
 import { formFactor } from '@/lib/shared/platform.js'
-import { trackProductEvent } from '@/lib/productAnalytics.js'
+import { captureProductException, trackProductEvent } from '@/lib/productAnalytics.js'
 import { useIsPhone } from '@/lib/shared/useViewport.js'
 import './app.css'
 // After app.css: the responsive layer overrides it on equal specificity.

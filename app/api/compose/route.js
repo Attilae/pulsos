@@ -8,6 +8,8 @@
 // fails) and an attempt budget per provider call (never refunded), so a failure
 // that was still billed can't be repeated at no cost.
 
+import { randomUUID } from 'node:crypto'
+import { after } from 'next/server'
 import { auth } from '@/lib/auth.js'
 import { claimUsage, releaseUsage } from '@/lib/billing/server.js'
 import { aiAttemptBudget } from '@/lib/billing/plans.js'
@@ -16,6 +18,8 @@ import { DAY_MS } from '@/lib/rateWindow.js'
 import { COMPOSE_MAX_BODY_BYTES, buildComposeMessages, validateComposeRequest } from '@/lib/ai/composeRequest.js'
 import { CITIES } from '@/lib/shared/cities.js'
 import { getRouteIndex } from '@/lib/server/routeIndex.js'
+import { aiComposerSessionId, captureAiGeneration } from '@/lib/server/posthogAi.js'
+import { flushPostHogLogs, logAiComposerOutcome } from '@/lib/server/posthogLogs.js'
 // The strict loop-plan schema is derived from the one Zod definition the MCP
 // tools also validate against (lib/ai/planSchema.js), so the two can't drift.
 import { COMPOSITION_RESPONSE_FORMAT } from '@/lib/ai/planSchema.js'
@@ -108,52 +112,112 @@ export async function POST(req) {
     routeIndex: await getRouteIndex(request.cityId).catch(() => null),
     activeLaneLimit: claim.entitlements?.limits?.activeLanes ?? null,
   })
+  const model = process.env.OPENROUTER_MODEL || 'openai/gpt-5-mini'
+  const traceId = randomUUID()
+  const sessionId = aiComposerSessionId(session.user.id)
+  let failureStage = 'compose_request'
+  let lastAttempt = 0
+  let lastLatencyMs
   try {
     let lastParseError = null
     for (let attempt = 0; attempt < 2; attempt++) {
+      lastAttempt = attempt + 1
       if (!await claimAttempt(session.user.id, accessSource)) {
         if (attempt > 0) break
         if (claim.metered) await releaseUsage(session.user.id, 'ai')
         return attemptLimitResponse()
       }
-      const r = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-        method: 'POST',
-        signal: AbortSignal.timeout(PROVIDER_TIMEOUT_MS),
-        headers: {
-          Authorization: `Bearer ${key}`,
-          'Content-Type': 'application/json',
-          'HTTP-Referer': APP_URL,
-          'X-Title': 'Leid',
-        },
-        body: JSON.stringify({
-          model: process.env.OPENROUTER_MODEL || 'openai/gpt-5-mini',
-          messages,
-          response_format: COMPOSITION_RESPONSE_FORMAT,
-          provider: { require_parameters: true },
-          reasoning: { effort: 'low', exclude: true },
-          // The expanded plan can contain several fully-specified tracks plus
-          // drum steps. 3000 tokens intermittently cut the JSON off mid-object.
-          max_completion_tokens: attempt === 0 ? 8000 : 10000,
-        }),
-      })
+      const maxTokens = attempt === 0 ? 8000 : 10000
+      const requestStartedAt = Date.now()
+      let r
+      try {
+        r = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+          method: 'POST',
+          signal: AbortSignal.timeout(PROVIDER_TIMEOUT_MS),
+          headers: {
+            Authorization: `Bearer ${key}`,
+            'Content-Type': 'application/json',
+            'HTTP-Referer': APP_URL,
+            'X-Title': 'Leid',
+          },
+          body: JSON.stringify({
+            model,
+            messages,
+            response_format: COMPOSITION_RESPONSE_FORMAT,
+            provider: { require_parameters: true },
+            reasoning: { effort: 'low', exclude: true },
+            // The expanded plan can contain several fully-specified tracks plus
+            // drum steps. 3000 tokens intermittently cut the JSON off mid-object.
+            max_completion_tokens: maxTokens,
+          }),
+        })
+      } catch (error) {
+        lastLatencyMs = Date.now() - requestStartedAt
+        failureStage = 'provider_network'
+        await captureAiGeneration({
+          distinctId: session.user.id, traceId, sessionId, spanId: randomUUID(), model, messages,
+          latencyMs: lastLatencyMs, maxTokens, error: error?.name || 'OpenRouter request failed',
+        })
+        throw error
+      }
+      const latencyMs = Date.now() - requestStartedAt
+      lastLatencyMs = latencyMs
 
       if (!r.ok) {
         const detail = await r.text()
+        await captureAiGeneration({
+          distinctId: session.user.id, traceId, sessionId, spanId: randomUUID(), model, messages,
+          latencyMs, httpStatus: r.status, maxTokens, error: 'OpenRouter request failed',
+        })
         console.error('[compose] OpenRouter error', r.status, detail)
+        logAiComposerOutcome({
+          outcome: 'failed', model, attempt: attempt + 1, latencyMs, httpStatus: r.status,
+          failureStage: 'provider_http',
+        })
+        after(flushPostHogLogs)
         if (claim.metered) await releaseUsage(session.user.id, 'ai')
         return Response.json({ error: `OpenRouter ${r.status}`, detail }, { status: 502 })
       }
 
-      const data = await r.json()
+      let data
+      try {
+        data = await r.json()
+      } catch (error) {
+        failureStage = 'provider_response_parsing'
+        await captureAiGeneration({
+          distinctId: session.user.id, traceId, sessionId, spanId: randomUUID(), model, messages,
+          latencyMs, httpStatus: r.status, maxTokens, error: error?.name || 'OpenRouter response parsing failed',
+        })
+        throw error
+      }
       if (data?.error) {
+        await captureAiGeneration({
+          distinctId: session.user.id, traceId, sessionId, spanId: randomUUID(), model, messages,
+          latencyMs, httpStatus: r.status, maxTokens, error: 'OpenRouter returned an error',
+        })
         console.error('[compose] OpenRouter response error', data.error)
+        logAiComposerOutcome({
+          outcome: 'failed', model, attempt: attempt + 1, latencyMs, httpStatus: r.status,
+          failureStage: 'provider_response',
+        })
+        after(flushPostHogLogs)
         if (claim.metered) await releaseUsage(session.user.id, 'ai')
         return Response.json({ error: data.error.message || 'OpenRouter returned an error' }, { status: 502 })
       }
       const choice = data?.choices?.[0]
       const content = choice?.message?.content
+      await captureAiGeneration({
+        distinctId: session.user.id, traceId, sessionId, spanId: randomUUID(), model, messages,
+        content: contentText(content), usage: data?.usage, latencyMs, httpStatus: r.status,
+        maxTokens, stopReason: choice?.finish_reason,
+      })
       try {
-        return Response.json(parseModelJson(content))
+        const plan = parseModelJson(content)
+        logAiComposerOutcome({
+          outcome: 'succeeded', model, attempt: attempt + 1, latencyMs, httpStatus: r.status,
+        })
+        after(flushPostHogLogs)
+        return Response.json(plan)
       } catch (error) {
         lastParseError = error
         console.warn('[compose] invalid structured response', {
@@ -164,6 +228,11 @@ export async function POST(req) {
       }
     }
 
+    logAiComposerOutcome({
+      outcome: 'failed', model, attempt: lastAttempt, latencyMs: lastLatencyMs,
+      failureStage: 'invalid_structured_response',
+    })
+    after(flushPostHogLogs)
     if (claim.metered) await releaseUsage(session.user.id, 'ai')
     return Response.json({
       error: 'The model could not finish a valid composition. Please try again.',
@@ -171,6 +240,10 @@ export async function POST(req) {
     }, { status: 502 })
   } catch (err) {
     console.error('[compose] failed', err)
+    logAiComposerOutcome({
+      outcome: 'failed', model, attempt: lastAttempt, latencyMs: lastLatencyMs, failureStage,
+    })
+    after(flushPostHogLogs)
     if (claim.metered) await releaseUsage(session.user.id, 'ai').catch(() => {})
     return Response.json({ error: String(err?.message ?? err) }, { status: 502 })
   }
