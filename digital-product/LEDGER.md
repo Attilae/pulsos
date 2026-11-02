@@ -146,3 +146,17 @@
 - Uses approved Budapest and Berlin music, independently normalized, with four-second listening windows. Actual map UI stills with editorial camera motion and real audio spectrum; no fake synchronized playback. Different musical settings remain, so no controlled geography-only comparison. Berlin source association retains the previously documented tempo/timestamp inference.
 - Implementation: preview/final/cover compositions, voice-measured timing and cached forced-alignment importer; no paid TTS or alignment calls performed now. Final render is gated until voice import. Checks: video-project ESLint/TypeScript, importer syntax, full preview render and representative-frame inspection passed; preview encoded audio −15.11 LUFS / −1.49 dBTP. Founder listening/voice review remains.
 - Updated calendar and L03 brief. November 3 at 18:00 CET remains a target; no video 3 upload or scheduling. Waiting for five supplied voice files before final alignment/render. No production app code modified.
+
+## 2026-11-02: Berlin arrangement blog article drafted
+
+- Request: write the recommended article, “How I Made a Track from Berlin’s Transport Map.” Applied content-strategy/copywriting skills; considered ten titles, kept the approved angle, and reviewed structure, evidence, clarity, language and publication metadata.
+- Deliverable: [Markdown article](marketing/blog/berlin-transport-map-music.md), three original screenshot assets copied unchanged, [video embed](marketing/blog/berlin-video-embed.html), [draft promotion copy](marketing/blog/berlin-transport-map-promotion.txt), and separate [editorial/source notes](marketing/blog/berlin-transport-map-music-editorial-notes.md).
+- Content: U4’s low FM synth bass, N36’s Sympathetic resonator, M5/tram 4 modulation, other voices and a one-control-at-a-time reader experiment. Accurate Mock-mode description; no invented founder anecdote, live-arrival claim, performance result or unknown lead assignment. Uses the supplied Berlin preset ID and approved short ID.
+- Checks: configuration details reviewed against October 30 source notes and original screenshots; local image paths valid, screenshot copies match source hashes, share/video IDs correct, no placeholders in article. Live blog/preset/video retrieval failed through the web tool, so no claim of current remote availability or duplicate-content audit. No CMS publication, external post or scheduling action. Video 3 still awaits founder voice files.
+
+
+### November 2 — Berlin article publication
+
+Owner explicitly authorized publication and promotion. Published and verified https://www.deettalabs.com/blog/berlin-transport-map-music with three real app screenshots. Added “Read the Berlin track breakdown” to Lnk.Bio, preserving both preset links. X announcement verified at https://x.com/deettalabs/status/2117283852611641627. Story asset rendered and submitted through the phone browser editor; see `marketing/blog/berlin-publication-status.json` for final Story evidence. No Facebook setup, account conversion or Reddit action.
+
+Instagram Story publication verified in a separate profile tab: new Story ring and own Story viewer with 1m timestamp. CTA is link in bio, leading to the article item. All four authorized publication actions complete.

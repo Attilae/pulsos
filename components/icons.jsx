@@ -36,6 +36,10 @@ import { Stop as StopIcon } from '@phosphor-icons/react/dist/csr/Stop'
 import { Warning as WarningIcon } from '@phosphor-icons/react/dist/csr/Warning'
 import { WarningCircle as WarningCircleIcon } from '@phosphor-icons/react/dist/csr/WarningCircle'
 import { X as XIcon } from '@phosphor-icons/react/dist/csr/X'
+import { XLogo as XLogoIcon } from '@phosphor-icons/react/dist/csr/XLogo'
+import { TiktokLogo as TiktokLogoIcon } from '@phosphor-icons/react/dist/csr/TiktokLogo'
+import { InstagramLogo as InstagramLogoIcon } from '@phosphor-icons/react/dist/csr/InstagramLogo'
+import { YoutubeLogo as YoutubeLogoIcon } from '@phosphor-icons/react/dist/csr/YoutubeLogo'
 
 function wrap(Glyph, defaultWeight = 'bold') {
   function AppIcon({ className = '', weight = defaultWeight, ...rest }) {
@@ -79,3 +83,7 @@ export const IconClear       = wrap(BackspaceIcon)
 export const IconMoveUp      = wrap(ArrowUpIcon)
 export const IconMoveDown    = wrap(ArrowDownIcon)
 export const IconForward     = wrap(ArrowRightIcon)
+export const IconXLogo       = wrap(XLogoIcon)
+export const IconTiktok      = wrap(TiktokLogoIcon)
+export const IconInstagram   = wrap(InstagramLogoIcon)
+export const IconYoutube     = wrap(YoutubeLogoIcon)
