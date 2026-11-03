@@ -131,6 +131,8 @@ classes and analytics profile), `server-purity` (loads the MCP module graph in a
 that throws on any Tone/React/`.jsx` import, plus `lib/server/routeIndex.js`), `posthog` (the
 analytics/AI-telemetry modules under mocked SDKs: no prompt/response content is sent),
 `map-playhead` (`lib/mapPlayhead.js`), `auth-form-validation` (`lib/authFormValidation.js`),
+`reference-track` (`lib/referenceTrack.js`: bar guess, Match BPM, drift, snapshot sanitising) and
+`aiff` (`lib/aiff.js`),
 `poly-voice` and `lane-pitch` (described in their sections below). There is **no linter
 configured** and the audio/UI code has no tests. Run a single file with
 `node --test test/ai-plan-apply.test.js`.
@@ -967,6 +969,31 @@ the FM-patch licence check: `docs/plaits-macro-plan.md`. Build, measurements, en
   `macroToneToParams`, `macroParamsToTone`), so the strict OpenRouter schema gains one key per
   track; `transpose` is whole semitones. Recipes R18–R20 (R20 uses the envelope) and the prompt
   text exist only while the flag is on.
+
+### Reference loop (Pro)
+
+A Pro user can load their own loop (WAV/MP3/AIFF, ≤100 MB / 5 min, `CUSTOM_AUDIO_LIMITS.reference`)
+and audition lanes against it, e.g. a loop with no bass while hunting for a bassline. Gated by
+`limits.customUploads` (upgrade reason `reference_track`).
+- **The audio never leaves the browser.** `lib/referenceStore.js` keeps the original file in
+  IndexedDB (`leid-reference`). The song stores only `snapshot.referenceTrack` (id, name, duration,
+  bars, offset, volume, mute, export toggle; sparse, so there's no schema bump, sanitised by
+  `normalizeReference`). Another device or a shared link gets the "Re-upload" state, and a Free
+  account that loads such a song gets "locked". If storage fails (private mode, quota), the loop
+  still plays for the session.
+- **AIFF** is parsed by `lib/aiff.js`, because Chrome/Firefox `decodeAudioData` reject it.
+  `decodeCustomAudio` routes it there when given a context. Only uncompressed PCM/float is supported.
+- **Timing**: never time-stretched. `engine._scheduleReference` restarts the file every `bars`
+  bars from the part anchor with `Transport.scheduleRepeat`, which counts in ticks so it follows BPM
+  changes. Each cycle plays at most one cycle long, so a tempo mismatch is cut or leaves a gap but
+  never drifts (the lane shows `driftWarning`; Match BPM sets the tempo via `bpmForBars`).
+  Joining mid-play starts in phase. Mock mode only.
+- **Graph**: it is not a `_mockSynths` entry. Its chain is `gain → exportGain → _masterGain`: no
+  inserts, sends or AlertLayer, it **stays audible under solo**, and it survives start/stop. The
+  WAV mix export mutes `exportGain` unless `includeInExport` is set. Stems and MIDI never contain it.
+- React state is `lib/useReferenceTrack.js` (owned by MixerTab; `engineGen` re-pushes onto a
+  rebuilt engine). UI is `components/ReferenceLane.jsx` (desktop lane + waveform). Its
+  `ReferenceControls` is reused by the phone `MoreSheet`. The Song Chainer ignores the reference.
 
 ### Lane filter: Classic and Analog
 

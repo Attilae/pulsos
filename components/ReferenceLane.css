@@ -1,0 +1,166 @@
+/* Reference loop lane (Pro). Desktop lane + the controls the phone sheet reuses. */
+
+.reference-section { padding-bottom: 8px; }
+.reference-section--muted .reference-wave { opacity: 0.45; }
+
+.reference-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.reference-title {
+  letter-spacing: var(--tracking-wide);
+}
+.reference-name {
+  color: var(--muted);
+  font-size: var(--fs-xs);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.reference-wave {
+  position: relative;
+  height: 44px;
+  margin: 4px 8px 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 4px);
+  background: var(--surface-sunken);
+  overflow: hidden;
+}
+.reference-wave-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  color: var(--muted-line);
+}
+.reference-wave-window {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: var(--accent-tint);
+  border-left: 1px solid var(--accent);
+  border-right: 1px solid var(--accent);
+  pointer-events: none;
+}
+.reference-wave-head {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 2px;
+  background: var(--accent);
+  opacity: 0;
+  will-change: transform;
+  pointer-events: none;
+}
+
+.reference-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+  padding: 2px 8px;
+  font-size: var(--fs-xs);
+}
+.reference-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.reference-field-label {
+  font-size: var(--fs-2xs);
+  color: var(--muted);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+}
+.reference-field select {
+  font-family: inherit;
+  font-size: var(--fs-xs);
+  background: var(--surface2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 2px 4px;
+}
+.reference-field input[type="range"] { width: 96px; }
+.reference-value {
+  min-width: 52px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.reference-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  border-radius: 3px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: var(--fs-xs);
+}
+.reference-btn:hover:not(:disabled) { color: var(--text); }
+.reference-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.reference-btn.on { border-color: var(--danger); color: var(--danger); }
+
+.reference-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.reference-actions {
+  display: inline-flex;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.reference-note {
+  flex-basis: 100%;
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--fs-xs);
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.reference-note--warn { color: var(--warning-text); }
+
+.reference-link {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  color: var(--accent);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.reference-error {
+  color: var(--danger);
+  font-size: var(--fs-xs);
+  margin-left: 6px;
+}
+
+.reference-pro-chip {
+  margin-left: 6px;
+  padding: 0 5px;
+  border: 1px solid var(--accent);
+  border-radius: 3px;
+  color: var(--accent);
+  font-size: var(--fs-3xs);
+  letter-spacing: var(--tracking-wide);
+}
+
+/* At the top of the lane list, above the first section. */
+.reference-add-row { padding: 4px 4px 8px; }

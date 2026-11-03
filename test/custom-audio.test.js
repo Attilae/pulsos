@@ -42,3 +42,36 @@ test('decodeCustomAudio never decodes a rejected file and reports decode failure
   await assert.rejects(decodeCustomAudio(file('long.wav', 100, 'audio/wav'), 'ir', async () => buffer(30)), /Longer than 12 s/)
   assert.equal((await decodeCustomAudio(file('ok.wav', 100, 'audio/wav'), 'ir', ok)).duration, 2)
 })
+
+test('reference loops: bigger, longer, any audio format', () => {
+  assert.equal(checkAudioFile(file('loop.aif', 80 * MB, ''), 'reference'), null)
+  assert.equal(checkAudioFile(file('loop.mp3', 1000, 'audio/mpeg'), 'reference'), null)
+  assert.equal(checkAudioFile(file('loop.wav', 101 * MB, 'audio/wav'), 'reference'), 'File is over 100 MB')
+  assert.equal(checkDecodedAudio(buffer(240), 'reference'), null)
+  assert.equal(checkDecodedAudio(buffer(301), 'reference'), 'Longer than 300 s')
+})
+
+test('AIFF goes through the built-in parser when a context is passed', async () => {
+  // Minimal 16-bit mono AIFF, 2 frames at 44.1 kHz.
+  const bytes = new Uint8Array([
+    ...'FORM'.split('').map(c => c.charCodeAt(0)), 0, 0, 0, 46,
+    ...'AIFF'.split('').map(c => c.charCodeAt(0)),
+    ...'COMM'.split('').map(c => c.charCodeAt(0)), 0, 0, 0, 18,
+    0, 1, 0, 0, 0, 2, 0, 16, 0x40, 0x0e, 0xac, 0x44, 0, 0, 0, 0, 0, 0,
+    ...'SSND'.split('').map(c => c.charCodeAt(0)), 0, 0, 0, 12,
+    0, 0, 0, 0, 0, 0, 0, 0, 0x40, 0x00, 0xc0, 0x00,
+  ])
+  const aiff = { name: 'loop.aiff', size: bytes.length, type: '', arrayBuffer: async () => bytes.buffer }
+  const ctx = {
+    createBuffer: (n, len, rate) => {
+      const data = Array.from({ length: n }, () => new Float32Array(len))
+      return { numberOfChannels: n, length: len, sampleRate: rate, duration: len / rate, data, copyToChannel: (src, c) => data[c].set(src) }
+    },
+  }
+  let decoded = 0
+  const buf = await decodeCustomAudio(aiff, 'reference', async () => { decoded += 1; return buffer(1) }, ctx)
+  assert.equal(decoded, 0, 'decodeAudioData is never asked to decode AIFF')
+  assert.equal(buf.sampleRate, 44100)
+  assert.equal(buf.data[0][0], 0.5)
+  assert.equal(buf.data[0][1], -0.5)
+})

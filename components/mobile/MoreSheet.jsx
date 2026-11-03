@@ -6,7 +6,8 @@
 
 import Sheet from '../Sheet.jsx'
 import { NOTE_ROOTS, SCALE_TYPES } from '../DawView.jsx'
-import { IconDownload } from '../icons.jsx'
+import { IconDownload, IconWaveform } from '../icons.jsx'
+import { ReferenceControls, ReferenceUploadButton, REFERENCE_LANE_LABEL, REFERENCE_UPLOAD_LABEL } from '../ReferenceLane.jsx'
 
 export default function MoreSheet({
   open, onClose,
@@ -16,6 +17,7 @@ export default function MoreSheet({
   onRepick,
   onExportMidi, onExportWav, canExport, audioExporting,
   canImportDrums, hasDrums, onImportDrums,
+  reference, bpm,
   onOpenAi,
   onSoundCheck,
 }) {
@@ -72,6 +74,27 @@ export default function MoreSheet({
           ✦ AI Composer
         </button>
       </div>
+
+      {reference && (
+        <div className="msheet-field">
+          <span className="msheet-label">{REFERENCE_LANE_LABEL}</span>
+          {reference.reference ? (
+            <>
+              <span className="msheet-hint">{reference.reference.name}</span>
+              <ReferenceControls reference={reference} bpm={bpm} />
+            </>
+          ) : (
+            <div className="msheet-actions">
+              <ReferenceUploadButton reference={reference} className="msheet-action">
+                <IconWaveform /> {REFERENCE_UPLOAD_LABEL}
+              </ReferenceUploadButton>
+            </div>
+          )}
+          <span className="msheet-hint">
+            Play your own loop on the bar grid and find the missing part against it. The file stays on this device.
+          </span>
+        </div>
+      )}
 
       <div className="msheet-field">
         <span className="msheet-label">Export</span>

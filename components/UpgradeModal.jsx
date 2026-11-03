@@ -11,6 +11,7 @@ const REASON_COPY = {
   export_limit: ['The last sample export is gone', 'Pro unlocks unlimited MIDI and real-time WAV capture across every instrument.'],
   ai_limit: ['AI Composer allowance reached', 'Pro includes 50 new composition prompts every month.'],
   custom_upload: ['Bring your own sounds', 'Loading your own sampler samples and reverb impulse responses is part of Pro.'],
+  reference_track: ['Play along with your own loop', 'Upload a loop that is missing its bass or lead, and try transit lanes against it until one fits. Part of Pro.'],
   sign_in: ['Save your free credits', 'Sign in to claim three MIDI/WAV exports and three AI compositions.'],
   billing_error: ['Billing connection interrupted', 'The music is safe. Try checkout again, or return later if Lemon Squeezy is unavailable.'],
   upgrade: ['Take the full network', 'Build wider arrangements, export every idea, and keep AI Composer in the session.'],
