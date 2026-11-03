@@ -333,3 +333,35 @@ test('a Texture Mk II lane keeps both models\' settings and automation through a
   assert.equal(auto.M1.lane1.paramTarget, 'grain.txSize')
   assert.equal(auto['4'].lane2.paramTarget, 'volume')
 })
+
+// ── Reference loop ──────────────────────────────────────────────────────────
+
+test('a reference loop saves only its metadata and round-trips to React, not the engine', () => {
+  const ref = { id: 'a1b2c3d4e5f6a7b8', name: 'no-bass.wav', durationSec: 8, bars: 4, offsetSec: 0.02, volumeDb: -9, muted: false, includeInExport: true }
+  const snapshot = buildSnapshot({ ...baseState(), referenceTrack: { ...ref, audio: { fake: 'AudioBuffer' } } })
+  assert.deepEqual(snapshot.referenceTrack, ref, 'no audio, no extra keys')
+  assert.doesNotThrow(() => JSON.stringify(snapshot))
+
+  const setters = recorder(), engine = recorder()
+  applySnapshot(snapshot, setters.target, engine.target, CITY)
+  assert.deepEqual(setters.first('setReferenceTrack').args[0], ref)
+  // The audio comes from IndexedDB via MixerTab, never from the snapshot.
+  assert.equal(engine.calls.some(c => /reference/i.test(c.name)), false)
+})
+
+test('a song without a reference clears the previous song\'s', () => {
+  const snapshot = buildSnapshot(baseState())
+  assert.equal('referenceTrack' in snapshot, false, 'sparse: absent when there is none')
+  const setters = recorder()
+  applySnapshot(snapshot, setters.target, recorder().target, CITY)
+  assert.equal(setters.of('setReferenceTrack').length, 1)
+  assert.equal(setters.first('setReferenceTrack').args[0], null)
+})
+
+test('a tampered reference from a shared link is dropped or clamped', () => {
+  const setters = recorder()
+  const snapshot = buildSnapshot(baseState())
+  snapshot.referenceTrack = { id: '<script>', name: 'x' }
+  applySnapshot(snapshot, setters.target, recorder().target, CITY)
+  assert.equal(setters.first('setReferenceTrack').args[0], null)
+})

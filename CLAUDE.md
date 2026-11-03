@@ -67,6 +67,9 @@ npm run db:migrate  # drizzle-kit: apply migrations to DATABASE_URL
 npm run db:push     # drizzle-kit: push schema directly (dev only, writes no migration file)
 npm test            # node --test — pure-logic tests only (no audio/UI coverage)
 npm run sync:agents # regenerate AGENTS.md from CLAUDE.md (`-- --check` fails on drift)
+npm run build:resonator   # rebuild the Resonator (Rings) wasm (only after dsp/resonator or vendor/rings changes)
+npm run compare:resonator # native vs wasm renders of the Resonator bridge
+npm run guide:pdf      # render the user guide to PDF (scripts/build_user_guide_pdf.js)
 npm run build:clouds   # rebuild the Clouds granular wasm (only after dsp/clouds or vendor/clouds changes)
 npm run compare:clouds # native vs wasm renders of the Clouds bridge
 npm run build:beads    # rebuild the Texture Mk II (Beads) wasm (only after dsp/beads or vendor/beads changes)
@@ -125,7 +128,12 @@ advisory), `plan-advisories` (`lib/ai/planAdvisories.js`), `plan-snapshot` (`lib
 bookkeeping on the real class with mocked Tone/loaders: reversed switches, superseded and failed
 loads, disposal with a load pending), `perf-stats` (`lib/perfStats.js` — the monitor's budgets, histogram, noise floor, GPU
 classes and analytics profile), `server-purity` (loads the MCP module graph in a child process
-that throws on any Tone/React/`.jsx` import, plus `lib/server/routeIndex.js`). There is **no linter
+that throws on any Tone/React/`.jsx` import, plus `lib/server/routeIndex.js`), `posthog` (the
+analytics/AI-telemetry modules under mocked SDKs: no prompt/response content is sent),
+`map-playhead` (`lib/mapPlayhead.js`), `auth-form-validation` (`lib/authFormValidation.js`),
+`reference-track` (`lib/referenceTrack.js`: bar guess, Match BPM, drift, snapshot sanitising) and
+`aiff` (`lib/aiff.js`),
+`poly-voice` and `lane-pitch` (described in their sections below). There is **no linter
 configured** and the audio/UI code has no tests. Run a single file with
 `node --test test/ai-plan-apply.test.js`.
 
@@ -150,6 +158,12 @@ restart it with a fresh `.next` afterwards.
 - `BETTER_AUTH_SECRET` (≥32 chars), `BETTER_AUTH_URL`, `NEXT_PUBLIC_APP_URL` — Better Auth.
   `trustedOrigins` is derived from the two URLs with apex/`www.` paired (`lib/authOrigins.js`) —
   trusting only `BETTER_AUTH_URL` made every sign-in from the other half fail with `INVALID_ORIGIN`.
+- `NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN`, `NEXT_PUBLIC_POSTHOG_HOST` — PostHog analytics, error
+  tracking and AI-composer telemetry. **In development a missing token (or a token without a
+  host) throws** from `instrumentation-client.js`/`instrumentation.js`/`lib/server/posthogAi.js`,
+  so `npm run dev` needs them set; in production their absence just disables PostHog.
+  `POSTHOG_API_KEY` + `POSTHOG_PROJECT_ID` (server-only) turn on source-map upload via
+  `withPostHogConfig` in `next.config.js`; a Vercel build without them warns and skips it.
 - `OPENROUTER_API_KEY` — required only for the AI Composer (`POST /api/compose`).
 - `OPENROUTER_MODEL` — optional override (default `anthropic/claude-sonnet-4.5`).
 - `AI_GLOBAL_DAILY_ATTEMPTS` — optional, default 1000: provider calls `/api/compose` may make per UTC
@@ -336,8 +350,16 @@ picks a phone or desktop step list) that auto-starts once for new visitors and c
 the header menu; `lib/tourState.js` persists the seen/skipped flag to localStorage. Theming is
 `lib/shared/ThemeContext.jsx` (`ThemeProvider` wraps the whole shell) + `components/ThemeToggle.jsx`
 — hidden on phones. **Product analytics** go through `lib/productAnalytics.js`
-(`trackProductEvent`), a swallow-everything wrapper around `@vercel/analytics` — it must never
-throw into the audio path, so it is deliberately try/catch'd and silent.
+(`trackProductEvent`, `captureProductException`), a swallow-everything wrapper that sends every
+event to `@vercel/analytics` and an **allowlisted** subset (`posthogEventNames`) to PostHog — it
+must never throw into the audio path, so each destination is separately try/catch'd and silent.
+A new event reaches PostHog only once it's added to that set. The rest of the PostHog wiring:
+`instrumentation-client.js` (`posthog.init`: pageviews/pageleave, exception capture),
+`PostHogIdentity` in `lib/auth-client.js` (mounted in `app/layout.jsx`; identify/reset on
+session change), and server-side `instrumentation.js` (an OpenTelemetry log exporter to PostHog)
+used by `lib/server/posthogLogs.js` + `lib/server/posthogAi.js`, which record `/api/compose`
+outcomes and LLM generations (`privacyMode` — usage and latency, never prompt or response text;
+flushed with `after()`).
 
 **The header drawer is `HeaderMenu.jsx`**, and it is the only account surface that ships. It
 composes `AuthForm` (sign-in/up + magic link — the sole remaining export of `AuthControl.jsx`),
@@ -947,6 +969,31 @@ the FM-patch licence check: `docs/plaits-macro-plan.md`. Build, measurements, en
   `macroToneToParams`, `macroParamsToTone`), so the strict OpenRouter schema gains one key per
   track; `transpose` is whole semitones. Recipes R18–R20 (R20 uses the envelope) and the prompt
   text exist only while the flag is on.
+
+### Reference loop (Pro)
+
+A Pro user can load their own loop (WAV/MP3/AIFF, ≤100 MB / 5 min, `CUSTOM_AUDIO_LIMITS.reference`)
+and audition lanes against it, e.g. a loop with no bass while hunting for a bassline. Gated by
+`limits.customUploads` (upgrade reason `reference_track`).
+- **The audio never leaves the browser.** `lib/referenceStore.js` keeps the original file in
+  IndexedDB (`leid-reference`). The song stores only `snapshot.referenceTrack` (id, name, duration,
+  bars, offset, volume, mute, export toggle; sparse, so there's no schema bump, sanitised by
+  `normalizeReference`). Another device or a shared link gets the "Re-upload" state, and a Free
+  account that loads such a song gets "locked". If storage fails (private mode, quota), the loop
+  still plays for the session.
+- **AIFF** is parsed by `lib/aiff.js`, because Chrome/Firefox `decodeAudioData` reject it.
+  `decodeCustomAudio` routes it there when given a context. Only uncompressed PCM/float is supported.
+- **Timing**: never time-stretched. `engine._scheduleReference` restarts the file every `bars`
+  bars from the part anchor with `Transport.scheduleRepeat`, which counts in ticks so it follows BPM
+  changes. Each cycle plays at most one cycle long, so a tempo mismatch is cut or leaves a gap but
+  never drifts (the lane shows `driftWarning`; Match BPM sets the tempo via `bpmForBars`).
+  Joining mid-play starts in phase. Mock mode only.
+- **Graph**: it is not a `_mockSynths` entry. Its chain is `gain → exportGain → _masterGain`: no
+  inserts, sends or AlertLayer, it **stays audible under solo**, and it survives start/stop. The
+  WAV mix export mutes `exportGain` unless `includeInExport` is set. Stems and MIDI never contain it.
+- React state is `lib/useReferenceTrack.js` (owned by MixerTab; `engineGen` re-pushes onto a
+  rebuilt engine). UI is `components/ReferenceLane.jsx` (desktop lane + waveform). Its
+  `ReferenceControls` is reused by the phone `MoreSheet`. The Song Chainer ignores the reference.
 
 ### Lane filter: Classic and Analog
 

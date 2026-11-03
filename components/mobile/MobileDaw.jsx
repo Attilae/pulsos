@@ -151,6 +151,8 @@ export default function MobileDaw({ controls, lanes }) {
         canImportDrums={controls.canImportDrums}
         hasDrums={controls.hasDrums}
         onImportDrums={() => { setMoreOpen(false); controls.onImportDrums() }}
+        reference={controls.reference}
+        bpm={controls.bpm}
         onOpenAi={() => { setMoreOpen(false); controls.onOpenAi() }}
         onSoundCheck={() => { setMoreOpen(false); controls.onSoundCheck() }}
       />

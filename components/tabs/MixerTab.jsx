@@ -39,6 +39,7 @@ import { decodeCustomAudio, checkDecodedAudio } from '@/lib/customAudio.js'
 import { countActiveLanes, normalizeLaneAccess, normalizeSnapshotLaneAccess } from '@/lib/billing/plans.js'
 import { buildReplacementLaneState, sendsToClear, trackSynthParams, planFilterState } from '@/lib/ai/planApply.js'
 import { trackProductEvent } from '@/lib/productAnalytics.js'
+import { useReferenceTrack } from '@/lib/useReferenceTrack.js'
 import { setPerfWorkload } from '@/lib/perfMonitor.js'
 import { unlockAudio, releaseAudioSession, probeOutputPeak } from '@/lib/audioSession.js'
 import { registerSoundCheck } from '@/lib/shared/soundCheck.js'
@@ -303,6 +304,19 @@ export default function MixerTab({ active = true }) {
   const pendingPublishedDrumRef = useRef(null)
   const [drumsMuted,  setDrumsMuted]  = useState(false)   // saved with the song (snapshot.drumsMuted)
   const drumClipboard = useDrumClipboard()
+
+  // Bumped whenever a fresh TransitEngine is built (new session, preset load) so
+  // engine-mirroring hooks re-push their state onto it.
+  const [engineGen, setEngineGen] = useState(0)
+
+  // Reference loop (Pro): the user's own audio on the bar grid, to audition
+  // lanes against. Audio stays in IndexedDB; the song saves only its metadata.
+  const referenceTrack = useReferenceTrack({
+    engineRef, engineGen,
+    allowed: limits?.customUploads === true,
+    openUpgrade, bpm, setBpm,
+  })
+  const { reference, setReference: setReferenceTrack } = referenceTrack
 
   const setLocalDrumPattern = useCallback((next) => {
     drumPatternRef.current = next
@@ -693,6 +707,7 @@ export default function MixerTab({ active = true }) {
       setTrackEqs(e => ({ ...e, [routeId]: spec }))
     })
     engineRef.current = engine
+    setEngineGen(g => g + 1)
     // Dev-only handle for inspecting the live audio graph from the console.
     if (process.env.NODE_ENV !== 'production') window.__leidEngine = engine
     return engine
@@ -1957,8 +1972,17 @@ export default function MixerTab({ active = true }) {
 
   const handleExportMixAudio = useCallback(async () => {
     if (!(await claim('export', 'export_limit'))) return
-    runAudioExport((engine, ctx, onProgress) => exportMixAudio(engine, mergedRoutes ?? [], ctx, { onProgress }), 'mix')
-  }, [mergedRoutes, runAudioExport, claim])
+    // The reference loop is an audition aid: out of the mix unless asked for.
+    const includeReference = reference?.includeInExport === true
+    runAudioExport(async (engine, ctx, onProgress) => {
+      engine.setReferenceExportMuted(!includeReference)
+      try {
+        await exportMixAudio(engine, mergedRoutes ?? [], ctx, { onProgress })
+      } finally {
+        engine.setReferenceExportMuted(false)
+      }
+    }, 'mix')
+  }, [mergedRoutes, runAudioExport, claim, reference?.includeInExport])
 
   const songState = useMemo(() => ({
     // Route ids are city-scoped, so the city and the exact lane list are part of
@@ -1973,6 +1997,7 @@ export default function MixerTab({ active = true }) {
     trackNoteChances, trackStopChances, trackLoopPatterns, trackNoteLengths, trackStopNoteLengths, trackStopVelocityMaps,
     activeFxTracks, fxBusWet, fxBusMuted, fxBusSoloed, fxBusParams,
     sendMatrix, automationCfg, duplicates, merges, drumPattern, drumsMuted,
+    referenceTrack: reference,
     laneManifest: visibleInstrumentRoutes.map(route => ({
       id: route.id,
       sourceId: route.sourceId ?? null,
@@ -1987,7 +2012,7 @@ export default function MixerTab({ active = true }) {
     trackOctaves, trackSemitones, trackGlides, trackLegatos, trackDroneModes, trackDroneRoots, trackSpeeds, trackLoopRegions, trackGridResolutions, trackPitchVariety, trackStopVelocities, trackPitchOffsets, trackArps, trackGranulars, trackSidechains, trackLabels,
     trackNoteChances, trackStopChances, trackLoopPatterns, trackNoteLengths, trackStopNoteLengths, trackStopVelocityMaps,
     activeFxTracks, fxBusWet, fxBusMuted, fxBusSoloed, fxBusParams,
-    sendMatrix, automationCfg, duplicates, merges, drumPattern, drumsMuted, visibleInstrumentRoutes,
+    sendMatrix, automationCfg, duplicates, merges, drumPattern, drumsMuted, reference, visibleInstrumentRoutes,
   ])
 
   // Wipe the session to a clean, empty state: stop playback, dispose the audio
@@ -2029,9 +2054,10 @@ export default function MixerTab({ active = true }) {
     setDuplicates([]); setMerges([])
     pendingPublishedDrumRef.current = null
     setLocalDrumPattern(null); setDrumsMuted(false)
+    setReferenceTrack(null)
     setBpm(120); setMasterVolume(0); setMasterChain(normalizeMasterChain(null))
     setGlobalHarmony({ root: 'C', scaleType: 'major' })
-  }, [createEngine, setLocalDrumPattern])
+  }, [createEngine, setLocalDrumPattern, setReferenceTrack])
 
   const songSetters = useMemo(() => ({
     setBpm, setMode, setView, setMasterVolume, setMasterChain, setGlobalHarmony,
@@ -2043,7 +2069,8 @@ export default function MixerTab({ active = true }) {
     setActiveFxTracks, setFxBusWet, setFxBusMuted, setFxBusSoloed, setFxBusParams,
     setSendMatrix, setAutomationCfg, setDuplicates, setMerges,
     setDrumPattern: setSyncedDrumPattern, setDrumsMuted,
-  }), [setSyncedDrumPattern])
+    setReferenceTrack,
+  }), [setSyncedDrumPattern, setReferenceTrack])
 
   // Keep the refs applyPreset reads in sync, so it can stay referentially stable.
   useEffect(() => { cityIdRef.current       = cityId       }, [cityId])
@@ -2309,7 +2336,7 @@ export default function MixerTab({ active = true }) {
           <label htmlFor="mixer-bpm">BPM</label>
           <input
             id="mixer-bpm"
-            type="number" min="40" max="240"
+            type="number" min="40" max="240" step="any"
             value={bpm}
             onChange={e => setBpm(Number(e.target.value))}
             disabled={started}
@@ -2419,6 +2446,7 @@ export default function MixerTab({ active = true }) {
         onDrumFilter={p => handleFilter(DRUMS_ROUTE_ID, p)}
         onDrumSendLevel={(bus, lvl) => handleSendLevel(DRUMS_ROUTE_ID, bus, lvl)}
         getDrumEqRuntime={() => getEqRuntime(DRUMS_ROUTE_ID)}
+        reference={referenceTrack}
         liveSnapshot={liveSnapshot}
         snapshotLoading={snapshotLoading}
         trackSoundModes={trackSoundModes}
@@ -2529,6 +2557,7 @@ export default function MixerTab({ active = true }) {
             canExport: canExportMix,
             audioExporting,
             canImportDrums, hasDrums: !!drumPattern, onImportDrums: handleImportDrums,
+            reference: referenceTrack,
             onOpenAi: () => setAiOpen(true),
             onSoundCheck: () => setSoundCheck('manual'),
             needsGesture, onGestureStart: handleGestureStart,

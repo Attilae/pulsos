@@ -35,6 +35,8 @@ import { Power as PowerIcon } from '@phosphor-icons/react/dist/csr/Power'
 import { Stop as StopIcon } from '@phosphor-icons/react/dist/csr/Stop'
 import { Warning as WarningIcon } from '@phosphor-icons/react/dist/csr/Warning'
 import { WarningCircle as WarningCircleIcon } from '@phosphor-icons/react/dist/csr/WarningCircle'
+import { UploadSimple as UploadSimpleIcon } from '@phosphor-icons/react/dist/csr/UploadSimple'
+import { Waveform as WaveformIcon } from '@phosphor-icons/react/dist/csr/Waveform'
 import { X as XIcon } from '@phosphor-icons/react/dist/csr/X'
 import { XLogo as XLogoIcon } from '@phosphor-icons/react/dist/csr/XLogo'
 import { TiktokLogo as TiktokLogoIcon } from '@phosphor-icons/react/dist/csr/TiktokLogo'
@@ -79,6 +81,8 @@ export const IconGrip        = wrap(DotsSixVerticalIcon)
 export const IconPlay        = wrap(PlayIcon, 'fill')
 export const IconStop        = wrap(StopIcon, 'fill')
 export const IconMusic       = wrap(MusicNotesIcon)
+export const IconUpload      = wrap(UploadSimpleIcon)
+export const IconWaveform    = wrap(WaveformIcon)
 export const IconClear       = wrap(BackspaceIcon)
 export const IconMoveUp      = wrap(ArrowUpIcon)
 export const IconMoveDown    = wrap(ArrowDownIcon)

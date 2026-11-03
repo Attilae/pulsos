@@ -36,6 +36,7 @@ import { useResonatorStatus } from '@/lib/shared/useResonatorStatus.js'
 import LaneTagEditor from './LaneTagEditor.jsx'
 import DuplicateLaneDialog from './DuplicateLaneDialog.jsx'
 import LinePicker from './LinePicker.jsx'
+import ReferenceLane, { ReferenceUploadButton, REFERENCE_UPLOAD_LABEL } from './ReferenceLane.jsx'
 import { NOTE_ROOTS, SCALE_TYPES } from '@/lib/harmony.js'
 import { getMasterBus } from '@/lib/masterBus.js'
 import { MASTER_CHAIN_DEFAULTS, MASTER_CHAIN_SPECS, MASTER_CHAIN_STAGES, isDefaultMasterChain } from '@/lib/masterChain.js'
@@ -43,7 +44,7 @@ import { installWeq8Lifecycle, observeWeq8 } from '@/lib/shared/weq8Lifecycle.js
 import { useEntitlements } from '@/lib/shared/EntitlementsContext.jsx'
 import { decodeCustomAudio } from '@/lib/customAudio.js'
 import './DawView.css'
-import { IconAdd, IconCaretDown, IconChangeLine, IconClose, IconDuplicate, IconPower, IconRepick, IconReset } from './icons.jsx'
+import { IconWaveform, IconAdd, IconCaretDown, IconChangeLine, IconClose, IconDuplicate, IconPower, IconRepick, IconReset } from './icons.jsx'
 
 // Exported so the phone lane sheet offers exactly the same instruments.
 export { pickerSynthTypes } from '@/lib/soundSpecs.js'
@@ -269,6 +270,7 @@ export default function DawView(props) {
   bpm,
   drumPattern, drumsMuted, onToggleDrumStep, onToggleDrumPadMute, onToggleDrumsMute, onClearDrums,
   drumVolume, drumFilter, onDrumVolume, onDrumFilter, onDrumSendLevel, getDrumEqRuntime,
+  reference,
   liveSnapshot, snapshotLoading,
   trackSoundModes, trackScales, trackSynthTypes, trackADSRs, trackFilters,
   getEqRuntime,
@@ -438,6 +440,18 @@ export default function DawView(props) {
               {snapshotLoading ? 'Fetching…' : <><IconReset /> Refetch</>}
             </button>
           </div>
+        )}
+
+        {/* ── Your loop (Pro): first, since it's what the lanes are tried against ── */}
+        {routes && reference && !reference.reference && (
+          <div className="daw-add-line-row reference-add-row">
+            <ReferenceUploadButton reference={reference} className="daw-add-line-btn">
+              <IconWaveform /> {REFERENCE_UPLOAD_LABEL}
+            </ReferenceUploadButton>
+          </div>
+        )}
+        {reference?.reference && (
+          <ReferenceLane reference={reference} bpm={bpm} started={started} visible={visible} />
         )}
 
         {/* ── Merge lanes toolbar ── */}
