@@ -34,7 +34,7 @@ test('the MCP tool module graph never imports Tone, React or other browser code'
 })
 
 test('route index loads every registered city with composable rows', async () => {
-  for (const cityId of ['budapest', 'helsinki', 'berlin', 'prague', 'newyork', 'zurich', 'warsaw']) {
+  for (const cityId of ['budapest', 'helsinki', 'berlin', 'prague', 'newyork', 'zurich', 'warsaw', 'vienna']) {
     const routes = await getRouteIndex(cityId)
     assert.ok(routes.length > 0, cityId)
     for (const route of routes) {

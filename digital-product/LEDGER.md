@@ -160,3 +160,18 @@
 Owner explicitly authorized publication and promotion. Published and verified https://www.deettalabs.com/blog/berlin-transport-map-music with three real app screenshots. Added “Read the Berlin track breakdown” to Lnk.Bio, preserving both preset links. X announcement verified at https://x.com/deettalabs/status/2117283852611641627. Story asset rendered and submitted through the phone browser editor; see `marketing/blog/berlin-publication-status.json` for final Story evidence. No Facebook setup, account conversion or Reddit action.
 
 Instagram Story publication verified in a separate profile tab: new Story ring and own Story viewer with 1m timestamp. CTA is link in bio, leading to the article item. All four authorized publication actions complete.
+
+
+### November 3 — Video 3 voiceovers and final edit
+
+Founder authorized generating the five prepared scripts in the signed-in ElevenLabs account. Generated and saved five separate MP3 clips with the existing Ralf Eisend narrator / Eleven v4. Imported durations, forced-aligned captions and rendered the final 24.6-second Map Melodies video. Final asset: `_videos/launch/out/map-melodies/leid-map-melodies.mp4`; voices ZIP alongside it. Lint/type check, complete audio/video decoding and six-frame caption review passed; −15.09 LUFS / −1.50 dBTP. Listening review pending. No scheduling or public social post.
+
+
+### November 3 — Video 3 published on all four channels
+
+Owner approved voiced edit and said go on/continue. YouTube scheduled 18:00 CET and subsequently confirmed Public: https://youtube.com/shorts/-3Wt2nR2xZk. Remaining posts published after resumed handoff at 19:47 CET: X https://x.com/deettalabs/status/2117690314282467582 ; TikTok https://www.tiktok.com/@deettalabs/video/7704019654330617110 ; Instagram https://www.instagram.com/deettalabs/reel/DfSkg2WoIMc/ . TikTok initially under review, then refreshed row confirmed Everyone at 19:51. Instagram sharing confirmation and profile permalink verified. AI labels set; TikTok own-brand checked. All use the narrated master (−18.20 LUFS / −2.99 dBTP). Rechecked both preset links in public Lnk.Bio. Evidence in `marketing/map-melodies-publication-status.json`. No Facebook/account conversion, outreach or Reddit actions.
+
+
+### November 7 short — revised founder direction
+
+Founder requested replacing the one-stop/note edit with default lane sound → finished sound design. Prepared `marketing/nov-7-default-to-designed-sound.md` and updated the calendar: genuine initial lane capture, early finished-patch reveal, instrument choice (Resonator or Macro), arp, Texture and FX. Source route/pattern and base tempo remain traceable; compare perceived levels fairly. Capture and patch review pending. No new video, narration, shared preset or external post created.

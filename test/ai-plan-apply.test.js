@@ -4,7 +4,7 @@ import { buildReplacementLaneState, withNewCompositionBaseline, sendsToClear, to
 import { validatePlan } from '../lib/ai/planContract.js'
 import { CITY_FACTS, factsForCity, shuffledFactsForCity } from '../lib/shared/cityFacts.js'
 
-const CITY_IDS = ['budapest', 'helsinki', 'berlin', 'prague', 'newyork', 'zurich', 'warsaw']
+const CITY_IDS = ['budapest', 'helsinki', 'berlin', 'prague', 'newyork', 'zurich', 'warsaw', 'vienna']
 
 test('AI replacement enables only planned lanes in plan order', () => {
   const routes = ['metro', 'tram', 'bus', 'rail'].map(id => ({ id }))

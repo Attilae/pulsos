@@ -10,8 +10,8 @@ This file provides guidance to Codex when working with code in this repository.
 A web DAW that sonifies live public transport, branded **"Leið"** (Icelandic for "the way/route";
 the title lives in `app/layout.jsx`). Each transit line is a track; each station
 arrival triggers a note. Budapest (BKK) was the first city; the app is now **multi-city**
-with a runtime city picker — **seven cities**: Budapest, Helsinki/HSL, Berlin/VBB, Prague/PID,
-New York/MTA, Zürich/ZVV, and Warsaw/ZTM — via a per-city descriptor abstraction.
+with a runtime city picker — **eight cities**: Budapest, Helsinki/HSL, Berlin/VBB, Prague/PID,
+New York/MTA, Zürich/ZVV, Warsaw/ZTM, and Vienna/Wiener Linien — via a per-city descriptor abstraction.
 GTFS-RT is a global standard, so adding a city needs config, not engine changes. **Live mode is
 currently disabled app-wide** (every city's `liveWsUrl` is `null` in `lib/shared/cities.js`, so
 all cities run mock-only and the Live toggle is disabled); the descriptors and `startLive` path
@@ -55,6 +55,7 @@ npm run preprocess:prague    # regenerate public/data/lines.prague.json
 npm run preprocess:newyork   # regenerate public/data/lines.newyork.json
 npm run preprocess:zurich    # regenerate public/data/lines.zurich.json
 npm run preprocess:warsaw    # regenerate public/data/lines.warsaw.json
+npm run preprocess:vienna    # regenerate public/data/lines.vienna.json
 # generic form: node scripts/preprocess_lines.js --city <id> [--gtfs data/<id>_gtfs]
 npm run slim:lines -- --city <id>  # write public/data/lines.<id>.slim.json (phone payload)
 npm run slim:all     # slim every city (run after any preprocess — the slim file is not automatic)
@@ -1422,7 +1423,15 @@ clients. It infers train positions from TripUpdates for any mode in `modesWithou
 
 ### Multi-city
 
-Registered cities: **budapest, helsinki, berlin, prague, newyork, zurich, warsaw** (in
+Expansion plans: `docs/city-expansion/README.md` links all 11 researched additions. Vienna is
+implemented in mock mode using the official Wiener Linien/WLB GTFS (metro, tram, bus; no ÖBB).
+Its `groupRouteVariants` descriptor flag opts into stable agency/mode/line IDs and chooses the
+shape with the greatest calendar-weighted scheduled supply per direction. Demand aggregates all
+source variants as one line. This is a whole-feed representative pattern, not a live timetable.
+Raw data stays in ignored `data/vienna_gtfs/`; regenerate full, slim and route-index files together.
+`test/route-variants.test.js` covers variant identity and shape selection.
+
+Registered cities: **budapest, helsinki, berlin, prague, newyork, zurich, warsaw, vienna** (in
 `feed/cities/index.js` and `lib/shared/cities.js`). Prague/PID, New York/MTA, Zürich/ZVV and
 Warsaw/ZTM descriptors are **mock-only with best-effort, unconfirmed RT `feeds[]`** (Prague needs a
 Golemio `X-Access-Token` key; NYC subway RT is sharded by line group and TripUpdates-only; Zürich RT

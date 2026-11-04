@@ -22,6 +22,7 @@ import {
   buildFrequencyMultipliers, buildServiceWeights, canonicalStopId, createStopSignalAccumulator,
 } from './lib/stopSignals.js'
 import { loadRidership } from './ridership/index.js'
+import { groupRouteVariants, createVariantTripSelector } from './lib/routeVariants.js'
 
 const __dir = dirname(fileURLToPath(import.meta.url))
 
@@ -119,9 +120,11 @@ function routeColor(r) {
 }
 
 console.log(`Loading routes for ${cityCfg.name ?? CITY} …`)
-const routes = await readCsv(
-  'routes.txt',
-  r => INCLUDE.has(routeTypeToLineType(r.route_type, cityCfg.routeTypeOverrides)),
+const sourceRoutes = await readCsv('routes.txt',
+  r => INCLUDE.has(routeTypeToLineType(r.route_type, cityCfg.routeTypeOverrides)))
+const grouped = cityCfg.groupRouteVariants ? groupRouteVariants(sourceRoutes, CITY) : null
+const routeIdMap = grouped?.routeIdMap ?? new Map(sourceRoutes.map(r => [r.route_id, r.route_id]))
+const routes = (grouped?.rows ?? sourceRoutes).map(
   r => {
     const color = routeColor(r)
     return {
@@ -132,11 +135,11 @@ const routes = await readCsv(
       textColor: isHex6(r.route_text_color) ? `#${r.route_text_color}` : pickReadableText(color),
       desc:      r.route_desc,
       sortOrder: Number(r.route_sort_order),
+      ...(grouped ? { sourceRouteIds: r.sourceRouteIds } : {}),
     }
   }
 )
 routes.sort((a, b) => a.sortOrder - b.sortOrder)
-const routeIds = new Set(routes.map(r => r.id))
 const typeCounts = routes.reduce((a, r) => ({ ...a, [r.type]: (a[r.type] ?? 0) + 1 }), {})
 console.log(`  ${routes.length} routes`, typeCounts)
 
@@ -159,36 +162,34 @@ console.log(`  ${Object.keys(stopMeta).length} stops loaded`)
 // ── 3. Trips — one canonical trip per (route_id, direction_id) ───────────────
 
 console.log('Loading trips…')
-const canonicalTrip = {}  // `${routeId}_${dir}` → { tripId, shapeId }
+let canonicalTrip = {}  // `${routeId}_${dir}` → { tripId, shapeId }
 const tripToRoute   = {}  // tripId → routeId (all trips, for stop_times)
 const tripToService = {}  // tripId → serviceId (for average-day weighting)
 
-await readCsv('trips.txt', r => routeIds.has(r.route_id), r => {
-  tripToRoute[r.trip_id] = r.route_id
+// Load calendar weights before choosing representative variant shapes.
+const calendarRows = existsSync(join(GTFS, 'calendar.txt')) ? await readCsv('calendar.txt') : []
+const calendarDateRows = existsSync(join(GTFS, 'calendar_dates.txt')) ? await readCsv('calendar_dates.txt') : []
+const serviceWeights = buildServiceWeights(calendarRows, calendarDateRows)
+const frequencyRows = existsSync(join(GTFS, 'frequencies.txt')) ? await readCsv('frequencies.txt') : []
+const frequencyMultipliers = buildFrequencyMultipliers(frequencyRows)
+const variantSelector = grouped ? createVariantTripSelector(serviceWeights, frequencyMultipliers) : null
+
+await readCsv('trips.txt', r => routeIdMap.has(r.route_id), r => {
+  const routeId = routeIdMap.get(r.route_id)
+  tripToRoute[r.trip_id] = routeId
   tripToService[r.trip_id] = r.service_id
-  const key = `${r.route_id}_${r.direction_id}`
+  const key = `${routeId}_${r.direction_id}`
+  variantSelector?.add(r, routeId)
   if (!canonicalTrip[key]) {
     canonicalTrip[key] = { tripId: r.trip_id, shapeId: r.shape_id, dir: Number(r.direction_id) }
   }
   return null
 })
+if (variantSelector) canonicalTrip = variantSelector.finalize()
 
 const neededTrips  = new Set(Object.values(canonicalTrip).map(t => t.tripId))
 const neededShapes = new Set(Object.values(canonicalTrip).map(t => t.shapeId).filter(Boolean))
 console.log(`  ${neededTrips.size} canonical trips, ${neededShapes.size} shapes`)
-
-// Calendar and frequencies turn raw stop_time rows into average daily service.
-const calendarRows = existsSync(join(GTFS, 'calendar.txt'))
-  ? await readCsv('calendar.txt')
-  : []
-const calendarDateRows = existsSync(join(GTFS, 'calendar_dates.txt'))
-  ? await readCsv('calendar_dates.txt')
-  : []
-const frequencyRows = existsSync(join(GTFS, 'frequencies.txt'))
-  ? await readCsv('frequencies.txt', r => !!tripToRoute[r.trip_id])
-  : []
-const serviceWeights = buildServiceWeights(calendarRows, calendarDateRows)
-const frequencyMultipliers = buildFrequencyMultipliers(frequencyRows)
 
 // ── 4. Stop times — canonical geometry + all-trip service signal ─────────────
 
@@ -202,7 +203,9 @@ const stopSignalAccumulator = createStopSignalAccumulator({
 })
 
 await readCsv('stop_times.txt', r => !!tripToRoute[r.trip_id], r => {
-  stopSignalAccumulator.addStopTime(r)
+  if (!grouped || (serviceWeights.get(tripToService[r.trip_id]) ?? 0) > 0) {
+    stopSignalAccumulator.addStopTime(r)
+  }
   if (!dir0Trips.has(r.trip_id)) return null
   if (!stopsByTrip[r.trip_id]) stopsByTrip[r.trip_id] = []
   stopsByTrip[r.trip_id].push({
@@ -290,8 +293,12 @@ const output = routes.map(route => {
 
   const totalDist = stops.length ? stops[stops.length - 1].dist : 0
 
-  return { ...route, polylines, stops, totalDist }
-})
+  return {
+    ...route,
+    ...(grouped && stops.length ? { desc: `${stops[0].name} – ${stops.at(-1).name}` } : {}),
+    polylines, stops, totalDist,
+  }
+}).filter(route => !grouped || (route.stops.length > 1 && route.polylines.length > 0))
 
 // ── 6b. City metadata — bbox + center derived from all mapped stops ──────────
 
