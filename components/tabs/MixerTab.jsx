@@ -145,7 +145,7 @@ function deriveHubs(allRoutes, n = 6) {
 }
 
 export default function MixerTab({ active = true }) {
-  const { cityId, setCityId, cityEntry } = useCitySelection()
+  const { cityId, setCityId, cityEntry, cityPreset } = useCitySelection()
   const { limits, claim, openUpgrade } = useEntitlements()
   const loadedCityRef    = useRef(null)   // last city whose routes are loaded
   const engineRef        = useRef(null)
@@ -430,6 +430,7 @@ export default function MixerTab({ active = true }) {
   // Bumped to re-run the city effect after a failed preset load, so the user lands
   // on a normal randomly-picked session instead of an empty screen.
   const [cityNonce, setCityNonce] = useState(0)
+  const applyCityPresetRef = useRef(null)
 
   // Load one city's route data and make it the active city's data. Shared by the
   // city effect and applyPreset; fetchLines is promise-cached per URL, so both
@@ -483,9 +484,13 @@ export default function MixerTab({ active = true }) {
     let cancelled = false
     // The fetch runs in parallel with the detach; only the *picks* wait for both.
     Promise.all([loadCity(cityId), detached])
-      .then(([all]) => {
+      .then(async ([all]) => {
         // Bail if a preset claimed the session while we were fetching.
         if (cancelled || pendingPresetRef.current) return
+        if (cityPreset?.cityId === cityId) {
+          await applyCityPresetRef.current?.(cityPreset)
+          return
+        }
         const picked = pickStartupRoutes(all)
         setRoutes(picked)
         setDisabledRoutes(allDisabledMap(picked))
@@ -2157,6 +2162,8 @@ export default function MixerTab({ active = true }) {
       requestAnimationFrame(() => { if (presetTokenRef.current === token) setSwitching(false) })
     }
   }, [loadCity, songSetters, setCityId])
+
+  useEffect(() => { applyCityPresetRef.current = applyPreset }, [applyPreset])
 
   // What the AI Composer's "Edit current" mode tells the model is playing now.
   const describeCurrentSong = useCallback(
