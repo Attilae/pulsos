@@ -61,9 +61,11 @@ async function probe(page) {
       container: box('.map-container'),
       leaflet: box('.leaflet-container'),
       maplibreCanvas: box('.leaflet-container canvas.maplibregl-canvas') ?? box('.maplibregl-canvas'),
-      legend: box('.map-track-status'),
-      zoom: box('.leaflet-control-zoom'),
+      // New markup first (phase 1+), then the 7ec8c80 baseline selectors.
+      legend: box('.map-panel') ?? box('.map-lanes-disclosure') ?? box('.map-track-status'),
+      zoom: box('.map-controls') ?? box('.leaflet-control-zoom'),
       attribution: box('.map-attribution') ?? box('.leaflet-control-attribution'),
+      notice: box('.map-notices'),
       routePaths: document.querySelectorAll('.leaflet-overlay-pane path').length,
       routeCanvases: document.querySelectorAll('.leaflet-overlay-pane canvas').length,
       markers: document.querySelectorAll('.leaflet-marker-pane > *').length,
@@ -72,9 +74,6 @@ async function probe(page) {
   })
 }
 
-// Theme note: in \`next dev\` (StrictMode) ThemeProvider resets a stored light theme to dark
-// on load, and phones hide the theme toggle, so after loading we set the data-theme
-// attribute directly. MapView does not read the theme yet, so CSS is all that changes.
 async function loadFixture(page, fixture, viewportName, theme) {
   const [city] = fixture.split('-')
   const startCity = city === 'berlin' ? 'budapest' : 'berlin'
@@ -99,7 +98,10 @@ async function loadFixture(page, fixture, viewportName, theme) {
   await page.getByRole('button', { name: /Load city preset/ }).click()
   await page.getByRole('dialog', { name: /Start in/ }).waitFor({ state: 'detached', timeout: 30_000 })
   await page.keyboard.press('Escape').catch(() => {})
-  await page.evaluate(t => document.documentElement.setAttribute('data-theme', t), theme)
+  // The stored theme now survives dev StrictMode (ThemeContext reads storage
+  // first); this check only guards against a regression.
+  const applied = await page.evaluate(() => document.documentElement.dataset.theme)
+  if (applied !== theme) log(`  WARNING: theme ${applied}, expected ${theme}`)
   // Hide the Next dev-mode indicator so it doesn't cover controls in screenshots.
   await page.addStyleTag({ content: 'nextjs-portal{display:none!important}' })
   await page.waitForTimeout(viewportName === 'phone' ? 2500 : 1500)

@@ -107,7 +107,7 @@ async function measure(browser, ctx, page, fixture, i) {
   const mapped = await page.evaluate(() => ({
     svgPaths: document.querySelectorAll('.leaflet-overlay-pane path').length,
     canvases: document.querySelectorAll('.leaflet-overlay-pane canvas').length,
-    legendRows: document.querySelectorAll('.map-track-status .map-status-name').length,
+    legendRows: document.querySelectorAll('.map-lanes .map-lane, .map-track-status .map-status-name').length,
   }))
   if (opt.cpu > 1) await cdp.send('Emulation.setCPUThrottlingRate', { rate: opt.cpu })
   step = 'play'; await page.locator('button[aria-label="Play"]:visible, button:visible:text-is("Play")').first().click()

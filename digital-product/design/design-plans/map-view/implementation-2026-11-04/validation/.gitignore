@@ -1,3 +1,3 @@
 # Screenshots and traces are large; keep the probe summary only.
-screenshots/*.png
+screenshots*/*.png
 traces/

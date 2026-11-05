@@ -130,7 +130,8 @@ loads, disposal with a load pending), `perf-stats` (`lib/perfStats.js` — the m
 classes and analytics profile), `server-purity` (loads the MCP module graph in a child process
 that throws on any Tone/React/`.jsx` import, plus `lib/server/routeIndex.js`), `posthog` (the
 analytics/AI-telemetry modules under mocked SDKs: no prompt/response content is sent),
-`map-playhead` (`lib/mapPlayhead.js`), `auth-form-validation` (`lib/authFormValidation.js`),
+`map-playhead` (`lib/mapPlayhead.js`), `map-visual-policy` (`lib/mapVisualPolicy.js` route
+styling, Fit framing and overlay padding, plus `lib/mapBasemapStyle.js`), `auth-form-validation` (`lib/authFormValidation.js`),
 `reference-track` (`lib/referenceTrack.js`: bar guess, Match BPM, drift, snapshot sanitising) and
 `aiff` (`lib/aiff.js`),
 `poly-voice` and `lane-pitch` (described in their sections below). There is **no linter
@@ -1165,6 +1166,14 @@ breaks ("Worker failed to load"). `scripts/copy_maplibre_worker.js` (prebuild/pr
 `public/vendor/maplibre-gl-worker-<version>.mjs` (gitignored) and `MapView.jsx` calls
 `setWorkerUrl` with that path.
 
+**The basemap follows the app theme** without copying any style into the repo: `BaseMap` in
+`MapView.jsx` fetches OpenFreeMap's `dark` or `positron` style and filters it through
+`quietBasemapStyle` (`lib/mapBasemapStyle.js`: drops road names, POIs, airports and hamlet labels,
+recolours land/water to the app's `--bg`). A theme change calls `setStyle` on the same GL map, so
+the camera and route layers are untouched. A failed load shows "Map background unavailable" +
+Retry over `--bg`; routes and audio never wait on it. The camera frames on city/route-set changes
+only (`framingKey`), never on lane enable/solo, so a user's pan survives editing the mix.
+
 ### Legal & SEO
 
 `app/{privacy,terms,legal,licenses}` are static legal pages, all four rendered through
@@ -1234,7 +1243,8 @@ the mistake this split exists to prevent.
 equal specificity — a rule placed in `components/mobile/*.css` loses, because those load earlier
 via the module graph). A different component *tree* → a `useIsPhone()` branch in JSX. There are
 only five such branches: the MixerTab layout swap, `<weq8-ui>` mounting, `MobileLaneList`
-mounting, MapView's `preferCanvas`/`zoomControl`/`showStops`, and which tour step list runs.
+mounting, MapView's `preferCanvas`/zoom buttons/`showStops`/lane list (a panel on desktop,
+a "Lanes" button and `Sheet` on phones), and which tour step list runs.
 
 **The phone Map/DAW** (`components/mobile/`) — `MobileDaw` replaces `.daw-header` + `DawView`
 below 768px, but **MixerTab still owns every piece of state**: the branch lives inside MixerTab's

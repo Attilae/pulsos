@@ -174,6 +174,8 @@ export default function MixerTab({ active = true }) {
   const [audioProgress,  setAudioProgress]  = useState(0)
 
   const [view,    setView]    = useState('daw')   // 'map' | 'daw'
+  // Stable, so the memoized MapView doesn't re-render on every MixerTab render.
+  const showLanes = useCallback(() => setView('daw'), [])
   // MapView (Leaflet + MapLibre/WebGL + every route's geometry) mounts on the
   // first Map visit and then stays mounted, so the default DAW startup doesn't
   // pay for a hidden map and switching back never rebuilds Leaflet.
@@ -2406,6 +2408,7 @@ export default function MixerTab({ active = true }) {
         trackSpeeds={trackSpeeds}
         trackLoopRegions={trackLoopRegions}
         trackSynthTypes={trackSynthTypes}
+        onShowLanes={showLanes}
       />}
       <AIComposerPanel
         className={view !== 'map' && view !== 'daw' ? 'view-hidden' : ''}

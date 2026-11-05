@@ -2,7 +2,7 @@
 
 5 November 2026 · code at `7ec8c80` (feature/map-exploring fast-forwarded to the plan's baseline) · no product code changed.
 
-Status: **screenshots, layout probe and desktop performance baseline done.** Remaining gaps are listed under "Not yet done".
+Status: **Phase 0 baseline done; Phase 1 results added at the end** ("Phase 1 results"). Remaining gaps are listed under "Not yet done" and in the Phase 1 section.
 
 ## Environment
 
@@ -102,7 +102,7 @@ Gate status: the workload is repeatable (fixtures + `capture.mjs` + `perf.mjs`, 
 
 ## Side finding (not map scope)
 
-In `next dev`, a stored light theme is reset to dark on load. React StrictMode runs `ThemeProvider`'s mount effects twice, and on the second pass `readInitialTheme()` reads `data-theme` after the reflect effect has already written `dark` to it. `localStorage` keeps `light` and `<html data-theme>` ends up `dark`. **Checked in the production build (`next start`): light is kept, so the bug is dev-only.** `capture.mjs` works around it by setting `data-theme` after load.
+In `next dev`, a stored light theme is reset to dark on load. React StrictMode runs `ThemeProvider`'s mount effects twice, and on the second pass `readInitialTheme()` reads `data-theme` after the reflect effect has already written `dark` to it. `localStorage` keeps `light` and `<html data-theme>` ends up `dark`. **Checked in the production build (`next start`): light is kept, so the bug is dev-only.** Fixed in phase 1: `readInitialTheme()` now reads `localStorage` before the attribute, and `capture.mjs` only warns if the theme doesn't apply.
 
 ## Historical vs current
 
@@ -115,3 +115,59 @@ October evidence (`../../evidence/`) is historical. Findings 1, 2, 5 and 9 above
 - A map-only callback timer. The trace figure above covers *all* rAF callbacks. Phase 3 needs one around MapView's ticker subscriber to report its own p95.
 - Interactive checks: legend/zoom keyboard behaviour, camera behaviour after a user pan, and 767/768/1023/1024px transitions.
 - Real phone hardware: none available in this session. Phone results come from desktop Chrome emulation only.
+
+## Phase 1 results
+
+5 November 2026 · candidate = working tree on top of `a847fe8` (quiet theme-aware basemap, route hierarchy, control composition, tablet grid fix). Baseline for matched runs = `a847fe8` (product code identical to `7ec8c80`).
+
+### UI checks
+
+`capture.mjs --out screenshots-phase1` (PNGs gitignored; `screenshots-phase1/probe.json` committed): 18 configurations (berlin-6, newyork-6, berlin-24 × both themes × desktop/tablet/phone), all loaded, toggled and played without script failures. The one console error per load is the same `ERR_CONNECTION_REFUSED` as in phase 0.
+
+| Phase 0 finding | Phase 1 |
+| --- | --- |
+| 1. Tablet map 0×0 | **Fixed.** 820×1036 at 820px in every configuration (`.daw.daw--map` grid areas in `mobile.css`). |
+| 2. Zoom control over the legend | **Fixed.** Zoom/Fit controls top-right (1396,116 desktop); lanes panel top-left (12,116). No overlap at any width. |
+| 3. Legend has no pointer events | Panel is now interactive (collapsible, scrolls). Clicking a row to focus a route is phase 2. |
+| 4. Legend grows, doesn't scroll | Panel is capped by the map height and scrolls: 732px for 24 lanes in a 796px map, ending above the attribution (y 848 vs 862). Off rows use a hollow dot and `--muted` text, not opacity. Tablets start collapsed (192×46). |
+| 5. Basemap dark in light theme | **Fixed.** OpenFreeMap `positron` in light, `dark` in dark, both filtered by `quietBasemapStyle`. Theme switch keeps the camera. |
+| 6. All-off gives no guidance | **Fixed.** "Enable a lane to hear the city." + Show lanes in every all-off configuration; off previews are a little stronger (0.35) when everything is off. |
+| 7. Phone frames a whole region | Framing now targets audible routes, then previews, then city, with overlay-aware padding. Further phone framing tuning is not in scope. |
+| 8. Phone attribution collides | **Fixed.** One attribution line (Leaflet control, bottom-left) carrying the city credit; 374px wide on a 390px phone. |
+| 9. Glows; Composer covers bottom-right | Glow removed: 3px active line, 5px neutral casing only below 3:1 contrast, 1px dashed off lanes. The Composer still covers the bottom-right; Fit padding doesn't account for it yet. |
+| 10. Phone legend strip | Replaced by a "Lanes" button opening a `Sheet`. |
+
+Interactive checks (Playwright, `next dev`):
+- Widths 320–1920: no horizontal scroll; the panel/sheet switch at 767/768 and the tablet/desktop switch at 1023/1024 are correct.
+- Camera: a user pan survives a lane toggle, Map ⇄ DAW, and a theme switch (within 1px). Fit mix reframes.
+- Blocked style request: "Map background unavailable" + Retry over `--bg`, routes still drawn; Retry recovers.
+- Lanes panel toggle works from the keyboard and shows the 2px focus ring.
+- `npm test` 582/582 (new `test/map-visual-policy.test.js`); `npm run build` passes.
+
+### Performance (desktop, matched A/B)
+
+Baseline and candidate production builds ran side by side (`next start` on :3013 and :3012) and were measured **alternately on the same machine in one session**, one 60 s run at a time after 20 s warmup, swapping which build went first each round. No traces. Raw data: `perf-phase1/ab-{6,24}lane-{base,cand}.jsonl`.
+
+| Workload | Build | Runs | SVG paths | Frame p95 (ms) per run | Long frames / LoAF | Audio capacity mean % per run | Dropout ms | Late ticks |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| berlin-6 | baseline | 3 | 103 | 10.8 / 10.8 / 10.8 | 0 / 0 | 17.4 / 20.0 / 16.6 | 0 | 0 |
+| berlin-6 | phase 1 | 2 | 95 | 10.9 / 10.8 | 0 / 0 | 18.8 / 17.5 | 0 | 0 |
+| newyork-6 | baseline | 2 | 233 | 10.8 / 10.8 | 0 / 0 | 18.6 / 17.7 | 0 | 0 |
+| newyork-6 | phase 1 | 2 | 221 | 10.9 / 10.8 | 0 / 0 | 18.3 / 19.5 | 0 | 0 |
+| berlin-24 | baseline | 2 | 139 | 10.9 / 10.8 | 0 / 0 | 20.4 / 21.1 | 0 | 0 |
+| berlin-24 | phase 1 | 2 | 131 | 10.9 / 10.8 | 0 / 0 | 20.9 / 21.3 | 0 | 0 |
+| newyork-24 | baseline | 2 | 269 | 10.8 / 11.8 | 0 / 0 | 20.6 / 21.9 | 3 (one run) | 0 |
+| newyork-24 | phase 1 | 2 | 257 | 10.9 / 11.6 | 0 / 0 | 19.9 / 21.5 | 0 | 0 |
+
+(A sixth 6-lane candidate run was killed mid-run when the session paused and is excluded.)
+
+What this says:
+- **No measured regression.** Frame p95 is within 0.1 ms of the baseline in every matched pair. The one 11.6–11.8 ms pair (newyork-24, round 2) moved both builds together, so it's machine state, not the change. Audio capacity differs by under 1.5 points, inside the ±2.5-point run-to-run spread. No long frames, no late notes; the only dropout (3 ms) was on the baseline.
+- **The earlier unmatched candidate session** (`perf-phase1/unmatched_desktop_cpu1_2026-11-05T12-27-47.jsonl`, 3 runs × 4 workloads, an hour after the phase 0 baseline) read frame p95 11.4–11.8 ms, up to +10% against phase 0. The matched runs show the baseline drifting the same way, so that comparison was session drift and is superseded.
+- Route paths drop by 8–12 per workload because the glow layer is gone; casings are added only for low-contrast colours.
+- The basemap's own GPU cost (MapLibre restyle on theme change) isn't in these numbers; the runs don't switch theme.
+
+**Phase 1 gate**: both themes render readable routes and controls; nothing overlaps the attribution; user framing survives editing; 767/768/820/1023/1024 checked; no measured desktop regression. **Met for desktop.** Open:
+- Screen reader pass over the panel, sheet and notices (not done).
+- Real phone hardware, and `--viewport phone --cpu 4` stress runs (not done, as in phase 0).
+- Fit padding ignores the AI Composer panel on desktop.
