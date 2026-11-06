@@ -1,0 +1,378 @@
+{
+  "name": "Lake Reflections",
+  "cityId": "zurich",
+  "state": {
+    "schemaVersion": 4,
+    "cityId": "zurich",
+    "bpm": 84,
+    "mode": "mock",
+    "view": "daw",
+    "masterVolume": -6,
+    "masterChain": null,
+    "globalHarmony": {
+      "root": "C",
+      "scaleType": "pentatonic"
+    },
+    "routeIds": [
+      "1-14-P-j26-1",
+      "1-10-P-j26-1",
+      "1-13-P-j26-1"
+    ],
+    "laneManifest": [
+      {
+        "id": "1-14-P-j26-1",
+        "sourceId": null,
+        "kind": "base"
+      },
+      {
+        "id": "1-10-P-j26-1",
+        "sourceId": null,
+        "kind": "base"
+      },
+      {
+        "id": "1-13-P-j26-1",
+        "sourceId": null,
+        "kind": "base"
+      }
+    ],
+    "volumes": {
+      "1-14-P-j26-1": -13,
+      "1-10-P-j26-1": -16,
+      "1-13-P-j26-1": -23
+    },
+    "muted": {
+      "1-14-P-j26-1": false,
+      "1-10-P-j26-1": false,
+      "1-13-P-j26-1": false
+    },
+    "pans": {
+      "1-14-P-j26-1": 0,
+      "1-10-P-j26-1": -0.18,
+      "1-13-P-j26-1": 0.25
+    },
+    "soloRoutes": [],
+    "trackSoundModes": {},
+    "trackScales": {
+      "1-14-P-j26-1": {
+        "root": "C",
+        "scaleType": "pentatonic"
+      },
+      "1-10-P-j26-1": {
+        "root": "C",
+        "scaleType": "pentatonic"
+      },
+      "1-13-P-j26-1": {
+        "root": "C",
+        "scaleType": "pentatonic"
+      }
+    },
+    "trackSynthTypes": {
+      "1-14-P-j26-1": "Synth",
+      "1-10-P-j26-1": "FMSynth",
+      "1-13-P-j26-1": "PolySynth"
+    },
+    "trackADSRs": {
+      "1-14-P-j26-1": {
+        "oscillatorType": "triangle",
+        "phase": 0,
+        "detune": 0,
+        "attack": 0.008,
+        "attackCurve": "exponential",
+        "decay": 0.18,
+        "decayCurve": "exponential",
+        "sustain": 0,
+        "release": 0.12,
+        "releaseCurve": "exponential"
+      },
+      "1-10-P-j26-1": {
+        "oscillatorType": "sine",
+        "phase": 0,
+        "detune": 0,
+        "attack": 0.005,
+        "attackCurve": "exponential",
+        "decay": 0.22,
+        "decayCurve": "exponential",
+        "sustain": 0,
+        "release": 0.25,
+        "releaseCurve": "exponential",
+        "modulationOscType": "sine",
+        "modAttack": 0.002,
+        "modDecay": 0.12,
+        "modSustain": 0,
+        "modRelease": 0.15,
+        "harmonicity": 2,
+        "modulationIndex": 1.5
+      },
+      "1-13-P-j26-1": {
+        "voice": "Synth",
+        "oscillatorType": "triangle",
+        "phase": 0,
+        "detune": 0,
+        "attack": 0.35,
+        "attackCurve": "exponential",
+        "decay": 0.4,
+        "decayCurve": "exponential",
+        "sustain": 0.55,
+        "release": 1.2,
+        "releaseCurve": "exponential"
+      }
+    },
+    "trackFilters": {
+      "1-14-P-j26-1": {
+        "model": "classic",
+        "type": "lowpass",
+        "frequency": 700,
+        "Q": 0.7,
+        "resonance": 0.2,
+        "drive": 1,
+        "slope": 24,
+        "bypass": false
+      },
+      "1-10-P-j26-1": {
+        "model": "classic",
+        "type": "lowpass",
+        "frequency": 4200,
+        "Q": 0.7,
+        "resonance": 0.2,
+        "drive": 1,
+        "slope": 24,
+        "bypass": false
+      },
+      "1-13-P-j26-1": {
+        "model": "classic",
+        "type": "lowpass",
+        "frequency": 1800,
+        "Q": 0.7,
+        "resonance": 0.2,
+        "drive": 1,
+        "slope": 24,
+        "bypass": false
+      }
+    },
+    "trackEqs": {},
+    "trackOctaves": {
+      "1-14-P-j26-1": -1,
+      "1-10-P-j26-1": 0,
+      "1-13-P-j26-1": 0
+    },
+    "trackSemitones": {},
+    "trackGlides": {
+      "1-14-P-j26-1": 0,
+      "1-10-P-j26-1": 0,
+      "1-13-P-j26-1": 0
+    },
+    "trackLegatos": {
+      "1-14-P-j26-1": false,
+      "1-10-P-j26-1": false,
+      "1-13-P-j26-1": false
+    },
+    "trackArps": {
+      "1-14-P-j26-1": {
+        "enabled": false,
+        "style": "up",
+        "rate": "16n",
+        "gate": 0.5,
+        "octaves": 1,
+        "steps": 3,
+        "distance": 2
+      },
+      "1-10-P-j26-1": {
+        "enabled": false,
+        "style": "up",
+        "rate": "16n",
+        "gate": 0.5,
+        "octaves": 1,
+        "steps": 3,
+        "distance": 2
+      },
+      "1-13-P-j26-1": {
+        "enabled": false,
+        "style": "up",
+        "rate": "16n",
+        "gate": 0.5,
+        "octaves": 1,
+        "steps": 3,
+        "distance": 2
+      }
+    },
+    "trackGranulars": {
+      "1-14-P-j26-1": {
+        "enabled": false,
+        "mix": 0.5,
+        "grainSize": 0.09,
+        "overlap": 0.05,
+        "playbackRate": 1,
+        "loopStart": 0,
+        "loopEnd": 1,
+        "reverse": false,
+        "jitter": 0,
+        "attack": 0.05,
+        "release": 0.8
+      },
+      "1-10-P-j26-1": {
+        "enabled": false,
+        "mix": 0.5,
+        "grainSize": 0.09,
+        "overlap": 0.05,
+        "playbackRate": 1,
+        "loopStart": 0,
+        "loopEnd": 1,
+        "reverse": false,
+        "jitter": 0,
+        "attack": 0.05,
+        "release": 0.8
+      },
+      "1-13-P-j26-1": {
+        "enabled": false,
+        "mix": 0.5,
+        "grainSize": 0.09,
+        "overlap": 0.05,
+        "playbackRate": 1,
+        "loopStart": 0,
+        "loopEnd": 1,
+        "reverse": false,
+        "jitter": 0,
+        "attack": 0.05,
+        "release": 0.8
+      }
+    },
+    "trackSidechains": {
+      "1-14-P-j26-1": {
+        "enabled": false,
+        "source": "",
+        "amountDb": -9,
+        "attack": 0.005,
+        "release": 0.18
+      },
+      "1-10-P-j26-1": {
+        "enabled": false,
+        "source": "",
+        "amountDb": -9,
+        "attack": 0.005,
+        "release": 0.18
+      },
+      "1-13-P-j26-1": {
+        "enabled": false,
+        "source": "",
+        "amountDb": -9,
+        "attack": 0.005,
+        "release": 0.18
+      }
+    },
+    "trackSpeeds": {
+      "1-14-P-j26-1": 0.25,
+      "1-10-P-j26-1": 0.25,
+      "1-13-P-j26-1": 0.25
+    },
+    "trackDroneModes": {
+      "1-14-P-j26-1": false,
+      "1-10-P-j26-1": false,
+      "1-13-P-j26-1": false
+    },
+    "trackDroneRoots": {},
+    "trackLoopRegions": {
+      "1-14-P-j26-1": {
+        "startCell": 0,
+        "endCell": 64
+      },
+      "1-10-P-j26-1": {
+        "startCell": 0,
+        "endCell": 64
+      },
+      "1-13-P-j26-1": {
+        "startCell": 0,
+        "endCell": 64
+      }
+    },
+    "trackGridResolutions": {
+      "1-14-P-j26-1": "4n",
+      "1-10-P-j26-1": "8n",
+      "1-13-P-j26-1": "4n"
+    },
+    "trackPitchVariety": {
+      "1-14-P-j26-1": {
+        "contour": "randomWalk",
+        "variety": 0
+      },
+      "1-10-P-j26-1": {
+        "contour": "randomWalk",
+        "variety": 0.12
+      },
+      "1-13-P-j26-1": {
+        "contour": "arch",
+        "variety": 0.08
+      }
+    },
+    "trackStopVelocities": {},
+    "trackNoteChances": {},
+    "trackStopChances": {},
+    "trackLoopPatterns": {
+      "1-13-P-j26-1": {
+        "play": 1,
+        "rest": 1,
+        "offset": 1
+      }
+    },
+    "trackNoteLengths": {
+      "1-14-P-j26-1": "8n",
+      "1-10-P-j26-1": "8n",
+      "1-13-P-j26-1": "1n"
+    },
+    "trackStopNoteLengths": {},
+    "trackStopVelocityMaps": {},
+    "trackPitchOffsets": {},
+    "trackLabels": {
+      "1-14-P-j26-1": {
+        "text": "Bass",
+        "color": "#6c7fd8"
+      },
+      "1-10-P-j26-1": {
+        "text": "Lead",
+        "color": "#e5534b"
+      },
+      "1-13-P-j26-1": {
+        "text": "Pad",
+        "color": "#5ab0e6"
+      }
+    },
+    "activeFxTracks": [
+      "reverb",
+      "delay",
+      "chorus",
+      "distortion"
+    ],
+    "fxBusWet": {
+      "reverb": 1,
+      "jcreverb": 1,
+      "delay": 1,
+      "pingpong": 1,
+      "chorus": 1,
+      "phaser": 1,
+      "tremolo": 1,
+      "vibrato": 1,
+      "autofilter": 1,
+      "autopanner": 1,
+      "wah": 1,
+      "distortion": 1,
+      "bitcrusher": 1,
+      "widener": 1
+    },
+    "fxBusMuted": {},
+    "fxBusSoloed": {},
+    "fxBusParams": {
+      "reverb": {
+        "irType": "synthetic",
+        "decay": 3
+      }
+    },
+    "sendMatrix": {
+      "1-10-P-j26-1:reverb": 0.17,
+      "1-13-P-j26-1:reverb": 0.22
+    },
+    "automationCfg": {},
+    "duplicates": [],
+    "merges": [],
+    "drumPattern": null,
+    "drumsMuted": false
+  }
+}

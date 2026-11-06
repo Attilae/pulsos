@@ -244,3 +244,57 @@ button, [role="button"], .tab-btn, select {
   flex-shrink: 0;
   vertical-align: -0.125em;
 }
+
+/* Manual city changes: choose the starting session before leaving the song. */
+.city-start-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-dialog);
+  display: grid;
+  place-items: center;
+  padding: var(--space-200);
+  background: var(--scrim);
+}
+.city-start-dialog {
+  width: min(100%, 440px);
+  max-height: calc(100dvh - 32px);
+  overflow: auto;
+  padding: var(--space-300);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--elevation-modal);
+}
+.city-start-dialog h2 { margin: 0 0 var(--space-100); font-size: var(--fs-lg); }
+.city-start-dialog p { margin: 0 0 var(--space-200); color: var(--text-subtle); font-size: var(--fs-sm); }
+.city-start-options { display: grid; gap: var(--space-100); }
+.city-start-options button {
+  display: grid;
+  gap: var(--space-050);
+  width: 100%;
+  min-height: 64px;
+  padding: var(--space-150) var(--space-200);
+  text-align: left;
+  color: var(--text);
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+.city-start-options button:hover { background: var(--border); }
+.city-start-options strong { font-size: var(--fs-md); font-weight: 600; }
+.city-start-options span { color: var(--text-subtle); font-size: var(--fs-sm); line-height: 1.5; }
+.city-start-options .city-start-preset { border-color: var(--accent); }
+.city-start-preset strong { color: var(--accent); }
+.city-start-options button:disabled { opacity: .6; cursor: wait; }
+.city-start-cancel {
+  min-height: 44px;
+  margin-top: var(--space-150);
+  padding: var(--space-075) 0;
+  color: var(--muted);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  font-size: var(--fs-sm);
+}
+.city-start-dialog .city-start-error { margin-top: var(--space-150); color: var(--danger); }

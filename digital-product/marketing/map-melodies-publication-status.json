@@ -1,0 +1,61 @@
+{
+  "title": "Your next melody could start with a transport map",
+  "date": "2026-11-03",
+  "targetTime": "18:00",
+  "timezone": "Europe/Budapest (CET, UTC+1)",
+  "asset": "_videos/launch/out/map-melodies/leid-map-melodies.mp4",
+  "authorization": "Founder approved the narrated final video and said sounds good, go on. YouTube terms acceptance separately approved for this upload.",
+  "youtube": {
+    "state": "published-verified",
+    "account": "DeettaLabs",
+    "evidence": "Refreshed YouTube Studio after scheduled slot: matching -3Wt2nR2xZk row shows Nyilvános (Public), November 3 publication date, and correct title/description.",
+    "url": "https://youtube.com/shorts/-3Wt2nR2xZk",
+    "date": "2026-11-03",
+    "time": "18:00",
+    "timezone": "GMT+0100",
+    "assetActuallyUploaded": "_videos/launch/out/map-melodies/leid-map-melodies-master.mp4",
+    "assetNote": "Founder manually selected the narrated master rather than normalized delivery file. Same finished edit and narration; measured -18.20 LUFS / -2.99 dBTP, clean."
+  },
+  "x": {
+    "state": "published-verified",
+    "account": "@deettalabs",
+    "copy": "I used transport maps as a starting point for these two tracks.\n\nBudapest first, then Berlin. The stops give me patterns; I choose the instruments and shape the arrangements.\n\nPlay both: https://lnk.bio/deettalabs",
+    "uploadCopy": "/tmp/leid-map-melodies-upload.mp4",
+    "evidence": "Own profile shows new Now post, exact approved copy and embedded video; composer had correct narrated master Ready and Made with AI label.",
+    "assetActuallyUploaded": "_videos/launch/out/map-melodies/leid-map-melodies-master.mp4",
+    "url": "https://x.com/deettalabs/status/2117690314282467582"
+  },
+  "tiktok": {
+    "state": "published-verified",
+    "account": "@deettalabs",
+    "url": "https://www.tiktok.com/@deettalabs/video/7704019654330617110",
+    "assetActuallyUploaded": "_videos/launch/out/map-melodies/leid-map-melodies-master.mp4",
+    "evidence": "Refreshed Studio: matching 7704019654330617110 row shows Everyone, Nov 3 7:51 PM, no review notice. Approved caption, own-brand and AI label verified during submission."
+  },
+  "instagram": {
+    "state": "published-verified",
+    "account": "@deettalabs",
+    "scheduling": "Existing personal account previously had no scheduling option; inspect current UI.",
+    "assetActuallyUploaded": "_videos/launch/out/map-melodies/leid-map-melodies-master.mp4",
+    "evidence": "Instagram says Shared reel / Your reel has been shared. Refreshed company profile contains new Reel with approved narrative and CTA. 9:16 and AI switch on verified before sharing.",
+    "url": "https://www.instagram.com/deettalabs/reel/DfSkg2WoIMc/",
+    "hashtagsActual": [
+      "GenerativeMusic",
+      "MusicProduction",
+      "musictechnology"
+    ]
+  },
+  "resumedAt": "2026-11-03 19:47 CET",
+  "remainingAction": "Publish remaining channels now; original 18:00 slot has passed.",
+  "bioLinkRecheck": {
+    "date": "2026-11-03",
+    "url": "https://lnk.bio/deettalabs",
+    "budapest": "shr_656e05229dc64946",
+    "berlin": "shr_8750587429f441ba",
+    "evidence": "Public page links inspected in Chrome before X publication."
+  },
+  "verifiedAt": "2026-11-03 19:55 CET",
+  "overallState": "all-four-published-verified",
+  "timingNote": "YouTube scheduled for Nov 3 18:00 CET and subsequently verified Public. After founder resumed at 19:47 CET, remaining posts were published immediately that evening.",
+  "uploadVersionNote": "All four uploads use the finished narrated master. Same edit/voice/music as the delivery file, with clean -18.20 LUFS / -2.99 dBTP audio. Final normalized delivery copy was rejected by macOS picker; master accepted."
+}

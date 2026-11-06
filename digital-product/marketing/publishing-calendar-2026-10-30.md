@@ -43,9 +43,9 @@ Reddit remains **on hold at the founder's request**, with no publication date or
 | Fri Oct 30 | Check first-post visibility, destination links and available 24-hour metrics; review video 2's sound | All four; TikTok mobile insights | Review task; no new video needed today |
 | Sat Oct 31, 18:00 | Short 2: Berlin routes. One track. | X, YouTube Shorts, Instagram Reels, TikTok | YouTube/TikTok/X scheduled; Instagram manual publishing packet ready |
 | Mon Nov 2 | How I Made a Track from Berlin's Transport Map: the approved U4/N36 arrangement breakdown | DeettaLabs blog; dedicated X link post; Instagram Story; Lnk.Bio | Blog, X, Instagram Story and Lnk.Bio published and verified (see publication status file) |
-| Tue Nov 3, 18:00 | Short 3: Your next melody could start with a transport map | All four video channels | Picture/music preview and five-part ElevenLabs packet prepared Nov 2; awaiting founder voice, final render/review and scheduling |
+| Tue Nov 3, 18:00 | Short 3: Your next melody could start with a transport map | All four video channels | Published and verified on all four channels November 3. YouTube scheduled 18:00; remaining posts published that evening after the resumed handoff. |
 | Thu Nov 5, 12:00 | Article: how a transport route becomes a melody; answer the route-data/instrument distinction | Blog; X article post; optional Story | Reuse or improve an existing article if it already covers this question |
-| Sat Nov 7, 18:00 | Short 4: change one stop and hear the melody change | All four video channels | Planned; needs an actual audible before/after recording |
+| Sat Nov 7, 18:00 | Short 4: default lane sound → designed patch, using Resonator or Macro, arp, Texture and FX | All four video channels | Revised to founder direction; needs genuine default capture and a strong same-route transformation. [Brief](nov-7-default-to-designed-sound.md) |
 | Tue Nov 10, 18:00 | Short 5: a new supported-city performance, chosen from useful requests; Helsinki is the fallback | All four video channels | Planned; needs a new arrangement and matching capture; do not invent audience requests |
 | Thu Nov 12, 12:00 | Article: annotated breakdown of the new city arrangement | Blog; X article post; optional Story | Planned; uses the exact recorded preset and settings |
 
@@ -86,3 +86,22 @@ At the founder’s request, prepared [How I Made a Track from Berlin’s Transpo
 Published and verified the [Berlin article](https://www.deettalabs.com/blog/berlin-transport-map-music), the [X announcement](https://x.com/deettalabs/status/2117283852611641627), and “Read the Berlin track breakdown” on [Lnk.Bio](https://lnk.bio/deettalabs). The Story graphic was prepared with phone-safe margins and submitted through Instagram's mobile browser Story editor; final status is recorded in [the publication record](blog/berlin-publication-status.json). This supersedes the draft-only status above for these items.
 
 Instagram Story publication verified: a fresh company profile shows the new Story ring, and its Story viewer shows deettalabs with a 1m timestamp. The graphic directs readers through the verified bio link. No link sticker was added.
+
+## Video 3 final render (November 3)
+
+Generated the five approved narration parts in the founder-authorized ElevenLabs session, preserving the Berlin narrator. [Final 24.6-second video](../../_videos/launch/out/map-melodies/leid-map-melodies.mp4) and [separate narration clips](../../_videos/launch/out/map-melodies/elevenlabs-voiceovers.zip) are ready. Actual caption timings and two four-second listening sections are in place. Automated audio/file checks and final caption frames passed. Founder listening/review remains pending. No platform scheduling or publication occurred.
+
+## Video 3 published (November 3)
+
+Founder approved the voiced edit and authorized proceeding. All four posts are published and verified:
+
+- YouTube Shorts: https://youtube.com/shorts/-3Wt2nR2xZk (scheduled 18:00 CET; refreshed Studio confirms Public).
+- X: https://x.com/deettalabs/status/2117690314282467582
+- TikTok: https://www.tiktok.com/@deettalabs/video/7704019654330617110 (review cleared; Everyone, November 3 at 19:51).
+- Instagram Reel: https://www.instagram.com/deettalabs/reel/DfSkg2WoIMc/ (sharing confirmation plus refreshed profile link).
+
+X/TikTok/Instagram were published that evening because the 18:00 slot had passed when the founder resumed at 19:47 CET. Both city presets rechecked on Lnk.Bio. AI disclosures set; own-brand disclosure set on TikTok. Uploads use the finished narrated master, with clean −18.20 LUFS / −2.99 dBTP audio; same edit as the normalized delivery file. [Publication evidence](map-melodies-publication-status.json). This supersedes earlier pending statuses.
+
+## November 7 concept revised
+
+Founder replaced the single-note edit with a default-sound-to-designed-patch demonstration. Show the genuine initial lane sound, reveal the finished version early, then show the instrument, arp, Texture and FX stages. Keep the source route/pattern recognizable and compare at similar perceived loudness. [Production brief](nov-7-default-to-designed-sound.md). Musical before/after must be captured before final voiceover or edit.

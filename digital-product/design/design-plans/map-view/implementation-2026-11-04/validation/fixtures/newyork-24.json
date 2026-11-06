@@ -1,0 +1,2480 @@
+{
+ "name": "Phase 0 newyork 24 lanes",
+ "cityId": "newyork",
+ "state": {
+  "schemaVersion": 4,
+  "cityId": "newyork",
+  "bpm": 92,
+  "mode": "mock",
+  "view": "daw",
+  "masterVolume": -6,
+  "masterChain": null,
+  "globalHarmony": {
+   "root": "F",
+   "scaleType": "dorian"
+  },
+  "routeIds": [
+   "A",
+   "3",
+   "G",
+   "2",
+   "F",
+   "4",
+   "N",
+   "W",
+   "D",
+   "C",
+   "FX",
+   "1",
+   "6",
+   "B",
+   "Q",
+   "E",
+   "J",
+   "6X",
+   "L",
+   "7",
+   "Z",
+   "7X",
+   "R",
+   "M"
+  ],
+  "laneManifest": [
+   {
+    "id": "A",
+    "sourceId": null,
+    "kind": "base"
+   },
+   {
+    "id": "3",
+    "sourceId": null,
+    "kind": "base"
+   },
+   {
+    "id": "G",
+    "sourceId": null,
+    "kind": "base"
+   },
+   {
+    "id": "2",
+    "sourceId": null,
+    "kind": "base"
+   },
+   {
+    "id": "F",
+    "sourceId": null,
+    "kind": "base"
+   },
+   {
+    "id": "4",
+    "sourceId": null,
+    "kind": "base"
+   },
+   {
+    "id": "N",
+    "sourceId": null,
+    "kind": "base"
+   },
+   {
+    "id": "W",
+    "sourceId": null,
+    "kind": "base"
+   },
+   {
+    "id": "D",
+    "sourceId": null,
+    "kind": "base"
+   },
+   {
+    "id": "C",
+    "sourceId": null,
+    "kind": "base"
+   },
+   {
+    "id": "FX",
+    "sourceId": null,
+    "kind": "base"
+   },
+   {
+    "id": "1",
+    "sourceId": null,
+    "kind": "base"
+   },
+   {
+    "id": "6",
+    "sourceId": null,
+    "kind": "base"
+   },
+   {
+    "id": "B",
+    "sourceId": null,
+    "kind": "base"
+   },
+   {
+    "id": "Q",
+    "sourceId": null,
+    "kind": "base"
+   },
+   {
+    "id": "E",
+    "sourceId": null,
+    "kind": "base"
+   },
+   {
+    "id": "J",
+    "sourceId": null,
+    "kind": "base"
+   },
+   {
+    "id": "6X",
+    "sourceId": null,
+    "kind": "base"
+   },
+   {
+    "id": "L",
+    "sourceId": null,
+    "kind": "base"
+   },
+   {
+    "id": "7",
+    "sourceId": null,
+    "kind": "base"
+   },
+   {
+    "id": "Z",
+    "sourceId": null,
+    "kind": "base"
+   },
+   {
+    "id": "7X",
+    "sourceId": null,
+    "kind": "base"
+   },
+   {
+    "id": "R",
+    "sourceId": null,
+    "kind": "base"
+   },
+   {
+    "id": "M",
+    "sourceId": null,
+    "kind": "base"
+   }
+  ],
+  "volumes": {
+   "1": -23,
+   "2": -13,
+   "3": -16,
+   "4": -23,
+   "6": -13,
+   "7": -16,
+   "__drums__": -14,
+   "A": -13,
+   "G": -23,
+   "F": -16,
+   "N": -13,
+   "W": -16,
+   "D": -23,
+   "C": -13,
+   "FX": -16,
+   "B": -16,
+   "Q": -23,
+   "E": -13,
+   "J": -16,
+   "6X": -23,
+   "L": -13,
+   "Z": -23,
+   "7X": -13,
+   "R": -16,
+   "M": -23
+  },
+  "muted": {
+   "1": true,
+   "2": false,
+   "3": false,
+   "4": false,
+   "6": true,
+   "7": true,
+   "A": false,
+   "G": false,
+   "__drums__": false,
+   "F": false,
+   "N": true,
+   "W": true,
+   "D": true,
+   "C": true,
+   "FX": true,
+   "B": true,
+   "Q": true,
+   "E": true,
+   "J": true,
+   "6X": true,
+   "L": true,
+   "Z": true,
+   "7X": true,
+   "R": true,
+   "M": true
+  },
+  "pans": {
+   "1": 0.25,
+   "2": 0,
+   "3": -0.18,
+   "4": 0.25,
+   "6": 0,
+   "7": -0.18,
+   "A": 0,
+   "G": 0.25,
+   "F": -0.18,
+   "N": 0,
+   "W": -0.18,
+   "D": 0.25,
+   "C": 0,
+   "FX": -0.18,
+   "B": -0.18,
+   "Q": 0.25,
+   "E": 0,
+   "J": -0.18,
+   "6X": 0.25,
+   "L": 0,
+   "Z": 0.25,
+   "7X": 0,
+   "R": -0.18,
+   "M": 0.25
+  },
+  "soloRoutes": [],
+  "trackSoundModes": {},
+  "trackScales": {
+   "1": {
+    "root": "F",
+    "scaleType": "dorian"
+   },
+   "2": {
+    "root": "F",
+    "scaleType": "dorian"
+   },
+   "3": {
+    "root": "F",
+    "scaleType": "dorian"
+   },
+   "4": {
+    "root": "F",
+    "scaleType": "dorian"
+   },
+   "6": {
+    "root": "F",
+    "scaleType": "dorian"
+   },
+   "7": {
+    "root": "F",
+    "scaleType": "dorian"
+   },
+   "A": {
+    "root": "F",
+    "scaleType": "dorian"
+   },
+   "G": {
+    "root": "F",
+    "scaleType": "dorian"
+   },
+   "F": {
+    "root": "F",
+    "scaleType": "dorian"
+   },
+   "N": {
+    "root": "F",
+    "scaleType": "dorian"
+   },
+   "W": {
+    "root": "F",
+    "scaleType": "dorian"
+   },
+   "D": {
+    "root": "F",
+    "scaleType": "dorian"
+   },
+   "C": {
+    "root": "F",
+    "scaleType": "dorian"
+   },
+   "FX": {
+    "root": "F",
+    "scaleType": "dorian"
+   },
+   "B": {
+    "root": "F",
+    "scaleType": "dorian"
+   },
+   "Q": {
+    "root": "F",
+    "scaleType": "dorian"
+   },
+   "E": {
+    "root": "F",
+    "scaleType": "dorian"
+   },
+   "J": {
+    "root": "F",
+    "scaleType": "dorian"
+   },
+   "6X": {
+    "root": "F",
+    "scaleType": "dorian"
+   },
+   "L": {
+    "root": "F",
+    "scaleType": "dorian"
+   },
+   "Z": {
+    "root": "F",
+    "scaleType": "dorian"
+   },
+   "7X": {
+    "root": "F",
+    "scaleType": "dorian"
+   },
+   "R": {
+    "root": "F",
+    "scaleType": "dorian"
+   },
+   "M": {
+    "root": "F",
+    "scaleType": "dorian"
+   }
+  },
+  "trackSynthTypes": {
+   "1": "PolySynth",
+   "2": "Synth",
+   "3": "Sampler",
+   "4": "PolySynth",
+   "6": "Synth",
+   "7": "Sampler",
+   "A": "Synth",
+   "G": "PolySynth",
+   "F": "Sampler",
+   "N": "Synth",
+   "W": "Sampler",
+   "D": "PolySynth",
+   "C": "Synth",
+   "FX": "Sampler",
+   "B": "Sampler",
+   "Q": "PolySynth",
+   "E": "Synth",
+   "J": "Sampler",
+   "6X": "PolySynth",
+   "L": "Synth",
+   "Z": "PolySynth",
+   "7X": "Synth",
+   "R": "Sampler",
+   "M": "PolySynth"
+  },
+  "trackADSRs": {
+   "1": {
+    "voice": "Synth",
+    "oscillatorType": "triangle",
+    "phase": 0,
+    "detune": 0,
+    "attack": 0.35,
+    "attackCurve": "exponential",
+    "decay": 0.4,
+    "decayCurve": "exponential",
+    "sustain": 0.55,
+    "release": 1.2,
+    "releaseCurve": "exponential"
+   },
+   "2": {
+    "oscillatorType": "triangle",
+    "phase": 0,
+    "detune": 0,
+    "attack": 0.008,
+    "attackCurve": "exponential",
+    "decay": 0.18,
+    "decayCurve": "exponential",
+    "sustain": 0,
+    "release": 0.12,
+    "releaseCurve": "exponential"
+   },
+   "3": {
+    "samplerPreset": "piano",
+    "attack": 0.005,
+    "release": 0.25,
+    "decay": 0.22,
+    "sustain": 0
+   },
+   "4": {
+    "voice": "Synth",
+    "oscillatorType": "triangle",
+    "phase": 0,
+    "detune": 0,
+    "attack": 0.35,
+    "attackCurve": "exponential",
+    "decay": 0.4,
+    "decayCurve": "exponential",
+    "sustain": 0.55,
+    "release": 1.2,
+    "releaseCurve": "exponential"
+   },
+   "6": {
+    "oscillatorType": "triangle",
+    "phase": 0,
+    "detune": 0,
+    "attack": 0.008,
+    "attackCurve": "exponential",
+    "decay": 0.18,
+    "decayCurve": "exponential",
+    "sustain": 0,
+    "release": 0.12,
+    "releaseCurve": "exponential"
+   },
+   "7": {
+    "samplerPreset": "piano",
+    "attack": 0.005,
+    "release": 0.25,
+    "decay": 0.22,
+    "sustain": 0
+   },
+   "A": {
+    "oscillatorType": "triangle",
+    "phase": 0,
+    "detune": 0,
+    "attack": 0.008,
+    "attackCurve": "exponential",
+    "decay": 0.18,
+    "decayCurve": "exponential",
+    "sustain": 0,
+    "release": 0.12,
+    "releaseCurve": "exponential"
+   },
+   "G": {
+    "voice": "Synth",
+    "oscillatorType": "triangle",
+    "phase": 0,
+    "detune": 0,
+    "attack": 0.35,
+    "attackCurve": "exponential",
+    "decay": 0.4,
+    "decayCurve": "exponential",
+    "sustain": 0.55,
+    "release": 1.2,
+    "releaseCurve": "exponential"
+   },
+   "F": {
+    "samplerPreset": "piano",
+    "attack": 0.005,
+    "release": 0.25,
+    "decay": 0.22,
+    "sustain": 0
+   },
+   "N": {
+    "oscillatorType": "triangle",
+    "phase": 0,
+    "detune": 0,
+    "attack": 0.008,
+    "attackCurve": "exponential",
+    "decay": 0.18,
+    "decayCurve": "exponential",
+    "sustain": 0,
+    "release": 0.12,
+    "releaseCurve": "exponential"
+   },
+   "W": {
+    "samplerPreset": "piano",
+    "attack": 0.005,
+    "release": 0.25,
+    "decay": 0.22,
+    "sustain": 0
+   },
+   "D": {
+    "voice": "Synth",
+    "oscillatorType": "triangle",
+    "phase": 0,
+    "detune": 0,
+    "attack": 0.35,
+    "attackCurve": "exponential",
+    "decay": 0.4,
+    "decayCurve": "exponential",
+    "sustain": 0.55,
+    "release": 1.2,
+    "releaseCurve": "exponential"
+   },
+   "C": {
+    "oscillatorType": "triangle",
+    "phase": 0,
+    "detune": 0,
+    "attack": 0.008,
+    "attackCurve": "exponential",
+    "decay": 0.18,
+    "decayCurve": "exponential",
+    "sustain": 0,
+    "release": 0.12,
+    "releaseCurve": "exponential"
+   },
+   "FX": {
+    "samplerPreset": "piano",
+    "attack": 0.005,
+    "release": 0.25,
+    "decay": 0.22,
+    "sustain": 0
+   },
+   "B": {
+    "samplerPreset": "piano",
+    "attack": 0.005,
+    "release": 0.25,
+    "decay": 0.22,
+    "sustain": 0
+   },
+   "Q": {
+    "voice": "Synth",
+    "oscillatorType": "triangle",
+    "phase": 0,
+    "detune": 0,
+    "attack": 0.35,
+    "attackCurve": "exponential",
+    "decay": 0.4,
+    "decayCurve": "exponential",
+    "sustain": 0.55,
+    "release": 1.2,
+    "releaseCurve": "exponential"
+   },
+   "E": {
+    "oscillatorType": "triangle",
+    "phase": 0,
+    "detune": 0,
+    "attack": 0.008,
+    "attackCurve": "exponential",
+    "decay": 0.18,
+    "decayCurve": "exponential",
+    "sustain": 0,
+    "release": 0.12,
+    "releaseCurve": "exponential"
+   },
+   "J": {
+    "samplerPreset": "piano",
+    "attack": 0.005,
+    "release": 0.25,
+    "decay": 0.22,
+    "sustain": 0
+   },
+   "6X": {
+    "voice": "Synth",
+    "oscillatorType": "triangle",
+    "phase": 0,
+    "detune": 0,
+    "attack": 0.35,
+    "attackCurve": "exponential",
+    "decay": 0.4,
+    "decayCurve": "exponential",
+    "sustain": 0.55,
+    "release": 1.2,
+    "releaseCurve": "exponential"
+   },
+   "L": {
+    "oscillatorType": "triangle",
+    "phase": 0,
+    "detune": 0,
+    "attack": 0.008,
+    "attackCurve": "exponential",
+    "decay": 0.18,
+    "decayCurve": "exponential",
+    "sustain": 0,
+    "release": 0.12,
+    "releaseCurve": "exponential"
+   },
+   "Z": {
+    "voice": "Synth",
+    "oscillatorType": "triangle",
+    "phase": 0,
+    "detune": 0,
+    "attack": 0.35,
+    "attackCurve": "exponential",
+    "decay": 0.4,
+    "decayCurve": "exponential",
+    "sustain": 0.55,
+    "release": 1.2,
+    "releaseCurve": "exponential"
+   },
+   "7X": {
+    "oscillatorType": "triangle",
+    "phase": 0,
+    "detune": 0,
+    "attack": 0.008,
+    "attackCurve": "exponential",
+    "decay": 0.18,
+    "decayCurve": "exponential",
+    "sustain": 0,
+    "release": 0.12,
+    "releaseCurve": "exponential"
+   },
+   "R": {
+    "samplerPreset": "piano",
+    "attack": 0.005,
+    "release": 0.25,
+    "decay": 0.22,
+    "sustain": 0
+   },
+   "M": {
+    "voice": "Synth",
+    "oscillatorType": "triangle",
+    "phase": 0,
+    "detune": 0,
+    "attack": 0.35,
+    "attackCurve": "exponential",
+    "decay": 0.4,
+    "decayCurve": "exponential",
+    "sustain": 0.55,
+    "release": 1.2,
+    "releaseCurve": "exponential"
+   }
+  },
+  "trackFilters": {
+   "1": {
+    "model": "classic",
+    "type": "lowpass",
+    "frequency": 1800,
+    "Q": 0.7,
+    "resonance": 0.2,
+    "drive": 1,
+    "slope": 24,
+    "bypass": false
+   },
+   "2": {
+    "model": "classic",
+    "type": "lowpass",
+    "frequency": 700,
+    "Q": 0.7,
+    "resonance": 0.2,
+    "drive": 1,
+    "slope": 24,
+    "bypass": false
+   },
+   "3": {
+    "model": "classic",
+    "type": "lowpass",
+    "frequency": 2800,
+    "Q": 0.7,
+    "resonance": 0.2,
+    "drive": 1,
+    "slope": 24,
+    "bypass": false
+   },
+   "4": {
+    "model": "classic",
+    "type": "lowpass",
+    "frequency": 1800,
+    "Q": 0.7,
+    "resonance": 0.2,
+    "drive": 1,
+    "slope": 24,
+    "bypass": false
+   },
+   "6": {
+    "model": "classic",
+    "type": "lowpass",
+    "frequency": 700,
+    "Q": 0.7,
+    "resonance": 0.2,
+    "drive": 1,
+    "slope": 24,
+    "bypass": false
+   },
+   "7": {
+    "model": "classic",
+    "type": "lowpass",
+    "frequency": 2800,
+    "Q": 0.7,
+    "resonance": 0.2,
+    "drive": 1,
+    "slope": 24,
+    "bypass": false
+   },
+   "__drums__": {
+    "model": "classic",
+    "type": "lowpass",
+    "frequency": 20000,
+    "resonance": 0.2,
+    "drive": 1,
+    "slope": 24,
+    "bypass": false
+   },
+   "A": {
+    "model": "classic",
+    "type": "lowpass",
+    "frequency": 700,
+    "Q": 0.7,
+    "resonance": 0.2,
+    "drive": 1,
+    "slope": 24,
+    "bypass": false
+   },
+   "G": {
+    "model": "classic",
+    "type": "lowpass",
+    "frequency": 1800,
+    "Q": 0.7,
+    "resonance": 0.2,
+    "drive": 1,
+    "slope": 24,
+    "bypass": false
+   },
+   "F": {
+    "model": "classic",
+    "type": "lowpass",
+    "frequency": 2800,
+    "Q": 0.7,
+    "resonance": 0.2,
+    "drive": 1,
+    "slope": 24,
+    "bypass": false
+   },
+   "N": {
+    "model": "classic",
+    "type": "lowpass",
+    "frequency": 700,
+    "Q": 0.7,
+    "resonance": 0.2,
+    "drive": 1,
+    "slope": 24,
+    "bypass": false
+   },
+   "W": {
+    "model": "classic",
+    "type": "lowpass",
+    "frequency": 2800,
+    "Q": 0.7,
+    "resonance": 0.2,
+    "drive": 1,
+    "slope": 24,
+    "bypass": false
+   },
+   "D": {
+    "model": "classic",
+    "type": "lowpass",
+    "frequency": 1800,
+    "Q": 0.7,
+    "resonance": 0.2,
+    "drive": 1,
+    "slope": 24,
+    "bypass": false
+   },
+   "C": {
+    "model": "classic",
+    "type": "lowpass",
+    "frequency": 700,
+    "Q": 0.7,
+    "resonance": 0.2,
+    "drive": 1,
+    "slope": 24,
+    "bypass": false
+   },
+   "FX": {
+    "model": "classic",
+    "type": "lowpass",
+    "frequency": 2800,
+    "Q": 0.7,
+    "resonance": 0.2,
+    "drive": 1,
+    "slope": 24,
+    "bypass": false
+   },
+   "B": {
+    "model": "classic",
+    "type": "lowpass",
+    "frequency": 2800,
+    "Q": 0.7,
+    "resonance": 0.2,
+    "drive": 1,
+    "slope": 24,
+    "bypass": false
+   },
+   "Q": {
+    "model": "classic",
+    "type": "lowpass",
+    "frequency": 1800,
+    "Q": 0.7,
+    "resonance": 0.2,
+    "drive": 1,
+    "slope": 24,
+    "bypass": false
+   },
+   "E": {
+    "model": "classic",
+    "type": "lowpass",
+    "frequency": 700,
+    "Q": 0.7,
+    "resonance": 0.2,
+    "drive": 1,
+    "slope": 24,
+    "bypass": false
+   },
+   "J": {
+    "model": "classic",
+    "type": "lowpass",
+    "frequency": 2800,
+    "Q": 0.7,
+    "resonance": 0.2,
+    "drive": 1,
+    "slope": 24,
+    "bypass": false
+   },
+   "6X": {
+    "model": "classic",
+    "type": "lowpass",
+    "frequency": 1800,
+    "Q": 0.7,
+    "resonance": 0.2,
+    "drive": 1,
+    "slope": 24,
+    "bypass": false
+   },
+   "L": {
+    "model": "classic",
+    "type": "lowpass",
+    "frequency": 700,
+    "Q": 0.7,
+    "resonance": 0.2,
+    "drive": 1,
+    "slope": 24,
+    "bypass": false
+   },
+   "Z": {
+    "model": "classic",
+    "type": "lowpass",
+    "frequency": 1800,
+    "Q": 0.7,
+    "resonance": 0.2,
+    "drive": 1,
+    "slope": 24,
+    "bypass": false
+   },
+   "7X": {
+    "model": "classic",
+    "type": "lowpass",
+    "frequency": 700,
+    "Q": 0.7,
+    "resonance": 0.2,
+    "drive": 1,
+    "slope": 24,
+    "bypass": false
+   },
+   "R": {
+    "model": "classic",
+    "type": "lowpass",
+    "frequency": 2800,
+    "Q": 0.7,
+    "resonance": 0.2,
+    "drive": 1,
+    "slope": 24,
+    "bypass": false
+   },
+   "M": {
+    "model": "classic",
+    "type": "lowpass",
+    "frequency": 1800,
+    "Q": 0.7,
+    "resonance": 0.2,
+    "drive": 1,
+    "slope": 24,
+    "bypass": false
+   }
+  },
+  "trackEqs": {},
+  "trackOctaves": {
+   "1": 0,
+   "2": -1,
+   "3": 0,
+   "4": 0,
+   "6": -1,
+   "7": 0,
+   "A": -1,
+   "G": 0,
+   "F": 0,
+   "N": -1,
+   "W": 0,
+   "D": 0,
+   "C": -1,
+   "FX": 0,
+   "B": 0,
+   "Q": 0,
+   "E": -1,
+   "J": 0,
+   "6X": 0,
+   "L": -1,
+   "Z": 0,
+   "7X": -1,
+   "R": 0,
+   "M": 0
+  },
+  "trackSemitones": {},
+  "trackGlides": {
+   "1": 0,
+   "2": 0,
+   "3": 0,
+   "4": 0,
+   "6": 0,
+   "7": 0,
+   "A": 0,
+   "G": 0,
+   "F": 0,
+   "N": 0,
+   "W": 0,
+   "D": 0,
+   "C": 0,
+   "FX": 0,
+   "B": 0,
+   "Q": 0,
+   "E": 0,
+   "J": 0,
+   "6X": 0,
+   "L": 0,
+   "Z": 0,
+   "7X": 0,
+   "R": 0,
+   "M": 0
+  },
+  "trackLegatos": {
+   "1": false,
+   "2": false,
+   "3": false,
+   "4": false,
+   "6": false,
+   "7": false,
+   "A": false,
+   "G": false,
+   "F": false,
+   "N": false,
+   "W": false,
+   "D": false,
+   "C": false,
+   "FX": false,
+   "B": false,
+   "Q": false,
+   "E": false,
+   "J": false,
+   "6X": false,
+   "L": false,
+   "Z": false,
+   "7X": false,
+   "R": false,
+   "M": false
+  },
+  "trackArps": {
+   "1": {
+    "enabled": false,
+    "style": "up",
+    "rate": "16n",
+    "gate": 0.5,
+    "octaves": 1,
+    "steps": 3,
+    "distance": 2
+   },
+   "2": {
+    "enabled": false,
+    "style": "up",
+    "rate": "16n",
+    "gate": 0.5,
+    "octaves": 1,
+    "steps": 3,
+    "distance": 2
+   },
+   "3": {
+    "enabled": false,
+    "style": "up",
+    "rate": "16n",
+    "gate": 0.5,
+    "octaves": 1,
+    "steps": 3,
+    "distance": 2
+   },
+   "4": {
+    "enabled": false,
+    "style": "up",
+    "rate": "16n",
+    "gate": 0.5,
+    "octaves": 1,
+    "steps": 3,
+    "distance": 2
+   },
+   "6": {
+    "enabled": false,
+    "style": "up",
+    "rate": "16n",
+    "gate": 0.5,
+    "octaves": 1,
+    "steps": 3,
+    "distance": 2
+   },
+   "7": {
+    "enabled": false,
+    "style": "up",
+    "rate": "16n",
+    "gate": 0.5,
+    "octaves": 1,
+    "steps": 3,
+    "distance": 2
+   },
+   "A": {
+    "enabled": false,
+    "style": "up",
+    "rate": "16n",
+    "gate": 0.5,
+    "octaves": 1,
+    "steps": 3,
+    "distance": 2
+   },
+   "G": {
+    "enabled": false,
+    "style": "up",
+    "rate": "16n",
+    "gate": 0.5,
+    "octaves": 1,
+    "steps": 3,
+    "distance": 2
+   },
+   "F": {
+    "enabled": false,
+    "style": "up",
+    "rate": "16n",
+    "gate": 0.5,
+    "octaves": 1,
+    "steps": 3,
+    "distance": 2
+   },
+   "N": {
+    "enabled": false,
+    "style": "up",
+    "rate": "16n",
+    "gate": 0.5,
+    "octaves": 1,
+    "steps": 3,
+    "distance": 2
+   },
+   "W": {
+    "enabled": false,
+    "style": "up",
+    "rate": "16n",
+    "gate": 0.5,
+    "octaves": 1,
+    "steps": 3,
+    "distance": 2
+   },
+   "D": {
+    "enabled": false,
+    "style": "up",
+    "rate": "16n",
+    "gate": 0.5,
+    "octaves": 1,
+    "steps": 3,
+    "distance": 2
+   },
+   "C": {
+    "enabled": false,
+    "style": "up",
+    "rate": "16n",
+    "gate": 0.5,
+    "octaves": 1,
+    "steps": 3,
+    "distance": 2
+   },
+   "FX": {
+    "enabled": false,
+    "style": "up",
+    "rate": "16n",
+    "gate": 0.5,
+    "octaves": 1,
+    "steps": 3,
+    "distance": 2
+   },
+   "B": {
+    "enabled": false,
+    "style": "up",
+    "rate": "16n",
+    "gate": 0.5,
+    "octaves": 1,
+    "steps": 3,
+    "distance": 2
+   },
+   "Q": {
+    "enabled": false,
+    "style": "up",
+    "rate": "16n",
+    "gate": 0.5,
+    "octaves": 1,
+    "steps": 3,
+    "distance": 2
+   },
+   "E": {
+    "enabled": false,
+    "style": "up",
+    "rate": "16n",
+    "gate": 0.5,
+    "octaves": 1,
+    "steps": 3,
+    "distance": 2
+   },
+   "J": {
+    "enabled": false,
+    "style": "up",
+    "rate": "16n",
+    "gate": 0.5,
+    "octaves": 1,
+    "steps": 3,
+    "distance": 2
+   },
+   "6X": {
+    "enabled": false,
+    "style": "up",
+    "rate": "16n",
+    "gate": 0.5,
+    "octaves": 1,
+    "steps": 3,
+    "distance": 2
+   },
+   "L": {
+    "enabled": false,
+    "style": "up",
+    "rate": "16n",
+    "gate": 0.5,
+    "octaves": 1,
+    "steps": 3,
+    "distance": 2
+   },
+   "Z": {
+    "enabled": false,
+    "style": "up",
+    "rate": "16n",
+    "gate": 0.5,
+    "octaves": 1,
+    "steps": 3,
+    "distance": 2
+   },
+   "7X": {
+    "enabled": false,
+    "style": "up",
+    "rate": "16n",
+    "gate": 0.5,
+    "octaves": 1,
+    "steps": 3,
+    "distance": 2
+   },
+   "R": {
+    "enabled": false,
+    "style": "up",
+    "rate": "16n",
+    "gate": 0.5,
+    "octaves": 1,
+    "steps": 3,
+    "distance": 2
+   },
+   "M": {
+    "enabled": false,
+    "style": "up",
+    "rate": "16n",
+    "gate": 0.5,
+    "octaves": 1,
+    "steps": 3,
+    "distance": 2
+   }
+  },
+  "trackGranulars": {
+   "1": {
+    "enabled": false,
+    "mix": 0.5,
+    "grainSize": 0.09,
+    "overlap": 0.05,
+    "playbackRate": 1,
+    "loopStart": 0,
+    "loopEnd": 1,
+    "reverse": false,
+    "jitter": 0,
+    "attack": 0.05,
+    "release": 0.8
+   },
+   "2": {
+    "enabled": false,
+    "mix": 0.5,
+    "grainSize": 0.09,
+    "overlap": 0.05,
+    "playbackRate": 1,
+    "loopStart": 0,
+    "loopEnd": 1,
+    "reverse": false,
+    "jitter": 0,
+    "attack": 0.05,
+    "release": 0.8
+   },
+   "3": {
+    "enabled": false,
+    "mix": 0.5,
+    "grainSize": 0.09,
+    "overlap": 0.05,
+    "playbackRate": 1,
+    "loopStart": 0,
+    "loopEnd": 1,
+    "reverse": false,
+    "jitter": 0,
+    "attack": 0.05,
+    "release": 0.8
+   },
+   "4": {
+    "enabled": false,
+    "mix": 0.5,
+    "grainSize": 0.09,
+    "overlap": 0.05,
+    "playbackRate": 1,
+    "loopStart": 0,
+    "loopEnd": 1,
+    "reverse": false,
+    "jitter": 0,
+    "attack": 0.05,
+    "release": 0.8
+   },
+   "6": {
+    "enabled": false,
+    "mix": 0.5,
+    "grainSize": 0.09,
+    "overlap": 0.05,
+    "playbackRate": 1,
+    "loopStart": 0,
+    "loopEnd": 1,
+    "reverse": false,
+    "jitter": 0,
+    "attack": 0.05,
+    "release": 0.8
+   },
+   "7": {
+    "enabled": false,
+    "mix": 0.5,
+    "grainSize": 0.09,
+    "overlap": 0.05,
+    "playbackRate": 1,
+    "loopStart": 0,
+    "loopEnd": 1,
+    "reverse": false,
+    "jitter": 0,
+    "attack": 0.05,
+    "release": 0.8
+   },
+   "A": {
+    "enabled": false,
+    "mix": 0.5,
+    "grainSize": 0.09,
+    "overlap": 0.05,
+    "playbackRate": 1,
+    "loopStart": 0,
+    "loopEnd": 1,
+    "reverse": false,
+    "jitter": 0,
+    "attack": 0.05,
+    "release": 0.8
+   },
+   "G": {
+    "enabled": false,
+    "mix": 0.5,
+    "grainSize": 0.09,
+    "overlap": 0.05,
+    "playbackRate": 1,
+    "loopStart": 0,
+    "loopEnd": 1,
+    "reverse": false,
+    "jitter": 0,
+    "attack": 0.05,
+    "release": 0.8
+   },
+   "F": {
+    "enabled": false,
+    "mix": 0.5,
+    "grainSize": 0.09,
+    "overlap": 0.05,
+    "playbackRate": 1,
+    "loopStart": 0,
+    "loopEnd": 1,
+    "reverse": false,
+    "jitter": 0,
+    "attack": 0.05,
+    "release": 0.8
+   },
+   "N": {
+    "enabled": false,
+    "mix": 0.5,
+    "grainSize": 0.09,
+    "overlap": 0.05,
+    "playbackRate": 1,
+    "loopStart": 0,
+    "loopEnd": 1,
+    "reverse": false,
+    "jitter": 0,
+    "attack": 0.05,
+    "release": 0.8
+   },
+   "W": {
+    "enabled": false,
+    "mix": 0.5,
+    "grainSize": 0.09,
+    "overlap": 0.05,
+    "playbackRate": 1,
+    "loopStart": 0,
+    "loopEnd": 1,
+    "reverse": false,
+    "jitter": 0,
+    "attack": 0.05,
+    "release": 0.8
+   },
+   "D": {
+    "enabled": false,
+    "mix": 0.5,
+    "grainSize": 0.09,
+    "overlap": 0.05,
+    "playbackRate": 1,
+    "loopStart": 0,
+    "loopEnd": 1,
+    "reverse": false,
+    "jitter": 0,
+    "attack": 0.05,
+    "release": 0.8
+   },
+   "C": {
+    "enabled": false,
+    "mix": 0.5,
+    "grainSize": 0.09,
+    "overlap": 0.05,
+    "playbackRate": 1,
+    "loopStart": 0,
+    "loopEnd": 1,
+    "reverse": false,
+    "jitter": 0,
+    "attack": 0.05,
+    "release": 0.8
+   },
+   "FX": {
+    "enabled": false,
+    "mix": 0.5,
+    "grainSize": 0.09,
+    "overlap": 0.05,
+    "playbackRate": 1,
+    "loopStart": 0,
+    "loopEnd": 1,
+    "reverse": false,
+    "jitter": 0,
+    "attack": 0.05,
+    "release": 0.8
+   },
+   "B": {
+    "enabled": false,
+    "mix": 0.5,
+    "grainSize": 0.09,
+    "overlap": 0.05,
+    "playbackRate": 1,
+    "loopStart": 0,
+    "loopEnd": 1,
+    "reverse": false,
+    "jitter": 0,
+    "attack": 0.05,
+    "release": 0.8
+   },
+   "Q": {
+    "enabled": false,
+    "mix": 0.5,
+    "grainSize": 0.09,
+    "overlap": 0.05,
+    "playbackRate": 1,
+    "loopStart": 0,
+    "loopEnd": 1,
+    "reverse": false,
+    "jitter": 0,
+    "attack": 0.05,
+    "release": 0.8
+   },
+   "E": {
+    "enabled": false,
+    "mix": 0.5,
+    "grainSize": 0.09,
+    "overlap": 0.05,
+    "playbackRate": 1,
+    "loopStart": 0,
+    "loopEnd": 1,
+    "reverse": false,
+    "jitter": 0,
+    "attack": 0.05,
+    "release": 0.8
+   },
+   "J": {
+    "enabled": false,
+    "mix": 0.5,
+    "grainSize": 0.09,
+    "overlap": 0.05,
+    "playbackRate": 1,
+    "loopStart": 0,
+    "loopEnd": 1,
+    "reverse": false,
+    "jitter": 0,
+    "attack": 0.05,
+    "release": 0.8
+   },
+   "6X": {
+    "enabled": false,
+    "mix": 0.5,
+    "grainSize": 0.09,
+    "overlap": 0.05,
+    "playbackRate": 1,
+    "loopStart": 0,
+    "loopEnd": 1,
+    "reverse": false,
+    "jitter": 0,
+    "attack": 0.05,
+    "release": 0.8
+   },
+   "L": {
+    "enabled": false,
+    "mix": 0.5,
+    "grainSize": 0.09,
+    "overlap": 0.05,
+    "playbackRate": 1,
+    "loopStart": 0,
+    "loopEnd": 1,
+    "reverse": false,
+    "jitter": 0,
+    "attack": 0.05,
+    "release": 0.8
+   },
+   "Z": {
+    "enabled": false,
+    "mix": 0.5,
+    "grainSize": 0.09,
+    "overlap": 0.05,
+    "playbackRate": 1,
+    "loopStart": 0,
+    "loopEnd": 1,
+    "reverse": false,
+    "jitter": 0,
+    "attack": 0.05,
+    "release": 0.8
+   },
+   "7X": {
+    "enabled": false,
+    "mix": 0.5,
+    "grainSize": 0.09,
+    "overlap": 0.05,
+    "playbackRate": 1,
+    "loopStart": 0,
+    "loopEnd": 1,
+    "reverse": false,
+    "jitter": 0,
+    "attack": 0.05,
+    "release": 0.8
+   },
+   "R": {
+    "enabled": false,
+    "mix": 0.5,
+    "grainSize": 0.09,
+    "overlap": 0.05,
+    "playbackRate": 1,
+    "loopStart": 0,
+    "loopEnd": 1,
+    "reverse": false,
+    "jitter": 0,
+    "attack": 0.05,
+    "release": 0.8
+   },
+   "M": {
+    "enabled": false,
+    "mix": 0.5,
+    "grainSize": 0.09,
+    "overlap": 0.05,
+    "playbackRate": 1,
+    "loopStart": 0,
+    "loopEnd": 1,
+    "reverse": false,
+    "jitter": 0,
+    "attack": 0.05,
+    "release": 0.8
+   }
+  },
+  "trackSidechains": {
+   "1": {
+    "enabled": false,
+    "source": "",
+    "amountDb": -9,
+    "attack": 0.005,
+    "release": 0.18
+   },
+   "2": {
+    "enabled": true,
+    "source": "__drums__:kick",
+    "amountDb": -8,
+    "attack": 0.005,
+    "release": 0.15
+   },
+   "3": {
+    "enabled": false,
+    "source": "",
+    "amountDb": -9,
+    "attack": 0.005,
+    "release": 0.18
+   },
+   "4": {
+    "enabled": false,
+    "source": "",
+    "amountDb": -9,
+    "attack": 0.005,
+    "release": 0.18
+   },
+   "6": {
+    "enabled": true,
+    "source": "__drums__:kick",
+    "amountDb": -8,
+    "attack": 0.005,
+    "release": 0.15
+   },
+   "7": {
+    "enabled": false,
+    "source": "",
+    "amountDb": -9,
+    "attack": 0.005,
+    "release": 0.18
+   },
+   "A": {
+    "enabled": true,
+    "source": "__drums__:kick",
+    "amountDb": -8,
+    "attack": 0.005,
+    "release": 0.15
+   },
+   "G": {
+    "enabled": false,
+    "source": "",
+    "amountDb": -9,
+    "attack": 0.005,
+    "release": 0.18
+   },
+   "F": {
+    "enabled": false,
+    "source": "",
+    "amountDb": -9,
+    "attack": 0.005,
+    "release": 0.18
+   },
+   "N": {
+    "enabled": true,
+    "source": "__drums__:kick",
+    "amountDb": -8,
+    "attack": 0.005,
+    "release": 0.15
+   },
+   "W": {
+    "enabled": false,
+    "source": "",
+    "amountDb": -9,
+    "attack": 0.005,
+    "release": 0.18
+   },
+   "D": {
+    "enabled": false,
+    "source": "",
+    "amountDb": -9,
+    "attack": 0.005,
+    "release": 0.18
+   },
+   "C": {
+    "enabled": true,
+    "source": "__drums__:kick",
+    "amountDb": -8,
+    "attack": 0.005,
+    "release": 0.15
+   },
+   "FX": {
+    "enabled": false,
+    "source": "",
+    "amountDb": -9,
+    "attack": 0.005,
+    "release": 0.18
+   },
+   "B": {
+    "enabled": false,
+    "source": "",
+    "amountDb": -9,
+    "attack": 0.005,
+    "release": 0.18
+   },
+   "Q": {
+    "enabled": false,
+    "source": "",
+    "amountDb": -9,
+    "attack": 0.005,
+    "release": 0.18
+   },
+   "E": {
+    "enabled": true,
+    "source": "__drums__:kick",
+    "amountDb": -8,
+    "attack": 0.005,
+    "release": 0.15
+   },
+   "J": {
+    "enabled": false,
+    "source": "",
+    "amountDb": -9,
+    "attack": 0.005,
+    "release": 0.18
+   },
+   "6X": {
+    "enabled": false,
+    "source": "",
+    "amountDb": -9,
+    "attack": 0.005,
+    "release": 0.18
+   },
+   "L": {
+    "enabled": true,
+    "source": "__drums__:kick",
+    "amountDb": -8,
+    "attack": 0.005,
+    "release": 0.15
+   },
+   "Z": {
+    "enabled": false,
+    "source": "",
+    "amountDb": -9,
+    "attack": 0.005,
+    "release": 0.18
+   },
+   "7X": {
+    "enabled": true,
+    "source": "__drums__:kick",
+    "amountDb": -8,
+    "attack": 0.005,
+    "release": 0.15
+   },
+   "R": {
+    "enabled": false,
+    "source": "",
+    "amountDb": -9,
+    "attack": 0.005,
+    "release": 0.18
+   },
+   "M": {
+    "enabled": false,
+    "source": "",
+    "amountDb": -9,
+    "attack": 0.005,
+    "release": 0.18
+   }
+  },
+  "trackSpeeds": {
+   "1": 0.25,
+   "2": 0.5,
+   "3": 0.5,
+   "4": 0.25,
+   "6": 0.5,
+   "7": 0.5,
+   "A": 0.5,
+   "G": 0.25,
+   "F": 0.5,
+   "N": 0.5,
+   "W": 0.5,
+   "D": 0.25,
+   "C": 0.5,
+   "FX": 0.5,
+   "B": 0.5,
+   "Q": 0.25,
+   "E": 0.5,
+   "J": 0.5,
+   "6X": 0.25,
+   "L": 0.5,
+   "Z": 0.25,
+   "7X": 0.5,
+   "R": 0.5,
+   "M": 0.25
+  },
+  "trackDroneModes": {
+   "1": false,
+   "2": false,
+   "3": false,
+   "4": false,
+   "6": false,
+   "7": false,
+   "A": false,
+   "G": false,
+   "F": false,
+   "N": false,
+   "W": false,
+   "D": false,
+   "C": false,
+   "FX": false,
+   "B": false,
+   "Q": false,
+   "E": false,
+   "J": false,
+   "6X": false,
+   "L": false,
+   "Z": false,
+   "7X": false,
+   "R": false,
+   "M": false
+  },
+  "trackDroneRoots": {},
+  "trackLoopRegions": {
+   "1": {
+    "startCell": 0,
+    "endCell": 64
+   },
+   "2": {
+    "startCell": 0,
+    "endCell": 64
+   },
+   "3": {
+    "startCell": 0,
+    "endCell": 64
+   },
+   "4": {
+    "startCell": 0,
+    "endCell": 64
+   },
+   "6": {
+    "startCell": 0,
+    "endCell": 64
+   },
+   "7": {
+    "startCell": 0,
+    "endCell": 64
+   },
+   "A": {
+    "startCell": 0,
+    "endCell": 64
+   },
+   "G": {
+    "startCell": 0,
+    "endCell": 64
+   },
+   "F": {
+    "startCell": 0,
+    "endCell": 64
+   },
+   "N": {
+    "startCell": 0,
+    "endCell": 64
+   },
+   "W": {
+    "startCell": 0,
+    "endCell": 64
+   },
+   "D": {
+    "startCell": 0,
+    "endCell": 64
+   },
+   "C": {
+    "startCell": 0,
+    "endCell": 64
+   },
+   "FX": {
+    "startCell": 0,
+    "endCell": 64
+   },
+   "B": {
+    "startCell": 0,
+    "endCell": 64
+   },
+   "Q": {
+    "startCell": 0,
+    "endCell": 64
+   },
+   "E": {
+    "startCell": 0,
+    "endCell": 64
+   },
+   "J": {
+    "startCell": 0,
+    "endCell": 64
+   },
+   "6X": {
+    "startCell": 0,
+    "endCell": 64
+   },
+   "L": {
+    "startCell": 0,
+    "endCell": 64
+   },
+   "Z": {
+    "startCell": 0,
+    "endCell": 64
+   },
+   "7X": {
+    "startCell": 0,
+    "endCell": 64
+   },
+   "R": {
+    "startCell": 0,
+    "endCell": 64
+   },
+   "M": {
+    "startCell": 0,
+    "endCell": 64
+   }
+  },
+  "trackGridResolutions": {
+   "1": "4n",
+   "2": "4n",
+   "3": "8n",
+   "4": "4n",
+   "6": "4n",
+   "7": "8n",
+   "A": "4n",
+   "G": "4n",
+   "F": "8n",
+   "N": "4n",
+   "W": "8n",
+   "D": "4n",
+   "C": "4n",
+   "FX": "8n",
+   "B": "8n",
+   "Q": "4n",
+   "E": "4n",
+   "J": "8n",
+   "6X": "4n",
+   "L": "4n",
+   "Z": "4n",
+   "7X": "4n",
+   "R": "8n",
+   "M": "4n"
+  },
+  "trackPitchVariety": {
+   "1": {
+    "contour": "arch",
+    "variety": 0.08
+   },
+   "2": {
+    "contour": "randomWalk",
+    "variety": 0
+   },
+   "3": {
+    "contour": "randomWalk",
+    "variety": 0.12
+   },
+   "4": {
+    "contour": "arch",
+    "variety": 0.08
+   },
+   "6": {
+    "contour": "randomWalk",
+    "variety": 0
+   },
+   "7": {
+    "contour": "randomWalk",
+    "variety": 0.12
+   },
+   "A": {
+    "contour": "randomWalk",
+    "variety": 0
+   },
+   "G": {
+    "contour": "arch",
+    "variety": 0.08
+   },
+   "F": {
+    "contour": "randomWalk",
+    "variety": 0.12
+   },
+   "N": {
+    "contour": "randomWalk",
+    "variety": 0
+   },
+   "W": {
+    "contour": "randomWalk",
+    "variety": 0.12
+   },
+   "D": {
+    "contour": "arch",
+    "variety": 0.08
+   },
+   "C": {
+    "contour": "randomWalk",
+    "variety": 0
+   },
+   "FX": {
+    "contour": "randomWalk",
+    "variety": 0.12
+   },
+   "B": {
+    "contour": "randomWalk",
+    "variety": 0.12
+   },
+   "Q": {
+    "contour": "arch",
+    "variety": 0.08
+   },
+   "E": {
+    "contour": "randomWalk",
+    "variety": 0
+   },
+   "J": {
+    "contour": "randomWalk",
+    "variety": 0.12
+   },
+   "6X": {
+    "contour": "arch",
+    "variety": 0.08
+   },
+   "L": {
+    "contour": "randomWalk",
+    "variety": 0
+   },
+   "Z": {
+    "contour": "arch",
+    "variety": 0.08
+   },
+   "7X": {
+    "contour": "randomWalk",
+    "variety": 0
+   },
+   "R": {
+    "contour": "randomWalk",
+    "variety": 0.12
+   },
+   "M": {
+    "contour": "arch",
+    "variety": 0.08
+   }
+  },
+  "trackStopVelocities": {},
+  "trackNoteChances": {},
+  "trackStopChances": {},
+  "trackLoopPatterns": {
+   "1": {
+    "play": 1,
+    "rest": 1,
+    "offset": 1
+   },
+   "4": {
+    "play": 1,
+    "rest": 1,
+    "offset": 1
+   },
+   "G": {
+    "play": 1,
+    "rest": 1,
+    "offset": 1
+   },
+   "D": {
+    "play": 1,
+    "rest": 1,
+    "offset": 1
+   },
+   "Q": {
+    "play": 1,
+    "rest": 1,
+    "offset": 1
+   },
+   "6X": {
+    "play": 1,
+    "rest": 1,
+    "offset": 1
+   },
+   "Z": {
+    "play": 1,
+    "rest": 1,
+    "offset": 1
+   },
+   "M": {
+    "play": 1,
+    "rest": 1,
+    "offset": 1
+   }
+  },
+  "trackNoteLengths": {
+   "1": "1n",
+   "2": "8n",
+   "3": "8n",
+   "4": "1n",
+   "6": "8n",
+   "7": "8n",
+   "A": "8n",
+   "G": "1n",
+   "F": "8n",
+   "N": "8n",
+   "W": "8n",
+   "D": "1n",
+   "C": "8n",
+   "FX": "8n",
+   "B": "8n",
+   "Q": "1n",
+   "E": "8n",
+   "J": "8n",
+   "6X": "1n",
+   "L": "8n",
+   "Z": "1n",
+   "7X": "8n",
+   "R": "8n",
+   "M": "1n"
+  },
+  "trackStopNoteLengths": {},
+  "trackStopVelocityMaps": {},
+  "trackPitchOffsets": {},
+  "trackLabels": {
+   "3": {
+    "text": "Lead",
+    "color": "#e5534b"
+   },
+   "A": {
+    "text": "Bass",
+    "color": "#6c7fd8"
+   },
+   "G": {
+    "text": "Pad",
+    "color": "#5ab0e6"
+   }
+  },
+  "activeFxTracks": [
+   "reverb",
+   "delay",
+   "chorus",
+   "distortion"
+  ],
+  "fxBusWet": {
+   "reverb": 1,
+   "jcreverb": 1,
+   "delay": 1,
+   "pingpong": 1,
+   "chorus": 1,
+   "phaser": 1,
+   "tremolo": 1,
+   "vibrato": 1,
+   "autofilter": 1,
+   "autopanner": 1,
+   "wah": 1,
+   "distortion": 1,
+   "bitcrusher": 1,
+   "widener": 1
+  },
+  "fxBusMuted": {},
+  "fxBusSoloed": {},
+  "fxBusParams": {
+   "reverb": {
+    "irType": "synthetic",
+    "decay": 1.5
+   }
+  },
+  "sendMatrix": {
+   "3:reverb": 0.17,
+   "G:reverb": 0.22
+  },
+  "automationCfg": {},
+  "duplicates": [],
+  "merges": [],
+  "drumPattern": {
+   "patterns": {
+    "kick": [
+     1,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0.4,
+     0,
+     0,
+     1,
+     0,
+     0,
+     0,
+     0,
+     0,
+     1,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0.4,
+     0,
+     0,
+     1,
+     0,
+     0,
+     0,
+     0,
+     0,
+     1,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0.4,
+     0,
+     0,
+     1,
+     0,
+     0,
+     0,
+     0,
+     0,
+     1,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0.4,
+     0,
+     0,
+     1,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "snare": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "hat": [
+     0,
+     0,
+     0.4,
+     0,
+     0,
+     0,
+     0.7,
+     0,
+     0,
+     0,
+     0.4,
+     0,
+     0,
+     0,
+     0.7,
+     0,
+     0,
+     0,
+     0.4,
+     0,
+     0,
+     0,
+     0.7,
+     0,
+     0,
+     0,
+     0.4,
+     0,
+     0,
+     0,
+     0.7,
+     0,
+     0,
+     0,
+     0.4,
+     0,
+     0,
+     0,
+     0.7,
+     0,
+     0,
+     0,
+     0.4,
+     0,
+     0,
+     0,
+     0.7,
+     0,
+     0,
+     0,
+     0.4,
+     0,
+     0,
+     0,
+     0.7,
+     0,
+     0,
+     0,
+     0.4,
+     0,
+     0,
+     0,
+     0.7,
+     0
+    ],
+    "rim": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "ride": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "clap": [
+     0,
+     0,
+     0,
+     0,
+     0.7,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0.7,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0.7,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0.7,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0.7,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0.7,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0.7,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0.7,
+     0,
+     0,
+     0
+    ]
+   },
+   "offsets": {
+    "kick": 0,
+    "snare": 0,
+    "hat": 0,
+    "rim": 0,
+    "ride": 0,
+    "clap": 0
+   },
+   "muted": {
+    "kick": false,
+    "snare": false,
+    "hat": false,
+    "rim": false,
+    "ride": false,
+    "clap": false
+   },
+   "bpm": 92
+  },
+  "drumsMuted": false
+ }
+}

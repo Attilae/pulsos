@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useContext, useEffect, useState, useCallback } from 'react'
 import { CITIES, DEFAULT_CITY_ID, getCityEntry } from './cities.js'
 
 const STORAGE_KEY = 'leid.cityId'
@@ -10,6 +10,8 @@ const CityContext = createContext(null)
 export function CityProvider({ children }) {
   const [cityId, setCityIdState] = useState(DEFAULT_CITY_ID)
 
+  const [cityPreset, setCityPreset] = useState(null)
+
   // Restore the last selection on mount (client-only; avoids SSR mismatch).
   useEffect(() => {
     try {
@@ -18,13 +20,15 @@ export function CityProvider({ children }) {
     } catch {}
   }, [])
 
-  const setCityId = (id) => {
+  const setCityId = useCallback((id, preset = null) => {
+    setCityPreset(preset)
     setCityIdState(id)
     try { localStorage.setItem(STORAGE_KEY, id) } catch {}
-  }
+  }, [])
 
   const value = {
     cityId,
+    cityPreset,
     setCityId,
     cityEntry: getCityEntry(cityId),
     cities: CITIES,

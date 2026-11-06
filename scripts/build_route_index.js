@@ -16,7 +16,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
 
-const CITIES = ['budapest', 'helsinki', 'berlin', 'prague', 'newyork', 'zurich', 'warsaw']
+const CITIES = ['budapest', 'helsinki', 'berlin', 'prague', 'newyork', 'zurich', 'warsaw', 'vienna']
 
 function arg(name, fallback = null) {
   const i = process.argv.indexOf(`--${name}`)

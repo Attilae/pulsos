@@ -185,6 +185,10 @@
    passive readout the phone layout already omits; the header row wraps. */
 @media (min-width: 768px) and (max-width: 1023px) {
   .daw { grid-template-columns: 1fr; grid-template-areas: "header" "tracks" "footer"; }
+  /* The rule above outranks app.css's .daw--map (same specificity, later file),
+     which dropped the "map" area: the map fell into an implicit 0x0 cell at
+     the grid's far corner and the map view rendered blank. */
+  .daw.daw--map { grid-template-areas: "header" "map" "footer"; }
   .daw > .daw-body > .event-log,
   .daw .event-log { display: none; }
   .lt-top { flex-wrap: wrap; row-gap: var(--space-075); }

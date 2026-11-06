@@ -5,9 +5,30 @@ city-agnostic — GTFS and GTFS-RT are global standards. This document explains 
 differ between agencies, which cities are cheap to add, how the route-type mapping generalizes,
 and the per-city **config abstraction** the codebase now uses.
 
-> TL;DR for adding a city: write one descriptor under `feed/cities/<id>.js`, run
-> `npm run preprocess -- --city <id> --gtfs data/<id>_gtfs`, set `CITY=<id>` for the feed service,
-> and point `NEXT_PUBLIC_LINES_URL` at the generated `lines.<id>.json`. No engine code changes.
+For current expansion work, see the [city implementation plans](city-expansion/README.md).
+Vienna is the eighth registered city; the other researched additions remain planned.
+
+To add a city, register its feed descriptor, browser full/slim URLs, route-index loader and city
+facts. Run `npm run preprocess:<id>`, `npm run slim:lines -- --city <id>` and
+`npm run index:routes -- --city <id>`. The browser uses `NEXT_PUBLIC_LINES_URL_<CITY>` and
+`NEXT_PUBLIC_LINES_URL_<CITY>_SLIM`, falling back to the committed payloads. Keep Live disabled
+until its separate integration is verified. The complete file checklist is in the plan index.
+
+### Vienna (Wiener Linien / WLB)
+
+Official static source: [Wiener Linien GTFS](https://www.wienerlinien.at/ogd_realtime/doku/ogd/gtfs/gtfs.zip),
+CC BY 4.0. This covers metro, tram and bus, including Badner Bahn as a tram in the source.
+It does not include the entire VOR or ÖBB rail network. Realtime `feeds` is empty.
+
+The source encodes timetable variants as separate routes. Vienna opts into `groupRouteVariants`:
+logical IDs use city, agency, source mode and public short name. All variant trips count toward
+one logical line for demand and transfer centrality. A canonical shape is selected per direction
+by summed calendar-weighted scheduled runs, with frequency expansion and deterministic ties.
+Zero-weight services and missing shapes cannot win. Stops and descriptions come from the chosen
+pattern. This represents the feed's full service period, including seasonal and replacement lines;
+it does not claim to show only services running today. Other cities retain their existing selection.
+
+See [Vienna's implementation and validation record](city-expansion/vienna.md).
 
 ## How GTFS-RT feeds differ per agency
 
