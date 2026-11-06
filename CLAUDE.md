@@ -132,7 +132,8 @@ that throws on any Tone/React/`.jsx` import, plus `lib/server/routeIndex.js`), `
 analytics/AI-telemetry modules under mocked SDKs: no prompt/response content is sent),
 `map-playhead` (`lib/mapPlayhead.js`), `map-visual-policy` (`lib/mapVisualPolicy.js` route
 styling, Fit framing and overlay padding, plus `lib/mapBasemapStyle.js`), `map-lanes`
-(`lib/mapLanes.js`: lane → line resolution, focus rules, stop-marker sampling), `auth-form-validation` (`lib/authFormValidation.js`),
+(`lib/mapLanes.js`: lane → line resolution, focus rules, stop-marker sampling), `map-motion`
+(`lib/mapMotion.js`: ring timing/caps, attack coalescing, ring slots, reduced-motion rules), `auth-form-validation` (`lib/authFormValidation.js`),
 `reference-track` (`lib/referenceTrack.js`: bar guess, Match BPM, drift, snapshot sanitising) and
 `aiff` (`lib/aiff.js`),
 `poly-voice` and `lane-pitch` (described in their sections below). There is **no linter
@@ -1186,6 +1187,20 @@ canvas would swallow taps in a higher pane, it's raised with `bringToFront` inst
 card offers Fit route, Clear focus and the ordered stop list. There are **no passive stop markers**:
 only the focused lane's stops, at zoom ≥13, viewport-filtered on `moveend` and capped at 80/24
 (`visibleStopMarkers`). Focus clears on a city/song change or lane removal, not on disable.
+
+**Map motion is bounded and follows the music** (`lib/mapMotion.js`, pure). Note rings are a fixed
+pool of 8 markers (4 on phones) created per activation: each flush of note events is coalesced to
+one ring per lane+stop at the loudest velocity, waits the scheduler lookahead, is dropped if it
+lands >220 ms late, and restarts a Web Animation (220 ms, 12→28 px, 0.65→0) on the slot's inner
+node; at capacity the oldest ring is replaced. Drum and merged-chord events carry no `stopId`, so
+they never ring. There are no free-running loops (no breathing pulse, static automation dashes).
+**Reduce motion** = OS `prefers-reduced-motion` **or** the map's own toggle
+(`lib/shared/motionPreference.js`, localStorage `leid-reduce-motion`; it can't undo the OS
+setting): no heads, trails, rings or camera animation, just a static marker per audible line at the
+stop it last played, updated at most twice a second (`CurrentStops`). Heads, rings and current
+stops all stop while stopped, while the map is hidden and while the tab is hidden (no ticker
+subscriber, timers or layers). `window.leidMapFx.stats()` reports live rings, layers, pending
+timers, heads and ticker subscribers; `validation/motion-check.cjs` in the map plan uses it.
 
 ### Legal & SEO
 

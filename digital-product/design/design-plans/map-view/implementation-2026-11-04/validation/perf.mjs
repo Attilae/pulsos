@@ -4,7 +4,7 @@
 //   npm run build && npx next start --port 3012     # dev server stopped first (shared .next)
 //   NODE_PATH=<dir>/node_modules node perf.mjs --url http://localhost:3012/ \
 //     [--fixtures berlin-6,berlin-24,newyork-6,newyork-24] [--runs 3] [--warmup 20] [--secs 60]
-//     [--viewport desktop|phone] [--cpu 1] [--trace 1] [--out perf]
+//     [--viewport desktop|phone] [--cpu 1] [--trace 1] [--out perf] [--css '<rules>'] [--storage k=v]
 //
 // Each run opens a fresh headed Chrome window (a real GPU and vsync, unlike headless),
 // loads the fixture through "Load city preset", shows the map, presses Play, waits
@@ -39,6 +39,10 @@ const opt = {
   cpu: Number(args.cpu ?? 1),
   trace: args.trace === '1' || args.trace === 'true',
   out: path.resolve(here, args.out ?? 'perf'),
+  // Extra CSS injected after load, for A/B experiments on one build (--css '<rules>').
+  css: args.css ?? null,
+  // localStorage entries set before load (--storage key=value[,key=value]), e.g. leid-reduce-motion=1.
+  storage: args.storage ? Object.fromEntries(args.storage.split(',').map(kv => kv.split('='))) : null,
 }
 const VIEWPORTS = {
   desktop: { viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2 },
@@ -61,7 +65,9 @@ async function loadFixture(page, fixture) {
     localStorage.setItem('leid-theme', 'dark')
     localStorage.setItem('leid.cityId', c)
   }, [city === 'berlin' ? 'budapest' : 'berlin'])
+  if (opt.storage) await page.addInitScript(e => { for (const [k, v] of Object.entries(e)) localStorage.setItem(k, v) }, opt.storage)
   step = 'goto'; await page.goto(opt.url)
+  if (opt.css) await page.addStyleTag({ content: opt.css })
   // Wait for the picker to render; only the phone layout hides it behind a menu.
   // (Checking count() straight after goto raced hydration and opened the header drawer.)
   if (opt.viewport === 'phone') {
@@ -170,6 +176,8 @@ async function measure(browser, ctx, page, fixture, i) {
     bench,
     leidPerf: leid,
     trace: traceFile && path.relative(here, traceFile),
+    css: opt.css,
+    storage: opt.storage,
   }
 }
 

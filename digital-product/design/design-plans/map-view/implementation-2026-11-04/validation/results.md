@@ -2,7 +2,7 @@
 
 5 November 2026 · code at `7ec8c80` (feature/map-exploring fast-forwarded to the plan's baseline) · no product code changed.
 
-Status: **Phase 0 baseline done; Phase 1 and Phase 2 results added at the end.** Remaining gaps are listed under "Not yet done" and in the Phase 1 section.
+Status: **Phase 0 baseline done; Phase 1, 2 and 3 results added at the end.** Remaining gaps are listed under "Not yet done" and in the Phase 1 section.
 
 ## Environment
 
@@ -201,3 +201,54 @@ What this says:
 - Real touch hardware.
 - No sounding-stop highlight (optional in the plan; not built).
 - Performance not re-measured for this phase. The map draws fewer layers than before (passive metro stop markers removed; focus adds at most 80 markers), so no regression is expected; phase 3 re-measures.
+
+## Phase 3 results
+
+6 November 2026 · candidate = working tree on top of `166fe3e`. Bounded musical motion and reduced-motion fallback.
+
+### What changed
+
+- **Note rings** replace the 1.1 s glowing ripples: 220 ms, 12→28 px, opacity 0.65→0 (scaled a little by velocity), scale eased `cubic-bezier(0.22, 1, 0.36, 1)`, opacity linear. A fixed pool of 8 markers (4 on phones) per activation; each attack moves a slot and restarts a Web Animation on its inner node. One ring per lane+stop per flush at the loudest velocity; at capacity the oldest is replaced. Flushes that land more than 220 ms late are dropped. Drum and merged-chord events have no `stopId` and never ring; locations are never guessed from names. Duplicate lanes ring on their source line through the lane model (no id parsing).
+- **No free-running loops:** the playhead pulse ring and dot glow are gone, automation lines are static dashes.
+- **Reduce motion:** the OS setting or a map toggle (`lib/shared/motionPreference.js`, per device, can't undo the OS). Reduced: no heads, trails, rings or camera animation; a static marker per audible line at its last-played stop, changing at most twice a second. Focus card enters in 160 ms and exits in 100 ms (instant when reduced). Fit route, Fit mix and Show stop animate 250 ms (instant when reduced).
+- **Lifecycle:** heads, rings and current stops run only while playing, on the map and in a visible tab. Stopping, leaving the map or hiding the tab removes the ticker subscriber, pending timers and every layer; returning draws the current phase, never past attacks.
+- Pure policy in `lib/mapMotion.js` (`test/map-motion.test.js`, 6 tests); `window.leidMapFx.stats()` reports live rings, layers, timers, heads and ticker subscribers.
+
+### Motion gate
+
+`motion-check.cjs` against `next dev` (berlin-6, 1440×900): **20/20 checks pass**.
+- Stopped: no heads, ring layers, timers, current stops or ticker subscribers.
+- Playing: rings never exceed 8 (pool layers and DOM nodes), each ring animation is 220 ms, checked at 10% animation speed via DevTools' Animation domain; no infinite animations on the map.
+- Reduce motion switched on while playing: heads, trails and rings removed, the ticker subscriber released, current-stop markers shown and changing ≤ 2/s (7 update batches in 4 s); switched off: heads back, markers cleared.
+- OS `prefers-reduced-motion` changed while playing: applies live, the toggle shows pressed and disabled; back to no-preference restores motion.
+- Hidden tab: no subscriber, timers or layers; on return no historical ring is drawn and heads resume at the current phase.
+- Dense attacks (240 BPM): rings ≤ 8, pending timers ≤ 1.
+- Ten rapid stop/start cycles: one head per line, one ticker subscriber; stopping again clears everything.
+- Focus card: `map-focus-in` 160 ms, leaving state for 100 ms, then unmounted. No page errors.
+
+The phase 2 `focus-check.cjs` still passes (it caught a render loop in the first version of the card's exit animation, now fixed).
+
+### Performance (desktop, matched A/B against phase 2)
+
+Phase 2 (`166fe3e`) and phase 3 production builds side by side, alternating, one 60 s run each after 20 s warmup. This session's display ran rAF faster than the phase 1 session, so frame p95 here is ~9–10 ms for both builds. Raw data: `perf-phase3/`.
+
+| Workload | Frame p95 phase 2 → 3 (ms) | Audio capacity mean phase 2 → 3 (%) | Dropouts / late notes |
+| --- | --- | --- | --- |
+| berlin-6 | 9.2 / 10.0 → 9.2 / 10.0 | 17.6 / 19.1 → 19.3 / 20.3 | 0 / 0 both |
+| newyork-6 | 9.2 / 10.0 → 9.2 / 9.9 | 18.5 / 18.0 → 20.8 / 20.6 | 0 / 0 both |
+| berlin-24 | 10 / 10 → 10 / 10 | 21.5 / 21.7 → 22.6 / 22.4 | 0 / 0 both |
+| newyork-24 | 10 / 9.9 → 10 / 10 | 20.3 / 19.9 → 21.7 / 22.0 | 0 / 0 both |
+
+**Audio render capacity is 0.7–2.6 points higher on phase 3 in all 8 pairs** (frames, long frames, dropouts and late notes unchanged). Follow-up experiments on the 6-lane fixtures, same session, alternating (`perf-phase3/exp-*.jsonl`):
+- Without `will-change` on the ring pool: same as phase 3. Not the pool's layers.
+- Ring pane hidden (`display:none`): same as phase 3. Not ring drawing.
+- Heads, trails hidden in *both* builds: phase 3 still +0.9–2.2. Not drawing heads.
+- Phase 3 with reduced motion (no heads/rings JS): at or below phase 2 in 3 of 4 runs.
+- **4× CPU throttling** (`--cpu 4`, 6 pairs): audio capacity equal (phase 3 −0.4 to +0.9, mean ≈ 0); one phase 3 New York run had 2 late ticks (15 ms max) and 4 long frames, and three repeats of that pair were clean; no dropouts.
+
+Reading: the gap tracks the full-motion JavaScript, not drawing, and it disappears when the main thread is throttled, which points at CPU scheduling/frequency on this machine rather than real audio-thread cost. Phase 2 also drifted from ~15% to ~21% over the hour (warming machine), and the only dropouts in these sessions (26–884 ms) were on phase 2 or the rings-hidden variant, never on phase 3.
+
+**Phase 3 gate** (effect caps and lifecycle correct; no repeatable audio regression): **met.** Caps, lifecycle and reduced motion are verified by `motion-check.cjs`; no repeatable increase in dropouts or late notes in 32 matched or experimental phase 3 runs. Open:
+- The small unthrottled render-capacity rise is unexplained beyond the bisect above; recheck on a slower machine.
+- Phone cap (4 rings) is a constant passed by the phone branch; not exercised by the gate script, which runs desktop only.
+- Screen reader and real-device checks, as in phases 1–2.

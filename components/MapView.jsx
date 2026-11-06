@@ -1,5 +1,5 @@
 import * as Tone from 'tone'
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { MapContainer, Polyline, CircleMarker, Tooltip, LayersControl, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import { maplibreGL } from '@maplibre/maplibre-gl-leaflet'
@@ -21,12 +21,16 @@ import {
 } from '@/lib/mapLanes.js'
 import { subscribeEvents, getEvents } from '@/lib/shared/eventLogStore.js'
 import Sheet from '@/components/Sheet.jsx'
-import { IconAdd, IconMinus, IconFit, IconCaretDown, IconCaretRight, IconWarning } from '@/components/icons.jsx'
+import { IconAdd, IconMinus, IconFit, IconCaretDown, IconCaretRight, IconWarning, IconMotion } from '@/components/icons.jsx'
 
 // MapLibre 6 can't find its worker inside a webpack chunk; it is served from
 // public/vendor by scripts/copy_maplibre_worker.js (prebuild/predev).
 setWorkerUrl(`/vendor/maplibre-gl-worker-${getVersion()}.mjs`)
-import { subscribePlayhead } from '@/lib/shared/playheadTicker.js'
+import { subscribePlayhead, playheadSubscriberCount } from '@/lib/shared/playheadTicker.js'
+import { useMotionPreference } from '@/lib/shared/motionPreference.js'
+import {
+  RING, RING_CAP, RING_MAX_LATE_MS, FIT_DURATION_S, ringOpacity, coalesceAttacks, RingSlots, nextFlushDelay,
+} from '@/lib/mapMotion.js'
 import { useCitySelection } from '@/lib/shared/CityContext.jsx'
 import { useDetailPolylines } from '@/lib/shared/useDetailPolylines.js'
 import './MapView.css'
@@ -274,6 +278,7 @@ function MapFraming({ cityId, cityBounds, routes, activeIds, active, fitRef, get
       ...getPadding(),
       maxZoom: FIT_MAX_ZOOM,
       animate,
+      duration: FIT_DURATION_S,
     })
   }, [map, getPadding])
   useEffect(() => { fitRef.current = fit }, [fit, fitRef])
@@ -290,8 +295,27 @@ function MapFraming({ cityId, cityBounds, routes, activeIds, active, fitRef, get
   return null
 }
 
-const prefersReducedMotion = () =>
-  typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+// Is the tab visible? Dynamic map work (ticker, rings, timers) only runs while it is.
+const subscribeVisibility = fn => { document.addEventListener('visibilitychange', fn); return () => document.removeEventListener('visibilitychange', fn) }
+const useDocumentVisible = () => useSyncExternalStore(subscribeVisibility, () => !document.hidden, () => true)
+
+// Keeps a closing overlay mounted for its exit animation. → { shown, leaving }:
+// `shown` is the live value, or the last one while it fades out. Keyed on
+// open/closed only, so a value rebuilt every render doesn't retrigger it.
+function usePresence(value, exitMs) {
+  const lastRef = useRef(null)
+  if (value) lastRef.current = value
+  const open = !!value
+  const [exiting, setExiting] = useState(null)
+  useEffect(() => {
+    if (!open && !exitMs) lastRef.current = null   // closed instantly: nothing to fade later
+    if (open || !exitMs || !lastRef.current) { setExiting(null); return undefined }
+    setExiting(lastRef.current)
+    const t = setTimeout(() => { lastRef.current = null; setExiting(null) }, exitMs)
+    return () => clearTimeout(t)
+  }, [open, exitMs])
+  return value ? { shown: value, leaving: false } : { shown: exiting, leaving: !!exiting }
+}
 
 // ── Lane list ─────────────────────────────────────────────────────────────
 // The map's legend: every DAW lane (base, duplicate, merged) with its on/off,
@@ -418,7 +442,7 @@ function LanePanel({ isPhone, isTablet, lanes, disabled, soloRoutes, trackLabels
 // What the focused lane is, as text (so selection is never colour-only), plus
 // Fit route / Clear focus and the ordered stop list. Event-driven: nothing
 // here updates per frame or per note.
-function FocusDetails({ lane, summary, shared, stops, routesById, hasGeometry, selectedStop, stopVisible, onSelectStop, onShowStop, onFit, onClear, compact = false }) {
+function FocusDetails({ lane, summary, shared, stops, routesById, hasGeometry, selectedStop, stopVisible, onSelectStop, onShowStop, onFit, onClear, compact = false, leaving = false }) {
   const [stopsOpen, setStopsOpen] = useState(false)
   useEffect(() => { setStopsOpen(false) }, [lane.id])
   const { tag, state } = summary
@@ -440,7 +464,7 @@ function FocusDetails({ lane, summary, shared, stops, routesById, hasGeometry, s
     </div>
   )
   return (
-    <section className={`map-focus${compact ? ' map-focus--compact' : ''}`} aria-label={`Focused lane: ${lane.name}`}>
+    <section className={`map-focus${compact ? ' map-focus--compact' : ''}${leaving ? ' map-focus--leaving' : ''}`} aria-label={`Focused lane: ${lane.name}`} inert={leaving || undefined}>
       {head}
       {!hasGeometry && <p className="map-focus-note">No map geometry. The lane still plays.</p>}
       {!compact && lane.kind === 'duplicate' && <p className="map-focus-note">Copy of {routesById.get(lane.geometryIds[0])?.name ?? 'its source line'}, drawn on the same line.</p>}
@@ -572,6 +596,11 @@ function MapView({
   const isPhone = useIsPhone()
   const isTablet = useIsTablet()
   const { theme } = useTheme()
+  // Motion: OS "reduce" or the map's own opt-in. Dynamic work also stops
+  // whenever the tab is hidden.
+  const { reduced, osReduced, userReduced, setUserReduced } = useMotionPreference()
+  const visible = useDocumentVisible()
+  const motionOn = active && started && visible
   // Routes arrive slim (thinned polylines, same stops); the desktop map swaps in
   // the full-resolution lines once they've loaded. Phones stay on slim.
   const { cityEntry } = useCitySelection()
@@ -702,13 +731,13 @@ function MapView({
     const map = mapRef.current
     const b = boundsFromRoutes((focused?.geometryIds ?? []).map(id => routesById.get(id)).filter(Boolean))
     if (!map || !b) return
-    map.fitBounds([[b.latMin, b.lngMin], [b.latMax, b.lngMax]], { ...getPadding(), maxZoom: FIT_MAX_ZOOM, animate: !prefersReducedMotion() })
-  }, [focused, routesById, getPadding])
+    map.fitBounds([[b.latMin, b.lngMin], [b.latMax, b.lngMax]], { ...getPadding(), maxZoom: FIT_MAX_ZOOM, animate: !reduced, duration: FIT_DURATION_S })
+  }, [focused, routesById, getPadding, reduced])
   const showStop = useCallback(() => {
     const map = mapRef.current
     if (!map || !selectedStop) return
-    map.setView([selectedStop.lat, selectedStop.lon], Math.max(map.getZoom(), STOP_DETAIL_MIN_ZOOM + 1), { animate: !prefersReducedMotion() })
-  }, [selectedStop])
+    map.setView([selectedStop.lat, selectedStop.lon], Math.max(map.getZoom(), STOP_DETAIL_MIN_ZOOM + 1), { animate: !reduced, duration: FIT_DURATION_S })
+  }, [selectedStop, reduced])
 
   // The static polyline layer. Memoized on its only real inputs so a re-render
   // (live snapshots, mixer state) returns the same element references and
@@ -831,6 +860,12 @@ function MapView({
     onClear: clearFocus,
   }
 
+  // The details card fades in (160ms) and out (100ms); reduced motion: instant.
+  const { shown: shownFocus, leaving: focusLeaving } = usePresence(focusProps || null, reduced ? 0 : 100)
+  const focusCard = shownFocus && (
+    <FocusDetails {...shownFocus} compact={isPhone} leaving={focusLeaving} />
+  )
+
   const panel = routes && lanes.length > 0 && (
     <LanePanel
       isPhone={isPhone}
@@ -850,13 +885,13 @@ function MapView({
   )
 
   return (
-    <div ref={wrapperRef} className={`map-wrapper${className ? ` ${className}` : ''}`} data-basemap={basemap}>
+    <div ref={wrapperRef} className={`map-wrapper${className ? ` ${className}` : ''}`} data-basemap={basemap} data-motion={reduced ? 'reduced' : 'full'}>
       {!routes && <div className="map-loading" role="status">Loading routes…</div>}
 
-      {isPhone ? panel : (panel || focusProps) && (
+      {isPhone ? panel : (panel || focusCard) && (
         <div ref={leftRef} className="map-left">
           {panel}
-          {focusProps && <FocusDetails {...focusProps} />}
+          {focusCard}
         </div>
       )}
 
@@ -872,14 +907,24 @@ function MapView({
           className="map-ctl"
           aria-label="Fit mix"
           title="Fit mix: frame the lanes you can hear"
-          onClick={() => fitRef.current?.(!prefersReducedMotion())}
+          onClick={() => fitRef.current?.(!reduced)}
         ><IconFit /></button>
+        {/* Per-device opt-in on top of the OS setting, which it can't undo. */}
+        <button
+          type="button"
+          className="map-ctl map-ctl--toggle"
+          aria-pressed={reduced}
+          disabled={osReduced}
+          aria-label="Reduce motion"
+          title={osReduced ? 'Motion reduced by your system setting' : userReduced ? 'Motion reduced: show moving playheads again' : 'Reduce motion: static current stops instead of moving playheads'}
+          onClick={() => setUserReduced(!userReduced)}
+        ><IconMotion /></button>
       </div>
 
-      {(notice || basemap === 'error' || (isPhone && focusProps)) && (
+      {(notice || basemap === 'error' || (isPhone && focusCard)) && (
         <div ref={noticeRef} className="map-notices">
           {/* Phone: the focused lane's compact summary, under the Lanes button. */}
-          {isPhone && focusProps && <FocusDetails {...focusProps} compact />}
+          {isPhone && focusCard}
           {basemap === 'error' && (
             <div className="map-notice" role="status">
               <IconWarning />
@@ -943,11 +988,15 @@ function MapView({
           />
         )}
 
-        <NoteRipples routes={routes} active={active && started} />
+        {/* ── Musical motion. Full: note rings + travelling heads. Reduced:
+            static current-stop markers only. Neither runs while stopped,
+            hidden or in a background tab. ── */}
+        <NoteRings routes={routes} lanes={lanes} active={motionOn && !reduced} capacity={isPhone ? RING_CAP.phone : RING_CAP.desktop} />
+        <CurrentStops routes={routes} lanes={lanes} active={motionOn && reduced && !!routes} activeRef={activeRef} />
 
         {/* ── Mock mode: playhead dot per lane, in its own pane above the lines ── */}
         <MockPlayheads
-          enabled={active && started && mode === 'mock' && !!routes}
+          enabled={motionOn && !reduced && mode === 'mock' && !!routes}
           routes={routes}
           trailSamples={isPhone ? TRAIL_SAMPLES_PHONE : TRAIL_SAMPLES}
           activeRef={activeRef}
@@ -977,30 +1026,44 @@ function MapView({
 // so this skips the whole (expensive) map render on the note-driven re-render storm.
 export default memo(MapView)
 
-// A ripple at the stop that just played, so the map shows where the music is
-// coming from rather than only a dot sliding along each line.
-//
-// Reads the same note feed as the DAW's event log (eventLogStore), imperatively:
-// a ripple is a DOM divIcon that removes itself, so nothing here touches React
-// state per note. Notes are scheduled `lookAhead` ahead of the audio clock, so
-// each ripple waits that long to land on the beat it belongs to.
-const RIPPLE_MS       = 1100
-const MAX_RIPPLES     = 48   // concurrent; a dense arp shouldn't pile up DOM
-const MAX_RIPPLE_BURST = 12  // per flush
+// Map-motion diagnostics for the phase 3 gate (leaked layers, timers or ticker
+// subscribers show up here). Cheap getters; nothing runs unless they're read.
+const fxStats = { rings: 0, ringLayers: 0, pendingTimers: 0, heads: 0, currentStops: 0 }
+if (typeof window !== 'undefined') {
+  window.leidMapFx = { ...(window.leidMapFx ?? {}), stats: () => ({ ...fxStats, tickerSubscribers: playheadSubscriberCount() }) }
+}
 
-function NoteRipples({ routes, active }) {
+// Resolves a note event to a stop on a drawn line, through the lane model:
+// a duplicate lane's notes sit on its source line. Merged-chord and drum events
+// carry no stopId, so they never resolve (no guessed locations).
+function makeLocator(routes, lanes) {
+  const byId = new Map()
+  for (const r of routes ?? []) {
+    if (r.isDuplicate) continue
+    byId.set(r.id, { color: safeColor(r.color), stops: new Map((r.stops ?? []).map(st => [st.id, st])) })
+  }
+  const laneLine = new Map()
+  for (const l of lanes ?? []) if (l.kind !== 'merged' && l.geometryIds.length === 1) laneLine.set(l.id, l.geometryIds[0])
+  return (ev) => {
+    const r = byId.get(ev.routeId) ?? byId.get(laneLine.get(ev.routeId))
+    const stop = r?.stops.get(ev.stopId)
+    return stop ? { stop, color: r.color, lineId: byId.has(ev.routeId) ? ev.routeId : laneLine.get(ev.routeId) } : null
+  }
+}
+
+// Note rings: a short expanding ring at the stop that just played (220ms,
+// 12→28px, opacity 0.65→0). A fixed pool of Leaflet markers is created once
+// per activation and reused: each attack moves a slot and restarts a Web
+// Animation on its inner node, so Leaflet keeps the outer positioning
+// transform. At capacity the oldest ring is replaced. Notes are scheduled
+// `lookAhead` ahead of the audio clock, so a flush waits that long to land on
+// its beat; a flush that lands more than a ring's life late is dropped.
+// Inactive (stopped, hidden view, hidden tab, reduced motion) = no
+// subscription, no timers, no layers.
+function NoteRings({ routes, lanes, active, capacity }) {
   const map = useMap()
-  const lookupRef = useRef({ byId: new Map(), byName: new Map() })
-
-  useEffect(() => {
-    const byId = new Map(), byName = new Map()
-    for (const r of routes ?? []) {
-      const entry = { color: safeColor(r.color), stops: new Map((r.stops ?? []).map(st => [st.id, st])) }
-      byId.set(r.id, entry)
-      if (!r.isDuplicate) byName.set(r.name, entry)
-    }
-    lookupRef.current = { byId, byName }
-  }, [routes])
+  const locateRef = useRef(null)
+  useEffect(() => { locateRef.current = makeLocator(routes, lanes) }, [routes, lanes])
 
   useEffect(() => {
     if (!active) return undefined
@@ -1009,29 +1072,31 @@ function NoteRipples({ routes, active }) {
       pane.style.zIndex = '440'           // above lines, under the playhead pane
       pane.style.pointerEvents = 'none'
     }
-    const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
-    const live = new Set()
+    const slots = new RingSlots(capacity, RING.lifeMs)
+    const pool = []                       // { marker, inner }
     const timers = new Set()
-    const later = (fn, ms) => {
-      const t = setTimeout(() => { timers.delete(t); fn() }, ms)
-      timers.add(t)
-    }
+    const sync = () => { fxStats.pendingTimers = timers.size; fxStats.ringLayers = pool.length }
 
-    const spawn = (stop, color, velocity) => {
-      if (live.size >= MAX_RIPPLES) return
-      const scale = 0.7 + 0.6 * Math.max(0, Math.min(1, velocity ?? 1))
-      const marker = L.marker([stop.lat, stop.lon], {
-        pane: 'ripples',
-        interactive: false,
-        keyboard: false,
-        icon: L.divIcon({
-          className: 'map-ripple',
-          html: `<span style="--ripple-color:${color};--ripple-scale:${scale.toFixed(2)}"></span>`,
-          iconSize: [0, 0],
-        }),
-      }).addTo(map)
-      live.add(marker)
-      later(() => { marker.remove(); live.delete(marker) }, RIPPLE_MS)
+    const slotNode = (i) => {
+      if (!pool[i]) {
+        const marker = L.marker([0, 0], {
+          pane: 'ripples', interactive: false, keyboard: false,
+          icon: L.divIcon({ className: 'map-ring', html: '<span></span>', iconSize: [0, 0] }),
+        }).addTo(map)
+        pool[i] = { marker, inner: marker.getElement()?.firstElementChild ?? null }
+      }
+      return pool[i]
+    }
+    const play = (ring, now) => {
+      const i = slots.take(ring.key, now)
+      const { marker, inner } = slotNode(i)
+      marker.setLatLng([ring.stop.lat, ring.stop.lon])
+      if (!inner?.animate) return
+      for (const a of inner.getAnimations()) a.cancel()
+      inner.style.setProperty('--ring-color', ring.color)
+      const from = RING.fromPx / RING.toPx
+      inner.animate([{ transform: `scale(${from})` }, { transform: 'scale(1)' }], { duration: RING.lifeMs, easing: RING.easing })
+      inner.animate([{ opacity: ringOpacity(ring.velocity) }, { opacity: 0 }], { duration: RING.lifeMs, easing: 'linear' })
     }
 
     let head = getEvents()[0]
@@ -1043,26 +1108,92 @@ function NoteRipples({ routes, active }) {
         fresh.push(ev)
       }
       head = events[0]
-      if (reduced || document.hidden || !fresh.length) return
+      const rings = coalesceAttacks(fresh, ev => locateRef.current?.(ev))
+      if (!rings.length) return
       const lead = Math.max(0, (Tone.getContext().lookAhead ?? 0) * 1000)
-      const { byId, byName } = lookupRef.current
-      for (const ev of fresh.slice(0, MAX_RIPPLE_BURST)) {
-        if (ev.stopId == null) continue   // merged chord lanes have no single stop
-        const r = (ev.routeId && (byId.get(ev.routeId) ?? byId.get(ev.routeId.split('~dup~')[0])))
-          ?? byName.get(ev.routeShortName)
-        const stop = r?.stops.get(ev.stopId)
-        if (!stop || !Number.isFinite(stop.lat) || !Number.isFinite(stop.lon)) continue
-        later(() => spawn(stop, r.color, ev.velocity), lead)
-      }
+      const due = performance.now() + lead
+      const t = setTimeout(() => {
+        timers.delete(t); sync()
+        const now = performance.now()
+        if (now - due > RING_MAX_LATE_MS) return       // late: history, not music
+        for (const ring of rings.slice(-capacity)) play(ring, now)
+        fxStats.rings = slots.live(now)
+      }, lead)
+      timers.add(t); sync()
     })
 
     return () => {
       unsubscribe()
       for (const t of timers) clearTimeout(t)
-      for (const m of live) m.remove()
+      timers.clear()
+      for (const { marker } of pool) marker.remove()
+      pool.length = 0
+      slots.clear()
+      fxStats.rings = 0
+      sync()
     }
-  }, [active, map])
+  }, [active, map, capacity])
 
+  return null
+}
+
+// Reduced motion: instead of travelling heads, trails and rings, a static
+// marker per audible line at the stop it last played, changing at most twice
+// a second. Same event feed, same locator; nothing animates.
+function CurrentStops({ routes, lanes, active, activeRef }) {
+  const map = useMap()
+  const locateRef = useRef(null)
+  useEffect(() => { locateRef.current = makeLocator(routes, lanes) }, [routes, lanes])
+
+  useEffect(() => {
+    if (!active) return undefined
+    const markers = new Map()       // lineId → CircleMarker
+    const pending = new Map()       // lineId → { stop, color }
+    let lastFlush = -Infinity
+    let timer = 0
+    const flush = () => {
+      timer = 0
+      lastFlush = performance.now()
+      for (const [lineId, { stop, color }] of pending) {
+        let m = markers.get(lineId)
+        if (!m) {
+          m = L.circleMarker([stop.lat, stop.lon], { pane: 'playhead', interactive: false, radius: 6, weight: 3, color, fillColor: color, fillOpacity: 0.35 }).addTo(map)
+          markers.set(lineId, m)
+        } else m.setLatLng([stop.lat, stop.lon])
+      }
+      pending.clear()
+      for (const [lineId, m] of markers) {
+        if (!activeRef.current.has(lineId)) { m.remove(); markers.delete(lineId) }
+      }
+      fxStats.currentStops = markers.size
+    }
+    let head = getEvents()[0]
+    const unsubscribe = subscribeEvents(() => {
+      const events = getEvents()
+      const fresh = []
+      for (const ev of events) {
+        if (ev === head) break
+        fresh.push(ev)
+      }
+      head = events[0]
+      // Oldest first, so the newest stop per line wins.
+      for (let i = fresh.length - 1; i >= 0; i--) {
+        const ev = fresh[i]
+        if (ev.stopId == null || !ev.routeId) continue
+        const hit = locateRef.current?.(ev)
+        if (hit?.lineId) pending.set(hit.lineId, hit)
+      }
+      if (!pending.size || timer) return
+      timer = setTimeout(flush, nextFlushDelay(performance.now(), lastFlush))
+    })
+    return () => {
+      unsubscribe()
+      clearTimeout(timer)
+      for (const m of markers.values()) m.remove()
+      markers.clear()
+      fxStats.currentStops = 0
+    }
+  }, [active, map, activeRef])
   return null
 }
 
@@ -1074,19 +1205,18 @@ const TRAIL_SAMPLES      = 10
 const TRAIL_SAMPLES_PHONE = 5
 const PLAYHEAD_FRAME_MS  = 33   // ~30 fps
 
-// Mock-mode playheads: a dot (plus pulse ring) and a trail per active lane and
-// automation link. Drawn imperatively from the shared playhead ticker: layers
-// are created once per lane and then only moved and restyled, so nothing here
+// Mock-mode playheads: a dot and a trail per audible line and automation
+// link. No breathing pulse: motion follows the music, not a free-running loop.
+// Drawn imperatively from the shared playhead ticker (~30 fps): layers are
+// created once per lane and then only moved and restyled, so nothing here
 // re-renders React per frame. Trails share one canvas renderer (one redraw per
-// frame instead of an SVG path update per segment); the dots stay SVG for
-// their CSS pulse classes.
+// frame instead of an SVG path update per segment); the dots stay SVG.
 function MockPlayheads({ enabled, routes, trailSamples, activeRef, disabledRef, soloRef, speedsRef, regionsRef, automationRef }) {
   const map = useMap()
   useEffect(() => {
     if (!enabled) return undefined
     const trailRenderer = L.canvas({ pane: 'trails', padding: 0.2 })
-    const layers = new Map()     // key → { kind, segments, pulse, dot }
-    const routeById = new Map(routes.map(r => [r.id, r]))
+    const layers = new Map()     // key → { kind, segments, dot }
     const trailOf = (route, timing) =>
       trailFracs({ ...timing, trailBeats: TRAIL_BEATS, samples: trailSamples })
         .map(f => positionAlongRoute(route, f))
@@ -1094,7 +1224,6 @@ function MockPlayheads({ enabled, routes, trailSamples, activeRef, disabledRef, 
 
     const remove = (entry) => {
       for (const seg of entry.segments) seg.remove()
-      entry.pulse?.remove()
       entry.dot.remove()
     }
     const draw = (key, p) => {
@@ -1102,11 +1231,10 @@ function MockPlayheads({ enabled, routes, trailSamples, activeRef, disabledRef, 
       if (entry && entry.kind !== p.kind) { remove(entry); entry = null }
       if (!entry) {
         const ll = [p.lat, p.lng]
-        entry = { kind: p.kind, segments: [], pulse: null, dot: null }
+        entry = { kind: p.kind, segments: [], dot: null }
         if (p.kind === 'auto') {
           entry.dot = L.circleMarker(ll, { radius: 5, className: 'map-auto-dot', pane: 'playhead', interactive: false, weight: 2.5, fillColor: '#111111' }).addTo(map)
         } else {
-          entry.pulse = L.circleMarker(ll, { radius: 13, className: 'map-playhead-pulse', pane: 'playhead', interactive: false, weight: 2 }).addTo(map)
           entry.dot = L.circleMarker(ll, { radius: 7, className: 'map-playhead-dot', pane: 'playhead', interactive: false, weight: 2.5, fillColor: '#ffffff' }).addTo(map)
         }
         layers.set(key, entry)
@@ -1116,7 +1244,6 @@ function MockPlayheads({ enabled, routes, trailSamples, activeRef, disabledRef, 
       if (p.kind === 'auto') {
         entry.dot.setLatLng(ll).setStyle({ color, fillOpacity: 0.9 * fade, opacity: fade })
       } else {
-        entry.pulse.setLatLng(ll).setStyle({ color, fillColor: color, fillOpacity: 0.12 * fade, opacity: fade })
         entry.dot.setLatLng(ll).setStyle({ color, fillOpacity: 0.95 * fade, opacity: fade })
       }
       // Trail: one segment per consecutive pair, brightest at the dot.
@@ -1160,8 +1287,7 @@ function MockPlayheads({ enabled, routes, trailSamples, activeRef, disabledRef, 
       // Automation lanes read their source line at the lane's own speed and
       // sub-loop (falling back to the source's region), like the engine does.
       for (const link of automationRef.current.links) {
-        const dest = routeById.get(link.destId) ?? routeById.get(link.destId.split('~dup~')[0])
-        if (dest && !isRouteActive(dest, disabledRef.current, soloRef.current)) continue
+        if (!isRouteActive({ id: link.destId }, disabledRef.current, soloRef.current)) continue
         const timing = { beats, speed: link.cfg.speed ?? 1, region: link.cfg.loopRegion ?? regionsRef.current?.[link.src.id] }
         const { frac, phase } = lanePlayhead(timing)
         const pos = positionAlongRoute(link.src, frac)
@@ -1173,19 +1299,21 @@ function MockPlayheads({ enabled, routes, trailSamples, activeRef, disabledRef, 
       for (const [key, entry] of layers) {
         if (!seen.has(key)) { remove(entry); layers.delete(key) }
       }
+      fxStats.heads = layers.size
     })
     return () => {
       unsubscribe()
       for (const entry of layers.values()) remove(entry)
       layers.clear()
+      fxStats.heads = 0
       trailRenderer.remove()
     }
   }, [map, enabled, routes, trailSamples, activeRef, disabledRef, soloRef, speedsRef, regionsRef, automationRef])
   return null
 }
 
-// Style goes through pathOptions so the per-frame fade actually updates (bare
-// color/opacity props only apply when the marker is created).
+// Live-mode vehicle dot. Style goes through pathOptions so the per-frame fade
+// actually updates (bare color/opacity props only apply when the marker is created).
 function PlayheadMarker({ lat, lng, color, pane, fade = 1, variant = 'note' }) {
   const opts = pane ? { pane } : {}
   if (variant === 'auto') {
@@ -1201,23 +1329,13 @@ function PlayheadMarker({ lat, lng, color, pane, fade = 1, variant = 'note' }) {
     )
   }
   return (
-    <>
-      <CircleMarker
-        center={[lat, lng]}
-        radius={13}
-        className="map-playhead-pulse"
-        pathOptions={{ color, fillColor: color, fillOpacity: 0.12 * fade, opacity: fade, weight: 2 }}
-        interactive={false}
-        {...opts}
-      />
-      <CircleMarker
-        center={[lat, lng]}
-        radius={7}
-        className="map-playhead-dot"
-        pathOptions={{ color, fillColor: '#ffffff', fillOpacity: 0.95 * fade, opacity: fade, weight: 2.5 }}
-        interactive={false}
-        {...opts}
-      />
-    </>
+    <CircleMarker
+      center={[lat, lng]}
+      radius={7}
+      className="map-playhead-dot"
+      pathOptions={{ color, fillColor: '#ffffff', fillOpacity: 0.95 * fade, opacity: fade, weight: 2.5 }}
+      interactive={false}
+      {...opts}
+    />
   )
 }

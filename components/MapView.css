@@ -31,25 +31,9 @@
 }
 
 
-/* ── Playhead markers ─────────────────────────────────────────────────────── */
-.map-playhead-pulse {
-  animation: map-ring-pulse 1.2s ease-out infinite;
-}
-
-.map-playhead-dot {
-  animation: map-dot-glow 1.2s ease-in-out infinite;
-}
-
-@keyframes map-ring-pulse {
-  0%   { opacity: 0.7; }
-  50%  { opacity: 0.25; }
-  100% { opacity: 0.7; }
-}
-
-@keyframes map-dot-glow {
-  0%, 100% { opacity: 1; }
-  50%       { opacity: 0.7; }
-}
+/* ── Playhead markers ───────────────────────────────────────────────────────
+   No breathing loops: the dot moves with the music and fades at the loop
+   wrap (MockPlayheads), nothing else animates on its own. */
 
 /* Style the Leaflet layer control to match the dark theme */
 .leaflet-control-layers {
@@ -69,70 +53,34 @@
 }
 
 
-/* ── Active stop markers ─────────────────────────────────────────────────── */
-.active-stop-pulse {
-  animation: stop-ring-pulse 1.4s ease-out infinite;
-  transform-box: fill-box;
-  transform-origin: center;
-}
-
-@keyframes stop-ring-pulse {
-  0%   { transform: scale(1);   opacity: 0.8; }
-  100% { transform: scale(2.8); opacity: 0;   }
-}
-
-.active-stop-dot {
-  animation: stop-dot-glow 1.4s ease-in-out infinite;
-}
-
-@keyframes stop-dot-glow {
-  0%, 100% { opacity: 1; }
-  50%       { opacity: 0.6; }
-}
-
 /* ── Automation ──────────────────────────────────────────────────────────
-   A source line drawn as a control path: amber dashes that flow along it.
-   The stroke attribute carries a hex for the canvas renderer (phones); on SVG
-   the CSS property wins and follows the theme token. */
-.map-auto-line {
-  stroke: var(--automation);
-  animation: map-auto-flow 1.6s linear infinite;
-}
-@keyframes map-auto-flow {
-  to { stroke-dashoffset: -22; }
-}
+   A source line drawn as a control path: static amber dashes (the moving
+   automation dot shows where it's reading). The stroke attribute carries a
+   hex for the canvas renderer (phones); on SVG the CSS property wins and
+   follows the theme token. */
+.map-auto-line { stroke: var(--automation); }
 .map-auto-stop,
 .map-auto-dot { stroke: var(--automation); }
 .map-auto-stop { fill: var(--automation); }
 
 
-/* ── Note ripples ────────────────────────────────────────────────────────
-   One per note, at the stop that played it (NoteRipples in MapView.jsx). */
-.map-ripple { pointer-events: none; }
-.map-ripple span {
+/* ── Note rings ──────────────────────────────────────────────────────────
+   A fixed pool of markers (NoteRings in MapView.jsx). The inner node is
+   animated with the Web Animations API (220ms, 12→28px, 0.65→0) so Leaflet
+   keeps the outer positioning transform; at rest it's invisible. */
+.map-ring { pointer-events: none; }
+.map-ring span {
   position: absolute;
   left: -14px;
   top: -14px;
   width: 28px;
   height: 28px;
   border-radius: 50%;
-  border: 2px solid var(--ripple-color);
-  background: color-mix(in srgb, var(--ripple-color) 35%, transparent);
-  box-shadow: 0 0 12px var(--ripple-color);
-  transform: scale(0.2);
-  opacity: 0.95;
-  animation: map-ripple 1.1s cubic-bezier(0.2, 0.7, 0.3, 1) forwards;
+  border: 2px solid var(--ring-color, var(--text));
+  background: color-mix(in srgb, var(--ring-color, var(--text)) 20%, transparent);
+  opacity: 0;
+  will-change: transform, opacity;
 }
-@keyframes map-ripple {
-  to { transform: scale(calc(1.6 * var(--ripple-scale, 1))); opacity: 0; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .map-auto-line,
-  .map-playhead-pulse,
-  .map-playhead-dot { animation: none; }
-}
-
 
 /* ── Map overlays ───────────────────────────────────────────────────────────
    Flat panels on --surface with --elevation-overlay, inset 12px from the map
@@ -406,6 +354,16 @@ button.map-lane--focused .map-lane-name { color: var(--text); font-weight: 700; 
 }
 .map-wrapper .leaflet-tooltip.map-stop-label::before { border-top-color: var(--border-strong); }
 .map-focus--compact { width: auto; max-width: none; min-width: 0; }
+.map-focus { animation: map-focus-in 160ms cubic-bezier(0.22, 1, 0.36, 1); }
+.map-focus--leaving { animation: map-focus-out 100ms ease-in forwards; }
+@keyframes map-focus-in {
+  from { opacity: 0; transform: translateY(4px); }
+}
+@keyframes map-focus-out {
+  to { opacity: 0; }
+}
+/* Reduced motion (OS or the map's own toggle): no transitions at all. */
+.map-wrapper[data-motion="reduced"] .map-focus { animation: none; }
 
 /* View controls, upper-right; Leaflet's layer switcher sits under them. */
 .map-controls {
@@ -431,9 +389,12 @@ button.map-lane--focused .map-lane-name { color: var(--text); font-weight: 700; 
   cursor: pointer;
 }
 .map-ctl:hover { background: var(--surface2); }
+.map-ctl--toggle[aria-pressed="true"] { color: var(--accent); border-color: var(--accent); }
+.map-ctl:disabled { cursor: not-allowed; }
+.map-ctl:disabled:hover { background: var(--surface); }
 .map-wrapper .leaflet-top.leaflet-right {
-  /* Two zoom buttons + Fit, 8px gaps, then 8px clear of the stack. */
-  top: calc(var(--map-inset) + 3 * var(--map-ctl) + 3 * var(--space-100));
+  /* Two zoom buttons, Fit and Reduce motion, 8px gaps, then 8px clear of the stack. */
+  top: calc(var(--map-inset) + 4 * var(--map-ctl) + 4 * var(--space-100));
   right: calc(var(--map-inset) - 10px);   /* Leaflet adds a 10px control margin */
 }
 
@@ -523,7 +484,7 @@ button.map-lane--focused .map-lane-name { color: var(--text); font-weight: 700; 
 
 @media (max-width: 767px) {
   .map-wrapper { --map-ctl: var(--tap-min); }
-  .map-wrapper .leaflet-top.leaflet-right { top: calc(var(--map-inset) + var(--map-ctl) + var(--space-100)); }
+  .map-wrapper .leaflet-top.leaflet-right { top: calc(var(--map-inset) + 2 * var(--map-ctl) + 2 * var(--space-100)); }
   /* Under the Lanes button, left-aligned, stopping short of the control column. */
   .map-notices {
     top: calc(var(--map-inset) + var(--tap-min) + var(--space-100));
