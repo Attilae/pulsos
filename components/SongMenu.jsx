@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { confirmDialog, promptDialog } from './Dialog.jsx'
+import { alertDialog, confirmDialog, promptDialog } from './Dialog.jsx'
 import { CITIES } from '@/lib/shared/cities.js'
+import { useCitySelection } from '@/lib/shared/CityContext.jsx'
+import { trackProductEvent } from '@/lib/productAnalytics.js'
 import './SongMenu.css'
 import { IconCaretDown, IconClose } from './icons.jsx'
 
@@ -15,13 +17,14 @@ function cityName(id) {
  *
  * Props mirror the return shape of useSongPersistence():
  *   currentSong, dirty, saving, saveError, autosaveOn, setAutosaveOn,
- *   songs, save, saveAs, rename, open, newSong, deleteSong
+ *   songs, save, saveAs, rename, open, newSong, startFromPreset, deleteSong
  */
 export default function SongMenu({
   currentSong, dirty, saving, saveError, autosaveOn, setAutosaveOn,
-  songs, save, saveAs, rename, open, newSong, deleteSong,
+  songs, save, saveAs, rename, open, newSong, startFromPreset, deleteSong,
   share, unshare, shareUrl, signedIn,
 }) {
+  const { cityId, cityEntry } = useCitySelection()
   const [menuOpen, setMenuOpen] = useState(false)
   const [picker,   setPicker]   = useState(false)
   const [shareMsg, setShareMsg] = useState('')
@@ -89,6 +92,21 @@ export default function SongMenu({
     ))) return
     await newSong()
     setMenuOpen(false)
+  }
+
+  const handleCityPreset = async () => {
+    if (!signedIn && dirty && !(await confirmDialog(
+      `You're signed out, so this session won't be saved. Replace it with the ${cityEntry.name} preset anyway?`,
+      { title: 'Load city preset?', confirmLabel: 'Load preset' },
+    ))) return
+    setMenuOpen(false)
+    try {
+      await startFromPreset()
+      trackProductEvent('city_preset_loaded', { city: cityId, from: 'song_menu' })
+    } catch {
+      alertDialog(`The ${cityEntry.name} preset could not be loaded. Check your connection and try again.`,
+        { title: 'Preset unavailable' })
+    }
   }
 
   const handleRename = async () => {
@@ -159,6 +177,11 @@ export default function SongMenu({
           <button className="song-menu-item" onClick={handleNew}>
             <span>New</span>
           </button>
+          {startFromPreset && (
+            <button className="song-menu-item" onClick={handleCityPreset}>
+              <span>Load {cityEntry.name} preset</span>
+            </button>
+          )}
           <button className="song-menu-item" onClick={() => { setPicker(p => !p) }}>
             <span>Open…</span>
             <span className="song-menu-count">{songs.length}</span>
