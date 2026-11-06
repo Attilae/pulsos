@@ -179,6 +179,8 @@ restart it with a fresh `.next` afterwards.
 - `NEXT_PUBLIC_TEXTURE_MK2_ENABLED` — default `false`; offers Texture's Mk II model in the lane
   panel (only matters when the engine is `clouds`). Songs whose lanes are on Mk II play it either
   way.
+- `NEXT_PUBLIC_CITY_PRESETS_ENABLED` — default `false`; turns on the bundled city presets (see
+  **City presets** below). Off, the city picker switches directly and nothing loads a preset.
 - `NEXT_PUBLIC_MACRO_ENABLED` — default `false`; offers the Macro instrument in the lane picker
   and AI/MCP plans (see **Macro instrument** below). Songs that use it play either way.
 - `MCP_ENABLED` / `NEXT_PUBLIC_MCP_ENABLED` — default `false`; gate the Pro MCP server and its
@@ -806,7 +808,8 @@ classes.
   derives `routeIds`; →4 pins every lane's pitch contour to `'geographic'`, the pre-v4 default).
   A *newer* version warns but still applies — a save from a newer client must
   never become unopenable. Check here before assuming an old song loads against a changed shape.
-- **City presets**: each city has a bundled starter song, `public/presets/<city>.json`, built from
+- **City presets** (off unless `NEXT_PUBLIC_CITY_PRESETS_ENABLED=true`, pending re-authored
+  presets): each city has a bundled starter song, `public/presets/<city>.json`, built from
   `lib/shared/cityPresetPlans.json` by `npm run build:city-presets` (plans go through MCP
   `preview_song_plan` → `create_song_from_plan`; `test/city-presets.test.js` pins file ↔ plan ↔ route
   data). `lib/cityPresets.js` (`loadCityPreset`) is the one loader. A session with nothing to restore
