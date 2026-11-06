@@ -61,6 +61,7 @@ npm run slim:lines -- --city <id>  # write public/data/lines.<id>.slim.json (pho
 npm run slim:all     # slim every city (run after any preprocess — the slim file is not automatic)
 npm run index:routes # rebuild lib/server/routeIndex/<city>.js, the MCP composer's route list (also manual)
 npm run build:skill  # zip skills/leid-composer → public/skills/leid-composer.zip (auto via prebuild/predev)
+npm run build:city-presets # lib/shared/cityPresetPlans.json → public/presets/<city>.json via the real MCP tools (fails on dropped/advisories)
 npm run upload:lines # upload public/data/lines.json to Vercel Blob (needs BLOB_READ_WRITE_TOKEN)
 npm run db:generate # drizzle-kit: emit SQL migration into drizzle/ (commit it — see lib/db below)
 npm run db:migrate  # drizzle-kit: apply migrations to DATABASE_URL
@@ -804,6 +805,13 @@ classes.
   derives `routeIds`; →4 pins every lane's pitch contour to `'geographic'`, the pre-v4 default).
   A *newer* version warns but still applies — a save from a newer client must
   never become unopenable. Check here before assuming an old song loads against a changed shape.
+- **City presets**: each city has a bundled starter song, `public/presets/<city>.json`, built from
+  `lib/shared/cityPresetPlans.json` by `npm run build:city-presets` (plans go through MCP
+  `preview_song_plan` → `create_song_from_plan`; `test/city-presets.test.js` pins file ↔ plan ↔ route
+  data). `lib/cityPresets.js` (`loadCityPreset`) is the one loader. A session with nothing to restore
+  opens on its city's preset (`useSongPersistence`'s `loadStarter`, first hydration pass only); the
+  Song menu's "Load <city> preset" (`startFromPreset`) and the city picker's dialog load it on demand.
+  After a preprocess that changes route ids, re-check the plans' `routeId`s and rebuild.
 - **New session**: `SongMenu` → New autosaves the current song (signed-in only; signed-out users
   are warned first) then calls `MixerTab.resetSessionState` (`onReset` on the hook). That disposes
   and rebuilds the `TransitEngine` for a clean audio graph and resets every per-track/FX/global

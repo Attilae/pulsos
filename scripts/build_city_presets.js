@@ -33,7 +33,7 @@ try {
     const guide = await call('get_composer_guide', { cityId: city.id })
     const routes = (await call('list_routes', { cityId: city.id, limit: 100 })).routes
     if (inspect) {
-      await writeFile(`/tmp/leid-guide-${city.id}.json`, JSON.stringify(guide, null, 2))
+      await writeFile(`${process.env.TMPDIR || "/tmp"}/leid-guide-${city.id}.json`, JSON.stringify(guide, null, 2))
       console.log(city.id, JSON.stringify(routes.filter(r => r.stopCount >= 8 && r.stopCount <= 24).slice(0, 12)))
       continue
     }

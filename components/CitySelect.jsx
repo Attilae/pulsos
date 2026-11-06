@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom'
 import { useCitySelection } from '@/lib/shared/CityContext.jsx'
 import { useModal } from '@/lib/shared/useModal.js'
 import { trackProductEvent } from '@/lib/productAnalytics.js'
+import { loadCityPreset } from '@/lib/cityPresets.js'
 
 // Manual switches ask how to begin; opening saved songs still switches directly.
 export default function CitySelect() {
@@ -23,15 +24,7 @@ export default function CitySelect() {
     setError(null)
     setLoading(true)
     try {
-      let preset = null
-      if (usePreset) {
-        const response = await fetch(`/presets/${target.id}.json`)
-        if (!response.ok) throw new Error('Preset unavailable')
-        preset = await response.json()
-        if (preset.cityId !== target.id || preset.state?.cityId !== target.id || !preset.state?.routeIds?.length) {
-          throw new Error('Invalid city preset')
-        }
-      }
+      const preset = usePreset ? await loadCityPreset(target.id) : null
       if (request !== requestRef.current) return
       trackProductEvent('city_selected', { city: target.id, start: usePreset ? 'preset' : 'scratch' })
       setCityId(target.id, preset)
