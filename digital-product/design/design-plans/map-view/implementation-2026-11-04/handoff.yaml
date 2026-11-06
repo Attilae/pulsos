@@ -1,0 +1,39 @@
+handoff_version: 1
+skill: design
+status: complete
+objective: "Implement a clearer, engaging musical map within a conservative rendering budget."
+implementation_status: proposed
+baseline_commit: "7ec8c80b18b13212d7fc7486c85411962d942146"
+inputs_used:
+  - DESIGN.md
+  - digital-product/design/design-plans/map-view/research-2026-11-04.md
+  - "Current map source inspection and historical October screenshots"
+artifacts_created:
+  - path: digital-product/design/design-plans/map-view/implementation-2026-11-04/README.md
+    type: implementation_plan
+    owner: design
+decisions:
+  - "Ship static hierarchy and focus before motion refinements."
+  - "Preserve current imperative rendering and shared ticker."
+  - "Keep visual focus separate from audio solo, enable and persistence."
+  - "Cap rings at 8 desktop/4 phone; retain trail samples at 10/5."
+  - "Separate shape-following motion into a later independently verified phase."
+constraints:
+  - "No production source changes in the planning task."
+  - "No new animation dependency or map engine."
+  - "No repeatable audio regression; verify with actual playback."
+  - "Fresh baseline required before treating historical screenshots as current findings."
+risks:
+  - "Style asset redistribution and asynchronous style load failures."
+  - "Duplicate/merged lane identity and ambiguous route geometry."
+  - "Device-specific GPU cost and missing representative phone evidence."
+unresolved:
+  - "Record available representative desktop and phone hardware in phase 0."
+validation:
+  performed:
+    - "Research-to-plan consistency and file-level scope review."
+  remaining:
+    - "All implementation, visual/audio verification and performance acceptance gates."
+recommended_next:
+  - skill: frontend-design
+    reason: "Execute phases 0–3 using existing map and design-system primitives."

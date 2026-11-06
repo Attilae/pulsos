@@ -130,7 +130,10 @@ loads, disposal with a load pending), `perf-stats` (`lib/perfStats.js` — the m
 classes and analytics profile), `server-purity` (loads the MCP module graph in a child process
 that throws on any Tone/React/`.jsx` import, plus `lib/server/routeIndex.js`), `posthog` (the
 analytics/AI-telemetry modules under mocked SDKs: no prompt/response content is sent),
-`map-playhead` (`lib/mapPlayhead.js`), `auth-form-validation` (`lib/authFormValidation.js`),
+`map-playhead` (`lib/mapPlayhead.js`), `map-visual-policy` (`lib/mapVisualPolicy.js` route
+styling, Fit framing and overlay padding, plus `lib/mapBasemapStyle.js`), `map-lanes`
+(`lib/mapLanes.js`: lane → line resolution, focus rules, stop-marker sampling), `map-motion`
+(`lib/mapMotion.js`: ring timing/caps, attack coalescing, ring slots, reduced-motion rules), `auth-form-validation` (`lib/authFormValidation.js`),
 `reference-track` (`lib/referenceTrack.js`: bar guess, Match BPM, drift, snapshot sanitising) and
 `aiff` (`lib/aiff.js`),
 `poly-voice` and `lane-pitch` (described in their sections below). There is **no linter
@@ -1165,6 +1168,40 @@ breaks ("Worker failed to load"). `scripts/copy_maplibre_worker.js` (prebuild/pr
 `public/vendor/maplibre-gl-worker-<version>.mjs` (gitignored) and `MapView.jsx` calls
 `setWorkerUrl` with that path.
 
+**The basemap follows the app theme** without copying any style into the repo: `BaseMap` in
+`MapView.jsx` fetches OpenFreeMap's `dark` or `positron` style and filters it through
+`quietBasemapStyle` (`lib/mapBasemapStyle.js`: drops road names, POIs, airports and hamlet labels,
+recolours land/water to the app's `--bg`). A theme change calls `setStyle` on the same GL map, so
+the camera and route layers are untouched. A failed load shows "Map background unavailable" +
+Retry over `--bg`; routes and audio never wait on it. The camera frames on city/route-set changes
+only (`framingKey`), never on lane enable/solo, so a user's pan survives editing the mix.
+
+**The map lists lanes but draws lines.** MixerTab passes `mapLanes` (`buildMapLanes` over
+`visibleInstrumentRoutes`): every DAW lane, each resolved to the base route lines it draws on
+(duplicates via `sourceId`, merged lanes via `sourceIds`; synthetic ids are never parsed). A line
+draws as audible when any lane on it is audible (`activeGeometryIds`), which also drives Fit mix and
+the playheads. **Focus is visual only**: the legend rows are `aria-pressed` focus buttons and a click
+on a line focuses a lane on it, but nothing calls an audio handler (Enable/Solo stay in the lane
+view). The focused lane draws at 4px in a `focus` pane above the other lines (on phones, whose
+canvas would swallow taps in a higher pane, it's raised with `bringToFront` instead); the details
+card offers Fit route, Clear focus and the ordered stop list. There are **no passive stop markers**:
+only the focused lane's stops, at zoom ≥13, viewport-filtered on `moveend` and capped at 80/24
+(`visibleStopMarkers`). Focus clears on a city/song change or lane removal, not on disable.
+
+**Map motion is bounded and follows the music** (`lib/mapMotion.js`, pure). Note rings are a fixed
+pool of 8 markers (4 on phones) created per activation: each flush of note events is coalesced to
+one ring per lane+stop at the loudest velocity, waits the scheduler lookahead, is dropped if it
+lands >220 ms late, and restarts a Web Animation (220 ms, 12→28 px, 0.65→0) on the slot's inner
+node; at capacity the oldest ring is replaced. Drum and merged-chord events carry no `stopId`, so
+they never ring. There are no free-running loops (no breathing pulse, static automation dashes).
+**Reduce motion** = OS `prefers-reduced-motion` **or** the map's own toggle
+(`lib/shared/motionPreference.js`, localStorage `leid-reduce-motion`; it can't undo the OS
+setting): no heads, trails, rings or camera animation, just a static marker per audible line at the
+stop it last played, updated at most twice a second (`CurrentStops`). Heads, rings and current
+stops all stop while stopped, while the map is hidden and while the tab is hidden (no ticker
+subscriber, timers or layers). `window.leidMapFx.stats()` reports live rings, layers, pending
+timers, heads and ticker subscribers; `validation/motion-check.cjs` in the map plan uses it.
+
 ### Legal & SEO
 
 `app/{privacy,terms,legal,licenses}` are static legal pages, all four rendered through
@@ -1234,7 +1271,8 @@ the mistake this split exists to prevent.
 equal specificity — a rule placed in `components/mobile/*.css` loses, because those load earlier
 via the module graph). A different component *tree* → a `useIsPhone()` branch in JSX. There are
 only five such branches: the MixerTab layout swap, `<weq8-ui>` mounting, `MobileLaneList`
-mounting, MapView's `preferCanvas`/`zoomControl`/`showStops`, and which tour step list runs.
+mounting, MapView's `preferCanvas`/zoom buttons/stop cap/lane list (a panel and focus card on
+desktop, a "Lanes" button, `Sheet` and compact focus card on phones), and which tour step list runs.
 
 **The phone Map/DAW** (`components/mobile/`) — `MobileDaw` replaces `.daw-header` + `DawView`
 below 768px, but **MixerTab still owns every piece of state**: the branch lives inside MixerTab's

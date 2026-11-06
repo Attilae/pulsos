@@ -48,6 +48,7 @@ import AudioTroubleshooter from '../AudioTroubleshooter.jsx'
 import MobileDaw from '../mobile/MobileDaw.jsx'
 import { useIsPhone } from '@/lib/shared/useViewport.js'
 import { IconClose, IconDownload, IconMusic, IconPlay, IconRepick, IconStop } from '../icons.jsx'
+import { buildMapLanes } from '@/lib/mapLanes.js'
 
 // Leaflet + maplibre-gl are the heaviest client deps after Tone, and the DAW view
 // is the default, so the map ships as its own chunk. ssr:false matches the page.
@@ -174,6 +175,8 @@ export default function MixerTab({ active = true }) {
   const [audioProgress,  setAudioProgress]  = useState(0)
 
   const [view,    setView]    = useState('daw')   // 'map' | 'daw'
+  // Stable, so the memoized MapView doesn't re-render on every MixerTab render.
+  const showLanes = useCallback(() => setView('daw'), [])
   // MapView (Leaflet + MapLibre/WebGL + every route's geometry) mounts on the
   // first Map visit and then stays mounted, so the default DAW startup doesn't
   // pay for a hidden map and switching back never rebuilds Leaflet.
@@ -393,6 +396,9 @@ export default function MixerTab({ active = true }) {
   const visibleInstrumentRoutes = useMemo(() => (mergedRoutes ?? []).filter(route =>
     !mergedConsumedIds.has(route.id) && !automationSourceIds.has(route.id) && route.id !== DRUMS_ROUTE_ID
   ), [mergedRoutes, mergedConsumedIds, automationSourceIds])
+  // The map's lane list: the same lanes, each resolved to the base route lines
+  // it draws on (duplicates via sourceId, merged lanes via sourceIds).
+  const mapLanes = useMemo(() => buildMapLanes(visibleInstrumentRoutes), [visibleInstrumentRoutes])
 
   // Pickable sidechain trigger sources, grouped for the source <select>. Drum
   // entries only appear once a pattern is imported — there is nothing to duck off
@@ -2395,6 +2401,7 @@ export default function MixerTab({ active = true }) {
         className={view !== 'map' ? 'view-hidden' : ''}
         active={view === 'map'}
         routes={routes}
+        mapLanes={mapLanes}
         city={city}
         started={started}
         mode={mode}
@@ -2406,6 +2413,7 @@ export default function MixerTab({ active = true }) {
         trackSpeeds={trackSpeeds}
         trackLoopRegions={trackLoopRegions}
         trackSynthTypes={trackSynthTypes}
+        onShowLanes={showLanes}
       />}
       <AIComposerPanel
         className={view !== 'map' && view !== 'daw' ? 'view-hidden' : ''}

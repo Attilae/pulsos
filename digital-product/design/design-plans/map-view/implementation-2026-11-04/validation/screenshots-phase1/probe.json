@@ -1,0 +1,4286 @@
+[
+ {
+  "tag": "berlin-6_dark_desktop",
+  "states": {
+   "stopped": {
+    "viewport": {
+     "w": 1440,
+     "h": 900
+    },
+    "wrapper": {
+     "x": 0,
+     "y": 104,
+     "w": 1440,
+     "h": 796,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "container": {
+     "x": 0,
+     "y": 104,
+     "w": 1440,
+     "h": 796,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "leaflet": {
+     "x": 0,
+     "y": 104,
+     "w": 1440,
+     "h": 796,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "maplibreCanvas": {
+     "x": -144,
+     "y": 24,
+     "w": 1728,
+     "h": 955,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "none"
+    },
+    "legend": {
+     "x": 12,
+     "y": 116,
+     "w": 192,
+     "h": 235,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "zoom": {
+     "x": 1396,
+     "y": 116,
+     "w": 32,
+     "h": 112,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "attribution": {
+     "x": 8,
+     "y": 862,
+     "w": 420,
+     "h": 32,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "notice": null,
+    "routePaths": 95,
+    "routeCanvases": 0,
+    "markers": 0,
+    "center": null
+   },
+   "alloff": {
+    "viewport": {
+     "w": 1440,
+     "h": 900
+    },
+    "wrapper": {
+     "x": 0,
+     "y": 104,
+     "w": 1440,
+     "h": 796,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "container": {
+     "x": 0,
+     "y": 104,
+     "w": 1440,
+     "h": 796,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "leaflet": {
+     "x": 0,
+     "y": 104,
+     "w": 1440,
+     "h": 796,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "maplibreCanvas": {
+     "x": -144,
+     "y": 24,
+     "w": 1728,
+     "h": 955,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "none"
+    },
+    "legend": {
+     "x": 12,
+     "y": 116,
+     "w": 192,
+     "h": 235,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "zoom": {
+     "x": 1396,
+     "y": 116,
+     "w": 32,
+     "h": 112,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "attribution": {
+     "x": 8,
+     "y": 862,
+     "w": 420,
+     "h": 32,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "notice": {
+     "x": 584,
+     "y": 116,
+     "w": 271,
+     "h": 50,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "routePaths": 12,
+    "routeCanvases": 0,
+    "markers": 0,
+    "center": null
+   },
+   "playing": {
+    "viewport": {
+     "w": 1440,
+     "h": 900
+    },
+    "wrapper": {
+     "x": 0,
+     "y": 104,
+     "w": 1440,
+     "h": 796,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "container": {
+     "x": 0,
+     "y": 104,
+     "w": 1440,
+     "h": 796,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "leaflet": {
+     "x": 0,
+     "y": 104,
+     "w": 1440,
+     "h": 796,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "maplibreCanvas": {
+     "x": -144,
+     "y": 24,
+     "w": 1728,
+     "h": 955,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "none"
+    },
+    "legend": {
+     "x": 12,
+     "y": 116,
+     "w": 192,
+     "h": 235,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "zoom": {
+     "x": 1396,
+     "y": 116,
+     "w": 32,
+     "h": 112,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "attribution": {
+     "x": 8,
+     "y": 862,
+     "w": 420,
+     "h": 32,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "notice": null,
+    "routePaths": 95,
+    "routeCanvases": 0,
+    "markers": 0,
+    "center": null
+   }
+  },
+  "errors": [
+   "Failed to load resource: net::ERR_CONNECTION_REFUSED"
+  ]
+ },
+ {
+  "tag": "berlin-6_dark_tablet",
+  "states": {
+   "stopped": {
+    "viewport": {
+     "w": 820,
+     "h": 1180
+    },
+    "wrapper": {
+     "x": 0,
+     "y": 144,
+     "w": 820,
+     "h": 1036,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "container": {
+     "x": 0,
+     "y": 144,
+     "w": 820,
+     "h": 1036,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "leaflet": {
+     "x": 0,
+     "y": 144,
+     "w": 820,
+     "h": 1036,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "maplibreCanvas": {
+     "x": -82,
+     "y": 40,
+     "w": 984,
+     "h": 1243,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "none"
+    },
+    "legend": {
+     "x": 12,
+     "y": 156,
+     "w": 192,
+     "h": 46,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "zoom": {
+     "x": 764,
+     "y": 156,
+     "w": 44,
+     "h": 148,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "attribution": {
+     "x": 8,
+     "y": 1142,
+     "w": 420,
+     "h": 32,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "notice": null,
+    "routePaths": 95,
+    "routeCanvases": 0,
+    "markers": 0,
+    "center": null
+   },
+   "alloff": {
+    "viewport": {
+     "w": 820,
+     "h": 1180
+    },
+    "wrapper": {
+     "x": 0,
+     "y": 144,
+     "w": 820,
+     "h": 1036,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "container": {
+     "x": 0,
+     "y": 144,
+     "w": 820,
+     "h": 1036,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "leaflet": {
+     "x": 0,
+     "y": 144,
+     "w": 820,
+     "h": 1036,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "maplibreCanvas": {
+     "x": -82,
+     "y": 40,
+     "w": 984,
+     "h": 1243,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "none"
+    },
+    "legend": {
+     "x": 12,
+     "y": 156,
+     "w": 192,
+     "h": 46,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "zoom": {
+     "x": 764,
+     "y": 156,
+     "w": 44,
+     "h": 148,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "attribution": {
+     "x": 8,
+     "y": 1142,
+     "w": 420,
+     "h": 32,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "notice": {
+     "x": 274,
+     "y": 156,
+     "w": 271,
+     "h": 62,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "routePaths": 12,
+    "routeCanvases": 0,
+    "markers": 0,
+    "center": null
+   },
+   "playing": {
+    "viewport": {
+     "w": 820,
+     "h": 1180
+    },
+    "wrapper": {
+     "x": 0,
+     "y": 144,
+     "w": 820,
+     "h": 1036,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "container": {
+     "x": 0,
+     "y": 144,
+     "w": 820,
+     "h": 1036,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "leaflet": {
+     "x": 0,
+     "y": 144,
+     "w": 820,
+     "h": 1036,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "maplibreCanvas": {
+     "x": -82,
+     "y": 40,
+     "w": 984,
+     "h": 1243,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "none"
+    },
+    "legend": {
+     "x": 12,
+     "y": 156,
+     "w": 192,
+     "h": 46,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "zoom": {
+     "x": 764,
+     "y": 156,
+     "w": 44,
+     "h": 148,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "attribution": {
+     "x": 8,
+     "y": 1142,
+     "w": 420,
+     "h": 32,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "notice": null,
+    "routePaths": 95,
+    "routeCanvases": 0,
+    "markers": 0,
+    "center": null
+   }
+  },
+  "errors": [
+   "Failed to load resource: net::ERR_CONNECTION_REFUSED"
+  ]
+ },
+ {
+  "tag": "berlin-6_dark_phone",
+  "states": {
+   "stopped": {
+    "viewport": {
+     "w": 390,
+     "h": 844
+    },
+    "wrapper": {
+     "x": 0,
+     "y": 103,
+     "w": 390,
+     "h": 685,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "container": {
+     "x": 0,
+     "y": 103,
+     "w": 390,
+     "h": 685,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "leaflet": {
+     "x": 0,
+     "y": 103,
+     "w": 390,
+     "h": 685,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "maplibreCanvas": {
+     "x": -39,
+     "y": 35,
+     "w": 468,
+     "h": 822,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "none"
+    },
+    "legend": {
+     "x": 12,
+     "y": 115,
+     "w": 120,
+     "h": 44,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "zoom": {
+     "x": 334,
+     "y": 115,
+     "w": 44,
+     "h": 44,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "attribution": {
+     "x": 8,
+     "y": 750,
+     "w": 374,
+     "h": 32,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "notice": null,
+    "routePaths": 0,
+    "routeCanvases": 1,
+    "markers": 0,
+    "center": null
+   },
+   "alloff": {
+    "viewport": {
+     "w": 390,
+     "h": 844
+    },
+    "wrapper": {
+     "x": 0,
+     "y": 103,
+     "w": 390,
+     "h": 685,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "container": {
+     "x": 0,
+     "y": 103,
+     "w": 390,
+     "h": 685,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "leaflet": {
+     "x": 0,
+     "y": 103,
+     "w": 390,
+     "h": 685,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "maplibreCanvas": {
+     "x": -39,
+     "y": 35,
+     "w": 468,
+     "h": 822,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "none"
+    },
+    "legend": {
+     "x": 12,
+     "y": 115,
+     "w": 120,
+     "h": 44,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "zoom": {
+     "x": 334,
+     "y": 115,
+     "w": 44,
+     "h": 44,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "attribution": {
+     "x": 8,
+     "y": 750,
+     "w": 374,
+     "h": 32,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "notice": {
+     "x": 12,
+     "y": 167,
+     "w": 366,
+     "h": 62,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "routePaths": 0,
+    "routeCanvases": 1,
+    "markers": 0,
+    "center": null
+   },
+   "playing": {
+    "viewport": {
+     "w": 390,
+     "h": 844
+    },
+    "wrapper": {
+     "x": 0,
+     "y": 103,
+     "w": 390,
+     "h": 685,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "container": {
+     "x": 0,
+     "y": 103,
+     "w": 390,
+     "h": 685,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "leaflet": {
+     "x": 0,
+     "y": 103,
+     "w": 390,
+     "h": 685,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "maplibreCanvas": {
+     "x": -39,
+     "y": 35,
+     "w": 468,
+     "h": 822,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "none"
+    },
+    "legend": {
+     "x": 12,
+     "y": 115,
+     "w": 120,
+     "h": 44,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "zoom": {
+     "x": 334,
+     "y": 115,
+     "w": 44,
+     "h": 44,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "attribution": {
+     "x": 8,
+     "y": 750,
+     "w": 374,
+     "h": 32,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "notice": null,
+    "routePaths": 0,
+    "routeCanvases": 1,
+    "markers": 0,
+    "center": null
+   }
+  },
+  "errors": [
+   "Failed to load resource: net::ERR_CONNECTION_REFUSED"
+  ]
+ },
+ {
+  "tag": "berlin-6_light_desktop",
+  "states": {
+   "stopped": {
+    "viewport": {
+     "w": 1440,
+     "h": 900
+    },
+    "wrapper": {
+     "x": 0,
+     "y": 104,
+     "w": 1440,
+     "h": 796,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "container": {
+     "x": 0,
+     "y": 104,
+     "w": 1440,
+     "h": 796,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "leaflet": {
+     "x": 0,
+     "y": 104,
+     "w": 1440,
+     "h": 796,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "maplibreCanvas": {
+     "x": -144,
+     "y": 24,
+     "w": 1728,
+     "h": 955,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "none"
+    },
+    "legend": {
+     "x": 12,
+     "y": 116,
+     "w": 192,
+     "h": 235,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "zoom": {
+     "x": 1396,
+     "y": 116,
+     "w": 32,
+     "h": 112,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "attribution": {
+     "x": 8,
+     "y": 862,
+     "w": 420,
+     "h": 32,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "notice": null,
+    "routePaths": 99,
+    "routeCanvases": 0,
+    "markers": 0,
+    "center": null
+   },
+   "alloff": {
+    "viewport": {
+     "w": 1440,
+     "h": 900
+    },
+    "wrapper": {
+     "x": 0,
+     "y": 104,
+     "w": 1440,
+     "h": 796,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "container": {
+     "x": 0,
+     "y": 104,
+     "w": 1440,
+     "h": 796,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "leaflet": {
+     "x": 0,
+     "y": 104,
+     "w": 1440,
+     "h": 796,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "maplibreCanvas": {
+     "x": -144,
+     "y": 24,
+     "w": 1728,
+     "h": 955,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "none"
+    },
+    "legend": {
+     "x": 12,
+     "y": 116,
+     "w": 192,
+     "h": 235,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "zoom": {
+     "x": 1396,
+     "y": 116,
+     "w": 32,
+     "h": 112,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "attribution": {
+     "x": 8,
+     "y": 862,
+     "w": 420,
+     "h": 32,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "notice": {
+     "x": 584,
+     "y": 116,
+     "w": 271,
+     "h": 50,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "routePaths": 12,
+    "routeCanvases": 0,
+    "markers": 0,
+    "center": null
+   },
+   "playing": {
+    "viewport": {
+     "w": 1440,
+     "h": 900
+    },
+    "wrapper": {
+     "x": 0,
+     "y": 104,
+     "w": 1440,
+     "h": 796,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "container": {
+     "x": 0,
+     "y": 104,
+     "w": 1440,
+     "h": 796,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "leaflet": {
+     "x": 0,
+     "y": 104,
+     "w": 1440,
+     "h": 796,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "maplibreCanvas": {
+     "x": -144,
+     "y": 24,
+     "w": 1728,
+     "h": 955,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "none"
+    },
+    "legend": {
+     "x": 12,
+     "y": 116,
+     "w": 192,
+     "h": 235,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "zoom": {
+     "x": 1396,
+     "y": 116,
+     "w": 32,
+     "h": 112,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "attribution": {
+     "x": 8,
+     "y": 862,
+     "w": 420,
+     "h": 32,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "notice": null,
+    "routePaths": 99,
+    "routeCanvases": 0,
+    "markers": 0,
+    "center": null
+   }
+  },
+  "errors": [
+   "Failed to load resource: net::ERR_CONNECTION_REFUSED"
+  ]
+ },
+ {
+  "tag": "berlin-6_light_tablet",
+  "states": {
+   "stopped": {
+    "viewport": {
+     "w": 820,
+     "h": 1180
+    },
+    "wrapper": {
+     "x": 0,
+     "y": 144,
+     "w": 820,
+     "h": 1036,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "container": {
+     "x": 0,
+     "y": 144,
+     "w": 820,
+     "h": 1036,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "leaflet": {
+     "x": 0,
+     "y": 144,
+     "w": 820,
+     "h": 1036,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "maplibreCanvas": {
+     "x": -82,
+     "y": 40,
+     "w": 984,
+     "h": 1243,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "none"
+    },
+    "legend": {
+     "x": 12,
+     "y": 156,
+     "w": 192,
+     "h": 46,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "zoom": {
+     "x": 764,
+     "y": 156,
+     "w": 44,
+     "h": 148,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "attribution": {
+     "x": 8,
+     "y": 1142,
+     "w": 420,
+     "h": 32,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "notice": null,
+    "routePaths": 99,
+    "routeCanvases": 0,
+    "markers": 0,
+    "center": null
+   },
+   "alloff": {
+    "viewport": {
+     "w": 820,
+     "h": 1180
+    },
+    "wrapper": {
+     "x": 0,
+     "y": 144,
+     "w": 820,
+     "h": 1036,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "container": {
+     "x": 0,
+     "y": 144,
+     "w": 820,
+     "h": 1036,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "leaflet": {
+     "x": 0,
+     "y": 144,
+     "w": 820,
+     "h": 1036,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "maplibreCanvas": {
+     "x": -82,
+     "y": 40,
+     "w": 984,
+     "h": 1243,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "none"
+    },
+    "legend": {
+     "x": 12,
+     "y": 156,
+     "w": 192,
+     "h": 46,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "zoom": {
+     "x": 764,
+     "y": 156,
+     "w": 44,
+     "h": 148,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "attribution": {
+     "x": 8,
+     "y": 1142,
+     "w": 420,
+     "h": 32,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "notice": {
+     "x": 274,
+     "y": 156,
+     "w": 271,
+     "h": 62,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "routePaths": 12,
+    "routeCanvases": 0,
+    "markers": 0,
+    "center": null
+   },
+   "playing": {
+    "viewport": {
+     "w": 820,
+     "h": 1180
+    },
+    "wrapper": {
+     "x": 0,
+     "y": 144,
+     "w": 820,
+     "h": 1036,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "container": {
+     "x": 0,
+     "y": 144,
+     "w": 820,
+     "h": 1036,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "leaflet": {
+     "x": 0,
+     "y": 144,
+     "w": 820,
+     "h": 1036,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "maplibreCanvas": {
+     "x": -82,
+     "y": 40,
+     "w": 984,
+     "h": 1243,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "none"
+    },
+    "legend": {
+     "x": 12,
+     "y": 156,
+     "w": 192,
+     "h": 46,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "zoom": {
+     "x": 764,
+     "y": 156,
+     "w": 44,
+     "h": 148,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "attribution": {
+     "x": 8,
+     "y": 1142,
+     "w": 420,
+     "h": 32,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "notice": null,
+    "routePaths": 99,
+    "routeCanvases": 0,
+    "markers": 0,
+    "center": null
+   }
+  },
+  "errors": [
+   "Failed to load resource: net::ERR_CONNECTION_REFUSED"
+  ]
+ },
+ {
+  "tag": "berlin-6_light_phone",
+  "states": {
+   "stopped": {
+    "viewport": {
+     "w": 390,
+     "h": 844
+    },
+    "wrapper": {
+     "x": 0,
+     "y": 103,
+     "w": 390,
+     "h": 685,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "container": {
+     "x": 0,
+     "y": 103,
+     "w": 390,
+     "h": 685,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "leaflet": {
+     "x": 0,
+     "y": 103,
+     "w": 390,
+     "h": 685,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "maplibreCanvas": {
+     "x": -39,
+     "y": 35,
+     "w": 468,
+     "h": 822,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "none"
+    },
+    "legend": {
+     "x": 12,
+     "y": 115,
+     "w": 120,
+     "h": 44,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "zoom": {
+     "x": 334,
+     "y": 115,
+     "w": 44,
+     "h": 44,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "attribution": {
+     "x": 8,
+     "y": 750,
+     "w": 374,
+     "h": 32,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "notice": null,
+    "routePaths": 0,
+    "routeCanvases": 1,
+    "markers": 0,
+    "center": null
+   },
+   "alloff": {
+    "viewport": {
+     "w": 390,
+     "h": 844
+    },
+    "wrapper": {
+     "x": 0,
+     "y": 103,
+     "w": 390,
+     "h": 685,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "container": {
+     "x": 0,
+     "y": 103,
+     "w": 390,
+     "h": 685,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "leaflet": {
+     "x": 0,
+     "y": 103,
+     "w": 390,
+     "h": 685,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "maplibreCanvas": {
+     "x": -39,
+     "y": 35,
+     "w": 468,
+     "h": 822,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "none"
+    },
+    "legend": {
+     "x": 12,
+     "y": 115,
+     "w": 120,
+     "h": 44,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "zoom": {
+     "x": 334,
+     "y": 115,
+     "w": 44,
+     "h": 44,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "attribution": {
+     "x": 8,
+     "y": 750,
+     "w": 374,
+     "h": 32,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "notice": {
+     "x": 12,
+     "y": 167,
+     "w": 366,
+     "h": 62,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "routePaths": 0,
+    "routeCanvases": 1,
+    "markers": 0,
+    "center": null
+   },
+   "playing": {
+    "viewport": {
+     "w": 390,
+     "h": 844
+    },
+    "wrapper": {
+     "x": 0,
+     "y": 103,
+     "w": 390,
+     "h": 685,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "container": {
+     "x": 0,
+     "y": 103,
+     "w": 390,
+     "h": 685,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "leaflet": {
+     "x": 0,
+     "y": 103,
+     "w": 390,
+     "h": 685,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "maplibreCanvas": {
+     "x": -39,
+     "y": 35,
+     "w": 468,
+     "h": 822,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "none"
+    },
+    "legend": {
+     "x": 12,
+     "y": 115,
+     "w": 120,
+     "h": 44,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "zoom": {
+     "x": 334,
+     "y": 115,
+     "w": 44,
+     "h": 44,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "attribution": {
+     "x": 8,
+     "y": 750,
+     "w": 374,
+     "h": 32,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "notice": null,
+    "routePaths": 0,
+    "routeCanvases": 1,
+    "markers": 0,
+    "center": null
+   }
+  },
+  "errors": [
+   "Failed to load resource: net::ERR_CONNECTION_REFUSED"
+  ]
+ },
+ {
+  "tag": "newyork-6_dark_desktop",
+  "states": {
+   "stopped": {
+    "viewport": {
+     "w": 1440,
+     "h": 900
+    },
+    "wrapper": {
+     "x": 0,
+     "y": 104,
+     "w": 1440,
+     "h": 796,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "container": {
+     "x": 0,
+     "y": 104,
+     "w": 1440,
+     "h": 796,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "leaflet": {
+     "x": 0,
+     "y": 104,
+     "w": 1440,
+     "h": 796,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "maplibreCanvas": {
+     "x": -144,
+     "y": 24,
+     "w": 1728,
+     "h": 955,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "none"
+    },
+    "legend": {
+     "x": 12,
+     "y": 116,
+     "w": 192,
+     "h": 235,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "zoom": {
+     "x": 1396,
+     "y": 116,
+     "w": 32,
+     "h": 112,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "attribution": {
+     "x": 8,
+     "y": 862,
+     "w": 420,
+     "h": 32,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "notice": null,
+    "routePaths": 221,
+    "routeCanvases": 0,
+    "markers": 0,
+    "center": null
+   },
+   "alloff": {
+    "viewport": {
+     "w": 1440,
+     "h": 900
+    },
+    "wrapper": {
+     "x": 0,
+     "y": 104,
+     "w": 1440,
+     "h": 796,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "container": {
+     "x": 0,
+     "y": 104,
+     "w": 1440,
+     "h": 796,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "leaflet": {
+     "x": 0,
+     "y": 104,
+     "w": 1440,
+     "h": 796,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "maplibreCanvas": {
+     "x": -144,
+     "y": 24,
+     "w": 1728,
+     "h": 955,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "none"
+    },
+    "legend": {
+     "x": 12,
+     "y": 116,
+     "w": 192,
+     "h": 235,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "zoom": {
+     "x": 1396,
+     "y": 116,
+     "w": 32,
+     "h": 112,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "attribution": {
+     "x": 8,
+     "y": 862,
+     "w": 420,
+     "h": 32,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "notice": {
+     "x": 584,
+     "y": 116,
+     "w": 271,
+     "h": 50,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "routePaths": 12,
+    "routeCanvases": 0,
+    "markers": 0,
+    "center": null
+   },
+   "playing": {
+    "viewport": {
+     "w": 1440,
+     "h": 900
+    },
+    "wrapper": {
+     "x": 0,
+     "y": 104,
+     "w": 1440,
+     "h": 796,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "container": {
+     "x": 0,
+     "y": 104,
+     "w": 1440,
+     "h": 796,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "leaflet": {
+     "x": 0,
+     "y": 104,
+     "w": 1440,
+     "h": 796,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "maplibreCanvas": {
+     "x": -144,
+     "y": 24,
+     "w": 1728,
+     "h": 955,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "none"
+    },
+    "legend": {
+     "x": 12,
+     "y": 116,
+     "w": 192,
+     "h": 235,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "zoom": {
+     "x": 1396,
+     "y": 116,
+     "w": 32,
+     "h": 112,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "attribution": {
+     "x": 8,
+     "y": 862,
+     "w": 420,
+     "h": 32,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "notice": null,
+    "routePaths": 221,
+    "routeCanvases": 0,
+    "markers": 0,
+    "center": null
+   }
+  },
+  "errors": [
+   "Failed to load resource: net::ERR_CONNECTION_REFUSED"
+  ]
+ },
+ {
+  "tag": "newyork-6_dark_tablet",
+  "states": {
+   "stopped": {
+    "viewport": {
+     "w": 820,
+     "h": 1180
+    },
+    "wrapper": {
+     "x": 0,
+     "y": 144,
+     "w": 820,
+     "h": 1036,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "container": {
+     "x": 0,
+     "y": 144,
+     "w": 820,
+     "h": 1036,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "leaflet": {
+     "x": 0,
+     "y": 144,
+     "w": 820,
+     "h": 1036,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "maplibreCanvas": {
+     "x": -82,
+     "y": 40,
+     "w": 984,
+     "h": 1243,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "none"
+    },
+    "legend": {
+     "x": 12,
+     "y": 156,
+     "w": 192,
+     "h": 46,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "zoom": {
+     "x": 764,
+     "y": 156,
+     "w": 44,
+     "h": 148,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "attribution": {
+     "x": 8,
+     "y": 1142,
+     "w": 420,
+     "h": 32,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "notice": null,
+    "routePaths": 221,
+    "routeCanvases": 0,
+    "markers": 0,
+    "center": null
+   },
+   "alloff": {
+    "viewport": {
+     "w": 820,
+     "h": 1180
+    },
+    "wrapper": {
+     "x": 0,
+     "y": 144,
+     "w": 820,
+     "h": 1036,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "container": {
+     "x": 0,
+     "y": 144,
+     "w": 820,
+     "h": 1036,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "leaflet": {
+     "x": 0,
+     "y": 144,
+     "w": 820,
+     "h": 1036,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "maplibreCanvas": {
+     "x": -82,
+     "y": 40,
+     "w": 984,
+     "h": 1243,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "none"
+    },
+    "legend": {
+     "x": 12,
+     "y": 156,
+     "w": 192,
+     "h": 46,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "zoom": {
+     "x": 764,
+     "y": 156,
+     "w": 44,
+     "h": 148,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "attribution": {
+     "x": 8,
+     "y": 1142,
+     "w": 420,
+     "h": 32,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "notice": {
+     "x": 274,
+     "y": 156,
+     "w": 271,
+     "h": 62,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "routePaths": 12,
+    "routeCanvases": 0,
+    "markers": 0,
+    "center": null
+   },
+   "playing": {
+    "viewport": {
+     "w": 820,
+     "h": 1180
+    },
+    "wrapper": {
+     "x": 0,
+     "y": 144,
+     "w": 820,
+     "h": 1036,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "container": {
+     "x": 0,
+     "y": 144,
+     "w": 820,
+     "h": 1036,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "leaflet": {
+     "x": 0,
+     "y": 144,
+     "w": 820,
+     "h": 1036,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "maplibreCanvas": {
+     "x": -82,
+     "y": 40,
+     "w": 984,
+     "h": 1243,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "none"
+    },
+    "legend": {
+     "x": 12,
+     "y": 156,
+     "w": 192,
+     "h": 46,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "zoom": {
+     "x": 764,
+     "y": 156,
+     "w": 44,
+     "h": 148,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "attribution": {
+     "x": 8,
+     "y": 1142,
+     "w": 420,
+     "h": 32,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "notice": null,
+    "routePaths": 221,
+    "routeCanvases": 0,
+    "markers": 0,
+    "center": null
+   }
+  },
+  "errors": [
+   "Failed to load resource: net::ERR_CONNECTION_REFUSED"
+  ]
+ },
+ {
+  "tag": "newyork-6_dark_phone",
+  "states": {
+   "stopped": {
+    "viewport": {
+     "w": 390,
+     "h": 844
+    },
+    "wrapper": {
+     "x": 0,
+     "y": 103,
+     "w": 390,
+     "h": 685,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "container": {
+     "x": 0,
+     "y": 103,
+     "w": 390,
+     "h": 685,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "leaflet": {
+     "x": 0,
+     "y": 103,
+     "w": 390,
+     "h": 685,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "maplibreCanvas": {
+     "x": -39,
+     "y": 35,
+     "w": 468,
+     "h": 822,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "none"
+    },
+    "legend": {
+     "x": 12,
+     "y": 115,
+     "w": 120,
+     "h": 44,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "zoom": {
+     "x": 334,
+     "y": 115,
+     "w": 44,
+     "h": 44,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "attribution": {
+     "x": 8,
+     "y": 750,
+     "w": 374,
+     "h": 32,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "notice": null,
+    "routePaths": 0,
+    "routeCanvases": 1,
+    "markers": 0,
+    "center": null
+   },
+   "alloff": {
+    "viewport": {
+     "w": 390,
+     "h": 844
+    },
+    "wrapper": {
+     "x": 0,
+     "y": 103,
+     "w": 390,
+     "h": 685,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "container": {
+     "x": 0,
+     "y": 103,
+     "w": 390,
+     "h": 685,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "leaflet": {
+     "x": 0,
+     "y": 103,
+     "w": 390,
+     "h": 685,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "maplibreCanvas": {
+     "x": -39,
+     "y": 35,
+     "w": 468,
+     "h": 822,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "none"
+    },
+    "legend": {
+     "x": 12,
+     "y": 115,
+     "w": 120,
+     "h": 44,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "zoom": {
+     "x": 334,
+     "y": 115,
+     "w": 44,
+     "h": 44,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "attribution": {
+     "x": 8,
+     "y": 750,
+     "w": 374,
+     "h": 32,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "notice": {
+     "x": 12,
+     "y": 167,
+     "w": 366,
+     "h": 62,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "routePaths": 0,
+    "routeCanvases": 1,
+    "markers": 0,
+    "center": null
+   },
+   "playing": {
+    "viewport": {
+     "w": 390,
+     "h": 844
+    },
+    "wrapper": {
+     "x": 0,
+     "y": 103,
+     "w": 390,
+     "h": 685,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "container": {
+     "x": 0,
+     "y": 103,
+     "w": 390,
+     "h": 685,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "leaflet": {
+     "x": 0,
+     "y": 103,
+     "w": 390,
+     "h": 685,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "maplibreCanvas": {
+     "x": -39,
+     "y": 35,
+     "w": 468,
+     "h": 822,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "none"
+    },
+    "legend": {
+     "x": 12,
+     "y": 115,
+     "w": 120,
+     "h": 44,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "zoom": {
+     "x": 334,
+     "y": 115,
+     "w": 44,
+     "h": 44,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "attribution": {
+     "x": 8,
+     "y": 750,
+     "w": 374,
+     "h": 32,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "notice": null,
+    "routePaths": 0,
+    "routeCanvases": 1,
+    "markers": 0,
+    "center": null
+   }
+  },
+  "errors": [
+   "Failed to load resource: net::ERR_CONNECTION_REFUSED"
+  ]
+ },
+ {
+  "tag": "newyork-6_light_desktop",
+  "states": {
+   "stopped": {
+    "viewport": {
+     "w": 1440,
+     "h": 900
+    },
+    "wrapper": {
+     "x": 0,
+     "y": 104,
+     "w": 1440,
+     "h": 796,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "container": {
+     "x": 0,
+     "y": 104,
+     "w": 1440,
+     "h": 796,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "leaflet": {
+     "x": 0,
+     "y": 104,
+     "w": 1440,
+     "h": 796,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "maplibreCanvas": {
+     "x": -144,
+     "y": 24,
+     "w": 1728,
+     "h": 955,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "none"
+    },
+    "legend": {
+     "x": 12,
+     "y": 116,
+     "w": 192,
+     "h": 235,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "zoom": {
+     "x": 1396,
+     "y": 116,
+     "w": 32,
+     "h": 112,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "attribution": {
+     "x": 8,
+     "y": 862,
+     "w": 420,
+     "h": 32,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "notice": null,
+    "routePaths": 221,
+    "routeCanvases": 0,
+    "markers": 0,
+    "center": null
+   },
+   "alloff": {
+    "viewport": {
+     "w": 1440,
+     "h": 900
+    },
+    "wrapper": {
+     "x": 0,
+     "y": 104,
+     "w": 1440,
+     "h": 796,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "container": {
+     "x": 0,
+     "y": 104,
+     "w": 1440,
+     "h": 796,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "leaflet": {
+     "x": 0,
+     "y": 104,
+     "w": 1440,
+     "h": 796,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "maplibreCanvas": {
+     "x": -144,
+     "y": 24,
+     "w": 1728,
+     "h": 955,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "none"
+    },
+    "legend": {
+     "x": 12,
+     "y": 116,
+     "w": 192,
+     "h": 235,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "zoom": {
+     "x": 1396,
+     "y": 116,
+     "w": 32,
+     "h": 112,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "attribution": {
+     "x": 8,
+     "y": 862,
+     "w": 420,
+     "h": 32,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "notice": {
+     "x": 584,
+     "y": 116,
+     "w": 271,
+     "h": 50,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "routePaths": 12,
+    "routeCanvases": 0,
+    "markers": 0,
+    "center": null
+   },
+   "playing": {
+    "viewport": {
+     "w": 1440,
+     "h": 900
+    },
+    "wrapper": {
+     "x": 0,
+     "y": 104,
+     "w": 1440,
+     "h": 796,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "container": {
+     "x": 0,
+     "y": 104,
+     "w": 1440,
+     "h": 796,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "leaflet": {
+     "x": 0,
+     "y": 104,
+     "w": 1440,
+     "h": 796,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "maplibreCanvas": {
+     "x": -144,
+     "y": 24,
+     "w": 1728,
+     "h": 955,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "none"
+    },
+    "legend": {
+     "x": 12,
+     "y": 116,
+     "w": 192,
+     "h": 235,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "zoom": {
+     "x": 1396,
+     "y": 116,
+     "w": 32,
+     "h": 112,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "attribution": {
+     "x": 8,
+     "y": 862,
+     "w": 420,
+     "h": 32,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "notice": null,
+    "routePaths": 221,
+    "routeCanvases": 0,
+    "markers": 0,
+    "center": null
+   }
+  },
+  "errors": [
+   "Failed to load resource: net::ERR_CONNECTION_REFUSED"
+  ]
+ },
+ {
+  "tag": "newyork-6_light_tablet",
+  "states": {
+   "stopped": {
+    "viewport": {
+     "w": 820,
+     "h": 1180
+    },
+    "wrapper": {
+     "x": 0,
+     "y": 144,
+     "w": 820,
+     "h": 1036,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "container": {
+     "x": 0,
+     "y": 144,
+     "w": 820,
+     "h": 1036,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "leaflet": {
+     "x": 0,
+     "y": 144,
+     "w": 820,
+     "h": 1036,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "maplibreCanvas": {
+     "x": -82,
+     "y": 40,
+     "w": 984,
+     "h": 1243,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "none"
+    },
+    "legend": {
+     "x": 12,
+     "y": 156,
+     "w": 192,
+     "h": 46,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "zoom": {
+     "x": 764,
+     "y": 156,
+     "w": 44,
+     "h": 148,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "attribution": {
+     "x": 8,
+     "y": 1142,
+     "w": 420,
+     "h": 32,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "notice": null,
+    "routePaths": 221,
+    "routeCanvases": 0,
+    "markers": 0,
+    "center": null
+   },
+   "alloff": {
+    "viewport": {
+     "w": 820,
+     "h": 1180
+    },
+    "wrapper": {
+     "x": 0,
+     "y": 144,
+     "w": 820,
+     "h": 1036,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "container": {
+     "x": 0,
+     "y": 144,
+     "w": 820,
+     "h": 1036,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "leaflet": {
+     "x": 0,
+     "y": 144,
+     "w": 820,
+     "h": 1036,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "maplibreCanvas": {
+     "x": -82,
+     "y": 40,
+     "w": 984,
+     "h": 1243,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "none"
+    },
+    "legend": {
+     "x": 12,
+     "y": 156,
+     "w": 192,
+     "h": 46,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "zoom": {
+     "x": 764,
+     "y": 156,
+     "w": 44,
+     "h": 148,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "attribution": {
+     "x": 8,
+     "y": 1142,
+     "w": 420,
+     "h": 32,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "notice": {
+     "x": 274,
+     "y": 156,
+     "w": 271,
+     "h": 62,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "routePaths": 12,
+    "routeCanvases": 0,
+    "markers": 0,
+    "center": null
+   },
+   "playing": {
+    "viewport": {
+     "w": 820,
+     "h": 1180
+    },
+    "wrapper": {
+     "x": 0,
+     "y": 144,
+     "w": 820,
+     "h": 1036,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "container": {
+     "x": 0,
+     "y": 144,
+     "w": 820,
+     "h": 1036,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "leaflet": {
+     "x": 0,
+     "y": 144,
+     "w": 820,
+     "h": 1036,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "maplibreCanvas": {
+     "x": -82,
+     "y": 40,
+     "w": 984,
+     "h": 1243,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "none"
+    },
+    "legend": {
+     "x": 12,
+     "y": 156,
+     "w": 192,
+     "h": 46,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "zoom": {
+     "x": 764,
+     "y": 156,
+     "w": 44,
+     "h": 148,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "attribution": {
+     "x": 8,
+     "y": 1142,
+     "w": 420,
+     "h": 32,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "notice": null,
+    "routePaths": 221,
+    "routeCanvases": 0,
+    "markers": 0,
+    "center": null
+   }
+  },
+  "errors": [
+   "Failed to load resource: net::ERR_CONNECTION_REFUSED"
+  ]
+ },
+ {
+  "tag": "newyork-6_light_phone",
+  "states": {
+   "stopped": {
+    "viewport": {
+     "w": 390,
+     "h": 844
+    },
+    "wrapper": {
+     "x": 0,
+     "y": 103,
+     "w": 390,
+     "h": 685,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "container": {
+     "x": 0,
+     "y": 103,
+     "w": 390,
+     "h": 685,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "leaflet": {
+     "x": 0,
+     "y": 103,
+     "w": 390,
+     "h": 685,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "maplibreCanvas": {
+     "x": -39,
+     "y": 35,
+     "w": 468,
+     "h": 822,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "none"
+    },
+    "legend": {
+     "x": 12,
+     "y": 115,
+     "w": 120,
+     "h": 44,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "zoom": {
+     "x": 334,
+     "y": 115,
+     "w": 44,
+     "h": 44,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "attribution": {
+     "x": 8,
+     "y": 750,
+     "w": 374,
+     "h": 32,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "notice": null,
+    "routePaths": 0,
+    "routeCanvases": 1,
+    "markers": 0,
+    "center": null
+   },
+   "alloff": {
+    "viewport": {
+     "w": 390,
+     "h": 844
+    },
+    "wrapper": {
+     "x": 0,
+     "y": 103,
+     "w": 390,
+     "h": 685,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "container": {
+     "x": 0,
+     "y": 103,
+     "w": 390,
+     "h": 685,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "leaflet": {
+     "x": 0,
+     "y": 103,
+     "w": 390,
+     "h": 685,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "maplibreCanvas": {
+     "x": -39,
+     "y": 35,
+     "w": 468,
+     "h": 822,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "none"
+    },
+    "legend": {
+     "x": 12,
+     "y": 115,
+     "w": 120,
+     "h": 44,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "zoom": {
+     "x": 334,
+     "y": 115,
+     "w": 44,
+     "h": 44,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "attribution": {
+     "x": 8,
+     "y": 750,
+     "w": 374,
+     "h": 32,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "notice": {
+     "x": 12,
+     "y": 167,
+     "w": 366,
+     "h": 62,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "routePaths": 0,
+    "routeCanvases": 1,
+    "markers": 0,
+    "center": null
+   },
+   "playing": {
+    "viewport": {
+     "w": 390,
+     "h": 844
+    },
+    "wrapper": {
+     "x": 0,
+     "y": 103,
+     "w": 390,
+     "h": 685,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "container": {
+     "x": 0,
+     "y": 103,
+     "w": 390,
+     "h": 685,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "leaflet": {
+     "x": 0,
+     "y": 103,
+     "w": 390,
+     "h": 685,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "maplibreCanvas": {
+     "x": -39,
+     "y": 35,
+     "w": 468,
+     "h": 822,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "none"
+    },
+    "legend": {
+     "x": 12,
+     "y": 115,
+     "w": 120,
+     "h": 44,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "zoom": {
+     "x": 334,
+     "y": 115,
+     "w": 44,
+     "h": 44,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "attribution": {
+     "x": 8,
+     "y": 750,
+     "w": 374,
+     "h": 32,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "notice": null,
+    "routePaths": 0,
+    "routeCanvases": 1,
+    "markers": 0,
+    "center": null
+   }
+  },
+  "errors": [
+   "Failed to load resource: net::ERR_CONNECTION_REFUSED"
+  ]
+ },
+ {
+  "tag": "berlin-24_dark_desktop",
+  "states": {
+   "stopped": {
+    "viewport": {
+     "w": 1440,
+     "h": 900
+    },
+    "wrapper": {
+     "x": 0,
+     "y": 104,
+     "w": 1440,
+     "h": 796,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "container": {
+     "x": 0,
+     "y": 104,
+     "w": 1440,
+     "h": 796,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "leaflet": {
+     "x": 0,
+     "y": 104,
+     "w": 1440,
+     "h": 796,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "maplibreCanvas": {
+     "x": -144,
+     "y": 24,
+     "w": 1728,
+     "h": 955,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "none"
+    },
+    "legend": {
+     "x": 12,
+     "y": 116,
+     "w": 192,
+     "h": 732,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "zoom": {
+     "x": 1396,
+     "y": 116,
+     "w": 32,
+     "h": 112,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "attribution": {
+     "x": 8,
+     "y": 862,
+     "w": 420,
+     "h": 32,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "notice": null,
+    "routePaths": 131,
+    "routeCanvases": 0,
+    "markers": 0,
+    "center": null
+   },
+   "alloff": {
+    "viewport": {
+     "w": 1440,
+     "h": 900
+    },
+    "wrapper": {
+     "x": 0,
+     "y": 104,
+     "w": 1440,
+     "h": 796,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "container": {
+     "x": 0,
+     "y": 104,
+     "w": 1440,
+     "h": 796,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "leaflet": {
+     "x": 0,
+     "y": 104,
+     "w": 1440,
+     "h": 796,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "maplibreCanvas": {
+     "x": -144,
+     "y": 24,
+     "w": 1728,
+     "h": 955,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "none"
+    },
+    "legend": {
+     "x": 12,
+     "y": 116,
+     "w": 192,
+     "h": 732,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "zoom": {
+     "x": 1396,
+     "y": 116,
+     "w": 32,
+     "h": 112,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "attribution": {
+     "x": 8,
+     "y": 862,
+     "w": 420,
+     "h": 32,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "notice": {
+     "x": 584,
+     "y": 116,
+     "w": 271,
+     "h": 50,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "routePaths": 48,
+    "routeCanvases": 0,
+    "markers": 0,
+    "center": null
+   },
+   "playing": {
+    "viewport": {
+     "w": 1440,
+     "h": 900
+    },
+    "wrapper": {
+     "x": 0,
+     "y": 104,
+     "w": 1440,
+     "h": 796,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "container": {
+     "x": 0,
+     "y": 104,
+     "w": 1440,
+     "h": 796,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "leaflet": {
+     "x": 0,
+     "y": 104,
+     "w": 1440,
+     "h": 796,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "maplibreCanvas": {
+     "x": -144,
+     "y": 24,
+     "w": 1728,
+     "h": 955,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "none"
+    },
+    "legend": {
+     "x": 12,
+     "y": 116,
+     "w": 192,
+     "h": 732,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "zoom": {
+     "x": 1396,
+     "y": 116,
+     "w": 32,
+     "h": 112,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "attribution": {
+     "x": 8,
+     "y": 862,
+     "w": 420,
+     "h": 32,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "notice": null,
+    "routePaths": 131,
+    "routeCanvases": 0,
+    "markers": 0,
+    "center": null
+   }
+  },
+  "errors": [
+   "Failed to load resource: net::ERR_CONNECTION_REFUSED"
+  ]
+ },
+ {
+  "tag": "berlin-24_dark_tablet",
+  "states": {
+   "stopped": {
+    "viewport": {
+     "w": 820,
+     "h": 1180
+    },
+    "wrapper": {
+     "x": 0,
+     "y": 144,
+     "w": 820,
+     "h": 1036,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "container": {
+     "x": 0,
+     "y": 144,
+     "w": 820,
+     "h": 1036,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "leaflet": {
+     "x": 0,
+     "y": 144,
+     "w": 820,
+     "h": 1036,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "maplibreCanvas": {
+     "x": -82,
+     "y": 40,
+     "w": 984,
+     "h": 1243,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "none"
+    },
+    "legend": {
+     "x": 12,
+     "y": 156,
+     "w": 192,
+     "h": 46,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "zoom": {
+     "x": 764,
+     "y": 156,
+     "w": 44,
+     "h": 148,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "attribution": {
+     "x": 8,
+     "y": 1142,
+     "w": 420,
+     "h": 32,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "notice": null,
+    "routePaths": 131,
+    "routeCanvases": 0,
+    "markers": 0,
+    "center": null
+   },
+   "alloff": {
+    "viewport": {
+     "w": 820,
+     "h": 1180
+    },
+    "wrapper": {
+     "x": 0,
+     "y": 144,
+     "w": 820,
+     "h": 1036,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "container": {
+     "x": 0,
+     "y": 144,
+     "w": 820,
+     "h": 1036,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "leaflet": {
+     "x": 0,
+     "y": 144,
+     "w": 820,
+     "h": 1036,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "maplibreCanvas": {
+     "x": -82,
+     "y": 40,
+     "w": 984,
+     "h": 1243,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "none"
+    },
+    "legend": {
+     "x": 12,
+     "y": 156,
+     "w": 192,
+     "h": 46,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "zoom": {
+     "x": 764,
+     "y": 156,
+     "w": 44,
+     "h": 148,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "attribution": {
+     "x": 8,
+     "y": 1142,
+     "w": 420,
+     "h": 32,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "notice": {
+     "x": 274,
+     "y": 156,
+     "w": 271,
+     "h": 62,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "routePaths": 48,
+    "routeCanvases": 0,
+    "markers": 0,
+    "center": null
+   },
+   "playing": {
+    "viewport": {
+     "w": 820,
+     "h": 1180
+    },
+    "wrapper": {
+     "x": 0,
+     "y": 144,
+     "w": 820,
+     "h": 1036,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "container": {
+     "x": 0,
+     "y": 144,
+     "w": 820,
+     "h": 1036,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "leaflet": {
+     "x": 0,
+     "y": 144,
+     "w": 820,
+     "h": 1036,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "maplibreCanvas": {
+     "x": -82,
+     "y": 40,
+     "w": 984,
+     "h": 1243,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "none"
+    },
+    "legend": {
+     "x": 12,
+     "y": 156,
+     "w": 192,
+     "h": 46,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "zoom": {
+     "x": 764,
+     "y": 156,
+     "w": 44,
+     "h": 148,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "attribution": {
+     "x": 8,
+     "y": 1142,
+     "w": 420,
+     "h": 32,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "notice": null,
+    "routePaths": 131,
+    "routeCanvases": 0,
+    "markers": 0,
+    "center": null
+   }
+  },
+  "errors": [
+   "Failed to load resource: net::ERR_CONNECTION_REFUSED"
+  ]
+ },
+ {
+  "tag": "berlin-24_dark_phone",
+  "states": {
+   "stopped": {
+    "viewport": {
+     "w": 390,
+     "h": 844
+    },
+    "wrapper": {
+     "x": 0,
+     "y": 103,
+     "w": 390,
+     "h": 685,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "container": {
+     "x": 0,
+     "y": 103,
+     "w": 390,
+     "h": 685,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "leaflet": {
+     "x": 0,
+     "y": 103,
+     "w": 390,
+     "h": 685,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "maplibreCanvas": {
+     "x": -39,
+     "y": 35,
+     "w": 468,
+     "h": 822,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "none"
+    },
+    "legend": {
+     "x": 12,
+     "y": 115,
+     "w": 126,
+     "h": 44,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "zoom": {
+     "x": 334,
+     "y": 115,
+     "w": 44,
+     "h": 44,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "attribution": {
+     "x": 8,
+     "y": 750,
+     "w": 374,
+     "h": 32,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "notice": null,
+    "routePaths": 0,
+    "routeCanvases": 1,
+    "markers": 0,
+    "center": null
+   },
+   "alloff": {
+    "viewport": {
+     "w": 390,
+     "h": 844
+    },
+    "wrapper": {
+     "x": 0,
+     "y": 103,
+     "w": 390,
+     "h": 685,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "container": {
+     "x": 0,
+     "y": 103,
+     "w": 390,
+     "h": 685,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "leaflet": {
+     "x": 0,
+     "y": 103,
+     "w": 390,
+     "h": 685,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "maplibreCanvas": {
+     "x": -39,
+     "y": 35,
+     "w": 468,
+     "h": 822,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "none"
+    },
+    "legend": {
+     "x": 12,
+     "y": 115,
+     "w": 126,
+     "h": 44,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "zoom": {
+     "x": 334,
+     "y": 115,
+     "w": 44,
+     "h": 44,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "attribution": {
+     "x": 8,
+     "y": 750,
+     "w": 374,
+     "h": 32,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "notice": {
+     "x": 12,
+     "y": 167,
+     "w": 366,
+     "h": 62,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "routePaths": 0,
+    "routeCanvases": 1,
+    "markers": 0,
+    "center": null
+   },
+   "playing": {
+    "viewport": {
+     "w": 390,
+     "h": 844
+    },
+    "wrapper": {
+     "x": 0,
+     "y": 103,
+     "w": 390,
+     "h": 685,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "container": {
+     "x": 0,
+     "y": 103,
+     "w": 390,
+     "h": 685,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "leaflet": {
+     "x": 0,
+     "y": 103,
+     "w": 390,
+     "h": 685,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "maplibreCanvas": {
+     "x": -39,
+     "y": 35,
+     "w": 468,
+     "h": 822,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "none"
+    },
+    "legend": {
+     "x": 12,
+     "y": 115,
+     "w": 126,
+     "h": 44,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "zoom": {
+     "x": 334,
+     "y": 115,
+     "w": 44,
+     "h": 44,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "attribution": {
+     "x": 8,
+     "y": 750,
+     "w": 374,
+     "h": 32,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "notice": null,
+    "routePaths": 0,
+    "routeCanvases": 1,
+    "markers": 0,
+    "center": null
+   }
+  },
+  "errors": [
+   "Failed to load resource: net::ERR_CONNECTION_REFUSED"
+  ]
+ },
+ {
+  "tag": "berlin-24_light_desktop",
+  "states": {
+   "stopped": {
+    "viewport": {
+     "w": 1440,
+     "h": 900
+    },
+    "wrapper": {
+     "x": 0,
+     "y": 104,
+     "w": 1440,
+     "h": 796,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "container": {
+     "x": 0,
+     "y": 104,
+     "w": 1440,
+     "h": 796,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "leaflet": {
+     "x": 0,
+     "y": 104,
+     "w": 1440,
+     "h": 796,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "maplibreCanvas": {
+     "x": -144,
+     "y": 24,
+     "w": 1728,
+     "h": 955,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "none"
+    },
+    "legend": {
+     "x": 12,
+     "y": 116,
+     "w": 192,
+     "h": 732,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "zoom": {
+     "x": 1396,
+     "y": 116,
+     "w": 32,
+     "h": 112,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "attribution": {
+     "x": 8,
+     "y": 862,
+     "w": 420,
+     "h": 32,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "notice": null,
+    "routePaths": 135,
+    "routeCanvases": 0,
+    "markers": 0,
+    "center": null
+   },
+   "alloff": {
+    "viewport": {
+     "w": 1440,
+     "h": 900
+    },
+    "wrapper": {
+     "x": 0,
+     "y": 104,
+     "w": 1440,
+     "h": 796,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "container": {
+     "x": 0,
+     "y": 104,
+     "w": 1440,
+     "h": 796,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "leaflet": {
+     "x": 0,
+     "y": 104,
+     "w": 1440,
+     "h": 796,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "maplibreCanvas": {
+     "x": -144,
+     "y": 24,
+     "w": 1728,
+     "h": 955,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "none"
+    },
+    "legend": {
+     "x": 12,
+     "y": 116,
+     "w": 192,
+     "h": 732,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "zoom": {
+     "x": 1396,
+     "y": 116,
+     "w": 32,
+     "h": 112,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "attribution": {
+     "x": 8,
+     "y": 862,
+     "w": 420,
+     "h": 32,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "notice": {
+     "x": 584,
+     "y": 116,
+     "w": 271,
+     "h": 50,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "routePaths": 48,
+    "routeCanvases": 0,
+    "markers": 0,
+    "center": null
+   },
+   "playing": {
+    "viewport": {
+     "w": 1440,
+     "h": 900
+    },
+    "wrapper": {
+     "x": 0,
+     "y": 104,
+     "w": 1440,
+     "h": 796,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "container": {
+     "x": 0,
+     "y": 104,
+     "w": 1440,
+     "h": 796,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "leaflet": {
+     "x": 0,
+     "y": 104,
+     "w": 1440,
+     "h": 796,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "maplibreCanvas": {
+     "x": -144,
+     "y": 24,
+     "w": 1728,
+     "h": 955,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "none"
+    },
+    "legend": {
+     "x": 12,
+     "y": 116,
+     "w": 192,
+     "h": 732,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "zoom": {
+     "x": 1396,
+     "y": 116,
+     "w": 32,
+     "h": 112,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "attribution": {
+     "x": 8,
+     "y": 862,
+     "w": 420,
+     "h": 32,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "notice": null,
+    "routePaths": 135,
+    "routeCanvases": 0,
+    "markers": 0,
+    "center": null
+   }
+  },
+  "errors": [
+   "Failed to load resource: net::ERR_CONNECTION_REFUSED"
+  ]
+ },
+ {
+  "tag": "berlin-24_light_tablet",
+  "states": {
+   "stopped": {
+    "viewport": {
+     "w": 820,
+     "h": 1180
+    },
+    "wrapper": {
+     "x": 0,
+     "y": 144,
+     "w": 820,
+     "h": 1036,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "container": {
+     "x": 0,
+     "y": 144,
+     "w": 820,
+     "h": 1036,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "leaflet": {
+     "x": 0,
+     "y": 144,
+     "w": 820,
+     "h": 1036,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "maplibreCanvas": {
+     "x": -82,
+     "y": 40,
+     "w": 984,
+     "h": 1243,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "none"
+    },
+    "legend": {
+     "x": 12,
+     "y": 156,
+     "w": 192,
+     "h": 46,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "zoom": {
+     "x": 764,
+     "y": 156,
+     "w": 44,
+     "h": 148,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "attribution": {
+     "x": 8,
+     "y": 1142,
+     "w": 420,
+     "h": 32,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "notice": null,
+    "routePaths": 135,
+    "routeCanvases": 0,
+    "markers": 0,
+    "center": null
+   },
+   "alloff": {
+    "viewport": {
+     "w": 820,
+     "h": 1180
+    },
+    "wrapper": {
+     "x": 0,
+     "y": 144,
+     "w": 820,
+     "h": 1036,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "container": {
+     "x": 0,
+     "y": 144,
+     "w": 820,
+     "h": 1036,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "leaflet": {
+     "x": 0,
+     "y": 144,
+     "w": 820,
+     "h": 1036,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "maplibreCanvas": {
+     "x": -82,
+     "y": 40,
+     "w": 984,
+     "h": 1243,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "none"
+    },
+    "legend": {
+     "x": 12,
+     "y": 156,
+     "w": 192,
+     "h": 46,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "zoom": {
+     "x": 764,
+     "y": 156,
+     "w": 44,
+     "h": 148,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "attribution": {
+     "x": 8,
+     "y": 1142,
+     "w": 420,
+     "h": 32,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "notice": {
+     "x": 274,
+     "y": 156,
+     "w": 271,
+     "h": 62,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "routePaths": 48,
+    "routeCanvases": 0,
+    "markers": 0,
+    "center": null
+   },
+   "playing": {
+    "viewport": {
+     "w": 820,
+     "h": 1180
+    },
+    "wrapper": {
+     "x": 0,
+     "y": 144,
+     "w": 820,
+     "h": 1036,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "container": {
+     "x": 0,
+     "y": 144,
+     "w": 820,
+     "h": 1036,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "leaflet": {
+     "x": 0,
+     "y": 144,
+     "w": 820,
+     "h": 1036,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "maplibreCanvas": {
+     "x": -82,
+     "y": 40,
+     "w": 984,
+     "h": 1243,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "none"
+    },
+    "legend": {
+     "x": 12,
+     "y": 156,
+     "w": 192,
+     "h": 46,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "zoom": {
+     "x": 764,
+     "y": 156,
+     "w": 44,
+     "h": 148,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "attribution": {
+     "x": 8,
+     "y": 1142,
+     "w": 420,
+     "h": 32,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "notice": null,
+    "routePaths": 135,
+    "routeCanvases": 0,
+    "markers": 0,
+    "center": null
+   }
+  },
+  "errors": [
+   "Failed to load resource: net::ERR_CONNECTION_REFUSED"
+  ]
+ },
+ {
+  "tag": "berlin-24_light_phone",
+  "states": {
+   "stopped": {
+    "viewport": {
+     "w": 390,
+     "h": 844
+    },
+    "wrapper": {
+     "x": 0,
+     "y": 103,
+     "w": 390,
+     "h": 685,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "container": {
+     "x": 0,
+     "y": 103,
+     "w": 390,
+     "h": 685,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "leaflet": {
+     "x": 0,
+     "y": 103,
+     "w": 390,
+     "h": 685,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "maplibreCanvas": {
+     "x": -39,
+     "y": 35,
+     "w": 468,
+     "h": 822,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "none"
+    },
+    "legend": {
+     "x": 12,
+     "y": 115,
+     "w": 126,
+     "h": 44,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "zoom": {
+     "x": 334,
+     "y": 115,
+     "w": 44,
+     "h": 44,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "attribution": {
+     "x": 8,
+     "y": 750,
+     "w": 374,
+     "h": 32,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "notice": null,
+    "routePaths": 0,
+    "routeCanvases": 1,
+    "markers": 0,
+    "center": null
+   },
+   "alloff": {
+    "viewport": {
+     "w": 390,
+     "h": 844
+    },
+    "wrapper": {
+     "x": 0,
+     "y": 103,
+     "w": 390,
+     "h": 685,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "container": {
+     "x": 0,
+     "y": 103,
+     "w": 390,
+     "h": 685,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "leaflet": {
+     "x": 0,
+     "y": 103,
+     "w": 390,
+     "h": 685,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "maplibreCanvas": {
+     "x": -39,
+     "y": 35,
+     "w": 468,
+     "h": 822,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "none"
+    },
+    "legend": {
+     "x": 12,
+     "y": 115,
+     "w": 126,
+     "h": 44,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "zoom": {
+     "x": 334,
+     "y": 115,
+     "w": 44,
+     "h": 44,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "attribution": {
+     "x": 8,
+     "y": 750,
+     "w": 374,
+     "h": 32,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "notice": {
+     "x": 12,
+     "y": 167,
+     "w": 366,
+     "h": 62,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "routePaths": 0,
+    "routeCanvases": 1,
+    "markers": 0,
+    "center": null
+   },
+   "playing": {
+    "viewport": {
+     "w": 390,
+     "h": 844
+    },
+    "wrapper": {
+     "x": 0,
+     "y": 103,
+     "w": 390,
+     "h": 685,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "container": {
+     "x": 0,
+     "y": 103,
+     "w": 390,
+     "h": 685,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "leaflet": {
+     "x": 0,
+     "y": 103,
+     "w": 390,
+     "h": 685,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "maplibreCanvas": {
+     "x": -39,
+     "y": 35,
+     "w": 468,
+     "h": 822,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "none"
+    },
+    "legend": {
+     "x": 12,
+     "y": 115,
+     "w": 126,
+     "h": 44,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "zoom": {
+     "x": 334,
+     "y": 115,
+     "w": 44,
+     "h": 44,
+     "display": "flex",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "attribution": {
+     "x": 8,
+     "y": 750,
+     "w": 374,
+     "h": 32,
+     "display": "block",
+     "visibility": "visible",
+     "pointerEvents": "auto"
+    },
+    "notice": null,
+    "routePaths": 0,
+    "routeCanvases": 1,
+    "markers": 0,
+    "center": null
+   }
+  },
+  "errors": [
+   "Failed to load resource: net::ERR_CONNECTION_REFUSED"
+  ]
+ }
+]
