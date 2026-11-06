@@ -13,8 +13,12 @@ import { hashStopValue } from '@/lib/mappings.js'
 import { lanePlayhead, trailFracs, wrapFade } from '@/lib/mapPlayhead.js'
 import { BASEMAP_STYLE_URLS, quietBasemapStyle } from '@/lib/mapBasemapStyle.js'
 import {
-  FIT_MAX_ZOOM, isRouteActive, routeLineStyle, fitMixTarget, framingKey, overlayFitPadding,
+  FIT_MAX_ZOOM, MAP_BACKGROUND, isRouteActive, routeLineStyle, fitTarget, framingKey, overlayFitPadding, boundsFromRoutes,
 } from '@/lib/mapVisualPolicy.js'
+import {
+  STOP_CAP, STOP_DETAIL_MIN_ZOOM, buildMapLanes, activeGeometryIds, laneForRouteClick, toggleFocus, reconcileFocus,
+  sharedGeometryLanes, laneState, laneStops, visibleStopMarkers, stopInView,
+} from '@/lib/mapLanes.js'
 import { subscribeEvents, getEvents } from '@/lib/shared/eventLogStore.js'
 import Sheet from '@/components/Sheet.jsx'
 import { IconAdd, IconMinus, IconFit, IconCaretDown, IconCaretRight, IconWarning } from '@/components/icons.jsx'
@@ -256,14 +260,14 @@ function Attribution({ city }) {
 // switch, or a new set of routes (song load, Re-pick) — and otherwise leaves
 // the camera where the user put it: enabling or soloing lanes, switching
 // Map⇄DAW and changing theme never move it. "Fit mix" reframes on demand.
-function MapFraming({ cityId, cityBounds, routes, disabled, soloRoutes, active, fitRef, getPadding }) {
+function MapFraming({ cityId, cityBounds, routes, activeIds, active, fitRef, getPadding }) {
   const map = useMap()
   const latest = useRef(null)
-  latest.current = { routes, disabled, soloRoutes, cityBounds }
+  latest.current = { routes, activeIds, cityBounds }
 
   const fit = useCallback((animate = false) => {
-    const { routes: rs, disabled: d, soloRoutes: s, cityBounds: cb } = latest.current
-    const { bounds: b } = fitMixTarget(rs, d, s, cb)
+    const { routes: rs, activeIds: ids, cityBounds: cb } = latest.current
+    const { bounds: b } = fitTarget(rs, r => ids.has(r.id), cb)
     if (!b) return
     map.invalidateSize()
     map.fitBounds([[b.latMin, b.lngMin], [b.latMax, b.lngMax]], {
@@ -290,35 +294,44 @@ const prefersReducedMotion = () =>
   typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
 
 // ── Lane list ─────────────────────────────────────────────────────────────
-// The map's legend: which lanes exist, which are on, solo and role labels.
-// Read-only here (Phase 2 makes rows focus targets); "Show lanes" opens the
-// lane controls.
-function LaneRows({ routes, disabled, soloRoutes, trackLabels, automation }) {
+// The map's legend: every DAW lane (base, duplicate, merged) with its on/off,
+// solo and role label. Each row is a *visual* focus button: it never changes
+// what plays. Audio Enable/Solo stay in the lane view ("Show lanes").
+function laneSummary(lane, disabled, soloRoutes, trackLabels) {
+  const tag = normalizeLaneTag(trackLabels[lane.id])
+  return { tag, state: laneState(lane, disabled, soloRoutes), on: isRouteActive(lane, disabled, soloRoutes) }
+}
+
+function LaneRows({ lanes, disabled, soloRoutes, trackLabels, automation, focusedId, onFocus }) {
   return (
     <>
       <ul className="map-lanes" aria-label="Lanes on the map">
-        {routes.map(route => {
-          const on = isRouteActive(route, disabled, soloRoutes)
-          const tag = normalizeLaneTag(trackLabels[route.id])
-          const state = disabled[route.id] ? 'off' : soloRoutes.has(route.id) ? 'solo' : on ? 'on' : 'muted by solo'
+        {lanes.map(lane => {
+          const { tag, state, on } = laneSummary(lane, disabled, soloRoutes, trackLabels)
+          const focused = lane.id === focusedId
+          const extra = [tag.text, state.toLowerCase()].filter(Boolean).join(', ')
           return (
-            <li
-              key={route.id}
-              className={`map-lane${on ? '' : ' map-lane--off'}`}
-              title={route.desc ? `${route.name}: ${route.desc}` : route.name}
-              aria-label={`${route.name}${tag.text ? `, ${tag.text}` : ''}, ${state}`}
-            >
-              <span className="map-lane-dot" style={{ '--route-color': safeColor(route.color) }} aria-hidden="true" />
-              <span className="map-lane-name" aria-hidden="true">{route.name}</span>
-              {tag.text && (
-                <span
-                  className={`map-lane-tag${tag.color ? ' is-colored' : ''}`}
-                  style={tag.color ? { '--lane-tag-color': tag.color } : undefined}
-                  aria-hidden="true"
-                >{tag.text}</span>
-              )}
-              {disabled[route.id] && <span className="map-lane-badge map-lane-badge--off" aria-hidden="true">Off</span>}
-              {soloRoutes.has(route.id) && <span className="map-lane-badge map-lane-badge--solo" aria-hidden="true">S</span>}
+            <li key={lane.id} className="map-lane-item">
+              <button
+                type="button"
+                className={`map-lane${on ? '' : ' map-lane--off'}${focused ? ' map-lane--focused' : ''}`}
+                aria-pressed={focused}
+                aria-label={`Focus ${lane.name} on map (${extra})`}
+                title={lane.desc ? `${lane.name}: ${lane.desc}` : lane.name}
+                onClick={() => onFocus(lane.id)}
+              >
+                <span className="map-lane-dot" style={{ '--route-color': safeColor(lane.color) }} aria-hidden="true" />
+                <span className="map-lane-name" aria-hidden="true">{lane.name}</span>
+                {tag.text && (
+                  <span
+                    className={`map-lane-tag${tag.color ? ' is-colored' : ''}`}
+                    style={tag.color ? { '--lane-tag-color': tag.color } : undefined}
+                    aria-hidden="true"
+                  >{tag.text}</span>
+                )}
+                {disabled[lane.id] && <span className="map-lane-badge map-lane-badge--off" aria-hidden="true">Off</span>}
+                {soloRoutes.has(lane.id) && <span className="map-lane-badge map-lane-badge--solo" aria-hidden="true">S</span>}
+              </button>
             </li>
           )
         })}
@@ -341,22 +354,21 @@ function LaneRows({ routes, disabled, soloRoutes, trackLabels, automation }) {
   )
 }
 
-function LanePanel({ isPhone, isTablet, routes, disabled, soloRoutes, trackLabels, automation, onShowLanes, panelRef }) {
+function LanePanel({ isPhone, isTablet, lanes, disabled, soloRoutes, trackLabels, automation, onShowLanes, focusedId, onFocus, sheetOpen, setSheetOpen, disclosureRef }) {
   // Tablets start collapsed (the map is narrow); desktop starts open.
   const [open, setOpen] = useState(!isTablet)
   const wasTablet = useRef(isTablet)
   useEffect(() => {
     if (isTablet !== wasTablet.current) { setOpen(!isTablet); wasTablet.current = isTablet }
   }, [isTablet])
-  const [sheetOpen, setSheetOpen] = useState(false)
-  const audible = routes.filter(r => isRouteActive(r, disabled, soloRoutes)).length
-  const count = `${audible} of ${routes.length} on`
+  const audible = lanes.filter(l => isRouteActive(l, disabled, soloRoutes)).length
+  const count = `${audible} of ${lanes.length} on`
 
   if (isPhone) {
     return (
       <>
         <button
-          ref={panelRef}
+          ref={disclosureRef}
           type="button"
           className="map-lanes-disclosure"
           aria-haspopup="dialog"
@@ -376,7 +388,10 @@ function LanePanel({ isPhone, isTablet, routes, disabled, soloRoutes, trackLabel
           )}
         >
           <div className="map-lanes-sheet">
-            <LaneRows routes={routes} disabled={disabled} soloRoutes={soloRoutes} trackLabels={trackLabels} automation={automation} />
+            <p className="map-lanes-hint">Pick a lane to see it on the map. Its sound doesn't change.</p>
+            {/* Choosing a lane closes the sheet; useModal returns focus to "Lanes". */}
+            <LaneRows lanes={lanes} disabled={disabled} soloRoutes={soloRoutes} trackLabels={trackLabels} automation={automation}
+              focusedId={focusedId} onFocus={id => { onFocus(id); setSheetOpen(false) }} />
           </div>
         </Sheet>
       </>
@@ -384,7 +399,7 @@ function LanePanel({ isPhone, isTablet, routes, disabled, soloRoutes, trackLabel
   }
 
   return (
-    <section ref={panelRef} className={`map-panel${open ? '' : ' map-panel--collapsed'}`} aria-label="Map lanes">
+    <section className={`map-panel${open ? '' : ' map-panel--collapsed'}`} aria-label="Map lanes">
       <button type="button" className="map-panel-head" aria-expanded={open} onClick={() => setOpen(o => !o)}>
         {open ? <IconCaretDown /> : <IconCaretRight />}
         <span className="map-panel-title">Lanes</span>
@@ -392,17 +407,153 @@ function LanePanel({ isPhone, isTablet, routes, disabled, soloRoutes, trackLabel
       </button>
       {open && (
         <div className="map-panel-body">
-          <LaneRows routes={routes} disabled={disabled} soloRoutes={soloRoutes} trackLabels={trackLabels} automation={automation} />
+          <LaneRows lanes={lanes} disabled={disabled} soloRoutes={soloRoutes} trackLabels={trackLabels} automation={automation}
+            focusedId={focusedId} onFocus={onFocus} />
         </div>
       )}
     </section>
   )
 }
 
+// What the focused lane is, as text (so selection is never colour-only), plus
+// Fit route / Clear focus and the ordered stop list. Event-driven: nothing
+// here updates per frame or per note.
+function FocusDetails({ lane, summary, shared, stops, routesById, hasGeometry, selectedStop, stopVisible, onSelectStop, onShowStop, onFit, onClear, compact = false }) {
+  const [stopsOpen, setStopsOpen] = useState(false)
+  useEffect(() => { setStopsOpen(false) }, [lane.id])
+  const { tag, state } = summary
+  const multiRoute = lane.geometryIds.length > 1
+  const head = (
+    <div className="map-focus-head">
+      <span className="map-lane-dot" style={{ '--route-color': safeColor(lane.color) }} aria-hidden="true" />
+      <span className="map-focus-name">{lane.name}</span>
+      {tag.text && (
+        <span className={`map-lane-tag${tag.color ? ' is-colored' : ''}`} style={tag.color ? { '--lane-tag-color': tag.color } : undefined}>{tag.text}</span>
+      )}
+      <span className={`map-focus-state map-focus-state--${state === 'On' || state === 'Solo' ? 'on' : 'off'}`}>{state}</span>
+    </div>
+  )
+  const actions = (
+    <div className="map-focus-actions">
+      <button type="button" className="map-btn" onClick={onFit} disabled={!hasGeometry}>Fit route</button>
+      <button type="button" className="map-btn" onClick={onClear}>Clear focus</button>
+    </div>
+  )
+  return (
+    <section className={`map-focus${compact ? ' map-focus--compact' : ''}`} aria-label={`Focused lane: ${lane.name}`}>
+      {head}
+      {!hasGeometry && <p className="map-focus-note">No map geometry. The lane still plays.</p>}
+      {!compact && lane.kind === 'duplicate' && <p className="map-focus-note">Copy of {routesById.get(lane.geometryIds[0])?.name ?? 'its source line'}, drawn on the same line.</p>}
+      {!compact && lane.kind === 'merged' && <p className="map-focus-note">Chords from {lane.geometryIds.map(id => routesById.get(id)?.name).filter(Boolean).join(', ')}.</p>}
+      {!compact && shared.length > 0 && <p className="map-focus-note">Same line as {shared.map(l => l.name).join(', ')}.</p>}
+      {selectedStop && (
+        <div className="map-focus-stop">
+          <span className="map-focus-stop-name">{selectedStop.name}</span>
+          {!stopVisible && <button type="button" className="map-btn" onClick={onShowStop}>Show stop</button>}
+        </div>
+      )}
+      {actions}
+      {!compact && hasGeometry && (
+        <>
+          <button type="button" className="map-focus-disclosure" aria-expanded={stopsOpen} onClick={() => setStopsOpen(o => !o)}>
+            {stopsOpen ? <IconCaretDown /> : <IconCaretRight />}
+            <span>Stops</span>
+            <span className="map-lanes-count">{stops.length}</span>
+          </button>
+          {stopsOpen && (
+            <div className="map-focus-stops">
+              {lane.geometryIds.map(rid => {
+                const list = stops.filter(s => s.routeId === rid)
+                if (!list.length) return null
+                return (
+                  <div key={rid}>
+                    {multiRoute && <div className="map-lanes-heading map-focus-route">{routesById.get(rid)?.name ?? rid}</div>}
+                    <ol className="map-stops" aria-label={`Stops of ${routesById.get(rid)?.name ?? lane.name}`}>
+                      {list.map(s => (
+                        <li key={s.key}>
+                          <button type="button" className="map-stop" aria-pressed={selectedStop?.key === s.key} onClick={() => onSelectStop(s.key)}>
+                            {s.name}
+                          </button>
+                        </li>
+                      ))}
+                    </ol>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </>
+      )}
+    </section>
+  )
+}
+
+// Stop markers for the focused lane only. Owns the viewport state, updated on
+// moveend/zoomend (never per frame), so a pan re-renders this layer and
+// nothing else. The selected stop is always marked and labelled, at any zoom.
+function FocusStops({ stops, colorOf, bg, selectedKey, cap, onSelect, onVisibility, pane }) {
+  const map = useMap()
+  const read = useCallback(() => {
+    const b = map.getBounds()
+    return { zoom: map.getZoom(), bounds: { south: b.getSouth(), west: b.getWest(), north: b.getNorth(), east: b.getEast() } }
+  }, [map])
+  const [view, setView] = useState(read)
+  useEffect(() => {
+    const update = () => setView(read())
+    map.on('moveend zoomend', update)
+    update()
+    return () => { map.off('moveend zoomend', update) }
+  }, [map, read])
+
+  const selected = stops.find(s => s.key === selectedKey) ?? null
+  const visible = stopInView(selected, view.bounds)
+  useEffect(() => { onVisibility(visible) }, [visible, onVisibility])
+
+  const markers = visibleStopMarkers(stops, { ...view, cap, selectedKey })
+  return (
+    <>
+      {markers.filter(s => s.key !== selectedKey).map(s => (
+        <CircleMarker
+          key={s.key}
+          {...(pane ? { pane } : {})}
+          center={[s.lat, s.lon]}
+          radius={4}
+          pathOptions={{ color: safeColor(colorOf(s.routeId)), fillColor: bg, fillOpacity: 1, weight: 2 }}
+          eventHandlers={{ click: () => onSelect(s.key) }}
+        >
+          <Tooltip>{s.name}</Tooltip>
+        </CircleMarker>
+      ))}
+      {selected && (
+        <CircleMarker
+          key={`sel_${selected.key}`}
+          {...(pane ? { pane } : {})}
+          center={[selected.lat, selected.lon]}
+          radius={6}
+          pathOptions={{ color: safeColor(colorOf(selected.routeId)), fillColor: safeColor(colorOf(selected.routeId)), fillOpacity: 1, weight: 3 }}
+          eventHandlers={{ click: () => onSelect(selected.key) }}
+        >
+          <Tooltip permanent direction="top" offset={[0, -8]} className="map-stop-label">{selected.name}</Tooltip>
+        </CircleMarker>
+      )}
+    </>
+  )
+}
+
+// The map pane focused lines and stop markers draw in: above every other route
+// line (overlayPane, 400), under the ripples and playheads. Created during
+// render so it exists before any child layer asks for it.
+function FocusPane() {
+  const map = useMap()
+  if (!map.getPane('focus')) map.createPane('focus').style.zIndex = '420'
+  return null
+}
+
 function MapView({
   className = '',
   active = true,
   routes = null,
+  mapLanes = null,
   city = null,
   started = false,
   mode = 'mock',
@@ -416,8 +567,8 @@ function MapView({
   trackSynthTypes = {},
   onShowLanes = null,
 }) {
-  // Phone concessions: canvas rendering, no zoom buttons (pinch), no per-stop
-  // CircleMarkers, and the lane list behind a sheet.
+  // Phone concessions: canvas rendering, no zoom buttons (pinch), fewer stop
+  // markers, and the lane list behind a sheet.
   const isPhone = useIsPhone()
   const isTablet = useIsTablet()
   const { theme } = useTheme()
@@ -452,21 +603,64 @@ function MapView({
     { type: 'bus',     label: 'Bus' },
     { type: 'hev',     label: 'Rail' },
   ]
-  // Duplicate lanes share their source's polyline, so they'd draw on top of it —
-  // hide them on the map (they're audio-only chord layers). Memoized so the 30 fps
-  // playhead re-render doesn't rebuild these each frame.
-  const { routesByType, allRoutes } = useMemo(() => {
+  // The map draws physical geometry: each base route's lines once. Duplicate
+  // and merged lanes reuse their sources' lines (lib/mapLanes.js). Memoized so
+  // the 30 fps playhead re-render doesn't rebuild these each frame.
+  const { routesByType, allRoutes, routesById } = useMemo(() => {
     const byType = Object.fromEntries(
       LAYERS.map(l => [l.type, routes?.filter(r => r.type === l.type && !r.isDuplicate) ?? []])
     )
-    return { routesByType: byType, allRoutes: LAYERS.flatMap(l => byType[l.type]) }
+    const all = LAYERS.flatMap(l => byType[l.type])
+    return { routesByType: byType, allRoutes: all, routesById: new Map(all.map(r => [r.id, r])) }
   }, [routes]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // The lanes the legend lists (MixerTab's DAW lanes); without them, the base routes.
+  const lanes = useMemo(() => mapLanes ?? buildMapLanes(allRoutes), [mapLanes, allRoutes])
+  // A line draws as audible when any lane on it is audible.
+  const activeIds = useMemo(() => activeGeometryIds(lanes, disabled, soloRoutes), [lanes, disabled, soloRoutes])
+  const activeRef = useRef(activeIds)
+  useEffect(() => { activeRef.current = activeIds }, [activeIds])
+
   const audibleCount = useMemo(
-    () => allRoutes.filter(r => isRouteActive(r, disabled, soloRoutes)).length,
-    [allRoutes, disabled, soloRoutes]
+    () => lanes.filter(l => isRouteActive(l, disabled, soloRoutes)).length,
+    [lanes, disabled, soloRoutes]
   )
-  const allOff = allRoutes.length > 0 && audibleCount === 0
+  const allOff = lanes.length > 0 && audibleCount === 0
+
+  // ── Visual focus (phase 2). Map-local, event-driven, never touches audio. ──
+  const [focusedId, setFocusedId] = useState(null)
+  const [selectedStopKey, setSelectedStopKey] = useState(null)
+  const [stopVisible, setStopVisible] = useState(true)
+  const [sheetOpen, setSheetOpen] = useState(false)
+  const focusedRef = useRef(null)
+  focusedRef.current = focusedId
+  const focusLane = useCallback(id => {
+    setFocusedId(prev => toggleFocus(prev, id))
+    setSelectedStopKey(null)
+  }, [])
+  const clearFocus = useCallback(() => { setFocusedId(null); setSelectedStopKey(null) }, [])
+  // Removing the lane clears focus; disabling it doesn't (it shows as "Off").
+  useEffect(() => {
+    if (reconcileFocus(focusedId, lanes) !== focusedId) clearFocus()
+  }, [lanes, focusedId, clearFocus])
+  // A city switch or a new song (a new set of routes) clears it too.
+  const frameKey = framingKey(city?.id, allRoutes)
+  useEffect(() => { clearFocus() }, [frameKey, clearFocus])
+
+  const focused = lanes.find(l => l.id === focusedId) ?? null
+  const focusGeometry = useMemo(() => new Set(focused?.geometryIds ?? []), [focused])
+  const focusStops = useMemo(() => (focused ? laneStops(focused, routesById) : []), [focused, routesById])
+  const selectedStop = focusStops.find(s => s.key === selectedStopKey) ?? null
+  const focusHasGeometry = focusStops.length > 0
+  const selectStop = useCallback(key => setSelectedStopKey(k => (k === key ? null : key)), [])
+
+  // A click on a line focuses a lane drawn on it (shared lines keep the
+  // current lane). Through a ref so the memoized layer tree stays stable.
+  const onRouteClickRef = useRef(null)
+  onRouteClickRef.current = (routeId) => {
+    const id = laneForRouteClick(routeId, lanes, focusedRef.current)
+    if (id && id !== focusedRef.current) { setFocusedId(id); setSelectedStopKey(null) }
+  }
 
   // Live vehicles indexed by routeShortName
   const vehiclesByRouteName = {}
@@ -483,7 +677,8 @@ function MapView({
 
   // ── Overlay geometry, for framing around the panels ──
   const wrapperRef = useRef(null)
-  const panelRef = useRef(null)
+  const leftRef = useRef(null)        // desktop: lanes panel + focus details
+  const disclosureRef = useRef(null)  // phone: the Lanes button
   const controlsRef = useRef(null)
   const noticeRef = useRef(null)
   const mapRef = useRef(null)
@@ -495,77 +690,77 @@ function MapView({
     const wrapper = wrapperRef.current
     const layersCtl = wrapper?.querySelector('.leaflet-control-layers')
     const attribution = wrapper?.querySelector('.leaflet-control-attribution')
-    const panel = rect(panelRef.current)
     return overlayFitPadding(rect(container), {
-      left: isPhone ? [] : [panel],
-      top: isPhone ? [panel, rect(noticeRef.current)] : [rect(noticeRef.current)],
+      left: isPhone ? [] : [rect(leftRef.current)],
+      top: isPhone ? [rect(disclosureRef.current), rect(noticeRef.current)] : [rect(noticeRef.current)],
       right: [rect(controlsRef.current), rect(layersCtl)],
       bottom: [rect(attribution)],
     })
   }, [isPhone])
 
-  // The static polyline + stop layer. Memoized on its only real inputs so a
-  // re-render (live snapshots, mixer state) returns the same element
-  // references and React skips reconciling this heavy tree (hundreds of large
-  // polylines + up to ~780 metro stop markers for NYC-scale cities).
+  const fitRoute = useCallback(() => {
+    const map = mapRef.current
+    const b = boundsFromRoutes((focused?.geometryIds ?? []).map(id => routesById.get(id)).filter(Boolean))
+    if (!map || !b) return
+    map.fitBounds([[b.latMin, b.lngMin], [b.latMax, b.lngMax]], { ...getPadding(), maxZoom: FIT_MAX_ZOOM, animate: !prefersReducedMotion() })
+  }, [focused, routesById, getPadding])
+  const showStop = useCallback(() => {
+    const map = mapRef.current
+    if (!map || !selectedStop) return
+    map.setView([selectedStop.lat, selectedStop.lon], Math.max(map.getZoom(), STOP_DETAIL_MIN_ZOOM + 1), { animate: !prefersReducedMotion() })
+  }, [selectedStop])
+
+  // The static polyline layer. Memoized on its only real inputs so a re-render
+  // (live snapshots, mixer state) returns the same element references and
+  // React skips reconciling this heavy tree (hundreds of large polylines).
+  // There are no passive stop markers here any more: stops appear only for the
+  // focused lane, zoomed in (FocusStops).
+  const focusLayerProps = isPhone ? { eventHandlers: { add: e => e.target.bringToFront() } } : { pane: 'focus' }
+  const raiseAndClick = id => ({ add: e => e.target.bringToFront(), click: () => onRouteClickRef.current?.(id) })
   const routeLayers = useMemo(() => (
     <LayersControl position="topright">
       {LAYERS.map(({ type, label }) => {
         const layerRoutes = routesByType[type]
         if (!layerRoutes.length) return null
-        // Metro stop markers are up to ~780 CircleMarkers for NYC-scale
-        // cities. That already froze desktop once (see the memo note above);
-        // a phone GPU has no chance, and the dots are unreadable at that size.
-        const showStops = type === 'metro' && !isPhone
-        const styled = layerRoutes.map(route => ({
-          route,
-          ...routeLineStyle(route, { active: isRouteActive(route, disabled, soloRoutes), allOff, theme }),
-        }))
+        const styled = layerRoutes.map(route => {
+          const on = activeIds.has(route.id)
+          const sel = focusGeometry.has(route.id)
+          const focus = focusGeometry.size === 0 ? null : sel ? 'selected' : on ? 'other' : null
+          // Focused lines draw in their own pane, above every other line.
+          // The key carries it because a layer's pane is fixed at creation.
+          // Phones draw on canvas, and a canvas in a higher pane would swallow
+          // taps meant for the lines below, so there they're raised instead.
+          return { route, sel, ...routeLineStyle(route, { active: on, allOff, theme, focus }) }
+        })
         return (
           <LayersControl.Overlay key={type} checked name={label}>
             <>
               {/* Neutral casing, only under lines whose colour lacks contrast
                   with the map (routeLineStyle). Drawn first so every casing
-                  sits beneath every line of the layer. */}
-              {styled.filter(s => s.casing).map(({ route, casing }) => linesOf(route).map(pl => (
+                  sits beneath every line of its pane. */}
+              {styled.filter(s => s.casing).map(({ route, casing, sel }) => linesOf(route).map(pl => (
                 <Polyline
-                  key={`${route.id}_${pl.direction}_casing`}
+                  key={`${route.id}_${pl.direction}_casing${sel ? '_f' : ''}`}
                   positions={pl.coords}
                   interactive={false}
                   pathOptions={casing}
+                  {...(sel ? focusLayerProps : {})}
                 />
               )))}
-              {styled.map(({ route, line }) => linesOf(route).map(pl => (
+              {styled.map(({ route, line, sel }) => linesOf(route).map(pl => (
                 // Style goes through pathOptions: react-leaflet applies bare
                 // color/weight/opacity props only at creation, so toggling a
                 // lane on would leave its line drawn dimmed and dashed.
                 <Polyline
-                  key={`${route.id}_${pl.direction}`}
+                  key={`${route.id}_${pl.direction}${sel ? '_f' : ''}`}
                   positions={pl.coords}
                   pathOptions={line}
+                  eventHandlers={sel && isPhone ? raiseAndClick(route.id) : { click: () => onRouteClickRef.current?.(route.id) }}
+                  {...(sel && !isPhone ? { pane: 'focus' } : {})}
                 >
                   <Tooltip sticky>{route.name}: {route.desc}</Tooltip>
                 </Polyline>
               )))}
-              {/* Stop markers only for ACTIVE routes. Drawing every metro
-                  stop (dimmed) is prohibitively heavy for large all-metro
-                  networks like NYC's 28-line subway (~780 interactive
-                  markers) and froze the tab; a fresh all-disabled session
-                  now renders none, and stops appear as lines are enabled. */}
-              {showStops && layerRoutes
-                .filter(route => isRouteActive(route, disabled, soloRoutes))
-                .map(route =>
-                  route.stops.map((stop, i) => (
-                    <CircleMarker
-                      key={`${route.id}_${stop.id}_${i}`}
-                      center={[stop.lat, stop.lon]}
-                      radius={3}
-                      pathOptions={{ color: route.color, fillColor: route.color, fillOpacity: 0.9, weight: 1 }}
-                    >
-                      <Tooltip>{stop.name}</Tooltip>
-                    </CircleMarker>
-                  ))
-                )}
             </>
           </LayersControl.Overlay>
         )
@@ -614,29 +809,55 @@ function MapView({
         </LayersControl.Overlay>
       )}
     </LayersControl>
-  ), [routesByType, disabled, soloRoutes, isPhone, automation, detail, allOff, theme]) // eslint-disable-line react-hooks/exhaustive-deps
+  ), [routesByType, activeIds, focusGeometry, isPhone, automation, detail, allOff, theme]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const notice = !routes ? null
-    : allRoutes.length === 0 ? { text: 'Add a lane to begin.', action: 'Show lanes' }
+    : lanes.length === 0 ? { text: 'Add a lane to begin.', action: 'Show lanes' }
     : allOff ? { text: 'Enable a lane to hear the city.', action: 'Show lanes' }
     : null
+
+  const focusProps = focused && {
+    lane: focused,
+    summary: laneSummary(focused, disabled, soloRoutes, trackLabels),
+    shared: sharedGeometryLanes(focused, lanes),
+    stops: focusStops,
+    routesById,
+    hasGeometry: focusHasGeometry,
+    selectedStop,
+    stopVisible,
+    onSelectStop: selectStop,
+    onShowStop: showStop,
+    onFit: fitRoute,
+    onClear: clearFocus,
+  }
+
+  const panel = routes && lanes.length > 0 && (
+    <LanePanel
+      isPhone={isPhone}
+      isTablet={isTablet}
+      lanes={lanes}
+      disabled={disabled}
+      soloRoutes={soloRoutes}
+      trackLabels={trackLabels}
+      automation={automation}
+      onShowLanes={onShowLanes}
+      focusedId={focusedId}
+      onFocus={focusLane}
+      sheetOpen={sheetOpen}
+      setSheetOpen={setSheetOpen}
+      disclosureRef={disclosureRef}
+    />
+  )
 
   return (
     <div ref={wrapperRef} className={`map-wrapper${className ? ` ${className}` : ''}`} data-basemap={basemap}>
       {!routes && <div className="map-loading" role="status">Loading routes…</div>}
 
-      {routes && allRoutes.length > 0 && (
-        <LanePanel
-          isPhone={isPhone}
-          isTablet={isTablet}
-          routes={allRoutes}
-          disabled={disabled}
-          soloRoutes={soloRoutes}
-          trackLabels={trackLabels}
-          automation={automation}
-          onShowLanes={onShowLanes}
-          panelRef={panelRef}
-        />
+      {isPhone ? panel : (panel || focusProps) && (
+        <div ref={leftRef} className="map-left">
+          {panel}
+          {focusProps && <FocusDetails {...focusProps} />}
+        </div>
       )}
 
       <div ref={controlsRef} className="map-controls" role="group" aria-label="Map view">
@@ -655,8 +876,10 @@ function MapView({
         ><IconFit /></button>
       </div>
 
-      {(notice || basemap === 'error') && (
+      {(notice || basemap === 'error' || (isPhone && focusProps)) && (
         <div ref={noticeRef} className="map-notices">
+          {/* Phone: the focused lane's compact summary, under the Lanes button. */}
+          {isPhone && focusProps && <FocusDetails {...focusProps} compact />}
           {basemap === 'error' && (
             <div className="map-notice" role="status">
               <IconWarning />
@@ -689,14 +912,14 @@ function MapView({
         zoomDelta={1}
       >
         <MapBridge mapRef={mapRef} />
+        <FocusPane />
         <MapResizer active={active} />
         <PlayheadPaneSetup paneRef={playheadPane} />
         <MapFraming
           cityId={city?.id}
           cityBounds={city?.bounds}
           routes={routes ? allRoutes : null}
-          disabled={disabled}
-          soloRoutes={soloRoutes}
+          activeIds={activeIds}
           active={active}
           fitRef={fitRef}
           getPadding={getPadding}
@@ -707,6 +930,19 @@ function MapView({
 
         {routeLayers}
 
+        {focused && focusHasGeometry && (
+          <FocusStops
+            stops={focusStops}
+            colorOf={rid => routesById.get(rid)?.color}
+            bg={MAP_BACKGROUND[theme === 'light' ? 'light' : 'dark']}
+            selectedKey={selectedStopKey}
+            cap={isPhone ? STOP_CAP.phone : STOP_CAP.desktop}
+            onSelect={selectStop}
+            onVisibility={setStopVisible}
+            pane={isPhone ? null : 'focus'}
+          />
+        )}
+
         <NoteRipples routes={routes} active={active && started} />
 
         {/* ── Mock mode: playhead dot per lane, in its own pane above the lines ── */}
@@ -714,6 +950,7 @@ function MapView({
           enabled={active && started && mode === 'mock' && !!routes}
           routes={routes}
           trailSamples={isPhone ? TRAIL_SAMPLES_PHONE : TRAIL_SAMPLES}
+          activeRef={activeRef}
           disabledRef={disabledRef}
           soloRef={soloRef}
           speedsRef={speedsRef}
@@ -723,7 +960,7 @@ function MapView({
 
         {/* ── Live mode: vehicle dots ── */}
         {mode === 'live' && allRoutes.map(route => {
-          if (!isRouteActive(route, disabled, soloRoutes)) return null
+          if (!activeIds.has(route.id)) return null
           return (vehiclesByRouteName[route.name] ?? [])
             .filter(v => v.lat != null && v.lng != null)
             .map(v => (
@@ -843,7 +1080,7 @@ const PLAYHEAD_FRAME_MS  = 33   // ~30 fps
 // re-renders React per frame. Trails share one canvas renderer (one redraw per
 // frame instead of an SVG path update per segment); the dots stay SVG for
 // their CSS pulse classes.
-function MockPlayheads({ enabled, routes, trailSamples, disabledRef, soloRef, speedsRef, regionsRef, automationRef }) {
+function MockPlayheads({ enabled, routes, trailSamples, activeRef, disabledRef, soloRef, speedsRef, regionsRef, automationRef }) {
   const map = useMap()
   useEffect(() => {
     if (!enabled) return undefined
@@ -912,7 +1149,7 @@ function MockPlayheads({ enabled, routes, trailSamples, disabledRef, soloRef, sp
       const seen = new Set()
       for (const route of routes) {
         if (route.isDuplicate) continue
-        if (!isRouteActive(route, disabledRef.current, soloRef.current)) continue
+        if (!activeRef.current.has(route.id)) continue
         const timing = { beats, speed: speedsRef.current?.[route.id] ?? 1, region: regionsRef.current?.[route.id] }
         const { frac, phase } = lanePlayhead(timing)
         const pos = positionAlongRoute(route, frac)
@@ -943,7 +1180,7 @@ function MockPlayheads({ enabled, routes, trailSamples, disabledRef, soloRef, sp
       layers.clear()
       trailRenderer.remove()
     }
-  }, [map, enabled, routes, trailSamples, disabledRef, soloRef, speedsRef, regionsRef, automationRef])
+  }, [map, enabled, routes, trailSamples, activeRef, disabledRef, soloRef, speedsRef, regionsRef, automationRef])
   return null
 }
 

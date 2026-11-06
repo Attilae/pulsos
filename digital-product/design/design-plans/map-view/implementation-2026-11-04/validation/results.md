@@ -2,7 +2,7 @@
 
 5 November 2026 · code at `7ec8c80` (feature/map-exploring fast-forwarded to the plan's baseline) · no product code changed.
 
-Status: **Phase 0 baseline done; Phase 1 results added at the end** ("Phase 1 results"). Remaining gaps are listed under "Not yet done" and in the Phase 1 section.
+Status: **Phase 0 baseline done; Phase 1 and Phase 2 results added at the end.** Remaining gaps are listed under "Not yet done" and in the Phase 1 section.
 
 ## Environment
 
@@ -171,3 +171,33 @@ What this says:
 - Screen reader pass over the panel, sheet and notices (not done).
 - Real phone hardware, and `--viewport phone --cpu 4` stress runs (not done, as in phase 0).
 - Fit padding ignores the AI Composer panel on desktop.
+
+## Phase 2 results
+
+6 November 2026 · candidate = working tree on top of `124d7e4`. Visual route focus and progressive stop detail.
+
+### What changed
+
+- **Lanes, not routes, in the legend.** MixerTab passes `mapLanes` (`lib/mapLanes.js` `buildMapLanes` over the DAW's visible lanes). Duplicates resolve to their `sourceId` line, merged lanes to their `sourceIds`; synthetic ids are never parsed. Each physical line is still drawn once. A line draws as audible when any lane on it is audible, which also drives Fit mix and the playheads (before, a merged lane's source lines looked active while gated silent, and a duplicate playing over a disabled base looked off).
+- **Focus.** Legend rows are `aria-pressed` buttons labelled "Focus U7 on map (Bass, on)"; pressing the focused row again clears it. Clicking a line focuses a lane on it (a focused lane sharing that line stays focused). The focused line is 4px in a `focus` pane above the others, other audible lines drop to 0.5, off previews are unchanged, and a focused lane that is off stays dashed and says "Off".
+- **Details card** under the legend (desktop/tablet, ≤240px): name, role label, state as text, duplicate/merged/shared-line notes, the selected stop, Fit route, Clear focus and a "Stops" disclosure with the ordered stop list. "No map geometry" disables Fit route with the reason shown.
+- **Stops.** The passive metro stop markers are gone. Only the focused lane's stops are drawn, at zoom ≥13, filtered to the viewport on `moveend`/`zoomend` and sampled by stop order to 80 (desktop) / 24 (phone), keeping endpoints and the selected stop. One label: the selected stop. Picking a stop in the list doesn't move the camera; "Show stop" appears when it's off screen.
+- **Phone.** The Lanes sheet rows focus and close the sheet; focus returns to the Lanes button; a compact card (name, state, Fit route, Clear focus) sits under it. Focused lines are raised with `bringToFront` rather than a separate pane, because a canvas in a higher pane would swallow taps meant for lines below.
+- Focus clears on a city change, a new song/route set, or removal of the lane; it stays when the lane is disabled.
+
+### Checks
+
+- `npm test` 590/590, including `test/map-lanes.test.js` (8 tests: geometry resolution without parsing ids, lane-aware activity, click and toggle rules, reconcile on removal, merged stop order, zoom gate/viewport/cap with endpoints and selection kept, focus styles, predicate fit). `npm run build` passes.
+- `focus-check.cjs` against `next dev` (berlin-6, playing, 1440×900 and 390×844 touch):
+  - Mouse: row focus, Fit route, zoom-in shows the focused lane's stops only, stop selection labels one stop, a pan hides it and "Show stop" brings it back.
+  - Keyboard: Tab to a row, Enter focuses, Enter again clears.
+  - Line click focuses the clicked line's lane (U8).
+  - Phone: the sheet lists the 6 lanes; tapping one closes it, focus returns to the Lanes button and the compact card appears; Fit route and Clear focus work.
+  - **Audio state unchanged:** the lane view's enable/solo pressed states and volume values are identical before and after every visual action (desktop and phone), and playback ran throughout.
+- Crowded layout: berlin-24 at 1440×900 dark (legend 116–617, card 625–848, attribution from 862) and 820×1180 light/touch (collapsed legend, card 210–594). No horizontal scroll.
+
+**Phase 2 gate** (mouse, keyboard and touch can focus, inspect a stop and return to the mix; volumes, solo/disabled sets and playback don't change): **met in Chrome desktop and phone emulation.** Open:
+- Screen reader pass (VoiceOver) over the focus buttons, card and stop list.
+- Real touch hardware.
+- No sounding-stop highlight (optional in the plan; not built).
+- Performance not re-measured for this phase. The map draws fewer layers than before (passive metro stop markers removed; focus adds at most 80 markers), so no regression is expected; phase 3 re-measures.

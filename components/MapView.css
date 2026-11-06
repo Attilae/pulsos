@@ -144,14 +144,29 @@
   --map-ctl: 32px;
 }
 
-/* Lane list (desktop/tablet) */
-.map-panel {
+/* Left column (desktop/tablet): the lane list, then the focused lane's
+   details. Together they stop clear of the attribution. */
+.map-left {
   position: absolute;
   top: var(--map-inset);
   left: var(--map-inset);
   z-index: 999;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-100);
+  max-height: calc(100% - 2 * var(--map-inset) - 40px);
+  pointer-events: none;   /* the gap between panels stays draggable map */
+}
+.map-left > * { pointer-events: auto; }
+/* With both open, the lane list gives up height first, down to a few rows. */
+.map-left .map-panel:not(.map-panel--collapsed) { min-height: calc(var(--map-row) * 4); }
+
+/* Lane list (desktop/tablet) */
+.map-panel {
+  flex: 0 1 auto;
+  min-height: 0;
   width: 192px;
-  max-height: calc(100% - 2 * var(--map-inset) - 40px);  /* clear of the attribution */
   display: flex;
   flex-direction: column;
   background: var(--surface);
@@ -200,7 +215,28 @@
   min-height: var(--map-row);
   min-width: 0;
 }
+.map-lane-item + .map-lane-item,
 .map-lane + .map-lane { border-top: 1px solid color-mix(in srgb, var(--border) 60%, transparent); }
+/* Lane rows are focus buttons (visual only; Enable/Solo live in the lane view). */
+button.map-lane {
+  width: 100%;
+  margin: 0;
+  padding: 0 var(--space-075);
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+button.map-lane:hover { background: var(--surface2); }
+/* Focused: shown by border and weight as well as colour. */
+button.map-lane--focused {
+  border-color: var(--text);
+  background: var(--surface2);
+}
+button.map-lane--focused .map-lane-name { color: var(--text); font-weight: 700; }
 .map-lane-dot {
   width: 10px;
   height: 10px;
@@ -262,6 +298,114 @@
   font-size: var(--fs-3xs);
   color: var(--automation-text);
 }
+
+/* Focused lane details (desktop/tablet below the lanes; phone: compact, under
+   the Lanes button). Event-driven text only, never a per-frame readout. */
+.map-focus {
+  flex: 0 1 auto;
+  min-height: 0;
+  width: max-content;
+  min-width: 192px;
+  max-width: 240px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-100);
+  padding: var(--space-100);
+  overflow-y: auto;          /* 24 lanes leave it little height */
+  overscroll-behavior: contain;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  box-shadow: var(--elevation-overlay);
+  font-size: var(--fs-sm);
+  color: var(--text);
+}
+.map-focus-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-075);
+  min-width: 0;
+}
+.map-focus-name {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+.map-focus-state {
+  margin-left: auto;
+  font-size: var(--fs-xs);
+  font-family: var(--font-mono);
+}
+.map-focus-state--on { color: var(--success-text); }
+.map-focus-state--off { color: var(--muted); }
+.map-focus-note {
+  margin: 0;
+  font-size: var(--fs-xs);
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.map-focus-stop {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-100);
+}
+.map-focus-stop-name { font-weight: 600; overflow-wrap: anywhere; }
+.map-focus-actions { display: flex; flex-wrap: wrap; gap: var(--space-075); }
+.map-btn:disabled { color: var(--muted); border-color: var(--border); cursor: not-allowed; }
+.map-focus-disclosure {
+  display: flex;
+  align-items: center;
+  gap: var(--space-075);
+  min-height: var(--map-row);
+  padding: 0;
+  background: none;
+  border: none;
+  border-top: 1px solid var(--border);
+  color: var(--text);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+}
+.map-focus-disclosure .icon { color: var(--muted); }
+.map-focus-stops {
+  min-height: 0;
+  max-height: 240px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.map-focus-route { margin-top: 0; }
+.map-stops { list-style: none; margin: 0; padding: 0; counter-reset: stop; }
+.map-stop {
+  display: block;
+  width: 100%;
+  min-height: 28px;
+  padding: 2px var(--space-075);
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--fs-xs);
+  text-align: left;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+.map-stop:hover { background: var(--surface2); }
+.map-stop[aria-pressed="true"] { border-color: var(--text); font-weight: 700; }
+/* The one stop label on the map: the selected stop. */
+.map-wrapper .leaflet-tooltip.map-stop-label {
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  color: var(--text);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  box-shadow: var(--elevation-overlay);
+}
+.map-wrapper .leaflet-tooltip.map-stop-label::before { border-top-color: var(--border-strong); }
+.map-focus--compact { width: auto; max-width: none; min-width: 0; }
 
 /* View controls, upper-right; Leaflet's layer switcher sits under them. */
 .map-controls {
@@ -374,6 +518,7 @@
   cursor: pointer;
 }
 .map-lanes-sheet .map-lane { min-height: var(--tap-min); }
+.map-lanes-hint { margin: 0 0 var(--space-100); font-size: var(--fs-sm); color: var(--muted); }
 .map-lanes-sheet .map-lane-name { font-size: var(--fs-sm); }
 
 @media (max-width: 767px) {
@@ -394,4 +539,5 @@
 /* Fingers, not widths: tablets and touch laptops get 44px rows and controls. */
 @media (pointer: coarse) {
   .map-wrapper { --map-row: var(--tap-min); --map-ctl: var(--tap-min); }
+  .map-stop { min-height: var(--tap-min); }
 }
