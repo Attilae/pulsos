@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom'
 import { useCitySelection } from '@/lib/shared/CityContext.jsx'
 import { useModal } from '@/lib/shared/useModal.js'
 import { trackProductEvent } from '@/lib/productAnalytics.js'
-import { loadCityPreset } from '@/lib/cityPresets.js'
+import { CITY_PRESETS_ENABLED, loadCityPreset } from '@/lib/cityPresets.js'
 
 // Manual switches ask how to begin; opening saved songs still switches directly.
 export default function CitySelect() {
@@ -41,6 +41,11 @@ export default function CitySelect() {
       <span className="city-select-icon" aria-hidden="true">◎</span>
       <select className="city-select-input" value={cityId} aria-label="City" onChange={(e) => {
         if (e.target.value === cityId) return
+        if (!CITY_PRESETS_ENABLED) {
+          trackProductEvent('city_selected', { city: e.target.value })
+          setCityId(e.target.value)
+          return
+        }
         setError(null)
         setTarget(cities.find(c => c.id === e.target.value))
       }}>

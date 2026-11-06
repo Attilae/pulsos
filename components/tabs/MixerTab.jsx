@@ -11,7 +11,7 @@ import { randomFromScale, shiftOctaveNote, geoToMidi, routeBounds, midiToNote, n
 import { buildRouteSoundModes, buildLanePitchMaps } from '@/lib/lanePitch.js'
 import { fetchLines } from '@/lib/shared/useRoutes.js'
 import { useCitySelection } from '@/lib/shared/CityContext.jsx'
-import { loadCityPreset } from '@/lib/cityPresets.js'
+import { CITY_PRESETS_ENABLED, loadCityPreset } from '@/lib/cityPresets.js'
 import { getCityEntry, linesUrlFor } from '@/lib/shared/cities.js'
 import { resolveSnapshotLanes, clampMode } from '@/lib/songLanes.js'
 import { normalizeLaneTag } from '@/lib/laneTags.js'
@@ -2193,7 +2193,7 @@ export default function MixerTab({ active = true }) {
     routes,
     onReset: resetSessionState,
     activeLaneLimit: limits.activeLanes,
-    loadStarter: loadStarterPreset,
+    loadStarter: CITY_PRESETS_ENABLED ? loadStarterPreset : null,
   })
 
   // The city effect needs to preserve+detach the open song before wiping; expose

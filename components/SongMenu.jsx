@@ -3,6 +3,7 @@ import { alertDialog, confirmDialog, promptDialog } from './Dialog.jsx'
 import { CITIES } from '@/lib/shared/cities.js'
 import { useCitySelection } from '@/lib/shared/CityContext.jsx'
 import { trackProductEvent } from '@/lib/productAnalytics.js'
+import { CITY_PRESETS_ENABLED } from '@/lib/cityPresets.js'
 import './SongMenu.css'
 import { IconCaretDown, IconClose } from './icons.jsx'
 
@@ -177,7 +178,7 @@ export default function SongMenu({
           <button className="song-menu-item" onClick={handleNew}>
             <span>New</span>
           </button>
-          {startFromPreset && (
+          {CITY_PRESETS_ENABLED && startFromPreset && (
             <button className="song-menu-item" onClick={handleCityPreset}>
               <span>Load {cityEntry.name} preset</span>
             </button>
