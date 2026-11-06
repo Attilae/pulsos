@@ -11,6 +11,7 @@ import { randomFromScale, shiftOctaveNote, geoToMidi, routeBounds, midiToNote, n
 import { buildRouteSoundModes, buildLanePitchMaps } from '@/lib/lanePitch.js'
 import { fetchLines } from '@/lib/shared/useRoutes.js'
 import { useCitySelection } from '@/lib/shared/CityContext.jsx'
+import { loadCityPreset } from '@/lib/cityPresets.js'
 import { getCityEntry, linesUrlFor } from '@/lib/shared/cities.js'
 import { resolveSnapshotLanes, clampMode } from '@/lib/songLanes.js'
 import { normalizeLaneTag } from '@/lib/laneTags.js'
@@ -437,6 +438,9 @@ export default function MixerTab({ active = true }) {
   // on a normal randomly-picked session instead of an empty screen.
   const [cityNonce, setCityNonce] = useState(0)
   const applyCityPresetRef = useRef(null)
+  // The city picker's preset is applied once: a failed apply bumps cityNonce to
+  // fall back to a random pick, and re-applying the same preset would loop.
+  const appliedCityPresetRef = useRef(null)
 
   // Load one city's route data and make it the active city's data. Shared by the
   // city effect and applyPreset; fetchLines is promise-cached per URL, so both
@@ -493,7 +497,8 @@ export default function MixerTab({ active = true }) {
       .then(async ([all]) => {
         // Bail if a preset claimed the session while we were fetching.
         if (cancelled || pendingPresetRef.current) return
-        if (cityPreset?.cityId === cityId) {
+        if (cityPreset?.cityId === cityId && appliedCityPresetRef.current !== cityPreset) {
+          appliedCityPresetRef.current = cityPreset
           await applyCityPresetRef.current?.(cityPreset)
           return
         }
@@ -2171,6 +2176,10 @@ export default function MixerTab({ active = true }) {
 
   useEffect(() => { applyCityPresetRef.current = applyPreset }, [applyPreset])
 
+  // The active city's bundled preset: what a session with nothing to restore
+  // opens on, and the Song menu's "Load city preset".
+  const loadStarterPreset = useCallback(() => loadCityPreset(cityIdRef.current), [])
+
   // What the AI Composer's "Edit current" mode tells the model is playing now.
   const describeCurrentSong = useCallback(
     () => describeSnapshot(buildSnapshot(songState), mergedRoutes ?? routes ?? [], { detail: true }),
@@ -2184,6 +2193,7 @@ export default function MixerTab({ active = true }) {
     routes,
     onReset: resetSessionState,
     activeLaneLimit: limits.activeLanes,
+    loadStarter: loadStarterPreset,
   })
 
   // The city effect needs to preserve+detach the open song before wiping; expose

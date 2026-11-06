@@ -2,171 +2,316 @@
   "budapest": {
     "name": "Danube After Dark",
     "plan": {
-      "summary": "Danube After Dark: a rounded bass, struck FM melody and a quiet answering pad. Open the lead filter for brightness, slow the bass for space, or raise the pad reverb send for depth.",
-      "bpm": 118,
+      "summary": "Deep house: M3 drives a rounded, kick-ducked bassline while M2 answers with electric-piano chords-in-motion and tram 52 plucks a dotted-echo hook over a soft night-bus pad. Try opening the keys filter for brightness, raising the hook's delay send for more echo, or slowing the bass to half speed for a sparser groove.",
+      "bpm": 122,
       "harmony": {
         "root": "D",
         "scaleType": "dorian"
       },
-      "masterVolume": -6,
+      "masterVolume": -4,
       "tracks": [
         {
-          "routeId": "5400",
+          "routeId": "5300",
           "label": "Bass",
           "synthType": "Synth",
-          "volume": -13,
-          "octave": -1,
+          "samplerPreset": null,
+          "drumVoice": null,
+          "volume": -7,
           "pan": 0,
-          "noteLength": "8n",
-          "speed": 0.5,
-          "gridResolution": "4n",
-          "pitchVariety": {
-            "contour": "randomWalk",
-            "variety": 0
-          },
+          "octave": -2,
+          "glide": 0,
+          "legato": false,
           "envelope": {
-            "attack": 0.008,
-            "decay": 0.18,
-            "sustain": 0,
-            "release": 0.12
+            "attack": 0.005,
+            "decay": 0.16,
+            "sustain": 0.25,
+            "release": 0.08
           },
           "tone": {
-            "oscillator": "triangle"
+            "oscillator": "square"
           },
           "filter": {
             "type": "lowpass",
-            "frequency": 700,
-            "Q": 0.7
+            "frequency": 650,
+            "Q": 0.9
+          },
+          "scale": {
+            "root": "A",
+            "scaleType": "minor"
+          },
+          "drone": null,
+          "arp": null,
+          "granular": null,
+          "speed": 1,
+          "loopRegion": {
+            "startCell": 0,
+            "endCell": 64
+          },
+          "gridResolution": "8n",
+          "pitchVariety": {
+            "contour": "randomWalk",
+            "variety": 0,
+            "span": 1,
+            "maxLeap": 2
+          },
+          "noteChance": 1,
+          "noteLength": "8n",
+          "loopPattern": {
+            "play": 1,
+            "rest": 0,
+            "offset": 0
           },
           "sidechain": {
             "enabled": true,
             "source": "drums:kick",
             "amountDb": -8,
-            "attack": 0.005,
-            "release": 0.15
-          }
+            "attack": 0.004,
+            "release": 0.14
+          },
+          "stopVelocity": {
+            "source": "hubs",
+            "min": 0.7,
+            "max": 1,
+            "invert": false
+          },
+          "stopNoteLength": null
         },
         {
-          "routeId": "5100",
+          "routeId": "3520",
           "label": "Lead",
-          "synthType": "FMSynth",
-          "volume": -16,
+          "synthType": "Synth",
+          "samplerPreset": null,
+          "drumVoice": null,
+          "volume": -10,
+          "pan": -0.15,
           "octave": 0,
-          "pan": -0.18,
-          "noteLength": "8n",
-          "speed": 0.5,
+          "glide": 0,
+          "legato": false,
+          "envelope": {
+            "attack": 0.004,
+            "decay": 0.18,
+            "sustain": 0,
+            "release": 0.12
+          },
+          "tone": {
+            "oscillator": "sawtooth"
+          },
+          "filter": {
+            "type": "lowpass",
+            "frequency": 3200,
+            "Q": 1.2
+          },
+          "scale": null,
+          "drone": null,
+          "arp": null,
+          "granular": null,
+          "speed": 1,
+          "loopRegion": {
+            "startCell": 0,
+            "endCell": 64
+          },
           "gridResolution": "8n",
           "pitchVariety": {
             "contour": "randomWalk",
-            "variety": 0.12
+            "variety": 0.1,
+            "span": 1,
+            "maxLeap": 2
           },
+          "noteChance": 1,
+          "noteLength": "8n",
+          "loopPattern": {
+            "play": 1,
+            "rest": 0,
+            "offset": 0
+          },
+          "sidechain": null,
+          "stopVelocity": null,
+          "stopNoteLength": null
+        },
+        {
+          "routeId": "5200",
+          "label": "Chords",
+          "synthType": "PolySynth",
+          "samplerPreset": null,
+          "drumVoice": null,
+          "volume": -12,
+          "pan": 0.2,
+          "octave": 0,
+          "glide": 0,
+          "legato": false,
           "envelope": {
-            "attack": 0.005,
-            "decay": 0.22,
-            "sustain": 0,
-            "release": 0.25
+            "attack": 0.01,
+            "decay": 0.6,
+            "sustain": 0.3,
+            "release": 0.5
           },
           "tone": {
+            "voice": "FMSynth",
             "oscillator": "sine",
-            "harmonicity": 2,
-            "modulationIndex": 1.5,
+            "harmonicity": 1,
+            "modulationIndex": 2.5,
             "modEnvelope": {
               "attack": 0.002,
-              "decay": 0.12,
-              "sustain": 0,
-              "release": 0.15
+              "decay": 0.35,
+              "sustain": 0.1,
+              "release": 0.3
             }
           },
           "filter": {
             "type": "lowpass",
-            "frequency": 4200,
+            "frequency": 3500,
             "Q": 0.7
-          }
+          },
+          "scale": null,
+          "drone": null,
+          "arp": null,
+          "granular": null,
+          "speed": 0.5,
+          "loopRegion": {
+            "startCell": 0,
+            "endCell": 64
+          },
+          "gridResolution": "8n",
+          "pitchVariety": {
+            "contour": "arch",
+            "variety": 0.05,
+            "span": 1,
+            "maxLeap": 3
+          },
+          "noteChance": 1,
+          "noteLength": "4n",
+          "loopPattern": {
+            "play": 1,
+            "rest": 0,
+            "offset": 0
+          },
+          "sidechain": {
+            "enabled": true,
+            "source": "drums:kick",
+            "amountDb": -4,
+            "attack": 0.004,
+            "release": 0.2
+          },
+          "stopVelocity": null,
+          "stopNoteLength": null
         },
         {
-          "routeId": "3020",
+          "routeId": "0400",
           "label": "Pad",
           "synthType": "PolySynth",
-          "volume": -23,
+          "samplerPreset": null,
+          "drumVoice": null,
+          "volume": -17,
+          "pan": -0.3,
           "octave": 0,
-          "pan": 0.25,
-          "noteLength": "1n",
+          "glide": 0,
+          "legato": false,
+          "envelope": {
+            "attack": 0.45,
+            "decay": 0.5,
+            "sustain": 0.6,
+            "release": 1.4
+          },
+          "tone": {
+            "voice": "Synth",
+            "oscillator": "fattriangle"
+          },
+          "filter": {
+            "type": "lowpass",
+            "frequency": 2000,
+            "Q": 0.7
+          },
+          "scale": null,
+          "drone": null,
+          "arp": null,
+          "granular": null,
           "speed": 0.25,
+          "loopRegion": {
+            "startCell": 0,
+            "endCell": 64
+          },
           "gridResolution": "4n",
           "pitchVariety": {
             "contour": "arch",
-            "variety": 0.08
+            "variety": 0,
+            "span": 1,
+            "maxLeap": 2
           },
-          "envelope": {
-            "attack": 0.35,
-            "decay": 0.4,
-            "sustain": 0.55,
-            "release": 1.2
-          },
-          "tone": {
-            "oscillator": "triangle"
-          },
-          "filter": {
-            "type": "lowpass",
-            "frequency": 1800,
-            "Q": 0.7
-          },
+          "noteChance": 1,
+          "noteLength": "2n",
           "loopPattern": {
             "play": 1,
-            "rest": 1,
-            "offset": 1
+            "rest": 0,
+            "offset": 0
+          },
+          "sidechain": null,
+          "stopVelocity": null,
+          "stopNoteLength": {
+            "source": "demand",
+            "min": "2n",
+            "max": "1n",
+            "invert": false
           }
-        }
-      ],
-      "fx": [
-        {
-          "busId": "reverb",
-          "wet": 1,
-          "params": [
-            {
-              "paramId": "irType",
-              "value": "synthetic"
-            },
-            {
-              "paramId": "decay",
-              "value": 1.5
-            }
-          ],
-          "sends": [
-            {
-              "routeId": "5100",
-              "level": 0.17
-            },
-            {
-              "routeId": "3020",
-              "level": 0.22
-            }
-          ]
         },
         {
-          "busId": "delay",
-          "wet": 1,
-          "params": [
-            {
-              "paramId": "sync",
-              "value": "8n."
-            },
-            {
-              "paramId": "feedback",
-              "value": 0.3
-            }
-          ],
-          "sends": [
-            {
-              "routeId": "5100",
-              "level": 0.15
-            }
-          ]
+          "routeId": "3470",
+          "label": "Perc",
+          "synthType": "NoiseSynth",
+          "samplerPreset": null,
+          "drumVoice": null,
+          "volume": -22,
+          "pan": 0.35,
+          "octave": 0,
+          "glide": 0,
+          "legato": false,
+          "envelope": {
+            "attack": 0.002,
+            "decay": 0.05,
+            "sustain": 0,
+            "release": 0.03
+          },
+          "tone": null,
+          "filter": {
+            "type": "highpass",
+            "frequency": 7000,
+            "Q": 0.7
+          },
+          "scale": null,
+          "drone": null,
+          "arp": null,
+          "granular": null,
+          "speed": 1,
+          "loopRegion": {
+            "startCell": 0,
+            "endCell": 64
+          },
+          "gridResolution": "16n",
+          "pitchVariety": null,
+          "noteChance": 0.85,
+          "noteLength": "16n",
+          "loopPattern": {
+            "play": 1,
+            "rest": 0,
+            "offset": 0
+          },
+          "sidechain": null,
+          "stopVelocity": {
+            "source": "demand",
+            "min": 0.4,
+            "max": 1,
+            "invert": false
+          },
+          "stopNoteLength": null
         }
       ],
       "drums": {
         "enabled": true,
-        "volume": -14,
+        "volume": -5,
+        "filter": {
+          "type": "lowpass",
+          "frequency": 14000,
+          "Q": 0.7
+        },
         "patterns": [
           {
             "padId": "kick",
@@ -190,27 +335,6 @@
             ]
           },
           {
-            "padId": "hat",
-            "steps": [
-              0,
-              0,
-              0.4,
-              0,
-              0,
-              0,
-              0.7,
-              0,
-              0,
-              0,
-              0.4,
-              0,
-              0,
-              0,
-              0.7,
-              0
-            ]
-          },
-          {
             "padId": "clap",
             "steps": [
               0,
@@ -230,123 +354,51 @@
               0,
               0
             ]
+          },
+          {
+            "padId": "hat",
+            "steps": [
+              0,
+              0,
+              0.7,
+              0,
+              0,
+              0,
+              0.7,
+              0.4,
+              0,
+              0,
+              0.7,
+              0,
+              0,
+              0,
+              0.7,
+              0
+            ]
+          },
+          {
+            "padId": "rim",
+            "steps": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0.4,
+              0,
+              0.4,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
           }
         ]
-      }
-    }
-  },
-  "helsinki": {
-    "name": "Harbour Light",
-    "plan": {
-      "summary": "Harbour Light: a rounded bass, struck FM melody and a quiet answering pad. Open the lead filter for brightness, slow the bass for space, or raise the pad reverb send for depth.",
-      "bpm": 76,
-      "harmony": {
-        "root": "A",
-        "scaleType": "minor"
       },
-      "masterVolume": -6,
-      "tracks": [
-        {
-          "routeId": "1005",
-          "label": "Bass",
-          "synthType": "Synth",
-          "volume": -13,
-          "octave": -1,
-          "pan": 0,
-          "noteLength": "8n",
-          "speed": 0.25,
-          "gridResolution": "4n",
-          "pitchVariety": {
-            "contour": "randomWalk",
-            "variety": 0
-          },
-          "envelope": {
-            "attack": 0.008,
-            "decay": 0.18,
-            "sustain": 0,
-            "release": 0.12
-          },
-          "tone": {
-            "oscillator": "triangle"
-          },
-          "filter": {
-            "type": "lowpass",
-            "frequency": 700,
-            "Q": 0.7
-          }
-        },
-        {
-          "routeId": "1003H",
-          "label": "Lead",
-          "synthType": "FMSynth",
-          "volume": -16,
-          "octave": 0,
-          "pan": -0.18,
-          "noteLength": "8n",
-          "speed": 0.25,
-          "gridResolution": "8n",
-          "pitchVariety": {
-            "contour": "randomWalk",
-            "variety": 0.12
-          },
-          "envelope": {
-            "attack": 0.005,
-            "decay": 0.22,
-            "sustain": 0,
-            "release": 0.25
-          },
-          "tone": {
-            "oscillator": "sine",
-            "harmonicity": 2,
-            "modulationIndex": 1.5,
-            "modEnvelope": {
-              "attack": 0.002,
-              "decay": 0.12,
-              "sustain": 0,
-              "release": 0.15
-            }
-          },
-          "filter": {
-            "type": "lowpass",
-            "frequency": 4200,
-            "Q": 0.7
-          }
-        },
-        {
-          "routeId": "1008",
-          "label": "Pad",
-          "synthType": "PolySynth",
-          "volume": -23,
-          "octave": 0,
-          "pan": 0.25,
-          "noteLength": "1n",
-          "speed": 0.25,
-          "gridResolution": "4n",
-          "pitchVariety": {
-            "contour": "arch",
-            "variety": 0.08
-          },
-          "envelope": {
-            "attack": 0.35,
-            "decay": 0.4,
-            "sustain": 0.55,
-            "release": 1.2
-          },
-          "tone": {
-            "oscillator": "triangle"
-          },
-          "filter": {
-            "type": "lowpass",
-            "frequency": 1800,
-            "Q": 0.7
-          },
-          "loopPattern": {
-            "play": 1,
-            "rest": 1,
-            "offset": 1
-          }
-        }
-      ],
       "fx": [
         {
           "busId": "reverb",
@@ -358,17 +410,81 @@
             },
             {
               "paramId": "decay",
-              "value": 3
+              "value": 2.4
+            },
+            {
+              "paramId": "preDelay",
+              "value": 0.02
             }
           ],
           "sends": [
             {
-              "routeId": "1003H",
-              "level": 0.17
+              "routeId": "3520",
+              "level": 0.15
             },
             {
-              "routeId": "1008",
-              "level": 0.22
+              "routeId": "5200",
+              "level": 0.25
+            },
+            {
+              "routeId": "0400",
+              "level": 0.4
+            },
+            {
+              "routeId": "drums",
+              "level": 0.04
+            }
+          ]
+        },
+        {
+          "busId": "delay",
+          "wet": 1,
+          "params": [
+            {
+              "paramId": "sync",
+              "value": "8n."
+            },
+            {
+              "paramId": "feedback",
+              "value": 0.38
+            }
+          ],
+          "sends": [
+            {
+              "routeId": "3520",
+              "level": 0.28
+            },
+            {
+              "routeId": "5200",
+              "level": 0.1
+            }
+          ]
+        },
+        {
+          "busId": "chorus",
+          "wet": 1,
+          "params": [
+            {
+              "paramId": "frequency",
+              "value": 0.6
+            },
+            {
+              "paramId": "depth",
+              "value": 0.5
+            },
+            {
+              "paramId": "spread",
+              "value": 160
+            }
+          ],
+          "sends": [
+            {
+              "routeId": "5200",
+              "level": 0.35
+            },
+            {
+              "routeId": "0400",
+              "level": 0.25
             }
           ]
         }
@@ -376,145 +492,272 @@
     }
   },
   "berlin": {
-    "name": "Night Connection",
+    "name": "Ringbahn Pressure",
     "plan": {
-      "summary": "Night Connection: a rounded bass, filtered sequence and a quiet answering pad. Open the lead filter for brightness, slow the bass for space, or raise the pad reverb send for depth.",
-      "bpm": 128,
+      "summary": "Hypnotic techno: U5 runs an acid line through the analog ladder filter under a looping two-bar U9 stab with dub echoes, while an S-Bahn drone breathes underneath. Try raising the acid filterQ for more squelch, lengthening the stab's delay feedback, or giving the ride more presence by raising the drum level.",
+      "bpm": 130,
       "harmony": {
-        "root": "E",
-        "scaleType": "phrygian"
+        "root": "A",
+        "scaleType": "minor"
       },
-      "masterVolume": -6,
+      "masterVolume": -4,
       "tracks": [
         {
-          "routeId": "15280_900",
+          "routeId": "17518_400",
           "label": "Bass",
-          "synthType": "Synth",
-          "volume": -13,
-          "octave": -1,
+          "synthType": "MonoSynth",
+          "samplerPreset": null,
+          "drumVoice": null,
+          "volume": -9,
           "pan": 0,
-          "noteLength": "8n",
-          "speed": 0.5,
-          "gridResolution": "4n",
-          "pitchVariety": {
-            "contour": "randomWalk",
-            "variety": 0
-          },
+          "octave": -2,
+          "glide": 0,
+          "legato": false,
           "envelope": {
-            "attack": 0.008,
-            "decay": 0.18,
-            "sustain": 0,
-            "release": 0.12
+            "attack": 0.003,
+            "decay": 0.2,
+            "sustain": 0.3,
+            "release": 0.08
           },
           "tone": {
-            "oscillator": "triangle"
+            "oscillator": "sawtooth",
+            "filterEnvelope": {
+              "attack": 0.001,
+              "decay": 0.16,
+              "sustain": 0,
+              "release": 0.1,
+              "baseFrequency": 110,
+              "octaves": 4
+            },
+            "filterQ": 6
           },
           "filter": {
             "type": "lowpass",
-            "frequency": 700,
-            "Q": 0.7
+            "frequency": 5000,
+            "Q": 0.7,
+            "model": "daisy-ladder",
+            "resonance": 0.3,
+            "drive": 1.8,
+            "slope": 24
+          },
+          "scale": {
+            "root": "E",
+            "scaleType": "phrygian"
+          },
+          "drone": null,
+          "arp": null,
+          "granular": null,
+          "speed": 1,
+          "loopRegion": {
+            "startCell": 0,
+            "endCell": 64
+          },
+          "gridResolution": "16n",
+          "pitchVariety": {
+            "contour": "randomWalk",
+            "variety": 0,
+            "span": 1,
+            "maxLeap": 2
+          },
+          "noteChance": 1,
+          "noteLength": "16n",
+          "loopPattern": {
+            "play": 1,
+            "rest": 0,
+            "offset": 0
           },
           "sidechain": {
             "enabled": true,
             "source": "drums:kick",
-            "amountDb": -8,
-            "attack": 0.005,
-            "release": 0.15
-          }
+            "amountDb": -9,
+            "attack": 0.004,
+            "release": 0.12
+          },
+          "stopVelocity": {
+            "source": "hubs",
+            "min": 0.6,
+            "max": 1,
+            "invert": false
+          },
+          "stopNoteLength": null
         },
         {
-          "routeId": "15279_700",
+          "routeId": "17526_400",
           "label": "Lead",
           "synthType": "Synth",
-          "volume": -16,
+          "samplerPreset": null,
+          "drumVoice": null,
+          "volume": -11,
+          "pan": 0.18,
           "octave": 0,
-          "pan": -0.18,
-          "noteLength": "8n",
-          "speed": 0.5,
+          "glide": 0,
+          "legato": false,
+          "envelope": {
+            "attack": 0.002,
+            "decay": 0.12,
+            "sustain": 0,
+            "release": 0.08
+          },
+          "tone": {
+            "oscillator": "fatsquare"
+          },
+          "filter": {
+            "type": "bandpass",
+            "frequency": 1400,
+            "Q": 1.4
+          },
+          "scale": null,
+          "drone": null,
+          "arp": null,
+          "granular": null,
+          "speed": 1,
+          "loopRegion": {
+            "startCell": 0,
+            "endCell": 32
+          },
           "gridResolution": "8n",
           "pitchVariety": {
             "contour": "randomWalk",
-            "variety": 0.12
+            "variety": 0.05,
+            "span": 1,
+            "maxLeap": 2
           },
+          "noteChance": 1,
+          "noteLength": "16n",
+          "loopPattern": {
+            "play": 1,
+            "rest": 0,
+            "offset": 0
+          },
+          "sidechain": null,
+          "stopVelocity": null,
+          "stopNoteLength": null
+        },
+        {
+          "routeId": "10162_109",
+          "label": "Pad",
+          "synthType": "PolySynth",
+          "samplerPreset": null,
+          "drumVoice": null,
+          "volume": -18,
+          "pan": -0.25,
+          "octave": 0,
+          "glide": 0,
+          "legato": false,
           "envelope": {
-            "attack": 0.005,
-            "decay": 0.22,
-            "sustain": 0,
-            "release": 0.25
+            "attack": 0.8,
+            "decay": 0.6,
+            "sustain": 0.6,
+            "release": 1.8
           },
           "tone": {
-            "oscillator": "sawtooth"
+            "voice": "AMSynth",
+            "oscillator": "sawtooth",
+            "harmonicity": 1.5,
+            "modEnvelope": {
+              "attack": 0.5,
+              "decay": 0.5,
+              "sustain": 0.7,
+              "release": 1
+            }
           },
           "filter": {
             "type": "lowpass",
-            "frequency": 1800,
-            "Q": 2
-          }
-        },
-        {
-          "routeId": "7362_900",
-          "label": "Pad",
-          "synthType": "PolySynth",
-          "volume": -23,
-          "octave": 0,
-          "pan": 0.25,
-          "noteLength": "1n",
+            "frequency": 1100,
+            "Q": 0.7
+          },
+          "scale": null,
+          "drone": null,
+          "arp": null,
+          "granular": null,
           "speed": 0.25,
+          "loopRegion": {
+            "startCell": 0,
+            "endCell": 64
+          },
           "gridResolution": "4n",
           "pitchVariety": {
             "contour": "arch",
-            "variety": 0.08
+            "variety": 0,
+            "span": 1,
+            "maxLeap": 2
           },
-          "envelope": {
-            "attack": 0.35,
-            "decay": 0.4,
-            "sustain": 0.55,
-            "release": 1.2
-          },
-          "tone": {
-            "oscillator": "triangle"
-          },
-          "filter": {
-            "type": "lowpass",
-            "frequency": 1800,
-            "Q": 0.7
-          },
+          "noteChance": 1,
+          "noteLength": "1n",
           "loopPattern": {
             "play": 1,
-            "rest": 1,
-            "offset": 1
-          }
-        }
-      ],
-      "fx": [
+            "rest": 0,
+            "offset": 0
+          },
+          "sidechain": {
+            "enabled": true,
+            "source": "drums:kick",
+            "amountDb": -5,
+            "attack": 0.004,
+            "release": 0.25
+          },
+          "stopVelocity": null,
+          "stopNoteLength": null
+        },
         {
-          "busId": "reverb",
-          "wet": 1,
-          "params": [
-            {
-              "paramId": "irType",
-              "value": "synthetic"
-            },
-            {
-              "paramId": "decay",
-              "value": 1.5
-            }
-          ],
-          "sends": [
-            {
-              "routeId": "15279_700",
-              "level": 0.17
-            },
-            {
-              "routeId": "7362_900",
-              "level": 0.22
-            }
-          ]
+          "routeId": "24450_900",
+          "label": "Perc",
+          "synthType": "NoiseSynth",
+          "samplerPreset": null,
+          "drumVoice": null,
+          "volume": -20,
+          "pan": -0.4,
+          "octave": 0,
+          "glide": 0,
+          "legato": false,
+          "envelope": {
+            "attack": 0.001,
+            "decay": 0.03,
+            "sustain": 0,
+            "release": 0.02
+          },
+          "tone": null,
+          "filter": {
+            "type": "highpass",
+            "frequency": 8000,
+            "Q": 0.7
+          },
+          "scale": null,
+          "drone": null,
+          "arp": null,
+          "granular": null,
+          "speed": 1,
+          "loopRegion": {
+            "startCell": 0,
+            "endCell": 64
+          },
+          "gridResolution": "16n",
+          "pitchVariety": null,
+          "noteChance": 0.9,
+          "noteLength": "16n",
+          "loopPattern": {
+            "play": 1,
+            "rest": 0,
+            "offset": 0
+          },
+          "sidechain": null,
+          "stopVelocity": {
+            "source": "demand",
+            "min": 0.4,
+            "max": 1,
+            "invert": false
+          },
+          "stopNoteLength": null
         }
       ],
       "drums": {
         "enabled": true,
-        "volume": -14,
+        "volume": -4,
+        "filter": {
+          "type": "lowpass",
+          "frequency": 13000,
+          "Q": 0.7
+        },
         "patterns": [
           {
             "padId": "kick",
@@ -542,7 +785,7 @@
             "steps": [
               0,
               0,
-              0.4,
+              0.7,
               0,
               0,
               0,
@@ -550,11 +793,53 @@
               0,
               0,
               0,
-              0.4,
+              0.7,
               0,
               0,
               0,
               0.7,
+              0
+            ]
+          },
+          {
+            "padId": "ride",
+            "steps": [
+              0.7,
+              0.4,
+              0.7,
+              0.4,
+              0.7,
+              0.4,
+              0.7,
+              0.4,
+              0.7,
+              0.4,
+              0.7,
+              0.4,
+              0.7,
+              0.4,
+              0.7,
+              0.4
+            ]
+          },
+          {
+            "padId": "rim",
+            "steps": [
+              0,
+              0,
+              0,
+              0.4,
+              0,
+              0,
+              0.4,
+              0,
+              0,
+              0,
+              0,
+              0.4,
+              0,
+              0,
+              0.4,
               0
             ]
           },
@@ -580,128 +865,7 @@
             ]
           }
         ]
-      }
-    }
-  },
-  "prague": {
-    "name": "Vltava Echoes",
-    "plan": {
-      "summary": "Vltava Echoes: a rounded bass, struck FM melody and a quiet answering pad. Open the lead filter for brightness, slow the bass for space, or raise the pad reverb send for depth.",
-      "bpm": 108,
-      "harmony": {
-        "root": "G",
-        "scaleType": "minor"
       },
-      "masterVolume": -6,
-      "tracks": [
-        {
-          "routeId": "L991",
-          "label": "Bass",
-          "synthType": "Synth",
-          "volume": -13,
-          "octave": -1,
-          "pan": 0,
-          "noteLength": "8n",
-          "speed": 0.5,
-          "gridResolution": "4n",
-          "pitchVariety": {
-            "contour": "randomWalk",
-            "variety": 0
-          },
-          "envelope": {
-            "attack": 0.008,
-            "decay": 0.18,
-            "sustain": 0,
-            "release": 0.12
-          },
-          "tone": {
-            "oscillator": "triangle"
-          },
-          "filter": {
-            "type": "lowpass",
-            "frequency": 700,
-            "Q": 0.7
-          },
-          "sidechain": {
-            "enabled": true,
-            "source": "drums:kick",
-            "amountDb": -8,
-            "attack": 0.005,
-            "release": 0.15
-          }
-        },
-        {
-          "routeId": "L24",
-          "label": "Lead",
-          "synthType": "FMSynth",
-          "volume": -16,
-          "octave": 0,
-          "pan": -0.18,
-          "noteLength": "8n",
-          "speed": 0.5,
-          "gridResolution": "8n",
-          "pitchVariety": {
-            "contour": "randomWalk",
-            "variety": 0.12
-          },
-          "envelope": {
-            "attack": 0.005,
-            "decay": 0.22,
-            "sustain": 0,
-            "release": 0.25
-          },
-          "tone": {
-            "oscillator": "sine",
-            "harmonicity": 2,
-            "modulationIndex": 1.5,
-            "modEnvelope": {
-              "attack": 0.002,
-              "decay": 0.12,
-              "sustain": 0,
-              "release": 0.15
-            }
-          },
-          "filter": {
-            "type": "lowpass",
-            "frequency": 4200,
-            "Q": 0.7
-          }
-        },
-        {
-          "routeId": "L23",
-          "label": "Pad",
-          "synthType": "PolySynth",
-          "volume": -23,
-          "octave": 0,
-          "pan": 0.25,
-          "noteLength": "1n",
-          "speed": 0.25,
-          "gridResolution": "4n",
-          "pitchVariety": {
-            "contour": "arch",
-            "variety": 0.08
-          },
-          "envelope": {
-            "attack": 0.35,
-            "decay": 0.4,
-            "sustain": 0.55,
-            "release": 1.2
-          },
-          "tone": {
-            "oscillator": "triangle"
-          },
-          "filter": {
-            "type": "lowpass",
-            "frequency": 1800,
-            "Q": 0.7
-          },
-          "loopPattern": {
-            "play": 1,
-            "rest": 1,
-            "offset": 1
-          }
-        }
-      ],
       "fx": [
         {
           "busId": "reverb",
@@ -713,17 +877,2222 @@
             },
             {
               "paramId": "decay",
-              "value": 1.5
+              "value": 3.2
+            },
+            {
+              "paramId": "preDelay",
+              "value": 0.03
+            }
+          ],
+          "sends": [
+            {
+              "routeId": "10162_109",
+              "level": 0.4
+            },
+            {
+              "routeId": "17526_400",
+              "level": 0.2
+            },
+            {
+              "routeId": "drums",
+              "level": 0.05
+            }
+          ]
+        },
+        {
+          "busId": "pingpong",
+          "wet": 1,
+          "params": [
+            {
+              "paramId": "sync",
+              "value": "8n."
+            },
+            {
+              "paramId": "feedback",
+              "value": 0.55
+            }
+          ],
+          "sends": [
+            {
+              "routeId": "17526_400",
+              "level": 0.35
+            }
+          ]
+        },
+        {
+          "busId": "distortion",
+          "wet": 1,
+          "params": [
+            {
+              "paramId": "distortion",
+              "value": 0.35
+            },
+            {
+              "paramId": "oversample",
+              "value": "2x"
+            }
+          ],
+          "sends": [
+            {
+              "routeId": "17518_400",
+              "level": 0.15
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "prague": {
+    "name": "Vltava Tape",
+    "plan": {
+      "summary": "Lo-fi: a warm metro-B piano figure leads over an upright-bass walk on metro C and a nylon-guitar answer from tram 24, with a lazy kick and rim. Try lowering the piano filter for a dustier tape sound, raising the guitar's reverb send, or slowing the bass to half speed for more space.",
+      "bpm": 80,
+      "harmony": {
+        "root": "F",
+        "scaleType": "major"
+      },
+      "masterVolume": -4,
+      "tracks": [
+        {
+          "routeId": "L992",
+          "label": "Lead",
+          "synthType": "Sampler",
+          "samplerPreset": "piano",
+          "drumVoice": null,
+          "volume": -7,
+          "pan": -0.1,
+          "octave": 0,
+          "glide": 0,
+          "legato": false,
+          "envelope": {
+            "attack": 0.01,
+            "decay": 0.1,
+            "sustain": 1,
+            "release": 0.6
+          },
+          "tone": null,
+          "filter": {
+            "type": "lowpass",
+            "frequency": 2800,
+            "Q": 0.7
+          },
+          "scale": null,
+          "drone": null,
+          "arp": null,
+          "granular": null,
+          "speed": 0.5,
+          "loopRegion": {
+            "startCell": 0,
+            "endCell": 64
+          },
+          "gridResolution": "8n",
+          "pitchVariety": {
+            "contour": "randomWalk",
+            "variety": 0.12,
+            "span": 1,
+            "maxLeap": 3
+          },
+          "noteChance": 1,
+          "noteLength": "4n",
+          "loopPattern": {
+            "play": 1,
+            "rest": 0,
+            "offset": 0
+          },
+          "sidechain": null,
+          "stopVelocity": {
+            "source": "demand",
+            "min": 0.55,
+            "max": 1,
+            "invert": false
+          },
+          "stopNoteLength": null
+        },
+        {
+          "routeId": "L993",
+          "label": "Bass",
+          "synthType": "Sampler",
+          "samplerPreset": "contrabass",
+          "drumVoice": null,
+          "volume": -8,
+          "pan": 0,
+          "octave": -1,
+          "glide": 0,
+          "legato": false,
+          "envelope": {
+            "attack": 0.01,
+            "decay": 0.1,
+            "sustain": 1,
+            "release": 0.25
+          },
+          "tone": null,
+          "filter": {
+            "type": "lowpass",
+            "frequency": 1600,
+            "Q": 0.7
+          },
+          "scale": {
+            "root": "C",
+            "scaleType": "mixolydian"
+          },
+          "drone": null,
+          "arp": null,
+          "granular": null,
+          "speed": 0.5,
+          "loopRegion": {
+            "startCell": 0,
+            "endCell": 64
+          },
+          "gridResolution": "8n",
+          "pitchVariety": {
+            "contour": "randomWalk",
+            "variety": 0,
+            "span": 1,
+            "maxLeap": 2
+          },
+          "noteChance": 1,
+          "noteLength": "4n",
+          "loopPattern": {
+            "play": 1,
+            "rest": 0,
+            "offset": 0
+          },
+          "sidechain": null,
+          "stopVelocity": null,
+          "stopNoteLength": null
+        },
+        {
+          "routeId": "L24",
+          "label": "FX",
+          "synthType": "PluckSynth",
+          "samplerPreset": null,
+          "drumVoice": null,
+          "volume": -12,
+          "pan": 0.3,
+          "octave": 1,
+          "glide": 0,
+          "legato": false,
+          "envelope": null,
+          "tone": {
+            "resonance": 0.92,
+            "dampening": 2600,
+            "attackNoise": 1.5
+          },
+          "filter": {
+            "type": "lowpass",
+            "frequency": 5000,
+            "Q": 0.7
+          },
+          "scale": null,
+          "drone": null,
+          "arp": null,
+          "granular": null,
+          "speed": 0.5,
+          "loopRegion": {
+            "startCell": 0,
+            "endCell": 64
+          },
+          "gridResolution": "8n",
+          "pitchVariety": {
+            "contour": "demand",
+            "variety": 0.1,
+            "span": 1,
+            "maxLeap": 3
+          },
+          "noteChance": 0.8,
+          "noteLength": null,
+          "loopPattern": {
+            "play": 1,
+            "rest": 1,
+            "offset": 1
+          },
+          "sidechain": null,
+          "stopVelocity": null,
+          "stopNoteLength": null
+        },
+        {
+          "routeId": "L213",
+          "label": "Pad",
+          "synthType": "PolySynth",
+          "samplerPreset": null,
+          "drumVoice": null,
+          "volume": -19,
+          "pan": -0.3,
+          "octave": 0,
+          "glide": 0,
+          "legato": false,
+          "envelope": {
+            "attack": 0.6,
+            "decay": 0.6,
+            "sustain": 0.55,
+            "release": 1.6
+          },
+          "tone": {
+            "voice": "Synth",
+            "oscillator": "triangle"
+          },
+          "filter": {
+            "type": "lowpass",
+            "frequency": 1500,
+            "Q": 0.7
+          },
+          "scale": null,
+          "drone": null,
+          "arp": null,
+          "granular": null,
+          "speed": 0.25,
+          "loopRegion": {
+            "startCell": 0,
+            "endCell": 64
+          },
+          "gridResolution": "4n",
+          "pitchVariety": {
+            "contour": "arch",
+            "variety": 0,
+            "span": 1,
+            "maxLeap": 2
+          },
+          "noteChance": 1,
+          "noteLength": "1n",
+          "loopPattern": {
+            "play": 1,
+            "rest": 0,
+            "offset": 0
+          },
+          "sidechain": null,
+          "stopVelocity": null,
+          "stopNoteLength": null
+        },
+        {
+          "routeId": "L15",
+          "label": "Texture",
+          "synthType": "NoiseSynth",
+          "samplerPreset": null,
+          "drumVoice": null,
+          "volume": -27,
+          "pan": 0.15,
+          "octave": 0,
+          "glide": 0,
+          "legato": false,
+          "envelope": {
+            "attack": 0.001,
+            "decay": 0.02,
+            "sustain": 0,
+            "release": 0.015
+          },
+          "tone": null,
+          "filter": {
+            "type": "bandpass",
+            "frequency": 3500,
+            "Q": 2
+          },
+          "scale": null,
+          "drone": null,
+          "arp": null,
+          "granular": null,
+          "speed": 1,
+          "loopRegion": {
+            "startCell": 0,
+            "endCell": 64
+          },
+          "gridResolution": "16n",
+          "pitchVariety": null,
+          "noteChance": 0.6,
+          "noteLength": "16n",
+          "loopPattern": {
+            "play": 1,
+            "rest": 0,
+            "offset": 0
+          },
+          "sidechain": null,
+          "stopVelocity": null,
+          "stopNoteLength": null
+        }
+      ],
+      "drums": {
+        "enabled": true,
+        "volume": -7,
+        "filter": {
+          "type": "lowpass",
+          "frequency": 7500,
+          "Q": 0.7
+        },
+        "patterns": [
+          {
+            "padId": "kick",
+            "steps": [
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0.7,
+              0,
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "padId": "rim",
+            "steps": [
+              0,
+              0,
+              0,
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              1,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "padId": "hat",
+            "steps": [
+              0.7,
+              0,
+              0.4,
+              0,
+              0.7,
+              0,
+              0.4,
+              0,
+              0.7,
+              0,
+              0.4,
+              0,
+              0.7,
+              0,
+              0.4,
+              0.4
+            ]
+          }
+        ]
+      },
+      "fx": [
+        {
+          "busId": "reverb",
+          "wet": 1,
+          "params": [
+            {
+              "paramId": "irType",
+              "value": "synthetic"
+            },
+            {
+              "paramId": "decay",
+              "value": 1.8
+            },
+            {
+              "paramId": "preDelay",
+              "value": 0.02
             }
           ],
           "sends": [
             {
               "routeId": "L24",
-              "level": 0.17
+              "level": 0.3
             },
             {
-              "routeId": "L23",
-              "level": 0.22
+              "routeId": "L213",
+              "level": 0.35
+            },
+            {
+              "routeId": "L992",
+              "level": 0.18
+            },
+            {
+              "routeId": "drums",
+              "level": 0.06
+            }
+          ]
+        },
+        {
+          "busId": "delay",
+          "wet": 1,
+          "params": [
+            {
+              "paramId": "sync",
+              "value": "4n."
+            },
+            {
+              "paramId": "feedback",
+              "value": 0.3
+            }
+          ],
+          "sends": [
+            {
+              "routeId": "L24",
+              "level": 0.2
+            }
+          ]
+        },
+        {
+          "busId": "chorus",
+          "wet": 1,
+          "params": [
+            {
+              "paramId": "frequency",
+              "value": 0.4
+            },
+            {
+              "paramId": "depth",
+              "value": 0.6
+            },
+            {
+              "paramId": "spread",
+              "value": 160
+            }
+          ],
+          "sends": [
+            {
+              "routeId": "L992",
+              "level": 0.25
+            },
+            {
+              "routeId": "L213",
+              "level": 0.3
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "helsinki": {
+    "name": "Harbour Light",
+    "plan": {
+      "summary": "Bright downtempo: metro M2 rings out FM bells in Lydian over a warm bus-964 bass, a harp answer from tram 4H and a slow 300-bus pad, held together by a soft half-time kick. Try raising the bell modulationIndex for more shimmer, increasing the pad's reverb send, or bringing in the ride for more motion.",
+      "bpm": 104,
+      "harmony": {
+        "root": "E",
+        "scaleType": "lydian"
+      },
+      "masterVolume": -4,
+      "tracks": [
+        {
+          "routeId": "31M2",
+          "label": "Lead",
+          "synthType": "FMSynth",
+          "samplerPreset": null,
+          "drumVoice": null,
+          "volume": -9,
+          "pan": -0.15,
+          "octave": 0,
+          "glide": 0,
+          "legato": false,
+          "envelope": {
+            "attack": 0.003,
+            "decay": 0.5,
+            "sustain": 0,
+            "release": 0.6
+          },
+          "tone": {
+            "oscillator": "sine",
+            "harmonicity": 3.5,
+            "modulationIndex": 4,
+            "modEnvelope": {
+              "attack": 0.001,
+              "decay": 0.2,
+              "sustain": 0,
+              "release": 0.2
+            }
+          },
+          "filter": {
+            "type": "lowpass",
+            "frequency": 7000,
+            "Q": 0.7
+          },
+          "scale": null,
+          "drone": null,
+          "arp": null,
+          "granular": null,
+          "speed": 0.5,
+          "loopRegion": {
+            "startCell": 0,
+            "endCell": 64
+          },
+          "gridResolution": "8n",
+          "pitchVariety": {
+            "contour": "randomWalk",
+            "variety": 0.1,
+            "span": 1,
+            "maxLeap": 3
+          },
+          "noteChance": 1,
+          "noteLength": "8n",
+          "loopPattern": {
+            "play": 1,
+            "rest": 0,
+            "offset": 0
+          },
+          "sidechain": null,
+          "stopVelocity": {
+            "source": "hubs",
+            "min": 0.6,
+            "max": 1,
+            "invert": false
+          },
+          "stopNoteLength": null
+        },
+        {
+          "routeId": "1004H",
+          "label": "FX",
+          "synthType": "Sampler",
+          "samplerPreset": "harp",
+          "drumVoice": null,
+          "volume": -13,
+          "pan": 0.35,
+          "octave": 1,
+          "glide": 0,
+          "legato": false,
+          "envelope": {
+            "attack": 0.005,
+            "decay": 0.1,
+            "sustain": 1,
+            "release": 0.8
+          },
+          "tone": null,
+          "filter": {
+            "type": "lowpass",
+            "frequency": 6000,
+            "Q": 0.7
+          },
+          "scale": null,
+          "drone": null,
+          "arp": null,
+          "granular": null,
+          "speed": 0.5,
+          "loopRegion": {
+            "startCell": 0,
+            "endCell": 64
+          },
+          "gridResolution": "8n",
+          "pitchVariety": {
+            "contour": "demand",
+            "variety": 0.05,
+            "span": 1,
+            "maxLeap": 3
+          },
+          "noteChance": 0.75,
+          "noteLength": "4n",
+          "loopPattern": {
+            "play": 1,
+            "rest": 0,
+            "offset": 0
+          },
+          "sidechain": null,
+          "stopVelocity": null,
+          "stopNoteLength": null
+        },
+        {
+          "routeId": "9964",
+          "label": "Bass",
+          "synthType": "Synth",
+          "samplerPreset": null,
+          "drumVoice": null,
+          "volume": -9,
+          "pan": 0,
+          "octave": -2,
+          "glide": 0,
+          "legato": false,
+          "envelope": {
+            "attack": 0.01,
+            "decay": 0.3,
+            "sustain": 0.5,
+            "release": 0.3
+          },
+          "tone": {
+            "oscillator": "triangle"
+          },
+          "filter": {
+            "type": "lowpass",
+            "frequency": 500,
+            "Q": 0.7
+          },
+          "scale": {
+            "root": "B",
+            "scaleType": "major"
+          },
+          "drone": null,
+          "arp": null,
+          "granular": null,
+          "speed": 0.5,
+          "loopRegion": {
+            "startCell": 0,
+            "endCell": 64
+          },
+          "gridResolution": "4n",
+          "pitchVariety": {
+            "contour": "randomWalk",
+            "variety": 0,
+            "span": 1,
+            "maxLeap": 2
+          },
+          "noteChance": 1,
+          "noteLength": "4n",
+          "loopPattern": {
+            "play": 1,
+            "rest": 0,
+            "offset": 0
+          },
+          "sidechain": {
+            "enabled": true,
+            "source": "drums:kick",
+            "amountDb": -6,
+            "attack": 0.004,
+            "release": 0.2
+          },
+          "stopVelocity": null,
+          "stopNoteLength": null
+        },
+        {
+          "routeId": "4300",
+          "label": "Pad",
+          "synthType": "PolySynth",
+          "samplerPreset": null,
+          "drumVoice": null,
+          "volume": -16,
+          "pan": -0.25,
+          "octave": 0,
+          "glide": 0,
+          "legato": false,
+          "envelope": {
+            "attack": 0.9,
+            "decay": 0.8,
+            "sustain": 0.7,
+            "release": 2.2
+          },
+          "tone": {
+            "voice": "Synth",
+            "oscillator": "fatsawtooth"
+          },
+          "filter": {
+            "type": "lowpass",
+            "frequency": 1400,
+            "Q": 0.7
+          },
+          "scale": null,
+          "drone": null,
+          "arp": null,
+          "granular": null,
+          "speed": 0.25,
+          "loopRegion": {
+            "startCell": 0,
+            "endCell": 64
+          },
+          "gridResolution": "4n",
+          "pitchVariety": {
+            "contour": "arch",
+            "variety": 0,
+            "span": 1,
+            "maxLeap": 2
+          },
+          "noteChance": 1,
+          "noteLength": "1n",
+          "loopPattern": {
+            "play": 1,
+            "rest": 0,
+            "offset": 0
+          },
+          "sidechain": null,
+          "stopVelocity": null,
+          "stopNoteLength": {
+            "source": "demand",
+            "min": "2n",
+            "max": "1n",
+            "invert": false
+          }
+        }
+      ],
+      "drums": {
+        "enabled": true,
+        "volume": -9,
+        "filter": {
+          "type": "lowpass",
+          "frequency": 9000,
+          "Q": 0.7
+        },
+        "patterns": [
+          {
+            "padId": "kick",
+            "steps": [
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "padId": "rim",
+            "steps": [
+              0,
+              0,
+              0,
+              0,
+              0.4,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0.4,
+              0,
+              0,
+              0.4
+            ]
+          },
+          {
+            "padId": "hat",
+            "steps": [
+              0,
+              0,
+              0.4,
+              0,
+              0,
+              0,
+              0.4,
+              0,
+              0,
+              0,
+              0.4,
+              0,
+              0,
+              0,
+              0.4,
+              0
+            ]
+          },
+          {
+            "padId": "ride",
+            "steps": [
+              0.7,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0.7,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        ]
+      },
+      "fx": [
+        {
+          "busId": "reverb",
+          "wet": 1,
+          "params": [
+            {
+              "paramId": "irType",
+              "value": "synthetic"
+            },
+            {
+              "paramId": "decay",
+              "value": 4
+            },
+            {
+              "paramId": "preDelay",
+              "value": 0.04
+            }
+          ],
+          "sends": [
+            {
+              "routeId": "4300",
+              "level": 0.45
+            },
+            {
+              "routeId": "1004H",
+              "level": 0.4
+            },
+            {
+              "routeId": "31M2",
+              "level": 0.28
+            },
+            {
+              "routeId": "drums",
+              "level": 0.08
+            }
+          ]
+        },
+        {
+          "busId": "pingpong",
+          "wet": 1,
+          "params": [
+            {
+              "paramId": "sync",
+              "value": "4n."
+            },
+            {
+              "paramId": "feedback",
+              "value": 0.45
+            }
+          ],
+          "sends": [
+            {
+              "routeId": "31M2",
+              "level": 0.25
+            },
+            {
+              "routeId": "1004H",
+              "level": 0.15
+            }
+          ]
+        },
+        {
+          "busId": "chorus",
+          "wet": 1,
+          "params": [
+            {
+              "paramId": "frequency",
+              "value": 0.3
+            },
+            {
+              "paramId": "depth",
+              "value": 0.6
+            },
+            {
+              "paramId": "spread",
+              "value": 160
+            }
+          ],
+          "sends": [
+            {
+              "routeId": "4300",
+              "level": 0.3
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "newyork": {
+    "name": "Uptown Local",
+    "plan": {
+      "summary": "Classic house: a two-bar organ stab on the 7 express answers a punchy electric bass on the G over a full kit, with a piano figure from the A and a ping-pong echo. Try raising the organ's delay send, slowing the piano to half speed for space, or deepening the bass sidechain for more pump.",
+      "bpm": 124,
+      "harmony": {
+        "root": "A",
+        "scaleType": "minor"
+      },
+      "masterVolume": -4,
+      "tracks": [
+        {
+          "routeId": "G",
+          "label": "Bass",
+          "synthType": "Sampler",
+          "samplerPreset": "bass-electric",
+          "drumVoice": null,
+          "volume": -6,
+          "pan": 0,
+          "octave": -2,
+          "glide": 0,
+          "legato": false,
+          "envelope": {
+            "attack": 0.005,
+            "decay": 0.1,
+            "sustain": 1,
+            "release": 0.1
+          },
+          "tone": null,
+          "filter": {
+            "type": "lowpass",
+            "frequency": 1800,
+            "Q": 0.7
+          },
+          "scale": {
+            "root": "E",
+            "scaleType": "phrygian"
+          },
+          "drone": null,
+          "arp": null,
+          "granular": null,
+          "speed": 1,
+          "loopRegion": {
+            "startCell": 0,
+            "endCell": 64
+          },
+          "gridResolution": "8n",
+          "pitchVariety": {
+            "contour": "randomWalk",
+            "variety": 0,
+            "span": 1,
+            "maxLeap": 2
+          },
+          "noteChance": 1,
+          "noteLength": "8n",
+          "loopPattern": {
+            "play": 1,
+            "rest": 0,
+            "offset": 0
+          },
+          "sidechain": {
+            "enabled": true,
+            "source": "drums:kick",
+            "amountDb": -7,
+            "attack": 0.004,
+            "release": 0.15
+          },
+          "stopVelocity": {
+            "source": "hubs",
+            "min": 0.65,
+            "max": 1,
+            "invert": false
+          },
+          "stopNoteLength": null
+        },
+        {
+          "routeId": "7X",
+          "label": "Lead",
+          "synthType": "Sampler",
+          "samplerPreset": "organ",
+          "drumVoice": null,
+          "volume": -11,
+          "pan": 0.2,
+          "octave": 0,
+          "glide": 0,
+          "legato": false,
+          "envelope": {
+            "attack": 0.003,
+            "decay": 0.1,
+            "sustain": 1,
+            "release": 0.12
+          },
+          "tone": null,
+          "filter": {
+            "type": "lowpass",
+            "frequency": 3500,
+            "Q": 0.7
+          },
+          "scale": null,
+          "drone": null,
+          "arp": null,
+          "granular": null,
+          "speed": 1,
+          "loopRegion": {
+            "startCell": 0,
+            "endCell": 32
+          },
+          "gridResolution": "8n",
+          "pitchVariety": {
+            "contour": "randomWalk",
+            "variety": 0.05,
+            "span": 1,
+            "maxLeap": 2
+          },
+          "noteChance": 1,
+          "noteLength": "16n",
+          "loopPattern": {
+            "play": 1,
+            "rest": 0,
+            "offset": 0
+          },
+          "sidechain": {
+            "enabled": true,
+            "source": "drums:kick",
+            "amountDb": -4,
+            "attack": 0.004,
+            "release": 0.18
+          },
+          "stopVelocity": null,
+          "stopNoteLength": null
+        },
+        {
+          "routeId": "A",
+          "label": "Chords",
+          "synthType": "Sampler",
+          "samplerPreset": "piano",
+          "drumVoice": null,
+          "volume": -10,
+          "pan": -0.2,
+          "octave": 0,
+          "glide": 0,
+          "legato": false,
+          "envelope": {
+            "attack": 0.005,
+            "decay": 0.1,
+            "sustain": 1,
+            "release": 0.35
+          },
+          "tone": null,
+          "filter": {
+            "type": "lowpass",
+            "frequency": 4500,
+            "Q": 0.7
+          },
+          "scale": null,
+          "drone": null,
+          "arp": null,
+          "granular": null,
+          "speed": 1,
+          "loopRegion": {
+            "startCell": 0,
+            "endCell": 64
+          },
+          "gridResolution": "8n",
+          "pitchVariety": {
+            "contour": "arch",
+            "variety": 0.08,
+            "span": 1,
+            "maxLeap": 3
+          },
+          "noteChance": 1,
+          "noteLength": "8n",
+          "loopPattern": {
+            "play": 1,
+            "rest": 0,
+            "offset": 0
+          },
+          "sidechain": null,
+          "stopVelocity": null,
+          "stopNoteLength": null
+        },
+        {
+          "routeId": "L",
+          "label": "Pad",
+          "synthType": "PolySynth",
+          "samplerPreset": null,
+          "drumVoice": null,
+          "volume": -19,
+          "pan": 0.3,
+          "octave": 0,
+          "glide": 0,
+          "legato": false,
+          "envelope": {
+            "attack": 0.5,
+            "decay": 0.5,
+            "sustain": 0.6,
+            "release": 1.5
+          },
+          "tone": {
+            "voice": "Synth",
+            "oscillator": "fatsawtooth"
+          },
+          "filter": {
+            "type": "lowpass",
+            "frequency": 1600,
+            "Q": 0.7
+          },
+          "scale": null,
+          "drone": null,
+          "arp": null,
+          "granular": null,
+          "speed": 0.25,
+          "loopRegion": {
+            "startCell": 0,
+            "endCell": 64
+          },
+          "gridResolution": "4n",
+          "pitchVariety": {
+            "contour": "arch",
+            "variety": 0,
+            "span": 1,
+            "maxLeap": 2
+          },
+          "noteChance": 1,
+          "noteLength": "1n",
+          "loopPattern": {
+            "play": 1,
+            "rest": 0,
+            "offset": 0
+          },
+          "sidechain": {
+            "enabled": true,
+            "source": "drums:kick",
+            "amountDb": -6,
+            "attack": 0.004,
+            "release": 0.22
+          },
+          "stopVelocity": null,
+          "stopNoteLength": null
+        },
+        {
+          "routeId": "6X",
+          "label": "Perc",
+          "synthType": "NoiseSynth",
+          "samplerPreset": null,
+          "drumVoice": null,
+          "volume": -21,
+          "pan": -0.35,
+          "octave": 0,
+          "glide": 0,
+          "legato": false,
+          "envelope": {
+            "attack": 0.002,
+            "decay": 0.06,
+            "sustain": 0,
+            "release": 0.04
+          },
+          "tone": null,
+          "filter": {
+            "type": "highpass",
+            "frequency": 6500,
+            "Q": 0.7
+          },
+          "scale": null,
+          "drone": null,
+          "arp": null,
+          "granular": null,
+          "speed": 1,
+          "loopRegion": {
+            "startCell": 0,
+            "endCell": 64
+          },
+          "gridResolution": "16n",
+          "pitchVariety": null,
+          "noteChance": 0.85,
+          "noteLength": "16n",
+          "loopPattern": {
+            "play": 1,
+            "rest": 0,
+            "offset": 0
+          },
+          "sidechain": null,
+          "stopVelocity": {
+            "source": "demand",
+            "min": 0.4,
+            "max": 1,
+            "invert": false
+          },
+          "stopNoteLength": null
+        }
+      ],
+      "drums": {
+        "enabled": true,
+        "volume": -5,
+        "filter": {
+          "type": "lowpass",
+          "frequency": 15000,
+          "Q": 0.7
+        },
+        "patterns": [
+          {
+            "padId": "kick",
+            "steps": [
+              1,
+              0,
+              0,
+              0,
+              1,
+              0,
+              0,
+              0,
+              1,
+              0,
+              0,
+              0,
+              1,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "padId": "clap",
+            "steps": [
+              0,
+              0,
+              0,
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              1,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "padId": "hat",
+            "steps": [
+              0,
+              0,
+              1,
+              0,
+              0,
+              0,
+              1,
+              0,
+              0,
+              0,
+              1,
+              0,
+              0,
+              0,
+              1,
+              0
+            ]
+          },
+          {
+            "padId": "ride",
+            "steps": [
+              0.4,
+              0,
+              0.4,
+              0,
+              0.4,
+              0,
+              0.4,
+              0,
+              0.4,
+              0,
+              0.4,
+              0,
+              0.4,
+              0,
+              0.4,
+              0
+            ]
+          },
+          {
+            "padId": "snare",
+            "steps": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0.4
+            ]
+          }
+        ]
+      },
+      "fx": [
+        {
+          "busId": "reverb",
+          "wet": 1,
+          "params": [
+            {
+              "paramId": "irType",
+              "value": "synthetic"
+            },
+            {
+              "paramId": "decay",
+              "value": 1.6
+            },
+            {
+              "paramId": "preDelay",
+              "value": 0.02
+            }
+          ],
+          "sends": [
+            {
+              "routeId": "A",
+              "level": 0.2
+            },
+            {
+              "routeId": "L",
+              "level": 0.35
+            },
+            {
+              "routeId": "7X",
+              "level": 0.12
+            },
+            {
+              "routeId": "drums",
+              "level": 0.05
+            }
+          ]
+        },
+        {
+          "busId": "pingpong",
+          "wet": 1,
+          "params": [
+            {
+              "paramId": "sync",
+              "value": "8n."
+            },
+            {
+              "paramId": "feedback",
+              "value": 0.4
+            }
+          ],
+          "sends": [
+            {
+              "routeId": "7X",
+              "level": 0.25
+            },
+            {
+              "routeId": "A",
+              "level": 0.1
+            }
+          ]
+        },
+        {
+          "busId": "chorus",
+          "wet": 1,
+          "params": [
+            {
+              "paramId": "frequency",
+              "value": 0.6
+            },
+            {
+              "paramId": "depth",
+              "value": 0.5
+            },
+            {
+              "paramId": "spread",
+              "value": 160
+            }
+          ],
+          "sends": [
+            {
+              "routeId": "L",
+              "level": 0.3
+            },
+            {
+              "routeId": "A",
+              "level": 0.15
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "zurich": {
+    "name": "Lake Dub",
+    "plan": {
+      "summary": "Dub techno: a filtered chord stab from tram 4 dissolves into long dotted echoes over a deep sine bass on tram 10 and a slow lake-side drone from the S18. Try raising the stab's delay feedback, opening its filter for brightness, or adding a touch more reverb to the drums.",
+      "bpm": 118,
+      "harmony": {
+        "root": "C",
+        "scaleType": "minor"
+      },
+      "masterVolume": -4,
+      "tracks": [
+        {
+          "routeId": "1-10-P-j26-1",
+          "label": "Bass",
+          "synthType": "Synth",
+          "samplerPreset": null,
+          "drumVoice": null,
+          "volume": -7,
+          "pan": 0,
+          "octave": -2,
+          "glide": 0,
+          "legato": false,
+          "envelope": {
+            "attack": 0.006,
+            "decay": 0.2,
+            "sustain": 0.35,
+            "release": 0.1
+          },
+          "tone": {
+            "oscillator": "sine"
+          },
+          "filter": {
+            "type": "lowpass",
+            "frequency": 400,
+            "Q": 0.7
+          },
+          "scale": {
+            "root": "G",
+            "scaleType": "phrygian"
+          },
+          "drone": null,
+          "arp": null,
+          "granular": null,
+          "speed": 1,
+          "loopRegion": {
+            "startCell": 0,
+            "endCell": 64
+          },
+          "gridResolution": "8n",
+          "pitchVariety": {
+            "contour": "randomWalk",
+            "variety": 0,
+            "span": 1,
+            "maxLeap": 1
+          },
+          "noteChance": 1,
+          "noteLength": "8n",
+          "loopPattern": {
+            "play": 1,
+            "rest": 0,
+            "offset": 0
+          },
+          "sidechain": {
+            "enabled": true,
+            "source": "drums:kick",
+            "amountDb": -9,
+            "attack": 0.004,
+            "release": 0.16
+          },
+          "stopVelocity": null,
+          "stopNoteLength": null
+        },
+        {
+          "routeId": "1-4-P-j26-1",
+          "label": "Chords",
+          "synthType": "PolySynth",
+          "samplerPreset": null,
+          "drumVoice": null,
+          "volume": -11,
+          "pan": -0.1,
+          "octave": 0,
+          "glide": 0,
+          "legato": false,
+          "envelope": {
+            "attack": 0.004,
+            "decay": 0.18,
+            "sustain": 0,
+            "release": 0.15
+          },
+          "tone": {
+            "voice": "Synth",
+            "oscillator": "fatsawtooth"
+          },
+          "filter": {
+            "type": "bandpass",
+            "frequency": 900,
+            "Q": 1.5
+          },
+          "scale": null,
+          "drone": null,
+          "arp": null,
+          "granular": null,
+          "speed": 0.5,
+          "loopRegion": {
+            "startCell": 0,
+            "endCell": 64
+          },
+          "gridResolution": "8n",
+          "pitchVariety": {
+            "contour": "randomWalk",
+            "variety": 0,
+            "span": 1,
+            "maxLeap": 2
+          },
+          "noteChance": 1,
+          "noteLength": "16n",
+          "loopPattern": {
+            "play": 1,
+            "rest": 0,
+            "offset": 0
+          },
+          "sidechain": null,
+          "stopVelocity": {
+            "source": "hubs",
+            "min": 0.6,
+            "max": 1,
+            "invert": false
+          },
+          "stopNoteLength": null
+        },
+        {
+          "routeId": "12-411-P-j26-1",
+          "label": "Pad",
+          "synthType": "PolySynth",
+          "samplerPreset": null,
+          "drumVoice": null,
+          "volume": -18,
+          "pan": 0.25,
+          "octave": 0,
+          "glide": 0,
+          "legato": false,
+          "envelope": {
+            "attack": 1,
+            "decay": 0.8,
+            "sustain": 0.7,
+            "release": 2.5
+          },
+          "tone": {
+            "voice": "Synth",
+            "oscillator": "triangle"
+          },
+          "filter": {
+            "type": "lowpass",
+            "frequency": 900,
+            "Q": 0.7
+          },
+          "scale": null,
+          "drone": null,
+          "arp": null,
+          "granular": null,
+          "speed": 0.25,
+          "loopRegion": {
+            "startCell": 0,
+            "endCell": 64
+          },
+          "gridResolution": "4n",
+          "pitchVariety": {
+            "contour": "arch",
+            "variety": 0,
+            "span": 1,
+            "maxLeap": 1
+          },
+          "noteChance": 1,
+          "noteLength": "1n",
+          "loopPattern": {
+            "play": 1,
+            "rest": 0,
+            "offset": 0
+          },
+          "sidechain": null,
+          "stopVelocity": null,
+          "stopNoteLength": null
+        },
+        {
+          "routeId": "1-9-P-j26-1",
+          "label": "Texture",
+          "synthType": "NoiseSynth",
+          "samplerPreset": null,
+          "drumVoice": null,
+          "volume": -24,
+          "pan": 0.4,
+          "octave": 0,
+          "glide": 0,
+          "legato": false,
+          "envelope": {
+            "attack": 0.003,
+            "decay": 0.08,
+            "sustain": 0,
+            "release": 0.06
+          },
+          "tone": null,
+          "filter": {
+            "type": "bandpass",
+            "frequency": 5000,
+            "Q": 1.5
+          },
+          "scale": null,
+          "drone": null,
+          "arp": null,
+          "granular": null,
+          "speed": 1,
+          "loopRegion": {
+            "startCell": 0,
+            "endCell": 64
+          },
+          "gridResolution": "16n",
+          "pitchVariety": null,
+          "noteChance": 0.7,
+          "noteLength": "16n",
+          "loopPattern": {
+            "play": 1,
+            "rest": 0,
+            "offset": 0
+          },
+          "sidechain": null,
+          "stopVelocity": null,
+          "stopNoteLength": null
+        }
+      ],
+      "drums": {
+        "enabled": true,
+        "volume": -6,
+        "filter": {
+          "type": "lowpass",
+          "frequency": 10000,
+          "Q": 0.7
+        },
+        "patterns": [
+          {
+            "padId": "kick",
+            "steps": [
+              1,
+              0,
+              0,
+              0,
+              1,
+              0,
+              0,
+              0,
+              1,
+              0,
+              0,
+              0,
+              1,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "padId": "hat",
+            "steps": [
+              0,
+              0,
+              0.7,
+              0,
+              0,
+              0,
+              0.7,
+              0,
+              0,
+              0,
+              0.7,
+              0,
+              0,
+              0,
+              0.7,
+              0
+            ]
+          },
+          {
+            "padId": "rim",
+            "steps": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0.4,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0.4,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "padId": "ride",
+            "steps": [
+              0.4,
+              0,
+              0,
+              0,
+              0.4,
+              0,
+              0,
+              0,
+              0.4,
+              0,
+              0,
+              0,
+              0.4,
+              0,
+              0,
+              0
+            ]
+          }
+        ]
+      },
+      "fx": [
+        {
+          "busId": "delay",
+          "wet": 1,
+          "params": [
+            {
+              "paramId": "sync",
+              "value": "8n."
+            },
+            {
+              "paramId": "feedback",
+              "value": 0.62
+            }
+          ],
+          "sends": [
+            {
+              "routeId": "1-4-P-j26-1",
+              "level": 0.45
+            },
+            {
+              "routeId": "drums",
+              "level": 0.04
+            }
+          ]
+        },
+        {
+          "busId": "reverb",
+          "wet": 1,
+          "params": [
+            {
+              "paramId": "irType",
+              "value": "synthetic"
+            },
+            {
+              "paramId": "decay",
+              "value": 4.5
+            },
+            {
+              "paramId": "preDelay",
+              "value": 0.04
+            }
+          ],
+          "sends": [
+            {
+              "routeId": "1-4-P-j26-1",
+              "level": 0.3
+            },
+            {
+              "routeId": "12-411-P-j26-1",
+              "level": 0.45
+            },
+            {
+              "routeId": "1-9-P-j26-1",
+              "level": 0.3
+            },
+            {
+              "routeId": "drums",
+              "level": 0.06
+            }
+          ]
+        },
+        {
+          "busId": "chorus",
+          "wet": 1,
+          "params": [
+            {
+              "paramId": "frequency",
+              "value": 0.25
+            },
+            {
+              "paramId": "depth",
+              "value": 0.7
+            },
+            {
+              "paramId": "spread",
+              "value": 160
+            }
+          ],
+          "sends": [
+            {
+              "routeId": "12-411-P-j26-1",
+              "level": 0.3
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "warsaw": {
+    "name": "Vistula Neon",
+    "plan": {
+      "summary": "Synthwave: metro M1 sings a wide saw lead over a pumping octave bass on bus 105, a kick-ducked tram-22 pad and a tram-11 arpeggio, driven by a big backbeat. Try opening the lead filter, raising its delay send for more lift, or lowering the arp level so the lead has more room.",
+      "bpm": 100,
+      "harmony": {
+        "root": "A",
+        "scaleType": "minor"
+      },
+      "masterVolume": -4,
+      "tracks": [
+        {
+          "routeId": "105",
+          "label": "Bass",
+          "synthType": "Synth",
+          "samplerPreset": null,
+          "drumVoice": null,
+          "volume": -8,
+          "pan": 0,
+          "octave": -2,
+          "glide": 0,
+          "legato": false,
+          "envelope": {
+            "attack": 0.004,
+            "decay": 0.14,
+            "sustain": 0.2,
+            "release": 0.06
+          },
+          "tone": {
+            "oscillator": "sawtooth"
+          },
+          "filter": {
+            "type": "lowpass",
+            "frequency": 800,
+            "Q": 1.5
+          },
+          "scale": {
+            "root": "E",
+            "scaleType": "phrygian"
+          },
+          "drone": null,
+          "arp": {
+            "enabled": true,
+            "style": "up",
+            "rate": "8n",
+            "gate": 0.6,
+            "octaves": 2,
+            "steps": 1,
+            "distance": 2
+          },
+          "granular": null,
+          "speed": 1,
+          "loopRegion": {
+            "startCell": 0,
+            "endCell": 64
+          },
+          "gridResolution": "4n",
+          "pitchVariety": {
+            "contour": "randomWalk",
+            "variety": 0,
+            "span": 1,
+            "maxLeap": 2
+          },
+          "noteChance": 1,
+          "noteLength": null,
+          "loopPattern": {
+            "play": 1,
+            "rest": 0,
+            "offset": 0
+          },
+          "sidechain": {
+            "enabled": true,
+            "source": "drums:kick",
+            "amountDb": -6,
+            "attack": 0.004,
+            "release": 0.18
+          },
+          "stopVelocity": null,
+          "stopNoteLength": null
+        },
+        {
+          "routeId": "M1",
+          "label": "Lead",
+          "synthType": "PolySynth",
+          "samplerPreset": null,
+          "drumVoice": null,
+          "volume": -9,
+          "pan": 0.1,
+          "octave": 0,
+          "glide": 0,
+          "legato": false,
+          "envelope": {
+            "attack": 0.01,
+            "decay": 0.2,
+            "sustain": 0.4,
+            "release": 0.25
+          },
+          "tone": {
+            "voice": "Synth",
+            "oscillator": "fatsawtooth"
+          },
+          "filter": {
+            "type": "lowpass",
+            "frequency": 3200,
+            "Q": 1
+          },
+          "scale": null,
+          "drone": null,
+          "arp": null,
+          "granular": null,
+          "speed": 0.5,
+          "loopRegion": {
+            "startCell": 0,
+            "endCell": 64
+          },
+          "gridResolution": "8n",
+          "pitchVariety": {
+            "contour": "randomWalk",
+            "variety": 0.1,
+            "span": 1,
+            "maxLeap": 3
+          },
+          "noteChance": 1,
+          "noteLength": "4n",
+          "loopPattern": {
+            "play": 1,
+            "rest": 0,
+            "offset": 0
+          },
+          "sidechain": null,
+          "stopVelocity": null,
+          "stopNoteLength": null
+        },
+        {
+          "routeId": "22",
+          "label": "Pad",
+          "synthType": "PolySynth",
+          "samplerPreset": null,
+          "drumVoice": null,
+          "volume": -16,
+          "pan": -0.25,
+          "octave": 0,
+          "glide": 0,
+          "legato": false,
+          "envelope": {
+            "attack": 0.3,
+            "decay": 0.5,
+            "sustain": 0.65,
+            "release": 1.2
+          },
+          "tone": {
+            "voice": "Synth",
+            "oscillator": "fatsquare"
+          },
+          "filter": {
+            "type": "lowpass",
+            "frequency": 1800,
+            "Q": 0.7
+          },
+          "scale": null,
+          "drone": null,
+          "arp": null,
+          "granular": null,
+          "speed": 0.25,
+          "loopRegion": {
+            "startCell": 0,
+            "endCell": 64
+          },
+          "gridResolution": "4n",
+          "pitchVariety": {
+            "contour": "arch",
+            "variety": 0,
+            "span": 1,
+            "maxLeap": 2
+          },
+          "noteChance": 1,
+          "noteLength": "2n",
+          "loopPattern": {
+            "play": 1,
+            "rest": 0,
+            "offset": 0
+          },
+          "sidechain": {
+            "enabled": true,
+            "source": "drums:kick",
+            "amountDb": -8,
+            "attack": 0.004,
+            "release": 0.25
+          },
+          "stopVelocity": null,
+          "stopNoteLength": null
+        },
+        {
+          "routeId": "11",
+          "label": "Arp",
+          "synthType": "Synth",
+          "samplerPreset": null,
+          "drumVoice": null,
+          "volume": -15,
+          "pan": 0.35,
+          "octave": 0,
+          "glide": 0,
+          "legato": false,
+          "envelope": {
+            "attack": 0.002,
+            "decay": 0.12,
+            "sustain": 0,
+            "release": 0.08
+          },
+          "tone": {
+            "oscillator": "square"
+          },
+          "filter": {
+            "type": "lowpass",
+            "frequency": 4500,
+            "Q": 0.7
+          },
+          "scale": null,
+          "drone": null,
+          "arp": {
+            "enabled": true,
+            "style": "updown",
+            "rate": "16n",
+            "gate": 0.5,
+            "octaves": 1,
+            "steps": 4,
+            "distance": 2
+          },
+          "granular": null,
+          "speed": 0.25,
+          "loopRegion": {
+            "startCell": 0,
+            "endCell": 64
+          },
+          "gridResolution": "4n",
+          "pitchVariety": {
+            "contour": "randomWalk",
+            "variety": 0,
+            "span": 1,
+            "maxLeap": 2
+          },
+          "noteChance": 1,
+          "noteLength": null,
+          "loopPattern": {
+            "play": 1,
+            "rest": 0,
+            "offset": 0
+          },
+          "sidechain": null,
+          "stopVelocity": null,
+          "stopNoteLength": null
+        }
+      ],
+      "drums": {
+        "enabled": true,
+        "volume": -5,
+        "filter": {
+          "type": "lowpass",
+          "frequency": 14000,
+          "Q": 0.7
+        },
+        "patterns": [
+          {
+            "padId": "kick",
+            "steps": [
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              1,
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "padId": "snare",
+            "steps": [
+              0,
+              0,
+              0,
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              1,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "padId": "clap",
+            "steps": [
+              0,
+              0,
+              0,
+              0,
+              0.7,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0.7,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "padId": "hat",
+            "steps": [
+              0.7,
+              0,
+              0.7,
+              0,
+              0.7,
+              0,
+              0.7,
+              0,
+              0.7,
+              0,
+              0.7,
+              0,
+              0.7,
+              0,
+              0.7,
+              0
+            ]
+          }
+        ]
+      },
+      "fx": [
+        {
+          "busId": "reverb",
+          "wet": 1,
+          "params": [
+            {
+              "paramId": "irType",
+              "value": "synthetic"
+            },
+            {
+              "paramId": "decay",
+              "value": 2.6
+            },
+            {
+              "paramId": "preDelay",
+              "value": 0.03
+            }
+          ],
+          "sends": [
+            {
+              "routeId": "11",
+              "level": 0.2
+            },
+            {
+              "routeId": "22",
+              "level": 0.35
+            },
+            {
+              "routeId": "M1",
+              "level": 0.25
+            },
+            {
+              "routeId": "drums",
+              "level": 0.12
             }
           ]
         },
@@ -737,582 +3106,305 @@
             },
             {
               "paramId": "feedback",
-              "value": 0.3
+              "value": 0.4
             }
           ],
           "sends": [
             {
-              "routeId": "L24",
+              "routeId": "11",
+              "level": 0.18
+            },
+            {
+              "routeId": "M1",
+              "level": 0.22
+            }
+          ]
+        },
+        {
+          "busId": "chorus",
+          "wet": 1,
+          "params": [
+            {
+              "paramId": "frequency",
+              "value": 0.6
+            },
+            {
+              "paramId": "depth",
+              "value": 0.5
+            },
+            {
+              "paramId": "spread",
+              "value": 160
+            }
+          ],
+          "sends": [
+            {
+              "routeId": "22",
+              "level": 0.35
+            },
+            {
+              "routeId": "M1",
               "level": 0.15
-            }
-          ]
-        }
-      ],
-      "drums": {
-        "enabled": true,
-        "volume": -14,
-        "patterns": [
-          {
-            "padId": "kick",
-            "steps": [
-              1,
-              0,
-              0,
-              0,
-              1,
-              0,
-              0,
-              0,
-              1,
-              0,
-              0,
-              0,
-              1,
-              0,
-              0,
-              0
-            ]
-          },
-          {
-            "padId": "hat",
-            "steps": [
-              0,
-              0,
-              0.4,
-              0,
-              0,
-              0,
-              0.7,
-              0,
-              0,
-              0,
-              0.4,
-              0,
-              0,
-              0,
-              0.7,
-              0
-            ]
-          },
-          {
-            "padId": "clap",
-            "steps": [
-              0,
-              0,
-              0,
-              0,
-              0.7,
-              0,
-              0,
-              0,
-              0,
-              0,
-              0,
-              0,
-              0.7,
-              0,
-              0,
-              0
-            ]
-          }
-        ]
-      }
-    }
-  },
-  "newyork": {
-    "name": "Borough Pulse",
-    "plan": {
-      "summary": "Borough Pulse: a rounded bass, struck FM melody and a quiet answering pad. Open the lead filter for brightness, slow the bass for space, or raise the pad reverb send for depth.",
-      "bpm": 92,
-      "harmony": {
-        "root": "F",
-        "scaleType": "dorian"
-      },
-      "masterVolume": -6,
-      "tracks": [
-        {
-          "routeId": "A",
-          "label": "Bass",
-          "synthType": "Synth",
-          "volume": -13,
-          "octave": -1,
-          "pan": 0,
-          "noteLength": "8n",
-          "speed": 0.5,
-          "gridResolution": "4n",
-          "pitchVariety": {
-            "contour": "randomWalk",
-            "variety": 0
-          },
-          "envelope": {
-            "attack": 0.008,
-            "decay": 0.18,
-            "sustain": 0,
-            "release": 0.12
-          },
-          "tone": {
-            "oscillator": "triangle"
-          },
-          "filter": {
-            "type": "lowpass",
-            "frequency": 700,
-            "Q": 0.7
-          },
-          "sidechain": {
-            "enabled": true,
-            "source": "drums:kick",
-            "amountDb": -8,
-            "attack": 0.005,
-            "release": 0.15
-          }
-        },
-        {
-          "routeId": "3",
-          "label": "Lead",
-          "synthType": "Sampler",
-          "volume": -16,
-          "octave": 0,
-          "pan": -0.18,
-          "noteLength": "8n",
-          "speed": 0.5,
-          "gridResolution": "8n",
-          "pitchVariety": {
-            "contour": "randomWalk",
-            "variety": 0.12
-          },
-          "envelope": {
-            "attack": 0.005,
-            "decay": 0.22,
-            "sustain": 0,
-            "release": 0.25
-          },
-          "filter": {
-            "type": "lowpass",
-            "frequency": 2800,
-            "Q": 0.7
-          },
-          "samplerPreset": "piano"
-        },
-        {
-          "routeId": "G",
-          "label": "Pad",
-          "synthType": "PolySynth",
-          "volume": -23,
-          "octave": 0,
-          "pan": 0.25,
-          "noteLength": "1n",
-          "speed": 0.25,
-          "gridResolution": "4n",
-          "pitchVariety": {
-            "contour": "arch",
-            "variety": 0.08
-          },
-          "envelope": {
-            "attack": 0.35,
-            "decay": 0.4,
-            "sustain": 0.55,
-            "release": 1.2
-          },
-          "tone": {
-            "oscillator": "triangle"
-          },
-          "filter": {
-            "type": "lowpass",
-            "frequency": 1800,
-            "Q": 0.7
-          },
-          "loopPattern": {
-            "play": 1,
-            "rest": 1,
-            "offset": 1
-          }
-        }
-      ],
-      "fx": [
-        {
-          "busId": "reverb",
-          "wet": 1,
-          "params": [
-            {
-              "paramId": "irType",
-              "value": "synthetic"
-            },
-            {
-              "paramId": "decay",
-              "value": 1.5
-            }
-          ],
-          "sends": [
-            {
-              "routeId": "3",
-              "level": 0.17
-            },
-            {
-              "routeId": "G",
-              "level": 0.22
-            }
-          ]
-        }
-      ],
-      "drums": {
-        "enabled": true,
-        "volume": -14,
-        "patterns": [
-          {
-            "padId": "kick",
-            "steps": [
-              1,
-              0,
-              0,
-              0,
-              0,
-              0,
-              0,
-              0.4,
-              0,
-              0,
-              1,
-              0,
-              0,
-              0,
-              0,
-              0
-            ]
-          },
-          {
-            "padId": "hat",
-            "steps": [
-              0,
-              0,
-              0.4,
-              0,
-              0,
-              0,
-              0.7,
-              0,
-              0,
-              0,
-              0.4,
-              0,
-              0,
-              0,
-              0.7,
-              0
-            ]
-          },
-          {
-            "padId": "clap",
-            "steps": [
-              0,
-              0,
-              0,
-              0,
-              0.7,
-              0,
-              0,
-              0,
-              0,
-              0,
-              0,
-              0,
-              0.7,
-              0,
-              0,
-              0
-            ]
-          }
-        ]
-      }
-    }
-  },
-  "zurich": {
-    "name": "Lake Reflections",
-    "plan": {
-      "summary": "Lake Reflections: a rounded bass, struck FM melody and a quiet answering pad. Open the lead filter for brightness, slow the bass for space, or raise the pad reverb send for depth.",
-      "bpm": 84,
-      "harmony": {
-        "root": "C",
-        "scaleType": "pentatonic"
-      },
-      "masterVolume": -6,
-      "tracks": [
-        {
-          "routeId": "1-14-P-j26-1",
-          "label": "Bass",
-          "synthType": "Synth",
-          "volume": -13,
-          "octave": -1,
-          "pan": 0,
-          "noteLength": "8n",
-          "speed": 0.25,
-          "gridResolution": "4n",
-          "pitchVariety": {
-            "contour": "randomWalk",
-            "variety": 0
-          },
-          "envelope": {
-            "attack": 0.008,
-            "decay": 0.18,
-            "sustain": 0,
-            "release": 0.12
-          },
-          "tone": {
-            "oscillator": "triangle"
-          },
-          "filter": {
-            "type": "lowpass",
-            "frequency": 700,
-            "Q": 0.7
-          }
-        },
-        {
-          "routeId": "1-10-P-j26-1",
-          "label": "Lead",
-          "synthType": "FMSynth",
-          "volume": -16,
-          "octave": 0,
-          "pan": -0.18,
-          "noteLength": "8n",
-          "speed": 0.25,
-          "gridResolution": "8n",
-          "pitchVariety": {
-            "contour": "randomWalk",
-            "variety": 0.12
-          },
-          "envelope": {
-            "attack": 0.005,
-            "decay": 0.22,
-            "sustain": 0,
-            "release": 0.25
-          },
-          "tone": {
-            "oscillator": "sine",
-            "harmonicity": 2,
-            "modulationIndex": 1.5,
-            "modEnvelope": {
-              "attack": 0.002,
-              "decay": 0.12,
-              "sustain": 0,
-              "release": 0.15
-            }
-          },
-          "filter": {
-            "type": "lowpass",
-            "frequency": 4200,
-            "Q": 0.7
-          }
-        },
-        {
-          "routeId": "1-13-P-j26-1",
-          "label": "Pad",
-          "synthType": "PolySynth",
-          "volume": -23,
-          "octave": 0,
-          "pan": 0.25,
-          "noteLength": "1n",
-          "speed": 0.25,
-          "gridResolution": "4n",
-          "pitchVariety": {
-            "contour": "arch",
-            "variety": 0.08
-          },
-          "envelope": {
-            "attack": 0.35,
-            "decay": 0.4,
-            "sustain": 0.55,
-            "release": 1.2
-          },
-          "tone": {
-            "oscillator": "triangle"
-          },
-          "filter": {
-            "type": "lowpass",
-            "frequency": 1800,
-            "Q": 0.7
-          },
-          "loopPattern": {
-            "play": 1,
-            "rest": 1,
-            "offset": 1
-          }
-        }
-      ],
-      "fx": [
-        {
-          "busId": "reverb",
-          "wet": 1,
-          "params": [
-            {
-              "paramId": "irType",
-              "value": "synthetic"
-            },
-            {
-              "paramId": "decay",
-              "value": 3
-            }
-          ],
-          "sends": [
-            {
-              "routeId": "1-10-P-j26-1",
-              "level": 0.17
-            },
-            {
-              "routeId": "1-13-P-j26-1",
-              "level": 0.22
             }
           ]
         }
       ]
     }
   },
-  "warsaw": {
-    "name": "Vistula Motion",
+  "vienna": {
+    "name": "Ringstrasse Nocturne",
     "plan": {
-      "summary": "Vistula Motion: a rounded bass, struck FM melody and a quiet answering pad. Open the lead filter for brightness, slow the bass for space, or raise the pad reverb send for depth.",
-      "bpm": 122,
+      "summary": "Melodic techno with a classical accent: a cello line on the U4 carries the hook over a pulsing U3 bass, a violin pad from tram 52 and a rolling FM arp on tram 42. Try raising the cello's reverb send, opening the arp filter for more sparkle, or deepening the bass sidechain.",
+      "bpm": 123,
       "harmony": {
-        "root": "A",
+        "root": "D",
         "scaleType": "minor"
       },
-      "masterVolume": -6,
+      "masterVolume": -4,
       "tracks": [
         {
-          "routeId": "11",
+          "routeId": "vienna:04:1:U3",
           "label": "Bass",
           "synthType": "Synth",
-          "volume": -13,
-          "octave": -1,
+          "samplerPreset": null,
+          "drumVoice": null,
+          "volume": -8,
           "pan": 0,
-          "noteLength": "8n",
-          "speed": 0.5,
-          "gridResolution": "4n",
-          "pitchVariety": {
-            "contour": "randomWalk",
-            "variety": 0
-          },
+          "octave": -2,
+          "glide": 0,
+          "legato": false,
           "envelope": {
-            "attack": 0.008,
-            "decay": 0.18,
-            "sustain": 0,
-            "release": 0.12
+            "attack": 0.005,
+            "decay": 0.15,
+            "sustain": 0.2,
+            "release": 0.08
           },
           "tone": {
-            "oscillator": "triangle"
+            "oscillator": "sawtooth"
           },
           "filter": {
             "type": "lowpass",
-            "frequency": 700,
-            "Q": 0.7
+            "frequency": 550,
+            "Q": 1.2
+          },
+          "scale": {
+            "root": "A",
+            "scaleType": "phrygian"
+          },
+          "drone": null,
+          "arp": null,
+          "granular": null,
+          "speed": 1,
+          "loopRegion": {
+            "startCell": 0,
+            "endCell": 64
+          },
+          "gridResolution": "8n",
+          "pitchVariety": {
+            "contour": "randomWalk",
+            "variety": 0,
+            "span": 1,
+            "maxLeap": 2
+          },
+          "noteChance": 1,
+          "noteLength": "8n",
+          "loopPattern": {
+            "play": 1,
+            "rest": 0,
+            "offset": 0
           },
           "sidechain": {
             "enabled": true,
             "source": "drums:kick",
             "amountDb": -8,
-            "attack": 0.005,
-            "release": 0.15
-          }
+            "attack": 0.004,
+            "release": 0.14
+          },
+          "stopVelocity": null,
+          "stopNoteLength": null
         },
         {
-          "routeId": "124",
+          "routeId": "vienna:04:1:U4",
           "label": "Lead",
-          "synthType": "FMSynth",
-          "volume": -16,
+          "synthType": "Sampler",
+          "samplerPreset": "cello",
+          "drumVoice": null,
+          "volume": -8,
+          "pan": -0.15,
           "octave": 0,
-          "pan": -0.18,
-          "noteLength": "8n",
+          "glide": 0,
+          "legato": false,
+          "envelope": {
+            "attack": 0.04,
+            "decay": 0.1,
+            "sustain": 1,
+            "release": 0.6
+          },
+          "tone": null,
+          "filter": {
+            "type": "lowpass",
+            "frequency": 3500,
+            "Q": 0.7
+          },
+          "scale": null,
+          "drone": null,
+          "arp": null,
+          "granular": null,
           "speed": 0.5,
+          "loopRegion": {
+            "startCell": 0,
+            "endCell": 64
+          },
           "gridResolution": "8n",
           "pitchVariety": {
             "contour": "randomWalk",
-            "variety": 0.12
+            "variety": 0.08,
+            "span": 1,
+            "maxLeap": 2
           },
+          "noteChance": 1,
+          "noteLength": "4n",
+          "loopPattern": {
+            "play": 1,
+            "rest": 0,
+            "offset": 0
+          },
+          "sidechain": null,
+          "stopVelocity": {
+            "source": "hubs",
+            "min": 0.6,
+            "max": 1,
+            "invert": false
+          },
+          "stopNoteLength": null
+        },
+        {
+          "routeId": "vienna:04:0:52",
+          "label": "Pad",
+          "synthType": "Sampler",
+          "samplerPreset": "violin",
+          "drumVoice": null,
+          "volume": -17,
+          "pan": 0.25,
+          "octave": 1,
+          "glide": 0,
+          "legato": false,
           "envelope": {
-            "attack": 0.005,
-            "decay": 0.22,
+            "attack": 0.35,
+            "decay": 0.1,
+            "sustain": 1,
+            "release": 1.5
+          },
+          "tone": null,
+          "filter": {
+            "type": "lowpass",
+            "frequency": 5000,
+            "Q": 0.7
+          },
+          "scale": null,
+          "drone": null,
+          "arp": null,
+          "granular": null,
+          "speed": 0.25,
+          "loopRegion": {
+            "startCell": 0,
+            "endCell": 64
+          },
+          "gridResolution": "4n",
+          "pitchVariety": {
+            "contour": "arch",
+            "variety": 0,
+            "span": 1,
+            "maxLeap": 2
+          },
+          "noteChance": 1,
+          "noteLength": "2n",
+          "loopPattern": {
+            "play": 1,
+            "rest": 0,
+            "offset": 0
+          },
+          "sidechain": null,
+          "stopVelocity": null,
+          "stopNoteLength": null
+        },
+        {
+          "routeId": "vienna:04:0:42",
+          "label": "Arp",
+          "synthType": "FMSynth",
+          "samplerPreset": null,
+          "drumVoice": null,
+          "volume": -15,
+          "pan": 0.35,
+          "octave": 0,
+          "glide": 0,
+          "legato": false,
+          "envelope": {
+            "attack": 0.002,
+            "decay": 0.15,
             "sustain": 0,
-            "release": 0.25
+            "release": 0.1
           },
           "tone": {
             "oscillator": "sine",
             "harmonicity": 2,
-            "modulationIndex": 1.5,
+            "modulationIndex": 3,
             "modEnvelope": {
-              "attack": 0.002,
-              "decay": 0.12,
+              "attack": 0.001,
+              "decay": 0.08,
               "sustain": 0,
-              "release": 0.15
+              "release": 0.08
             }
           },
           "filter": {
             "type": "lowpass",
-            "frequency": 4200,
+            "frequency": 5000,
             "Q": 0.7
-          }
-        },
-        {
-          "routeId": "133",
-          "label": "Pad",
-          "synthType": "PolySynth",
-          "volume": -23,
-          "octave": 0,
-          "pan": 0.25,
-          "noteLength": "1n",
-          "speed": 0.25,
+          },
+          "scale": null,
+          "drone": null,
+          "arp": {
+            "enabled": true,
+            "style": "up",
+            "rate": "16n",
+            "gate": 0.45,
+            "octaves": 1,
+            "steps": 3,
+            "distance": 2
+          },
+          "granular": null,
+          "speed": 0.5,
+          "loopRegion": {
+            "startCell": 0,
+            "endCell": 64
+          },
           "gridResolution": "4n",
           "pitchVariety": {
-            "contour": "arch",
-            "variety": 0.08
+            "contour": "randomWalk",
+            "variety": 0,
+            "span": 1,
+            "maxLeap": 2
           },
-          "envelope": {
-            "attack": 0.35,
-            "decay": 0.4,
-            "sustain": 0.55,
-            "release": 1.2
-          },
-          "tone": {
-            "oscillator": "triangle"
-          },
-          "filter": {
-            "type": "lowpass",
-            "frequency": 1800,
-            "Q": 0.7
-          },
+          "noteChance": 0.8,
+          "noteLength": null,
           "loopPattern": {
             "play": 1,
-            "rest": 1,
-            "offset": 1
-          }
-        }
-      ],
-      "fx": [
-        {
-          "busId": "reverb",
-          "wet": 1,
-          "params": [
-            {
-              "paramId": "irType",
-              "value": "synthetic"
-            },
-            {
-              "paramId": "decay",
-              "value": 1.5
-            }
-          ],
-          "sends": [
-            {
-              "routeId": "124",
-              "level": 0.17
-            },
-            {
-              "routeId": "133",
-              "level": 0.22
-            }
-          ]
+            "rest": 0,
+            "offset": 0
+          },
+          "sidechain": null,
+          "stopVelocity": null,
+          "stopNoteLength": null
         }
       ],
       "drums": {
         "enabled": true,
-        "volume": -14,
+        "volume": -5,
+        "filter": {
+          "type": "lowpass",
+          "frequency": 14000,
+          "Q": 0.7
+        },
         "patterns": [
           {
             "padId": "kick",
@@ -1336,27 +3428,6 @@
             ]
           },
           {
-            "padId": "hat",
-            "steps": [
-              0,
-              0,
-              0.4,
-              0,
-              0,
-              0,
-              0.7,
-              0,
-              0,
-              0,
-              0.4,
-              0,
-              0,
-              0,
-              0.7,
-              0
-            ]
-          },
-          {
             "padId": "clap",
             "steps": [
               0,
@@ -1376,9 +3447,158 @@
               0,
               0
             ]
+          },
+          {
+            "padId": "hat",
+            "steps": [
+              0,
+              0,
+              0.7,
+              0,
+              0,
+              0,
+              0.7,
+              0,
+              0,
+              0,
+              0.7,
+              0,
+              0,
+              0,
+              0.7,
+              0
+            ]
+          },
+          {
+            "padId": "ride",
+            "steps": [
+              0.4,
+              0,
+              0.4,
+              0,
+              0.4,
+              0,
+              0.4,
+              0,
+              0.4,
+              0,
+              0.4,
+              0,
+              0.4,
+              0,
+              0.4,
+              0
+            ]
+          },
+          {
+            "padId": "rim",
+            "steps": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0.4,
+              0,
+              0,
+              0,
+              0,
+              0.4,
+              0
+            ]
           }
         ]
-      }
+      },
+      "fx": [
+        {
+          "busId": "reverb",
+          "wet": 1,
+          "params": [
+            {
+              "paramId": "irType",
+              "value": "synthetic"
+            },
+            {
+              "paramId": "decay",
+              "value": 2.8
+            },
+            {
+              "paramId": "preDelay",
+              "value": 0.03
+            }
+          ],
+          "sends": [
+            {
+              "routeId": "vienna:04:1:U4",
+              "level": 0.25
+            },
+            {
+              "routeId": "vienna:04:0:52",
+              "level": 0.4
+            },
+            {
+              "routeId": "vienna:04:0:42",
+              "level": 0.2
+            },
+            {
+              "routeId": "drums",
+              "level": 0.05
+            }
+          ]
+        },
+        {
+          "busId": "pingpong",
+          "wet": 1,
+          "params": [
+            {
+              "paramId": "sync",
+              "value": "8n."
+            },
+            {
+              "paramId": "feedback",
+              "value": 0.42
+            }
+          ],
+          "sends": [
+            {
+              "routeId": "vienna:04:0:42",
+              "level": 0.25
+            },
+            {
+              "routeId": "vienna:04:1:U4",
+              "level": 0.1
+            }
+          ]
+        },
+        {
+          "busId": "chorus",
+          "wet": 1,
+          "params": [
+            {
+              "paramId": "frequency",
+              "value": 0.6
+            },
+            {
+              "paramId": "depth",
+              "value": 0.5
+            },
+            {
+              "paramId": "spread",
+              "value": 160
+            }
+          ],
+          "sends": [
+            {
+              "routeId": "vienna:04:0:52",
+              "level": 0.25
+            }
+          ]
+        }
+      ]
     }
   }
 }
