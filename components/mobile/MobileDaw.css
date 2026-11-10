@@ -305,7 +305,7 @@
 }
 .mtransport-view button:last-child { border-right: none; }
 .mtransport-view button.is-active { background: var(--accent-tint); color: var(--accent); }
-/* The 2D/3D map style, beside Map/Lanes while the map is showing. */
+/* The Streets/Score map style, beside Map/Lanes while the map is showing. */
 .mtransport-view--style { margin-left: var(--space-100); }
 .mtransport-view--style button { min-width: 44px; }
 

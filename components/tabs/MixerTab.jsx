@@ -176,10 +176,11 @@ export default function MixerTab({ active = true }) {
   const [audioProgress,  setAudioProgress]  = useState(0)
 
   const [view,    setView]    = useState('daw')   // 'map' | 'daw'
-  // How the Map view draws: the street map (2D) or the Listening view (3D).
+  // How the Map view draws: the street map ('streets') or the 3D Listening
+  // view ('score'), where each stop rises to its note.
   // A per-device preference, not song state.
   const [mapStyle, setMapStyleState] = useState(() => {
-    try { return localStorage.getItem('leid-map-style') === '3d' ? '3d' : '2d' } catch { return '2d' }
+    try { return localStorage.getItem('leid-map-style') === 'score' ? 'score' : 'streets' } catch { return 'streets' }
   })
   const setMapStyle = useCallback((style) => {
     setMapStyleState(style)
@@ -2298,17 +2299,17 @@ export default function MixerTab({ active = true }) {
         {view === 'map' && (
           <div className="view-toggle" role="group" aria-label="Map style">
             <button
-              className={`mode-btn ${mapStyle === '2d' ? 'active' : ''}`}
-              aria-pressed={mapStyle === '2d'}
+              className={`mode-btn ${mapStyle === 'streets' ? 'active' : ''}`}
+              aria-pressed={mapStyle === 'streets'}
               title="Street map: edit and focus lanes"
-              onClick={() => setMapStyle('2d')}
-            >2D</button>
+              onClick={() => setMapStyle('streets')}
+            >Streets</button>
             <button
-              className={`mode-btn ${mapStyle === '3d' ? 'active' : ''}`}
-              aria-pressed={mapStyle === '3d'}
+              className={`mode-btn ${mapStyle === 'score' ? 'active' : ''}`}
+              aria-pressed={mapStyle === 'score'}
               title="Listening view: each stop raised to its note, slowly orbiting"
-              onClick={() => setMapStyle('3d')}
-            >3D</button>
+              onClick={() => setMapStyle('score')}
+            >Score</button>
           </div>
         )}
 

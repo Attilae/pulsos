@@ -593,7 +593,7 @@ function MapView({
   trackLoopRegions = {},
   trackSynthTypes = {},
   pitchSettings = null,
-  mapStyle = '2d',
+  mapStyle = 'streets',
   onShowLanes = null,
 }) {
   // Phone concessions: canvas rendering, no zoom buttons (pinch), fewer stop
@@ -605,8 +605,8 @@ function MapView({
   // whenever the tab is hidden.
   const { reduced, osReduced, userReduced, setUserReduced } = useMotionPreference()
   const visible = useDocumentVisible()
-  // 3D (the Listening view) covers the street map, so the 2D motion stands down.
-  const listenOpen = active && mapStyle === '3d'
+  // Score (the 3D Listening view) covers the street map, so the 2D motion stands down.
+  const listenOpen = active && mapStyle === 'score'
   const motionOn = active && started && visible && !listenOpen
   // Routes arrive slim (thinned polylines, same stops); the desktop map swaps in
   // the full-resolution lines once they've loaded. Phones stay on slim.
@@ -663,7 +663,7 @@ function MapView({
   )
   const allOff = lanes.length > 0 && audibleCount === 0
 
-  // ── Listening view (3D): the mix in space, heights from each stop's note. ──
+  // ── Listening view (Score): the mix in space, heights from each stop's note. ──
   // Each drawn line takes its heights from the first lane on it (a base lane
   // before its duplicates), resolved exactly as the stop rail does.
   const listening = useMemo(() => {

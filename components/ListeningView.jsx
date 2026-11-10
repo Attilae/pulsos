@@ -1,8 +1,8 @@
 'use client'
 
-// Listening view (the Map view's "3D" style): the mix as luminous threads in a
+// Listening view (the Map view's "Score" style): the mix as luminous threads in a
 // dark void, for watching rather than editing. It covers the street map in
-// place; the 2D/3D switch in the header (phone: transport bar) toggles it. Each stop is raised to the height of the note it plays
+// place; the Streets/Score switch in the header (phone: transport bar) toggles it. Each stop is raised to the height of the note it plays
 // (one pitch scale for the whole mix, so bass lines sit low and leads high),
 // the camera orbits once every six minutes, and a stop blooms when it sounds
 // and fades over a couple of seconds. Inspired by nulldesign's Metrogram 3D,
