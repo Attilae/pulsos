@@ -66,6 +66,8 @@ export default function MobileDaw({ controls, lanes }) {
         onBpm={controls.onBpm}
         view={controls.view}
         onView={controls.onView}
+        mapStyle={controls.mapStyle}
+        onMapStyle={controls.onMapStyle}
         needsGesture={controls.needsGesture}
         onGestureStart={controls.onGestureStart}
         noOutput={controls.noOutput}

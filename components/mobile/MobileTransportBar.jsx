@@ -19,6 +19,8 @@ export default function MobileTransportBar({
   onBpm,
   view,
   onView,
+  mapStyle = 'streets',
+  onMapStyle,
   needsGesture,
   onGestureStart,
   noOutput,
@@ -91,6 +93,20 @@ export default function MobileTransportBar({
               onClick={() => onView('daw')}
             >Lanes</button>
           </div>
+          {view === 'map' && onMapStyle && (
+            <div className="mtransport-view mtransport-view--style" role="group" aria-label="Map style">
+              <button
+                type="button" aria-pressed={mapStyle === 'streets'}
+                className={mapStyle === 'streets' ? 'is-active' : ''}
+                onClick={() => onMapStyle('streets')}
+              >Streets</button>
+              <button
+                type="button" aria-pressed={mapStyle === 'score'}
+                className={mapStyle === 'score' ? 'is-active' : ''}
+                onClick={() => onMapStyle('score')}
+              >Score</button>
+            </div>
+          )}
         </>
       )}
     </div>

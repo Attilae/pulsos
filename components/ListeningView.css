@@ -1,0 +1,85 @@
+/* Listening view: always a dark void, whatever the app theme. The canvas is
+   transparent so this gradient is the only background. It sits over the
+   street map inside .map-wrapper, above Leaflet's panes and controls. */
+.listening {
+  position: absolute;
+  inset: 0;
+  z-index: 1100;
+  background:
+    radial-gradient(ellipse 80% 70% at 50% 58%, #0c1018 0%, #06080c 55%, #030405 100%);
+  color: #d9dee6;
+  overflow: hidden;
+  outline: none;
+  touch-action: none;
+}
+
+.listening-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  cursor: grab;
+}
+.listening-canvas:active { cursor: grabbing; }
+
+.listening-chrome {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-200);
+  padding: var(--space-300);
+  pointer-events: none;
+  transition: opacity 1.2s ease;
+}
+.listening-chrome > * { pointer-events: auto; }
+
+.listening-title {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-150);
+}
+.listening-title h2 {
+  margin: 0;
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #e8ecf2;
+}
+.listening-title span {
+  font-size: var(--fs-sm);
+  color: #8b93a1;
+}
+
+.listening-hint {
+  position: absolute;
+  left: 50%;
+  bottom: var(--space-400);
+  transform: translateX(-50%);
+  margin: 0;
+  padding: 0 var(--space-200);
+  max-width: 100%;
+  text-align: center;
+  font-size: var(--fs-sm);
+  color: #8b93a1;
+  pointer-events: none;
+  transition: opacity 1.2s ease;
+}
+
+/* Idle: the controls step back so only the city is left. */
+.listening--idle .listening-chrome,
+.listening--idle .listening-hint { opacity: 0; }
+.listening--idle .listening-canvas { cursor: none; }
+
+@media (max-width: 767px) { /* PHONE_MAX, lib/shared/breakpoints.js */
+  .listening-chrome { padding: var(--space-200); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .listening-chrome, .listening-hint { transition: none; }
+}
