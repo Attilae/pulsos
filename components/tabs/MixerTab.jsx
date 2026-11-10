@@ -857,6 +857,15 @@ export default function MixerTab({ active = true }) {
     }
   }, [])
 
+  // The map's Listening view raises each stop to its note, so it needs the
+  // same pitch inputs as the stop rail; and it covers the transport, so it
+  // gets a stable play/pause (MapView is memoized).
+  const listenPitchSettings = useMemo(() => ({
+    trackScales, trackPitchVariety, trackPitchOffsets, trackOctaves, trackSemitones, trackGridResolutions,
+  }), [trackScales, trackPitchVariety, trackPitchOffsets, trackOctaves, trackSemitones, trackGridResolutions])
+  const playPauseRef = useRef(null)
+  const togglePlayStable = useCallback(() => playPauseRef.current?.(), [])
+
   const handlePlayPause = async () => {
     const engine = engineRef.current
     if (!engine) return
@@ -2210,6 +2219,8 @@ export default function MixerTab({ active = true }) {
     return shown.join(', ') + (ids.length > shown.length ? `, +${ids.length - shown.length} more` : '')
   }, [presetWarning])
 
+  playPauseRef.current = handlePlayPause
+
   return (
     <div className={`daw ${view === 'map' ? 'daw--map' : ''} ${isPhone ? 'daw--phone' : ''}`}>
       {(switching || song.loadingSong) && (
@@ -2423,6 +2434,8 @@ export default function MixerTab({ active = true }) {
         trackSpeeds={trackSpeeds}
         trackLoopRegions={trackLoopRegions}
         trackSynthTypes={trackSynthTypes}
+        pitchSettings={listenPitchSettings}
+        onTogglePlay={togglePlayStable}
         onShowLanes={showLanes}
       />}
       <AIComposerPanel

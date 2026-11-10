@@ -21,7 +21,10 @@ import {
 } from '@/lib/mapLanes.js'
 import { subscribeEvents, getEvents } from '@/lib/shared/eventLogStore.js'
 import Sheet from '@/components/Sheet.jsx'
-import { IconAdd, IconMinus, IconFit, IconCaretDown, IconCaretRight, IconWarning, IconMotion } from '@/components/icons.jsx'
+import { IconAdd, IconMinus, IconFit, IconCaretDown, IconCaretRight, IconWarning, IconMotion, IconListen } from '@/components/icons.jsx'
+import ListeningView from '@/components/ListeningView.jsx'
+import { buildListeningLines, pitchMapToMidi } from '@/lib/listeningScene.js'
+import { buildLanePitchMaps } from '@/lib/lanePitch.js'
 
 // MapLibre 6 can't find its worker inside a webpack chunk; it is served from
 // public/vendor by scripts/copy_maplibre_worker.js (prebuild/predev).
@@ -589,6 +592,8 @@ function MapView({
   trackSpeeds = {},
   trackLoopRegions = {},
   trackSynthTypes = {},
+  pitchSettings = null,
+  onTogglePlay = null,
   onShowLanes = null,
 }) {
   // Phone concessions: canvas rendering, no zoom buttons (pinch), fewer stop
@@ -655,6 +660,41 @@ function MapView({
     [lanes, disabled, soloRoutes]
   )
   const allOff = lanes.length > 0 && audibleCount === 0
+
+  // ── Listening view: the mix in 3D, heights from each stop's note. ──
+  const [listenOpen, setListenOpen] = useState(false)
+  useEffect(() => { if (!active) setListenOpen(false) }, [active])
+  const closeListen = useCallback(() => setListenOpen(false), [])
+  // Each drawn line takes its heights from the first lane on it (a base lane
+  // before its duplicates), resolved exactly as the stop rail does.
+  const listening = useMemo(() => {
+    if (!listenOpen) return { lines: [], lineLanes: new Map() }
+    const owner = new Map()
+    const lineLanes = new Map()
+    for (const lane of lanes) {
+      for (const g of lane.geometryIds) {
+        const prev = owner.get(g)
+        if (!prev || (prev.kind !== 'route' && lane.kind === 'route')) owner.set(g, lane)
+      }
+      if (lane.kind !== 'merged' && lane.geometryIds.length === 1) lineLanes.set(lane.id, lane.geometryIds[0])
+    }
+    const lineRoutes = [...owner.keys()].map(id => routesById.get(id)).filter(Boolean)
+    const ps = pitchSettings ?? {}
+    const pitchOf = (route) => {
+      const lane = owner.get(route.id)
+      const id = lane?.id ?? route.id
+      try {
+        const { pitchMap } = buildLanePitchMaps(route, {
+          scale: ps.trackScales?.[id], pitchVariety: ps.trackPitchVariety?.[id],
+          perStopSteps: lane?.kind === 'merged' ? null : ps.trackPitchOffsets?.[id],
+          octaveShift: ps.trackOctaves?.[id] ?? 0, semitoneShift: ps.trackSemitones?.[id] ?? 0,
+          gridResolution: ps.trackGridResolutions?.[id], loopRegion: trackLoopRegions?.[id],
+        })
+        return pitchMapToMidi(pitchMap)
+      } catch { return null }
+    }
+    return { lines: buildListeningLines(lineRoutes, pitchOf), lineLanes }
+  }, [listenOpen, lanes, routesById, pitchSettings, trackLoopRegions])
 
   // ── Visual focus (phase 2). Map-local, event-driven, never touches audio. ──
   const [focusedId, setFocusedId] = useState(null)
@@ -909,6 +949,14 @@ function MapView({
           title="Fit mix: frame the lanes you can hear"
           onClick={() => fitRef.current?.(!reduced)}
         ><IconFit /></button>
+        <button
+          type="button"
+          className="map-ctl"
+          aria-label="Listening view"
+          title="Listening view: watch the mix in 3D"
+          disabled={!routes || lanes.length === 0}
+          onClick={() => setListenOpen(true)}
+        ><IconListen /></button>
         {/* Per-device opt-in on top of the OS setting, which it can't undo. */}
         <button
           type="button"
@@ -940,6 +988,20 @@ function MapView({
           )}
         </div>
       )}
+
+      <ListeningView
+        open={listenOpen}
+        onClose={closeListen}
+        lines={listening.lines}
+        lineLanes={listening.lineLanes}
+        activeRef={activeRef}
+        speedsRef={speedsRef}
+        regionsRef={regionsRef}
+        started={started && mode === 'mock'}
+        reduced={reduced}
+        cityName={city?.name ?? cityEntry?.name}
+        onTogglePlay={onTogglePlay}
+      />
 
       <MapContainer
         center={[47.4979, 19.0402]}
