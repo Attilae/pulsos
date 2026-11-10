@@ -21,7 +21,7 @@ import {
 } from '@/lib/mapLanes.js'
 import { subscribeEvents, getEvents } from '@/lib/shared/eventLogStore.js'
 import Sheet from '@/components/Sheet.jsx'
-import { IconAdd, IconMinus, IconFit, IconCaretDown, IconCaretRight, IconWarning, IconMotion, IconListen } from '@/components/icons.jsx'
+import { IconAdd, IconMinus, IconFit, IconCaretDown, IconCaretRight, IconWarning, IconMotion } from '@/components/icons.jsx'
 import ListeningView from '@/components/ListeningView.jsx'
 import { buildListeningLines, pitchMapToMidi } from '@/lib/listeningScene.js'
 import { buildLanePitchMaps } from '@/lib/lanePitch.js'
@@ -593,7 +593,7 @@ function MapView({
   trackLoopRegions = {},
   trackSynthTypes = {},
   pitchSettings = null,
-  onTogglePlay = null,
+  mapStyle = '2d',
   onShowLanes = null,
 }) {
   // Phone concessions: canvas rendering, no zoom buttons (pinch), fewer stop
@@ -605,7 +605,9 @@ function MapView({
   // whenever the tab is hidden.
   const { reduced, osReduced, userReduced, setUserReduced } = useMotionPreference()
   const visible = useDocumentVisible()
-  const motionOn = active && started && visible
+  // 3D (the Listening view) covers the street map, so the 2D motion stands down.
+  const listenOpen = active && mapStyle === '3d'
+  const motionOn = active && started && visible && !listenOpen
   // Routes arrive slim (thinned polylines, same stops); the desktop map swaps in
   // the full-resolution lines once they've loaded. Phones stay on slim.
   const { cityEntry } = useCitySelection()
@@ -661,10 +663,7 @@ function MapView({
   )
   const allOff = lanes.length > 0 && audibleCount === 0
 
-  // ── Listening view: the mix in 3D, heights from each stop's note. ──
-  const [listenOpen, setListenOpen] = useState(false)
-  useEffect(() => { if (!active) setListenOpen(false) }, [active])
-  const closeListen = useCallback(() => setListenOpen(false), [])
+  // ── Listening view (3D): the mix in space, heights from each stop's note. ──
   // Each drawn line takes its heights from the first lane on it (a base lane
   // before its duplicates), resolved exactly as the stop rail does.
   const listening = useMemo(() => {
@@ -949,14 +948,6 @@ function MapView({
           title="Fit mix: frame the lanes you can hear"
           onClick={() => fitRef.current?.(!reduced)}
         ><IconFit /></button>
-        <button
-          type="button"
-          className="map-ctl"
-          aria-label="Listening view"
-          title="Listening view: watch the mix in 3D"
-          disabled={!routes || lanes.length === 0}
-          onClick={() => setListenOpen(true)}
-        ><IconListen /></button>
         {/* Per-device opt-in on top of the OS setting, which it can't undo. */}
         <button
           type="button"
@@ -991,7 +982,6 @@ function MapView({
 
       <ListeningView
         open={listenOpen}
-        onClose={closeListen}
         lines={listening.lines}
         lineLanes={listening.lineLanes}
         activeRef={activeRef}
@@ -1000,7 +990,6 @@ function MapView({
         started={started && mode === 'mock'}
         reduced={reduced}
         cityName={city?.name ?? cityEntry?.name}
-        onTogglePlay={onTogglePlay}
       />
 
       <MapContainer

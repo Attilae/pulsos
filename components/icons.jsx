@@ -26,7 +26,6 @@ import { CheckCircle as CheckCircleIcon } from '@phosphor-icons/react/dist/csr/C
 import { Copy as CopyIcon } from '@phosphor-icons/react/dist/csr/Copy'
 import { CornersOut as CornersOutIcon } from '@phosphor-icons/react/dist/csr/CornersOut'
 import { Pulse as PulseIcon } from '@phosphor-icons/react/dist/csr/Pulse'
-import { Headphones as HeadphonesIcon } from '@phosphor-icons/react/dist/csr/Headphones'
 import { DotsSixVertical as DotsSixVerticalIcon } from '@phosphor-icons/react/dist/csr/DotsSixVertical'
 import { DotsThree as DotsThreeIcon } from '@phosphor-icons/react/dist/csr/DotsThree'
 import { DownloadSimple as DownloadSimpleIcon } from '@phosphor-icons/react/dist/csr/DownloadSimple'
@@ -79,7 +78,6 @@ export const IconAdd         = wrap(PlusIcon)
 export const IconMinus       = wrap(MinusIcon)
 export const IconFit         = wrap(CornersOutIcon)
 export const IconMotion      = wrap(PulseIcon)
-export const IconListen      = wrap(HeadphonesIcon)
 export const IconChangeLine  = wrap(ArrowsLeftRightIcon)
 export const IconDuplicate   = wrap(CopyIcon)
 export const IconCopy        = wrap(CopyIcon)

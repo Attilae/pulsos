@@ -1,7 +1,8 @@
 'use client'
 
-// Listening view: the mix as luminous threads in a dark void, for watching
-// rather than editing. Each stop is raised to the height of the note it plays
+// Listening view (the Map view's "3D" style): the mix as luminous threads in a
+// dark void, for watching rather than editing. It covers the street map in
+// place; the 2D/3D switch in the header (phone: transport bar) toggles it. Each stop is raised to the height of the note it plays
 // (one pitch scale for the whole mix, so bass lines sit low and leads high),
 // the camera orbits once every six minutes, and a stop blooms when it sounds
 // and fades over a couple of seconds. Inspired by nulldesign's Metrogram 3D,
@@ -17,8 +18,6 @@
 
 import * as Tone from 'tone'
 import { useEffect, useRef, useState } from 'react'
-import { createPortal } from 'react-dom'
-import { useModal } from '@/lib/shared/useModal.js'
 import { subscribePlayhead } from '@/lib/shared/playheadTicker.js'
 import { subscribeEvents, getEvents } from '@/lib/shared/eventLogStore.js'
 import { lanePlayhead, trailFracs, wrapFade } from '@/lib/mapPlayhead.js'
@@ -26,7 +25,6 @@ import {
   HEIGHT_SPAN, CURVE_STEPS, GLOW_TAU_S, LEVEL_TAU_S,
   SCENE_RADIUS, sampleCurve, curvePoint, orbitPose, decay, bloomFor, exposureFor, frameLines,
 } from '@/lib/listeningScene.js'
-import { IconClose, IconPlay, IconStop } from '@/components/icons.jsx'
 import './ListeningView.css'
 
 const FRAME_MS = 33              // ~30 fps, the map's ceiling
@@ -184,15 +182,13 @@ function voidColor(THREE, hex) {
 }
 
 export default function ListeningView({
-  open, onClose, lines, lineLanes, activeRef, speedsRef, regionsRef,
-  started, reduced, cityName, onTogglePlay,
+  open, lines, lineLanes, activeRef, speedsRef, regionsRef,
+  started, reduced, cityName,
 }) {
   const panelRef = useRef(null)
   const canvasRef = useRef(null)
-  const closeRef = useRef(null)
   const [idle, setIdle] = useState(false)
   const [status, setStatus] = useState('loading')   // 'loading' | 'ready' | 'error'
-  useModal(open, panelRef, { onClose, initialFocusRef: closeRef })
 
   const startedRef = useRef(started)
   const reducedRef = useRef(reduced)
@@ -223,19 +219,6 @@ export default function ListeningView({
       el?.removeEventListener('keydown', wake)
     }
   }, [open])
-
-  // Space plays/pauses: the transport bar is under this view.
-  useEffect(() => {
-    if (!open || !onTogglePlay) return undefined
-    const onKey = (e) => {
-      if (e.code !== 'Space' || e.repeat) return
-      if (e.target?.closest?.('button, input, select, textarea')) return
-      e.preventDefault()
-      onTogglePlay()
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [open, onTogglePlay])
 
   // ── The scene ──
   useEffect(() => {
@@ -549,14 +532,11 @@ export default function ListeningView({
 
   if (!open) return null
   const empty = !lines?.length
-  return createPortal(
-    <div
+  return (
+    <section
       ref={panelRef}
       className={`listening${idle ? ' listening--idle' : ''}`}
-      role="dialog"
-      aria-modal="true"
       aria-labelledby="listening-title"
-      tabIndex={-1}
     >
       <canvas ref={canvasRef} className="listening-canvas" aria-hidden="true" />
       <div className="listening-chrome">
@@ -564,26 +544,14 @@ export default function ListeningView({
           <h2 id="listening-title">Listening</h2>
           {cityName && <span>{cityName}</span>}
         </div>
-        <div className="listening-actions">
-          {onTogglePlay && (
-            <button type="button" className="listening-btn" onClick={onTogglePlay} aria-label={started ? 'Stop' : 'Play'}>
-              {started ? <IconStop /> : <IconPlay />}
-              <span>{started ? 'Stop' : 'Play'}</span>
-            </button>
-          )}
-          <button ref={closeRef} type="button" className="listening-btn" onClick={onClose} aria-label="Back to the map">
-            <IconClose />
-          </button>
-        </div>
       </div>
       {(empty || status === 'error' || !started) && (
         <p className="listening-hint" role="status">
           {empty ? 'Add a lane to see it here.'
             : status === 'error' ? 'This view needs WebGL, which isn’t available here.'
-              : 'Press Play (or Space) and watch the city sing. Drag to turn.'}
+              : 'Press Play to hear the city. Drag to turn, scroll to zoom.'}
         </p>
       )}
-    </div>,
-    document.body,
+    </section>
   )
 }

@@ -176,6 +176,15 @@ export default function MixerTab({ active = true }) {
   const [audioProgress,  setAudioProgress]  = useState(0)
 
   const [view,    setView]    = useState('daw')   // 'map' | 'daw'
+  // How the Map view draws: the street map (2D) or the Listening view (3D).
+  // A per-device preference, not song state.
+  const [mapStyle, setMapStyleState] = useState(() => {
+    try { return localStorage.getItem('leid-map-style') === '3d' ? '3d' : '2d' } catch { return '2d' }
+  })
+  const setMapStyle = useCallback((style) => {
+    setMapStyleState(style)
+    try { localStorage.setItem('leid-map-style', style) } catch { /* private mode */ }
+  }, [])
   // Stable, so the memoized MapView doesn't re-render on every MixerTab render.
   const showLanes = useCallback(() => setView('daw'), [])
   // MapView (Leaflet + MapLibre/WebGL + every route's geometry) mounts on the
@@ -857,14 +866,11 @@ export default function MixerTab({ active = true }) {
     }
   }, [])
 
-  // The map's Listening view raises each stop to its note, so it needs the
-  // same pitch inputs as the stop rail; and it covers the transport, so it
-  // gets a stable play/pause (MapView is memoized).
+  // The map's 3D Listening view raises each stop to its note, so it needs the
+  // same pitch inputs as the stop rail.
   const listenPitchSettings = useMemo(() => ({
     trackScales, trackPitchVariety, trackPitchOffsets, trackOctaves, trackSemitones, trackGridResolutions,
   }), [trackScales, trackPitchVariety, trackPitchOffsets, trackOctaves, trackSemitones, trackGridResolutions])
-  const playPauseRef = useRef(null)
-  const togglePlayStable = useCallback(() => playPauseRef.current?.(), [])
 
   const handlePlayPause = async () => {
     const engine = engineRef.current
@@ -2219,8 +2225,6 @@ export default function MixerTab({ active = true }) {
     return shown.join(', ') + (ids.length > shown.length ? `, +${ids.length - shown.length} more` : '')
   }, [presetWarning])
 
-  playPauseRef.current = handlePlayPause
-
   return (
     <div className={`daw ${view === 'map' ? 'daw--map' : ''} ${isPhone ? 'daw--phone' : ''}`}>
       {(switching || song.loadingSong) && (
@@ -2290,6 +2294,23 @@ export default function MixerTab({ active = true }) {
             onClick={() => setView('daw')}
           >DAW</button>
         </div>
+
+        {view === 'map' && (
+          <div className="view-toggle" role="group" aria-label="Map style">
+            <button
+              className={`mode-btn ${mapStyle === '2d' ? 'active' : ''}`}
+              aria-pressed={mapStyle === '2d'}
+              title="Street map: edit and focus lanes"
+              onClick={() => setMapStyle('2d')}
+            >2D</button>
+            <button
+              className={`mode-btn ${mapStyle === '3d' ? 'active' : ''}`}
+              aria-pressed={mapStyle === '3d'}
+              title="Listening view: each stop raised to its note, slowly orbiting"
+              onClick={() => setMapStyle('3d')}
+            >3D</button>
+          </div>
+        )}
 
         <div
           className="mode-control"
@@ -2435,7 +2456,7 @@ export default function MixerTab({ active = true }) {
         trackLoopRegions={trackLoopRegions}
         trackSynthTypes={trackSynthTypes}
         pitchSettings={listenPitchSettings}
-        onTogglePlay={togglePlayStable}
+        mapStyle={mapStyle}
         onShowLanes={showLanes}
       />}
       <AIComposerPanel
@@ -2582,7 +2603,7 @@ export default function MixerTab({ active = true }) {
         <MobileDaw
           controls={{
             cityName: cityEntry.name,
-            view, onView: setView,
+            view, onView: setView, mapStyle, onMapStyle: setMapStyle,
             started, onPlayPause: handlePlayPause,
             bpm, onBpm: setBpm,
             mode, onMode: setMode, liveAvailable: !!cityEntry.liveWsUrl,

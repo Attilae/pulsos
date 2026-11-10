@@ -1,9 +1,10 @@
 /* Listening view: always a dark void, whatever the app theme. The canvas is
-   transparent so this gradient is the only background. */
+   transparent so this gradient is the only background. It sits over the
+   street map inside .map-wrapper, above Leaflet's panes and controls. */
 .listening {
-  position: fixed;
+  position: absolute;
   inset: 0;
-  z-index: var(--z-modal);
+  z-index: 1100;
   background:
     radial-gradient(ellipse 80% 70% at 50% 58%, #0c1018 0%, #06080c 55%, #030405 100%);
   color: #d9dee6;
@@ -55,31 +56,6 @@
   color: #8b93a1;
 }
 
-.listening-actions {
-  display: flex;
-  gap: var(--space-100);
-}
-
-.listening-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-075);
-  min-height: 36px;
-  min-width: 36px;
-  justify-content: center;
-  padding: 0 var(--space-150);
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: var(--radius-pill);
-  background: rgba(10, 13, 18, 0.55);
-  color: #e8ecf2;
-  font: inherit;
-  font-size: var(--fs-sm);
-  cursor: pointer;
-  backdrop-filter: blur(6px);
-}
-.listening-btn:hover { border-color: rgba(255, 255, 255, 0.3); }
-.listening-btn:focus-visible { outline: 2px solid #e8ecf2; outline-offset: 2px; }
-
 .listening-hint {
   position: absolute;
   left: 50%;
@@ -102,8 +78,6 @@
 
 @media (max-width: 767px) { /* PHONE_MAX, lib/shared/breakpoints.js */
   .listening-chrome { padding: var(--space-200); }
-  .listening-btn { min-height: 44px; min-width: 44px; }
-  .listening-btn span { display: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {
