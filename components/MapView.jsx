@@ -22,6 +22,9 @@ import {
 import { subscribeEvents, getEvents } from '@/lib/shared/eventLogStore.js'
 import Sheet from '@/components/Sheet.jsx'
 import { IconAdd, IconMinus, IconFit, IconCaretDown, IconCaretRight, IconWarning, IconMotion } from '@/components/icons.jsx'
+import ListeningView from '@/components/ListeningView.jsx'
+import { buildListeningLines, pitchMapToMidi } from '@/lib/listeningScene.js'
+import { buildLanePitchMaps } from '@/lib/lanePitch.js'
 
 // MapLibre 6 can't find its worker inside a webpack chunk; it is served from
 // public/vendor by scripts/copy_maplibre_worker.js (prebuild/predev).
@@ -589,6 +592,8 @@ function MapView({
   trackSpeeds = {},
   trackLoopRegions = {},
   trackSynthTypes = {},
+  pitchSettings = null,
+  mapStyle = 'streets',
   onShowLanes = null,
 }) {
   // Phone concessions: canvas rendering, no zoom buttons (pinch), fewer stop
@@ -600,7 +605,9 @@ function MapView({
   // whenever the tab is hidden.
   const { reduced, osReduced, userReduced, setUserReduced } = useMotionPreference()
   const visible = useDocumentVisible()
-  const motionOn = active && started && visible
+  // Score (the 3D Listening view) covers the street map, so the 2D motion stands down.
+  const listenOpen = active && mapStyle === 'score'
+  const motionOn = active && started && visible && !listenOpen
   // Routes arrive slim (thinned polylines, same stops); the desktop map swaps in
   // the full-resolution lines once they've loaded. Phones stay on slim.
   const { cityEntry } = useCitySelection()
@@ -655,6 +662,38 @@ function MapView({
     [lanes, disabled, soloRoutes]
   )
   const allOff = lanes.length > 0 && audibleCount === 0
+
+  // ── Listening view (Score): the mix in space, heights from each stop's note. ──
+  // Each drawn line takes its heights from the first lane on it (a base lane
+  // before its duplicates), resolved exactly as the stop rail does.
+  const listening = useMemo(() => {
+    if (!listenOpen) return { lines: [], lineLanes: new Map() }
+    const owner = new Map()
+    const lineLanes = new Map()
+    for (const lane of lanes) {
+      for (const g of lane.geometryIds) {
+        const prev = owner.get(g)
+        if (!prev || (prev.kind !== 'route' && lane.kind === 'route')) owner.set(g, lane)
+      }
+      if (lane.kind !== 'merged' && lane.geometryIds.length === 1) lineLanes.set(lane.id, lane.geometryIds[0])
+    }
+    const lineRoutes = [...owner.keys()].map(id => routesById.get(id)).filter(Boolean)
+    const ps = pitchSettings ?? {}
+    const pitchOf = (route) => {
+      const lane = owner.get(route.id)
+      const id = lane?.id ?? route.id
+      try {
+        const { pitchMap } = buildLanePitchMaps(route, {
+          scale: ps.trackScales?.[id], pitchVariety: ps.trackPitchVariety?.[id],
+          perStopSteps: lane?.kind === 'merged' ? null : ps.trackPitchOffsets?.[id],
+          octaveShift: ps.trackOctaves?.[id] ?? 0, semitoneShift: ps.trackSemitones?.[id] ?? 0,
+          gridResolution: ps.trackGridResolutions?.[id], loopRegion: trackLoopRegions?.[id],
+        })
+        return pitchMapToMidi(pitchMap)
+      } catch { return null }
+    }
+    return { lines: buildListeningLines(lineRoutes, pitchOf), lineLanes }
+  }, [listenOpen, lanes, routesById, pitchSettings, trackLoopRegions])
 
   // ── Visual focus (phase 2). Map-local, event-driven, never touches audio. ──
   const [focusedId, setFocusedId] = useState(null)
@@ -940,6 +979,18 @@ function MapView({
           )}
         </div>
       )}
+
+      <ListeningView
+        open={listenOpen}
+        lines={listening.lines}
+        lineLanes={listening.lineLanes}
+        activeRef={activeRef}
+        speedsRef={speedsRef}
+        regionsRef={regionsRef}
+        started={started && mode === 'mock'}
+        reduced={reduced}
+        cityName={city?.name ?? cityEntry?.name}
+      />
 
       <MapContainer
         center={[47.4979, 19.0402]}
