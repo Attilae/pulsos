@@ -1,6 +1,6 @@
 'use client'
 
-// Reference loop lane (Pro): the user's own loop on the bar grid, to audition
+// Reference loop lane (signed-in Free and Pro): the user's own loop on the bar grid, to audition
 // lanes against. State lives in lib/useReferenceTrack.js (owned by MixerTab);
 // this file is presentation only. `ReferenceControls` is shared by the desktop
 // lane and the phone sheet, so the two can't drift on what's adjustable.
@@ -23,11 +23,10 @@ export const REFERENCE_UPLOAD_LABEL = 'Upload your loop'
 
 export const REFERENCE_ACCEPT = '.wav,.wave,.mp3,.aif,.aiff,.aifc,audio/*'
 
-// Upload button with the Pro gate: Free opens the upgrade modal, not the picker.
+// Guests see the free-account prompt before choosing a file.
 export function ReferenceUploadButton({ reference, className = '', children, disabled = false }) {
   const inputRef = useRef(null)
-  const { limits, openUpgrade } = useEntitlements()
-  const allowed = limits?.customUploads === true
+  const { signedIn: allowed, openUpgrade } = useEntitlements()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
 
@@ -59,10 +58,10 @@ export function ReferenceUploadButton({ reference, className = '', children, dis
         className={className}
         onClick={choose}
         disabled={disabled || busy}
-        title={allowed ? 'Load a WAV, AIFF or MP3 loop to play along with the lanes' : 'Uploading your own loop is a Pro feature'}
+        title={allowed ? 'Load a WAV, AIFF or MP3 loop to play along with the lanes' : 'Create a free account or sign in to upload your loop'}
       >
         {busy ? 'Loading…' : children}
-        {!allowed && <span className="reference-pro-chip">Pro</span>}
+        {!allowed && <span className="reference-account-chip">Free account</span>}
       </button>
       {error && <span className="reference-error" role="alert">{error}</span>}
       <input
@@ -84,8 +83,8 @@ function StatusNote({ reference }) {
   if (status === 'locked') {
     return (
       <p className="reference-note reference-note--warn">
-        <IconWarning /> Playing your own loop is part of Pro.{' '}
-        <button type="button" className="reference-link" onClick={() => openUpgrade('reference_track')}>Upgrade to play it</button>
+        <IconWarning /> Sign in to play your own loop.{' '}
+        <button type="button" className="reference-link" onClick={() => openUpgrade('reference_track')}>Sign in or create a free account</button>
       </p>
     )
   }

@@ -442,7 +442,7 @@ export default function DawView(props) {
           </div>
         )}
 
-        {/* ── Your loop (Pro): first, since it's what the lanes are tried against ── */}
+        {/* ── Your loop (free account): first, since it's what the lanes are tried against ── */}
         {routes && reference && !reference.reference && (
           <div className="daw-add-line-row reference-add-row">
             <ReferenceUploadButton reference={reference} className="daw-add-line-btn">
