@@ -146,7 +146,7 @@ function deriveHubs(allRoutes, n = 6) {
     .map(e => ({ name: e.name, lat: e.lat / e.count, lng: e.lng / e.count }))
 }
 
-export default function MixerTab({ active = true }) {
+export default function MixerTab({ active = true, onReady }) {
   const { cityId, setCityId, cityEntry, cityPreset } = useCitySelection()
   const { limits, signedIn, claim, openUpgrade } = useEntitlements()
   const loadedCityRef    = useRef(null)   // last city whose routes are loaded
@@ -239,6 +239,12 @@ export default function MixerTab({ active = true }) {
   const [fxBusParams, setFxBusParams] = useState({})
 
   const [routes, setRoutes] = useState(null)
+  // An empty array is also settled: reveal the app's recovery UI on failure.
+  useEffect(() => {
+    if (routes === null || !onReady) return
+    const frame = requestAnimationFrame(() => onReady())
+    return () => cancelAnimationFrame(frame)
+  }, [routes, onReady])
   const [city, setCity] = useState(null)   // city metadata block from lines.json
   // True while a city switch is loading its route data. On a switch MixerTab keeps
   // the previous city's `routes` until the new fetch resolves, so `!routes` alone
