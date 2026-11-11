@@ -11,7 +11,7 @@ const REASON_COPY = {
   export_limit: ['The last sample export is gone', 'Pro unlocks unlimited MIDI and real-time WAV capture across every instrument.'],
   ai_limit: ['AI Composer allowance reached', 'Pro includes 50 new composition prompts every month.'],
   custom_upload: ['Bring your own sounds', 'Loading your own sampler samples and reverb impulse responses is part of Pro.'],
-  reference_track: ['Play along with your own loop', 'Upload a loop that is missing its bass or lead, and try transit lanes against it until one fits. Part of Pro.'],
+  reference_track: ['Play along with your own loop', 'Upload a loop that is missing its bass or lead, and try transit lanes against it until one fits. Create a free account or sign in to upload and play your loop.'],
   sign_in: ['Save your free credits', 'Sign in to claim three MIDI/WAV exports and three AI compositions.'],
   billing_error: ['Billing connection interrupted', 'The music is safe. Try checkout again, or return later if Lemon Squeezy is unavailable.'],
   upgrade: ['Take the full network', 'Build wider arrangements, export every idea, and keep AI Composer in the session.'],
@@ -26,6 +26,7 @@ const PRICES = {
 
 export default function UpgradeModal({ reason, signedIn, busy, onClose, onCheckout, onSignIn }) {
   const [period, setPeriod] = useState('annual')
+  const freeAccountPrompt = reason === 'reference_track'
   const [title, body] = REASON_COPY[reason] ?? REASON_COPY.upgrade
 
   const panelRef = useRef(null)
@@ -36,19 +37,21 @@ export default function UpgradeModal({ reason, signedIn, busy, onClose, onChecko
       <section ref={panelRef} className="upgrade-panel" role="dialog" aria-modal="true" aria-labelledby="upgrade-title" tabIndex={-1} onPointerDown={event => event.stopPropagation()}>
         <div className="upgrade-signal" aria-hidden="true"><i /><i /><i /><i /><i /><i /></div>
         <button className="upgrade-close" onClick={onClose} aria-label="Close"><IconClose /></button>
-        <p className="upgrade-kicker">Leið Pro · full signal</p>
+        <p className="upgrade-kicker">{freeAccountPrompt ? 'Leið · free account' : 'Leið Pro · full signal'}</p>
         <h2 id="upgrade-title">{title}</h2>
         <p className="upgrade-copy">{body}</p>
 
-        <ul className="upgrade-features">
+        {!freeAccountPrompt && <ul className="upgrade-features">
           <li><strong>∞</strong><span>active instrument lanes</span></li>
           <li><strong>∞</strong><span>presets in every Song chain</span></li>
           <li><strong><IconDownload /></strong><span>unlimited MIDI + WAV exports</span></li>
           <li><strong>50</strong><span>AI compositions each month</span></li>
           <li><strong><IconMusic /></strong><span>your own samples and reverb IRs</span></li>
-        </ul>
+        </ul>}
 
-        {signedIn ? (
+        {freeAccountPrompt ? (
+          <button className="upgrade-cta" onClick={onSignIn}>Sign in or create a free account</button>
+        ) : signedIn ? (
           <>
             <div className="upgrade-period" aria-label="Billing period">
               <button className={period === 'monthly' ? 'active' : ''} onClick={() => setPeriod('monthly')}>

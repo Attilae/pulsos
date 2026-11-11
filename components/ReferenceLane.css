@@ -1,4 +1,4 @@
-/* Reference loop lane (Pro). Desktop lane + the controls the phone sheet reuses. */
+/* Reference loop lane (free account). Desktop lane + the controls the phone sheet reuses. */
 
 .reference-section { padding-bottom: 8px; }
 .reference-section--muted .reference-wave { opacity: 0.45; }
@@ -152,7 +152,7 @@
   margin-left: 6px;
 }
 
-.reference-pro-chip {
+.reference-account-chip {
   margin-left: 6px;
   padding: 0 5px;
   border: 1px solid var(--accent);

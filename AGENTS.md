@@ -984,16 +984,17 @@ the FM-patch licence check: `docs/plaits-macro-plan.md`. Build, measurements, en
   track; `transpose` is whole semitones. Recipes R18–R20 (R20 uses the envelope) and the prompt
   text exist only while the flag is on.
 
-### Reference loop (Pro)
+### Reference loop (free account)
 
-A Pro user can load their own loop (WAV/MP3/AIFF, ≤100 MB / 5 min, `CUSTOM_AUDIO_LIMITS.reference`)
+A signed-in user (Free or Pro) can load their own loop (WAV/MP3/AIFF, ≤100 MB / 5 min, `CUSTOM_AUDIO_LIMITS.reference`)
 and audition lanes against it, e.g. a loop with no bass while hunting for a bassline. Gated by
-`limits.customUploads` (upgrade reason `reference_track`).
+`signedIn` (the `reference_track` prompt offers a free account, with no Pro upsell).
+Sampler samples and reverb impulse responses remain gated by `limits.customUploads`.
 - **The audio never leaves the browser.** `lib/referenceStore.js` keeps the original file in
   IndexedDB (`leid-reference`). The song stores only `snapshot.referenceTrack` (id, name, duration,
   bars, offset, volume, mute, export toggle; sparse, so there's no schema bump, sanitised by
-  `normalizeReference`). Another device or a shared link gets the "Re-upload" state, and a Free
-  account that loads such a song gets "locked". If storage fails (private mode, quota), the loop
+  `normalizeReference`). Another device or a shared link gets the "Re-upload" state, and a signed-out
+  visitor that loads such a song gets "locked" until signing in. If storage fails (private mode, quota), the loop
   still plays for the session.
 - **AIFF** is parsed by `lib/aiff.js`, because Chrome/Firefox `decodeAudioData` reject it.
   `decodeCustomAudio` routes it there when given a context. Only uncompressed PCM/float is supported.

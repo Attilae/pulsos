@@ -148,7 +148,7 @@ function deriveHubs(allRoutes, n = 6) {
 
 export default function MixerTab({ active = true }) {
   const { cityId, setCityId, cityEntry, cityPreset } = useCitySelection()
-  const { limits, claim, openUpgrade } = useEntitlements()
+  const { limits, signedIn, claim, openUpgrade } = useEntitlements()
   const loadedCityRef    = useRef(null)   // last city whose routes are loaded
   const engineRef        = useRef(null)
   const stoppingRef      = useRef(false)
@@ -323,11 +323,11 @@ export default function MixerTab({ active = true }) {
   // engine-mirroring hooks re-push their state onto it.
   const [engineGen, setEngineGen] = useState(0)
 
-  // Reference loop (Pro): the user's own audio on the bar grid, to audition
+  // Reference loop (signed-in Free and Pro): the user's own audio on the bar grid, to audition
   // lanes against. Audio stays in IndexedDB; the song saves only its metadata.
   const referenceTrack = useReferenceTrack({
     engineRef, engineGen,
-    allowed: limits?.customUploads === true,
+    allowed: signedIn,
     openUpgrade, bpm, setBpm,
   })
   const { reference, setReference: setReferenceTrack } = referenceTrack
