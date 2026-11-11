@@ -32,6 +32,7 @@ class TabErrorBoundary extends Component {
   componentDidCatch(error) {
     console.error('[tab] failed to load', error)
     captureProductException(error)
+    this.props.onError?.()
   }
   render() {
     if (!this.state.error) return this.props.children
@@ -82,7 +83,7 @@ const TABS = [
   { id: 'chain',  label: 'Song',          Comp: SongChainerTab },
 ]
 
-export default function App() {
+export default function App({ onReady, startupReady = true }) {
   const [tabId, setTabId] = useState('mixer')
   // Keep every tab we've visited mounted so its state + audio engine survive
   // tab switches (inactive panes are hidden with CSS, not unmounted). Lazily
@@ -129,14 +130,14 @@ export default function App() {
   }, [tabId])
 
   useEffect(() => {
-    if (!introDone) return undefined
+    if (!introDone || !startupReady) return undefined
     if (getTourStatus() == null) {
       const t = setTimeout(() => startTour(), 300)
       return () => clearTimeout(t)
     }
     return undefined
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [introDone])
+  }, [introDone, startupReady])
 
   // Install the audio lifecycle listeners (context resume on tab return) before
   // any engine exists, so a page restored from the bfcache is already watched.
@@ -156,7 +157,7 @@ export default function App() {
     <EntitlementsProvider>
     <CityProvider>
       <DrumClipboardProvider>
-      <div className="app-shell">
+      <div className="app-shell" inert={!startupReady ? true : undefined} aria-busy={!startupReady} aria-hidden={!startupReady ? true : undefined}>
         <header className="tab-bar">
           <h1
             className="app-title"
@@ -197,13 +198,13 @@ export default function App() {
               className="tab-pane"
               style={{ display: tabId === t.id ? undefined : 'none' }}
             >
-              <TabErrorBoundary>
-                <t.Comp active={tabId === t.id} />
+              <TabErrorBoundary onError={t.id === 'mixer' ? onReady : undefined}>
+                <t.Comp active={tabId === t.id} onReady={t.id === 'mixer' ? onReady : undefined} />
               </TabErrorBoundary>
             </div>
           ))}
         </main>
-        <FirstRunNotice onDismiss={() => setIntroDone(true)} />
+        {startupReady && <FirstRunNotice onDismiss={() => setIntroDone(true)} />}
         <DialogHost />
         {perfHud && <PerfHud onClose={() => setPerfHud(false)} />}
       </div>
