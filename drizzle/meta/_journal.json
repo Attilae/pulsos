@@ -71,6 +71,13 @@
       "when": 1793012639529,
       "tag": "0009_verify_existing_users",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1794421078058,
+      "tag": "0010_thick_namora",
+      "breakpoints": true
     }
   ]
 }

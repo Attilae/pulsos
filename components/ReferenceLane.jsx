@@ -2,7 +2,9 @@
 
 // Reference loop lane (signed-in Free and Pro): the user's own loop on the bar grid, to audition
 // lanes against. State lives in lib/useReferenceTrack.js (owned by MixerTab);
-// this file is presentation only. `ReferenceControls` is shared by the desktop
+// this file is presentation only. The loop is kept on the device and in the
+// account (a plan-limited number of stored loops), which `CloudNote` and
+// `StoredLoops` report and manage. `ReferenceControls` is shared by the desktop
 // lane and the phone sheet, so the two can't drift on what's adjustable.
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
@@ -14,6 +16,7 @@ import {
   REFERENCE_BAR_OPTIONS, REFERENCE_VOLUME_RANGE, REFERENCE_OFFSET_RANGE,
   bpmForBars, cycleSeconds, driftWarning,
 } from '@/lib/referenceTrack.js'
+import { formatLoopSize } from '@/lib/referenceLoops.js'
 import { IconClose, IconPower, IconUpload, IconWaveform, IconWarning } from './icons.jsx'
 import './ReferenceLane.css'
 
@@ -91,7 +94,7 @@ function StatusNote({ reference }) {
   if (status === 'missing') {
     return (
       <p className="reference-note reference-note--warn">
-        <IconWarning /> {name} isn't stored in this browser. Loops stay on the device they were added on.{' '}
+        <IconWarning /> {name} isn't stored in this browser or in this account.{' '}
         <ReferenceUploadButton reference={reference} className="reference-link">Re-upload it</ReferenceUploadButton>
       </p>
     )
@@ -101,6 +104,79 @@ function StatusNote({ reference }) {
     return <p className="reference-note">This loop plays for this session only: the browser wouldn't store it.</p>
   }
   return null
+}
+
+// Where the loop is kept beyond this device.
+function CloudNote({ reference }) {
+  const { cloud, cloudMessage, canStore } = reference
+  const { openUpgrade, plan } = useEntitlements()
+  if (!cloud || cloud === 'synced') return null
+  if (cloud === 'uploading') return <p className="reference-note" role="status">Storing the loop in your account…</p>
+  if (cloud === 'device') {
+    return (
+      <p className="reference-note">
+        This loop is only on this device.{' '}
+        {canStore && <button type="button" className="reference-link" onClick={reference.storeCurrent}>Store it in your account</button>}
+      </p>
+    )
+  }
+  return (
+    <p className="reference-note reference-note--warn">
+      <IconWarning /> {cloudMessage ?? "Couldn't store the loop in your account."} It still plays on this device.{' '}
+      {cloud === 'full' && plan === 'free' && (
+        <button type="button" className="reference-link" onClick={() => openUpgrade('reference_loops')}>See Pro</button>
+      )}
+      {cloud === 'error' && canStore && (
+        <button type="button" className="reference-link" onClick={reference.storeCurrent}>Try again</button>
+      )}
+    </p>
+  )
+}
+
+// The loops stored in the account, with the plan's limit and a delete button.
+function StoredLoops({ reference }) {
+  const { library } = reference
+  const [busyId, setBusyId] = useState(null)
+  const [error, setError] = useState(null)
+  if (!library?.enabled || !library.loops.length) return null
+  const currentId = reference.reference?.id
+
+  async function remove(id) {
+    setError(null)
+    setBusyId(id)
+    try {
+      await reference.deleteStored(id)
+    } catch (err) {
+      setError(err?.message ?? "Couldn't delete the loop")
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  return (
+    <details className="reference-library">
+      <summary>
+        Stored loops: {library.loops.length}{library.limit != null ? ` of ${library.limit}` : ''}
+      </summary>
+      <ul className="reference-library-list">
+        {library.loops.map(loop => (
+          <li key={loop.id}>
+            <span className="reference-library-name" title={loop.name}>{loop.name}</span>
+            <span className="reference-value">{formatLoopSize(loop.bytes)}</span>
+            {loop.id === currentId && <span className="reference-library-tag">this song</span>}
+            <button
+              type="button"
+              className="reference-btn"
+              onClick={() => remove(loop.id)}
+              disabled={busyId != null}
+              title="Delete this loop from your account. Songs that use it keep it only on devices that already have it."
+            >{busyId === loop.id ? 'Deleting…' : 'Delete'}</button>
+          </li>
+        ))}
+      </ul>
+      {error && <p className="reference-note reference-note--warn" role="alert"><IconWarning /> {error}</p>}
+    </details>
+  )
 }
 
 const msOf = (sec) => Math.round((sec ?? 0) * 1000)
@@ -186,13 +262,15 @@ export function ReferenceControls({ reference, bpm }) {
 
       <div className="reference-actions">
         <ReferenceUploadButton reference={reference} className="reference-btn"><IconUpload /> Replace</ReferenceUploadButton>
-        <button type="button" className="reference-btn" onClick={reference.remove} title="Take the loop out of this song (it stays in this browser)">
+        <button type="button" className="reference-btn" onClick={reference.remove} title="Take the loop out of this song (it stays stored)">
           <IconClose /> Remove
         </button>
       </div>
 
       {warning && <p className="reference-note reference-note--warn reference-drift"><IconWarning /> {warning}</p>}
       <StatusNote reference={reference} />
+      <CloudNote reference={reference} />
+      <StoredLoops reference={reference} />
     </div>
   )
 }
