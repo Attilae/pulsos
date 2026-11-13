@@ -52,6 +52,14 @@ export default function TermsPage() {
           normal backup rotation and legal requirements.
         </p>
         <p>
+          When you upload a loop, you confirm that you made it or otherwise hold the rights and
+          permissions needed to upload it, store it, and, if you share a song that uses it, make
+          it available to anyone who opens that link. That includes rights in any recording,
+          composition, or sample it contains. Do not upload audio that contains another
+          person’s personal data or private speech without their permission. You can delete a
+          stored loop at any time from the stored-loops list in the instrument.
+        </p>
+        <p>
           You must have the rights needed for any audio, text, or other material you use. Public
           transport data, map tiles, built-in samples, software, and other third-party material
           remain subject to their respective licences and attribution requirements.
@@ -62,15 +70,20 @@ export default function TermsPage() {
         <p>
           When you enable sharing, the URL acts as a bearer link: anyone who has it can retrieve
           the song name, city, and complete saved creative state without signing in, and can
-          import a copy. You are responsible for what you choose to publish. We may disable shared
-          content or links that infringe rights, expose personal data, break these terms, or create
-          legal or security risk. Unpublishing prevents future access through that share ID but
+          import a copy. If the song uses a loop stored in your account, the link also lets them
+          listen to and download that audio file. You are responsible for what you choose to
+          publish. We may disable shared content or links, and remove stored loops, that infringe
+          rights, expose personal data, break these terms, or create legal or security risk. Unpublishing prevents future access through that share ID but
           cannot recall copies others already imported or saved.
         </p>
         <p>
-          To report a shared link that you believe is unlawful or infringes your rights, email{' '}
+          To report a shared link or a loop that you believe is unlawful or infringes your rights, email{' '}
           <a href={`mailto:${LEGAL_DETAILS.contactEmail}`}>{LEGAL_DETAILS.contactEmail}</a> with
-          the URL, the reason for the report, and enough information for us to assess it.
+          the URL, the reason for the report, and enough information for us to assess it. For a
+          copyright report, identify the work and your connection to it. We review reports
+          without undue delay, tell you what we decided, and tell the uploader when we remove or
+          restrict their content and why, unless the law prevents it. Either side may contest a
+          decision by replying to that message.
         </p>
       </LegalSection>
 
@@ -92,7 +105,8 @@ export default function TermsPage() {
       <LegalSection number={7} title="Free and Pro plans">
         <p>
           Leið may offer a Free plan and paid Pro subscriptions with different limits for active
-          instrument lanes, Song chains, exports, AI Composer, or other features shown before
+          instrument lanes, Song chains, exports, AI Composer, stored loops (three on Free, ten on
+          Pro at the time of writing), or other features shown before
           purchase. Prices and included allowances are displayed at checkout. Lemon Squeezy acts
           as merchant of record and handles checkout, applicable transaction taxes, invoices,
           payment methods, cancellations, and billing support.
@@ -115,7 +129,9 @@ export default function TermsPage() {
         </p>
         <p>
           When Pro access ends, oversized creative work is retained but features or lanes beyond
-          the Free allowance may be locked until the subscription is restored.
+          the Free allowance may be locked until the subscription is restored. Loops already
+          stored are kept, but you cannot store another until you are back within your plan’s
+          allowance.
         </p>
       </LegalSection>
 
@@ -126,6 +142,7 @@ export default function TermsPage() {
           <li>upload malware, probe security, bypass access controls, or disrupt the service;</li>
           <li>scrape, overload, or automate requests in a way that harms the service or its providers;</li>
           <li>publish private, deceptive, abusive, hateful, or unlawful material;</li>
+          <li>upload or share audio you do not have the rights to, or use loop storage as general file hosting;</li>
           <li>misrepresent generated music or public-transport data as safety-critical or official transit guidance.</li>
         </ul>
       </LegalSection>

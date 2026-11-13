@@ -1,0 +1,30 @@
+.startup-preloader {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-busy);
+  display: grid;
+  place-items: center;
+  min-height: 100dvh;
+  overflow-y: auto;
+  padding: max(var(--space-300), var(--safe-top)) max(var(--space-300), var(--safe-right)) max(var(--space-300), var(--safe-bottom)) max(var(--space-300), var(--safe-left));
+  background: var(--bg);
+  color: var(--text);
+}
+.startup-preloader-content { width: min(100%, 480px); }
+.startup-preloader-heading { display: flex; align-items: center; justify-content: space-between; gap: var(--space-300); }
+.startup-preloader-brand { font-size: var(--fs-xl); font-weight: 700; letter-spacing: var(--tracking-tight); }
+.startup-preloader-title { margin: var(--space-400) 0 var(--space-200); font-size: var(--fs-lg); font-weight: 500; line-height: 1.4; }
+.startup-preloader-sentence { min-height: 5em; color: var(--text-subtle); font-size: var(--fs-base); line-height: 1.65; animation: startup-sentence-enter 500ms ease; }
+.startup-preloader-signal { display: flex; align-items: center; gap: var(--space-050); height: 24px; }
+.startup-preloader-signal i { width: 3px; height: 20px; border-radius: var(--radius-pill); background: var(--accent); animation: startup-signal 1.2s ease-in-out infinite; }
+.startup-preloader-rail { margin-top: var(--space-300); height: 2px; overflow: hidden; background: var(--border); }
+.startup-preloader-rail span { display: block; height: 100%; width: 30%; background: var(--accent); animation: startup-rail 2s ease-in-out infinite; }
+.startup-preloader-mobile { display: none; margin-top: var(--space-300); color: var(--muted); font-size: var(--fs-md); line-height: 1.65; }
+/* Phone breakpoint follows lib/shared/breakpoints.js. */
+@media (max-width: 767px) { .startup-preloader-mobile { display: block; } }
+@keyframes startup-signal { 0%, 100% { transform: scaleY(.35); } 50% { transform: scaleY(1); } }
+@keyframes startup-rail { from { transform: translateX(-100%); } to { transform: translateX(435%); } }
+@keyframes startup-sentence-enter { from { transform: translateY(4px); } to { transform: translateY(0); } }
+@media (prefers-reduced-motion: reduce) {
+  .startup-preloader-sentence, .startup-preloader-signal i, .startup-preloader-rail span { animation: none; }
+}

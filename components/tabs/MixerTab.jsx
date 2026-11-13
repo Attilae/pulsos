@@ -146,9 +146,9 @@ function deriveHubs(allRoutes, n = 6) {
     .map(e => ({ name: e.name, lat: e.lat / e.count, lng: e.lng / e.count }))
 }
 
-export default function MixerTab({ active = true }) {
+export default function MixerTab({ active = true, onReady }) {
   const { cityId, setCityId, cityEntry, cityPreset } = useCitySelection()
-  const { limits, claim, openUpgrade } = useEntitlements()
+  const { limits, signedIn, claim, openUpgrade } = useEntitlements()
   const loadedCityRef    = useRef(null)   // last city whose routes are loaded
   const engineRef        = useRef(null)
   const stoppingRef      = useRef(false)
@@ -239,6 +239,12 @@ export default function MixerTab({ active = true }) {
   const [fxBusParams, setFxBusParams] = useState({})
 
   const [routes, setRoutes] = useState(null)
+  // An empty array is also settled: reveal the app's recovery UI on failure.
+  useEffect(() => {
+    if (routes === null || !onReady) return
+    const frame = requestAnimationFrame(() => onReady())
+    return () => cancelAnimationFrame(frame)
+  }, [routes, onReady])
   const [city, setCity] = useState(null)   // city metadata block from lines.json
   // True while a city switch is loading its route data. On a switch MixerTab keeps
   // the previous city's `routes` until the new fetch resolves, so `!routes` alone
@@ -323,11 +329,12 @@ export default function MixerTab({ active = true }) {
   // engine-mirroring hooks re-push their state onto it.
   const [engineGen, setEngineGen] = useState(0)
 
-  // Reference loop (Pro): the user's own audio on the bar grid, to audition
-  // lanes against. Audio stays in IndexedDB; the song saves only its metadata.
+  // Reference loop (signed-in Free and Pro): the user's own audio on the bar grid, to audition
+  // lanes against. The song saves only its metadata; the audio is on the device
+  // (IndexedDB) and in the account (lib/referenceLoops.js).
   const referenceTrack = useReferenceTrack({
     engineRef, engineGen,
-    allowed: limits?.customUploads === true,
+    allowed: signedIn,
     openUpgrade, bpm, setBpm,
   })
   const { reference, setReference: setReferenceTrack } = referenceTrack

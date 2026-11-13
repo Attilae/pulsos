@@ -20,7 +20,7 @@ The PDF uses browser print layout, A4 pages, internal contents links and numbere
 footers. It needs no account, database access or audio engine. PDF generation is
 an explicit maintenance step, not part of a Vercel build.
 
-Last content review: 3 November 2026. Added the Pro "Your loop" feature (upload
-your own loop to play lanes against). The previous review (20 October 2026) covered
+Last content review: 11 November 2026. "Your loop" is available to signed-in Free
+and Pro accounts (upload your own loop to play lanes against). The previous review (20 October 2026) covered
 Poly / Pad voices and demand-driven holds, Macro envelopes, one-loop MIDI exports,
 Pro custom audio, MCP setup, the expanded tour and tab-load recovery. The page and PDF share the revision date in `GUIDE_VERSION`.

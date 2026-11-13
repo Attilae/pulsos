@@ -135,7 +135,8 @@ analytics/AI-telemetry modules under mocked SDKs: no prompt/response content is 
 styling, Fit framing and overlay padding, plus `lib/mapBasemapStyle.js`), `map-lanes`
 (`lib/mapLanes.js`: lane → line resolution, focus rules, stop-marker sampling), `map-motion`
 (`lib/mapMotion.js`: ring timing/caps, attack coalescing, ring slots, reduced-motion rules), `auth-form-validation` (`lib/authFormValidation.js`),
-`reference-track` (`lib/referenceTrack.js`: bar guess, Match BPM, drift, snapshot sanitising) and
+`reference-track` (`lib/referenceTrack.js`: bar guess, Match BPM, drift, snapshot sanitising)
+`reference-loops` (`lib/referenceLoops.js`: plan limits, upload pathnames, metadata bounds) and
 `aiff` (`lib/aiff.js`),
 `poly-voice` and `lane-pitch` (described in their sections below). There is **no linter
 configured** and the audio/UI code has no tests. Run a single file with
@@ -984,17 +985,40 @@ the FM-patch licence check: `docs/plaits-macro-plan.md`. Build, measurements, en
   track; `transpose` is whole semitones. Recipes R18–R20 (R20 uses the envelope) and the prompt
   text exist only while the flag is on.
 
-### Reference loop (Pro)
+### Reference loop (free account)
 
-A Pro user can load their own loop (WAV/MP3/AIFF, ≤100 MB / 5 min, `CUSTOM_AUDIO_LIMITS.reference`)
+A signed-in user (Free or Pro) can load their own loop (WAV/MP3/AIFF, ≤100 MB / 5 min, `CUSTOM_AUDIO_LIMITS.reference`)
 and audition lanes against it, e.g. a loop with no bass while hunting for a bassline. Gated by
-`limits.customUploads` (upgrade reason `reference_track`).
-- **The audio never leaves the browser.** `lib/referenceStore.js` keeps the original file in
-  IndexedDB (`leid-reference`). The song stores only `snapshot.referenceTrack` (id, name, duration,
-  bars, offset, volume, mute, export toggle; sparse, so there's no schema bump, sanitised by
-  `normalizeReference`). Another device or a shared link gets the "Re-upload" state, and a Free
-  account that loads such a song gets "locked". If storage fails (private mode, quota), the loop
-  still plays for the session.
+`signedIn` (the `reference_track` prompt offers a free account, with no Pro upsell).
+Sampler samples and reverb impulse responses remain gated by `limits.customUploads`.
+- **The audio is on the device and in the account.** `lib/referenceStore.js` keeps the original
+  file in IndexedDB (`leid-reference`); the song stores only `snapshot.referenceTrack` (id, name,
+  duration, bars, offset, volume, mute, export toggle; sparse, so there's no schema bump, sanitised
+  by `normalizeReference`). That same `id` keys the cloud copy, so the snapshot needs no extra field.
+  `useReferenceTrack` resolves memory → IndexedDB → cloud, and caches a download back into IndexedDB.
+- **Cloud storage** (Vercel Blob): rules in the pure `lib/referenceLoops.js` (tested in
+  `test/reference-loops.test.js`), server in `lib/server/referenceLoops.js`, browser client in
+  `lib/referenceCloud.js`, table `reference_loops` (migration `0010`, primary key `(user_id, id)`
+  because an imported shared song keeps the original id). The plan caps the **number** of stored
+  loops (`limits.referenceLoops`: Free 3, Pro 10, superadmin unlimited) and
+  `REFERENCE_CLOUD_MAX_BYTES` (25 MB) caps each file. The cloud copy is best-effort: with no slot,
+  an oversized file, or storage unconfigured, the loop still plays from the device and the lane says
+  why (`CloudNote`); `StoredLoops` in `ReferenceLane.jsx` lists and deletes them. Removing a loop
+  from a song or deleting the song never deletes the stored file.
+  - Upload goes browser → Blob directly (function bodies cap at 4.5 MB): `POST /api/reference/upload`
+    issues a token bound to `loops/<userId>/<id>.<ext>`, audio content types and the size cap;
+    `POST /api/reference` then `head()`s the blob and records it under a per-user advisory lock,
+    deleting the blob if it's refused. The SDK hides why a token was refused, so the client checks
+    slots and size against `GET /api/reference` first to show a specific message.
+  - `GET /api/reference/:id` returns a short-lived signed URL to the owner, or to anyone with
+    `?shared=<shareId>` when that shared song references the loop (`setLoopShareSource`, set by
+    `useSongPersistence` on import). That is the only way a signed-out visitor hears a loop;
+    otherwise they get "locked". Unsharing the song ends that access.
+  - Env: `REFERENCE_BLOB_READ_WRITE_TOKEN` (falls back to `BLOB_READ_WRITE_TOKEN`) and
+    `REFERENCE_BLOB_ACCESS` (`private` default, or `public`), which must match the store's mode.
+  - Not built yet: a sweep for blobs whose upload was never confirmed, and blob deletion when an
+    account is deleted by hand (the rows cascade, the files don't).
+  If local storage fails (private mode, quota), the loop still plays for the session.
 - **AIFF** is parsed by `lib/aiff.js`, because Chrome/Firefox `decodeAudioData` reject it.
   `decodeCustomAudio` routes it there when given a context. Only uncompressed PCM/float is supported.
 - **Timing**: never time-stretched. `engine._scheduleReference` restarts the file every `bars`
@@ -1053,7 +1077,8 @@ picks a plan in priority order **superadmin → override → subscription → fr
 unlimited. `customUploads` is a boolean feature flag in the same `limits` object (Free `false`):
 custom sampler files and reverb IRs. The upload buttons in `DawView.jsx` (`useCustomUploadGate`)
 open the upgrade modal instead of the file picker on Free, and MixerTab's handlers refuse too;
-Free also doesn't list the "Custom…" reverb IR. Uploaded files never leave the browser —
+Free also doesn't list the "Custom…" reverb IR. Samples and IRs never leave the browser (the
+reference loop is the one upload that is stored, see **Reference loop**) —
 `lib/customAudio.js` (pure, tested in `test/custom-audio.test.js`) caps size, type, decoded duration
 and IR channel count before anything reaches the audio graph.
 

@@ -1,27 +1,28 @@
 'use client'
 
-// The DAW is a fully interactive, browser-only app (Tone.js + Leaflet + Web
-// Audio). We load the whole shell client-side with ssr:false so none of that
-// code is evaluated on the server.
-//
-// This used to be wrapped in a MobileGate that refused to render on touch
-// devices. Phones now load the real app; components/FirstRunNotice.jsx sets
-// expectations once instead of blocking.
+import { useCallback, useEffect, useState } from 'react'
 import dynamic from 'next/dynamic'
+import StartupPreloader from '@/components/StartupPreloader.jsx'
 
+// Paint before the browser-only DAW downloads; stay until its routes render.
 const App = dynamic(() => import('@/components/App.jsx'), {
   ssr: false,
-  loading: () => (
-    <div style={{
-      height: '100dvh', display: 'grid', placeItems: 'center',
-      background: 'var(--bg)', color: 'var(--accent)',
-      fontFamily: 'var(--font-mono)', letterSpacing: '0.14em',
-    }}>
-      LEIÐ · loading…
-    </div>
-  ),
+  loading: () => null,
 })
 
 export default function Page() {
-  return <App />
+  const [ready, setReady] = useState(false)
+  const [welcomeShown, setWelcomeShown] = useState(false)
+  const onReady = useCallback(() => setReady(true), [])
+  useEffect(() => {
+    const timer = setTimeout(() => setWelcomeShown(true), 1800)
+    return () => clearTimeout(timer)
+  }, [])
+  const loading = !ready || !welcomeShown
+  return (
+    <>
+      {loading && <StartupPreloader />}
+      <App onReady={onReady} startupReady={!loading} />
+    </>
+  )
 }
