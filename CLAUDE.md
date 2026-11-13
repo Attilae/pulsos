@@ -1015,7 +1015,8 @@ Sampler samples and reverb impulse responses remain gated by `limits.customUploa
     `?shared=<shareId>` when that shared song references the loop (`setLoopShareSource`, set by
     `useSongPersistence` on import). That is the only way a signed-out visitor hears a loop;
     otherwise they get "locked". Unsharing the song ends that access.
-  - Env: `REFERENCE_BLOB_READ_WRITE_TOKEN` (falls back to `BLOB_READ_WRITE_TOKEN`) and
+  - Env: `REFERENCE_BLOB_READ_WRITE_TOKEN` (or the Vercel-generated
+    `REFERENCE_BLOB_READ_WRITE_TOKEN_READ_WRITE_TOKEN`; falls back to `BLOB_READ_WRITE_TOKEN`) and
     `REFERENCE_BLOB_ACCESS` (`private` default, or `public`), which must match the store's mode.
   - Not built yet: a sweep for blobs whose upload was never confirmed, and blob deletion when an
     account is deleted by hand (the rows cascade, the files don't).
