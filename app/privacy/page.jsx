@@ -8,15 +8,16 @@ const dataRows = [
   ['Account', 'Internal user and authentication-account IDs, display name, email address, password hash, role, verification state or records, and account timestamps.', 'Create, administer, and secure your account.'],
   ['Session and security', 'Session token, expiry, IP address, user agent, and operational or security records.', 'Keep you signed in, prevent abuse, and diagnose failures.'],
   ['Creative work', 'Song and composition names; saved mixer, note, automation, drum, route, city, and arrangement settings; timestamps; and an optional public share ID.', 'Save, reopen, chain, and share your work.'],
+  ['Uploaded loops', 'Audio files you upload as “Your loop”, with the file name, size, type, duration, and upload time.', 'Play your loop on any device you sign in on and, if you share a song that uses it, to people who open that share link.'],
   ['AI Composer', 'Your prompt, the active city and route context sent with it, and the model-generated plan.', 'Provide AI Composer when you explicitly use it.'],
   ['Plan and usage', 'Plan and access source, subscription and customer identifiers, product or variant, status and relevant dates, and export or AI allowance counters.', 'Provide paid or complimentary access and enforce Free and Pro limits.'],
-  ['Device preferences', 'Theme, selected city, drum clipboard, tour status, mobile-intro status, autosave preference, and last song ID.', 'Remember local instrument choices in your browser.'],
+  ['Device preferences', 'Theme, selected city, drum clipboard, tour status, mobile-intro status, autosave preference, last song ID, and a local copy of loops you uploaded or opened.', 'Remember local instrument choices in your browser and avoid downloading a loop twice.'],
   ['Usage analytics', 'Page path and referrer; coarse country, device, operating-system, and browser data; and limited product events with properties such as city, form factor, playback mode, track count, or BPM.', 'Measure reliability and improve the instrument.'],
   ['Support', 'Messages and information you send when contacting us.', 'Respond to questions and privacy requests.'],
 ]
 
 const providers = [
-  ['Vercel', 'Application and static-data hosting, delivery, operational logs, and cookie-free web analytics.', 'https://vercel.com/legal/privacy-policy'],
+  ['Vercel', 'Application and static-data hosting, file storage for uploaded loops (Vercel Blob), delivery, operational logs, and cookie-free web analytics.', 'https://vercel.com/legal/privacy-policy'],
   ['Neon', 'Managed Postgres database for accounts and saved work.', 'https://neon.com/privacy-policy'],
   ['Resend', 'Delivery of magic-link, account, and feedback emails.', 'https://resend.com/legal/privacy-policy'],
   ['OpenRouter and the selected model provider', 'Process prompts, route context, and generated plans only when a signed-in user invokes AI Composer.', 'https://openrouter.ai/privacy'],
@@ -42,7 +43,8 @@ export default function PrivacyPage() {
         </p>
         <p>
           This notice applies to the Leið website, its account system, saved songs and
-          compositions, public share links, AI Composer, and related support communication.
+          compositions, uploaded loops, public share links, AI Composer, and related support
+          communication.
         </p>
       </LegalSection>
 
@@ -50,10 +52,19 @@ export default function PrivacyPage() {
         <DataTable headers={['Category', 'Data', 'Purpose']} rows={dataRows} />
         <p>
           Route, stop, and vehicle information comes from public-transport data sources and is
-          used to generate music. It is not used to identify passengers. Audio samples and
-          impulse responses you upload to the instrument are decoded locally and are not uploaded
+          used to generate music. It is not used to identify passengers. Sampler samples and
+          impulse responses you load into the instrument are decoded locally and are not uploaded
           to Leið or included in saved song snapshots. MIDI and WAV exports are generated on your device.
           Leið records only the export allowance used, not the exported file or its contents.
+        </p>
+        <p>
+          A loop you upload as “Your loop” is different: when you are signed in, the audio file
+          is uploaded and stored with your account so the song can play it on your other devices
+          and through a share link. Leið does not analyse the audio, use it to train models, or
+          listen to it except where needed to handle a report or a legal request. Files larger
+          than the storage limit shown in the instrument, and loops added when your account’s
+          stored-loop allowance is full, stay in your browser only. A saved song stores the loop’s
+          name, length, and playback settings, not the audio itself.
         </p>
       </LegalSection>
 
@@ -97,8 +108,10 @@ export default function PrivacyPage() {
         <p>
           Leið uses essential authentication cookies to keep signed-in accounts secure. Local
           storage remembers the theme, active city, drum clipboard, product-tour and mobile-intro
-          state, autosave choice, and last opened song. These local preferences remain on the
-          device until you clear them or your browser storage.
+          state, autosave choice, and last opened song. The browser’s IndexedDB storage keeps a
+          copy of loops you uploaded or opened, so they do not have to be downloaded again. These
+          local preferences and files remain on the device until you clear them or your browser
+          storage.
         </p>
         <p>
           Leið does not use advertising cookies or behavioural profiling. It uses Vercel Web
@@ -114,10 +127,13 @@ export default function PrivacyPage() {
         <p>
           Sharing is off by default. If you publish a saved song, Leið creates an unlisted bearer
           link: no sign-in is required, and anyone who has the URL can retrieve the song name,
-          city, schema version, and complete saved creative state and import a copy. Do not put
+          city, schema version, and complete saved creative state and import a copy. If the song
+          uses a loop stored in your account, anyone with the link can also listen to and download
+          that audio file, and their browser keeps a copy. Do not put
           personal, confidential, or third-party protected information in names or content you
-          share. You can unpublish the link from the song menu, but that cannot recall copies
-          already imported or saved.
+          share. You can unpublish the link from the song menu, which also ends access to the
+          loop through that link, but that cannot recall copies already imported, downloaded, or
+          saved.
         </p>
       </LegalSection>
 
@@ -125,7 +141,9 @@ export default function PrivacyPage() {
         <p>
           Account data and saved creative work are kept while the account is active, until you
           delete the relevant work, or until an account-deletion request is completed. You can
-          delete individual saved songs in the service. Verification records and sessions expire
+          delete individual saved songs in the service. An uploaded loop is kept until you delete
+          it from the stored-loops list in the instrument or your account is deleted; deleting a
+          song or removing the loop from a song does not delete the stored file. Verification records and sessions expire
           when they are no longer needed for authentication. Billing subscription history and
           usage records are kept while the account is active and longer where needed for tax,
           accounting, fraud prevention, disputes, or legal claims. Support correspondence,

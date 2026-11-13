@@ -12,6 +12,7 @@ const REASON_COPY = {
   ai_limit: ['AI Composer allowance reached', 'Pro includes 50 new composition prompts every month.'],
   custom_upload: ['Bring your own sounds', 'Loading your own sampler samples and reverb impulse responses is part of Pro.'],
   reference_track: ['Play along with your own loop', 'Upload a loop that is missing its bass or lead, and try transit lanes against it until one fits. Create a free account or sign in to upload and play your loop.'],
+  reference_loops: ['Your three loop slots are full', 'Free accounts store three of your own loops. Pro stores ten, so more songs can carry their loop to every device and share link.'],
   sign_in: ['Save your free credits', 'Sign in to claim three MIDI/WAV exports and three AI compositions.'],
   billing_error: ['Billing connection interrupted', 'The music is safe. Try checkout again, or return later if Lemon Squeezy is unavailable.'],
   upgrade: ['Take the full network', 'Build wider arrangements, export every idea, and keep AI Composer in the session.'],
@@ -47,6 +48,7 @@ export default function UpgradeModal({ reason, signedIn, busy, onClose, onChecko
           <li><strong><IconDownload /></strong><span>unlimited MIDI + WAV exports</span></li>
           <li><strong>50</strong><span>AI compositions each month</span></li>
           <li><strong><IconMusic /></strong><span>your own samples and reverb IRs</span></li>
+          <li><strong>10</strong><span>of your own loops stored and shareable</span></li>
         </ul>}
 
         {freeAccountPrompt ? (

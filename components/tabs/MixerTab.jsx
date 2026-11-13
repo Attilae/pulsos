@@ -330,7 +330,8 @@ export default function MixerTab({ active = true, onReady }) {
   const [engineGen, setEngineGen] = useState(0)
 
   // Reference loop (signed-in Free and Pro): the user's own audio on the bar grid, to audition
-  // lanes against. Audio stays in IndexedDB; the song saves only its metadata.
+  // lanes against. The song saves only its metadata; the audio is on the device
+  // (IndexedDB) and in the account (lib/referenceLoops.js).
   const referenceTrack = useReferenceTrack({
     engineRef, engineGen,
     allowed: signedIn,
