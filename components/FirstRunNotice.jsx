@@ -79,11 +79,11 @@ export default function FirstRunNotice({ onDismiss }) {
     >
       <p className="intro-lead">
         This is the compact version. Play the city, mix lanes, pick instruments
-        and drums.
+        and drums, and edit each stop&rsquo;s note.
       </p>
       <p className="intro-note">
-        The full instrument (EQ curves, automation drawing, per-stop note
-        editing) is on desktop.
+        A few deeper editors (EQ curves, automation drawing, FX buses) are on
+        desktop for now.
       </p>
 
       {isIOS() && (

@@ -27,7 +27,7 @@ export default function Sheet({
   children,
   // Pinned directly under the header, outside the scrolling body — for controls
   // that must stay reachable however long the content is (e.g. LaneSheet's
-  // Sound/Mix/Notes tabs above a 60-stop list).
+  // segment tabs above a 60-stop Notes list).
   toolbar = null,
   footer = null,
   className = '',

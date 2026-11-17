@@ -24,15 +24,25 @@ export default function SongMenu({
   currentSong, dirty, saving, saveError, autosaveOn, setAutosaveOn,
   songs, save, saveAs, rename, open, newSong, startFromPreset, deleteSong,
   share, unshare, shareUrl, signedIn,
+  // `inline`: render the menu permanently open with no trigger, for hosts that
+  // already are the menu (the phone's Song sheet). `onDone` then stands in for
+  // closing the dropdown, so the host can close itself after an action.
+  inline = false, onDone,
 }) {
   const { cityId, cityEntry } = useCitySelection()
-  const [menuOpen, setMenuOpen] = useState(false)
+  const [menuOpenState, setMenuOpenState] = useState(false)
+  const menuOpen = inline || menuOpenState
+  const setMenuOpen = useCallback((next) => {
+    if (inline) { if (next === false) onDone?.() }
+    else setMenuOpenState(next)
+  }, [inline, onDone])
   const [picker,   setPicker]   = useState(false)
   const [shareMsg, setShareMsg] = useState('')
   const rootRef = useRef(null)
 
   // Close menus on outside click + Esc
   useEffect(() => {
+    if (inline) return undefined
     function onDocClick(e) {
       if (!rootRef.current?.contains(e.target)) {
         setMenuOpen(false)
@@ -50,7 +60,7 @@ export default function SongMenu({
       document.removeEventListener('pointerdown', onDocClick)
       document.removeEventListener('keydown', onKey)
     }
-  }, [])
+  }, [inline])
 
   // Keyboard shortcuts: Cmd/Ctrl+S → Save, Cmd/Ctrl+Shift+S → Save As
   // Failures surface through the save indicator's saveError state, so swallow
@@ -154,15 +164,15 @@ export default function SongMenu({
   const label = currentSong?.name ?? 'Untitled (unsaved)'
 
   return (
-    <div className="song-menu" ref={rootRef}>
-      <button
+    <div className={`song-menu ${inline ? 'song-menu--inline' : ''}`} ref={rootRef}>
+      {!inline && <button
         className={`song-menu-trigger ${dirty ? 'is-dirty' : ''}`}
         onClick={() => { setMenuOpen(o => !o); setPicker(false) }}
         title="Song menu (Cmd/Ctrl+S to save)"
       >
         <span className="song-menu-label">{label}</span>
         <span className="song-menu-caret"><IconCaretDown /></span>
-      </button>
+      </button>}
 
       <SaveIndicator
         currentSong={currentSong}
