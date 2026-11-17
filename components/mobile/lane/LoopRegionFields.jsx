@@ -27,6 +27,6 @@ export default function LoopRegionFields({ route, region, resolution, onChange }
         </div>
       </Field>
     })}
-    <button type="button" onClick={() => onChange({ startCell: 0, endCell: GRID_TOTAL_CELLS })}>Full loop</button>
+    <button type="button" className="lsheet-action" onClick={() => onChange({ startCell: 0, endCell: GRID_TOTAL_CELLS })}>Full loop</button>
   </section>
 }

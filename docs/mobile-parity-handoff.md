@@ -37,7 +37,7 @@ Ship it as **phased PRs, one area per PR**, each releasable on its own. Branch e
     resize to 1440×900. Custom uploaded sample buffers remain session-only, as on desktop.
   - Human listening on phone hardware remains a release check.
 
-- **Phase 2 is implemented** on `feature/mobile-parity-phase2` (stacked on Phase 1):
+- **Phase 2 is implemented**: draft PR #130 (`feature/mobile-parity-phase2`, stacked on Phase 1):
   - `lib/loopRegionEdit.js` shares desktop clamp/pointer/keyboard maths with the phone’s
     grid-stepping editor. Loop windows remain integer canonical cells (0–64); triplet/fine
     grids round to the same positions the engine supports.

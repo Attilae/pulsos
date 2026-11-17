@@ -137,8 +137,8 @@ export default function MixSegment({ ctx }) {
       <section className="lsheet-group">
         <GroupHead title="Export lane" description="MIDI saves one loop of notes. WAV records this lane’s live output." />
         <div className="lsheet-pair">
-          <button type="button" disabled={!route.stops?.length} onClick={() => onExportMidi(route.id)}>Export MIDI</button>
-          <button type="button" disabled={!route.stops?.length || !started || audioExporting} onClick={() => onExportWav(route.id)}>Export WAV</button>
+          <button type="button" className="lsheet-action" disabled={!route.stops?.length} onClick={() => onExportMidi(route.id)}>Export MIDI</button>
+          <button type="button" className="lsheet-action" disabled={!route.stops?.length || !started || audioExporting} onClick={() => onExportWav(route.id)}>Export WAV</button>
         </div>
         <p className="lsheet-hint" role="status">{audioExporting
           ? `Recording WAV: ${Math.round(audioProgress * 100)}%`
