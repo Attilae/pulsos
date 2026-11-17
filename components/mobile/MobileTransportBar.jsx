@@ -53,6 +53,11 @@ export default function MobileTransportBar({
     <div className="mtransport">
       <span ref={playheadRef} className="mtransport-playhead" aria-hidden="true" />
 
+      {/* Transport state for screen readers, as in the desktop header. */}
+      <span className="visually-hidden" role="status" aria-live="polite">
+        {started ? 'Playing' : 'Stopped'}{noOutput && !needsGesture ? '. Playing, but nothing is reaching the output.' : ''}
+      </span>
+
       {needsGesture ? (
         <button type="button" className="mtransport-gesture" onClick={onGestureStart}>
           ▶ Tap to start audio
@@ -69,10 +74,12 @@ export default function MobileTransportBar({
             {started ? <IconStop /> : <IconPlay />}
           </button>
 
-          <div className="mtransport-bpm">
-            <button type="button" onClick={() => onBpm(Math.max(40, bpm - 1))} aria-label="Slower">−</button>
+          {/* Locked while playing, like the desktop BPM field: the lanes' Parts
+              are built at Start against this tempo. */}
+          <div className={`mtransport-bpm ${started ? 'is-locked' : ''}`}>
+            <button type="button" onClick={() => onBpm(Math.max(40, bpm - 1))} aria-label="Slower" disabled={started}>−</button>
             <span className="mono" aria-label={`${bpm} beats per minute`}>{bpm}</span>
-            <button type="button" onClick={() => onBpm(Math.min(240, bpm + 1))} aria-label="Faster">+</button>
+            <button type="button" onClick={() => onBpm(Math.min(240, bpm + 1))} aria-label="Faster" disabled={started}>+</button>
           </div>
 
           {noOutput && (

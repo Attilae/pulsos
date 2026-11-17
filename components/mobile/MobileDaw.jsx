@@ -139,6 +139,7 @@ export default function MobileDaw({ controls, lanes }) {
         open={moreOpen}
         onClose={() => setMoreOpen(false)}
         cityName={controls.cityName}
+        started={controls.started}
         mode={controls.mode}
         onMode={controls.onMode}
         liveAvailable={controls.liveAvailable}
@@ -150,6 +151,7 @@ export default function MobileDaw({ controls, lanes }) {
         onExportWav={controls.onExportWav}
         canExport={controls.canExport}
         audioExporting={controls.audioExporting}
+        audioProgress={controls.audioProgress}
         canImportDrums={controls.canImportDrums}
         hasDrums={controls.hasDrums}
         onImportDrums={() => { setMoreOpen(false); controls.onImportDrums() }}
@@ -160,9 +162,11 @@ export default function MobileDaw({ controls, lanes }) {
       />
 
       {/* SongMenu is an anchored dropdown on desktop; at 390px an anchored
-          popover clips against the viewport edge, so it gets a sheet. */}
+          popover clips against the viewport edge, so it gets a sheet. The
+          sheet *is* the menu, so SongMenu renders inline (no second trigger)
+          and closes the sheet after an action. */}
       <Sheet open={songOpen} onClose={() => setSongOpen(false)} title="Song" className="song-sheet">
-        <SongMenu {...controls.song} />
+        <SongMenu {...controls.song} inline onDone={() => setSongOpen(false)} />
       </Sheet>
     </div>
   )

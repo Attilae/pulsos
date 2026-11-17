@@ -280,6 +280,7 @@
   font-family: inherit; font-size: var(--fs-base);
   cursor: pointer;
 }
+.mtransport-bpm button:disabled { opacity: 0.35; cursor: default; }
 .mtransport-bpm span {
   min-width: 34px;
   text-align: center;
@@ -631,6 +632,13 @@
 /* SongMenu was built as an anchored dropdown; inside a sheet it should just
    fill the width rather than float. */
 .song-sheet .song-menu { position: static; width: 100%; }
+.song-sheet .song-menu { flex-direction: column; align-items: stretch; gap: var(--space-2, 8px); }
+.song-sheet .song-menu-picker {
+  position: static;
+  min-width: 0;
+  max-height: none;
+  box-shadow: none;
+}
 .song-sheet .song-menu-pop {
   position: static;
   width: 100%;

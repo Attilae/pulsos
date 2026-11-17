@@ -1966,6 +1966,13 @@ export default function MixerTab({ active = true, onReady }) {
     trackNoteChances, trackStopChances, trackNoteLengths, trackStopNoteLengths, trackStopVelocityMaps, trackSynthTypes, automationSourceIds, trackPitchOffsets, trackArps, trackLabels,
   ])
 
+  // Switching data source stops mock playback first. Shared by the desktop
+  // header and the phone's More sheet so the two can't diverge.
+  const switchMode = (next) => {
+    if (started) { engineRef.current?.stopMock(); setStarted(false) }
+    setMode(next)
+  }
+
   const canExportMix = useMemo(
     () => exportableMixRoutes(mergedRoutes, midiExportCtx).length > 0,
     [mergedRoutes, midiExportCtx],
@@ -2328,14 +2335,14 @@ export default function MixerTab({ active = true, onReady }) {
             <button
               className={`mode-btn ${mode === 'mock' ? 'active' : ''}`}
               aria-pressed={mode === 'mock'}
-              onClick={() => { if (started) { engineRef.current?.stopMock(); setStarted(false) }; setMode('mock') }}
+              onClick={() => switchMode('mock')}
             >Mock</button>
             <button
               className={`mode-btn ${mode === 'live' ? 'active' : ''}`}
               aria-pressed={mode === 'live'}
               disabled={!cityEntry.liveWsUrl}
               aria-describedby={cityEntry.liveWsUrl ? undefined : 'live-unavailable-note'}
-              onClick={() => { if (started) { engineRef.current?.stopMock(); setStarted(false) }; setMode('live') }}
+              onClick={() => switchMode('live')}
             >Live</button>
           </div>
           {!cityEntry.liveWsUrl && (
@@ -2614,7 +2621,7 @@ export default function MixerTab({ active = true, onReady }) {
             view, onView: setView, mapStyle, onMapStyle: setMapStyle,
             started, onPlayPause: handlePlayPause,
             bpm, onBpm: setBpm,
-            mode, onMode: setMode, liveAvailable: !!cityEntry.liveWsUrl,
+            mode, onMode: switchMode, liveAvailable: !!cityEntry.liveWsUrl,
             harmony: harmonyCommon ?? globalHarmony,
             onHarmony: handleGlobalHarmony,
             harmonyMixed,
@@ -2622,7 +2629,7 @@ export default function MixerTab({ active = true, onReady }) {
             onExportMidi: handleExportMixMidi,
             onExportWav: handleExportMixAudio,
             canExport: canExportMix,
-            audioExporting,
+            audioExporting, audioProgress,
             canImportDrums, hasDrums: !!drumPattern, onImportDrums: handleImportDrums,
             reference: referenceTrack,
             onOpenAi: () => setAiOpen(true),
