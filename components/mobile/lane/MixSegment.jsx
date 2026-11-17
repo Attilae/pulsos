@@ -4,13 +4,13 @@ import { SidechainSourceOptions } from '../../DawView.jsx'
 import { LaneFilterFields } from '../../LaneFilterEditor.jsx'
 import { DEFAULT_SIDECHAIN } from '@/lib/engine.js'
 import { FX_BUSES } from '@/lib/fxTrack.js'
-import { Field, panLabel } from './fields.jsx'
+import { Field, GroupHead, panLabel } from './fields.jsx'
 
 // One segment of the phone lane sheet (see ../LaneSheet.jsx). It receives the
 // sheet's props plus the values LaneSheet derives from them, as `ctx`.
 export default function MixSegment({ ctx }) {
   const {
-    route, volume, pan, disabled, soloed, sendMatrix, activeFxTracks, sidechain, sidechainSources, filter, onVolume, onPan, onDisable, onSolo, onSendLevel, onSidechain, onFilter,
+    started, audioExporting, audioProgress, onExportMidi, onExportWav, route, volume, pan, disabled, soloed, sendMatrix, activeFxTracks, sidechain, sidechainSources, filter, onVolume, onPan, onDisable, onSolo, onSendLevel, onSidechain, onFilter,
   } = ctx
 
   return (
@@ -134,6 +134,16 @@ export default function MixSegment({ ctx }) {
           </Field>
         )
       })()}
+      <section className="lsheet-group">
+        <GroupHead title="Export lane" description="MIDI saves one loop of notes. WAV records this lane’s live output." />
+        <div className="lsheet-pair">
+          <button type="button" disabled={!route.stops?.length} onClick={() => onExportMidi(route.id)}>Export MIDI</button>
+          <button type="button" disabled={!route.stops?.length || !started || audioExporting} onClick={() => onExportWav(route.id)}>Export WAV</button>
+        </div>
+        <p className="lsheet-hint" role="status">{audioExporting
+          ? `Recording WAV: ${Math.round(audioProgress * 100)}%`
+          : !started ? 'Press Play to record WAV.' : disabled ? 'Enable this lane to hear it in the WAV recording.' : 'WAV records in real time.'}</p>
+      </section>
     </div>
   )
 }

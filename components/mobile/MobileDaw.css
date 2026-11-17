@@ -650,3 +650,7 @@
 
 .envelope-fields--rack { display: contents; }
 .panel-knob-field { color: var(--text-subtle); }
+
+.lsheet-loop-strip { position: relative; height: 32px; overflow: hidden; background: var(--surface-sunken); border: 1px solid var(--border); border-radius: var(--radius-sm); }
+.lsheet-loop-window { position: absolute; inset-block: 0; background: var(--hover-surface); border-inline: 1px solid var(--accent); box-sizing: border-box; }
+.lsheet-loop-stop { position: absolute; top: 12px; width: 3px; height: 8px; background: var(--muted-line); transform: translateX(-50%); }

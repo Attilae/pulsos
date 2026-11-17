@@ -25,7 +25,7 @@ Ship it as **phased PRs, one area per PR**, each releasable on its own. Branch e
   - The mode switch, the BPM/Re-pick lock while playing, WAV gating with %, the aria-live
     transport status and `SongMenu inline` are all aligned with desktop.
 
-- **Phase 1 is implemented** on `feature/mobile-parity-phase1`:
+- **Phase 1 is implemented**: draft PR #129 (`feature/mobile-parity-phase1`):
   - Desktop and phone share `components/lane/EnvelopeFields.jsx`, `SynthFields.jsx`, and
     `GranularFields.jsx`; `lib/automationControl.js` shares the automation value conversion.
   - Tone now exposes envelopes, sampler presets/base-note uploads (Pro gated), drum voices,
@@ -36,6 +36,18 @@ Ship it as **phased PRs, one area per PR**, each releasable on its own. Branch e
     horizontal overflow/page errors, autosave/reload through mocked account storage, and
     resize to 1440×900. Custom uploaded sample buffers remain session-only, as on desktop.
   - Human listening on phone hardware remains a release check.
+
+- **Phase 2 is implemented** on `feature/mobile-parity-phase2` (stacked on Phase 1):
+  - `lib/loopRegionEdit.js` shares desktop clamp/pointer/keyboard maths with the phone’s
+    grid-stepping editor. Loop windows remain integer canonical cells (0–64); triplet/fine
+    grids round to the same positions the engine supports.
+  - Rhythm has start/end steppers, a stop/window strip, and Full loop. Full loop sends
+    `{startCell: 0, endCell: 64}` explicitly because the engine ignores a null region.
+  - Mix has per-lane MIDI/WAV export through the existing entitlement and recording handlers,
+    including playback/busy gating and recording percentage.
+  - Verified: 625 tests, production build, 390×844 browser save/reload/reset and grid edits,
+    real MIDI/WAV downloads (4 MIDI notes; nonzero WAV PCM), desktop loop drag/keyboard controls, dark theme, and 820px/1440px layouts.
+  - **Next is Phase 3: Line management.** Phases 3–8 are not implemented yet.
 
 ### How the phone is wired
 
