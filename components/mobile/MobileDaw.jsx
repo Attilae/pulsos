@@ -92,6 +92,12 @@ export default function MobileDaw({ controls, lanes }) {
         speed={lanes.speeds?.[openLaneId] ?? 1}
         gridResolution={lanes.gridResolutions?.[openLaneId]}
         loopRegion={lanes.loopRegions?.[openLaneId]}
+        onTrackLoopRegion={lanes.onTrackLoopRegion}
+        started={lanes.started}
+        audioExporting={lanes.audioExporting}
+        audioProgress={lanes.audioProgress}
+        onExportMidi={lanes.onExportMidi}
+        onExportWav={lanes.onExportWav}
         arp={lanes.arps?.[openLaneId]}
         perStopSteps={lanes.pitchOffsets?.[openLaneId]}
         stopVelocities={lanes.stopVelocities?.[openLaneId]}

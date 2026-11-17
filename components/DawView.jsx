@@ -1,3 +1,4 @@
+import { editLoopEdge, loopCellAtPointer, loopKeyCell } from '@/lib/loopRegionEdit.js'
 import GranularFields from './lane/GranularFields.jsx'
 import EnvPanel from './lane/EnvelopeFields.jsx'
 import { SpSlider, SpSelect } from './lane/SynthFields.jsx'
@@ -181,13 +182,8 @@ function useLoopHandles({ railRef, startCell, endCell, onLoopRegion }) {
   const moveEdge = useCallback((edge, cell) => {
     const { startCell: s0, endCell: e0, onLoopRegion: set } = latestRef.current
     if (!set) return
-    if (edge === 'start') {
-      const next = Math.max(0, Math.min(e0 - 1, cell))
-      if (next !== s0) set({ startCell: next, endCell: e0 })
-    } else {
-      const next = Math.max(s0 + 1, Math.min(GRID_TOTAL_CELLS, cell))
-      if (next !== e0) set({ startCell: s0, endCell: next })
-    }
+    const next = editLoopEdge({ startCell: s0, endCell: e0 }, edge, cell)
+    if (next.startCell !== s0 || next.endCell !== e0) set(next)
   }, [])
 
   return useCallback((edge) => {
@@ -220,25 +216,16 @@ function useLoopHandles({ railRef, startCell, endCell, onLoopRegion }) {
         if (dragRef.current !== edge) return
         const rect = railRef.current?.getBoundingClientRect()
         if (!rect || rect.width === 0) return
-        const frac = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width))
-        moveEdge(edge, Math.round(frac * GRID_TOTAL_CELLS))
+        const cell = loopCellAtPointer(e.clientX, rect.left, rect.width)
+        if (cell != null) moveEdge(edge, cell)
       },
       onPointerUp: end,
       onPointerCancel: end,
       onLostPointerCapture: end,
       onKeyDown: (e) => {
         if (!onLoopRegion) return
-        const small = e.shiftKey ? CELLS_PER_BEAT : 1
-        let next = null
-        switch (e.key) {
-          case 'ArrowLeft': case 'ArrowDown': next = value - small; break
-          case 'ArrowRight': case 'ArrowUp':  next = value + small; break
-          case 'PageDown': next = value - GRID_STEPS_PER_BAR; break
-          case 'PageUp':   next = value + GRID_STEPS_PER_BAR; break
-          case 'Home': next = isStart ? 0 : startCell + 1; break
-          case 'End':  next = isStart ? endCell - 1 : GRID_TOTAL_CELLS; break
-          default: return
-        }
+        const next = loopKeyCell({ startCell, endCell }, edge, e.key, e.shiftKey)
+        if (next == null) return
         e.preventDefault()
         e.stopPropagation()
         moveEdge(edge, next)

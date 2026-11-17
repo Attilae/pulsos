@@ -2640,6 +2640,10 @@ export default function MixerTab({ active = true, onReady }) {
           }}
           lanes={{
             routes: visibleInstrumentRoutes,
+            started, audioExporting, audioProgress,
+            onTrackLoopRegion: handleTrackLoopRegion,
+            onExportMidi: handleExportRouteMidi,
+            onExportWav: handleExportRouteAudio,
             mergedConsumedIds,
             disabled: disabledRoutes,
             soloRoutes,

@@ -6,13 +6,14 @@ import { NOTE_LENGTHS, NOTE_LENGTH_LABELS, DEFAULT_NOTE_LENGTH } from '@/lib/not
 import { DEFAULT_STOP_NOTE_LENGTH, STOP_NOTE_LENGTH_SYNTHS, STOP_NOTE_LENGTH_HINT, STOP_NOTE_LENGTH_HELP, STOP_NOTE_LENGTH_MERGED_HELP } from '@/lib/stopNoteLength.js'
 import { DEFAULT_STOP_VELOCITY, STOP_VELOCITY_SOURCES, STOP_VELOCITY_LABELS, STOP_VELOCITY_HINTS, STOP_VELOCITY_HELP } from '@/lib/stopVelocity.js'
 import { LOOP_PATTERN_PRESETS, MAX_PATTERN_PLAY, MAX_PATTERN_REST } from '@/lib/laneGating.js'
+import LoopRegionFields from './LoopRegionFields.jsx'
 import { Field, GroupHead } from './fields.jsx'
 
 // One segment of the phone lane sheet (see ../LaneSheet.jsx). It receives the
 // sheet's props plus the values LaneSheet derives from them, as `ctx`.
 export default function RhythmSegment({ ctx }) {
   const {
-    route, disabled, synthType, adsr, speed, gridResolution, noteLength, legato, onTrackSpeed, onGridResolution, onArp, onNoteChance, onLoopPattern, onNoteLength, onStopNoteLength, onStopVelocityMap, ag, laneChance, pattern, snl, snlStatus, setSnlBound, svm, svmStatus, setSvm,
+    loopRegion, onTrackLoopRegion, route, disabled, synthType, adsr, speed, gridResolution, noteLength, legato, onTrackSpeed, onGridResolution, onArp, onNoteChance, onLoopPattern, onNoteLength, onStopNoteLength, onStopVelocityMap, ag, laneChance, pattern, snl, snlStatus, setSnlBound, svm, svmStatus, setSvm,
   } = ctx
 
   return (
@@ -129,6 +130,9 @@ export default function RhythmSegment({ ctx }) {
           </>
         )}
       </section>
+
+      <LoopRegionFields route={route} region={loopRegion} resolution={gridResolution}
+        onChange={region => onTrackLoopRegion(route.id, region)} />
 
       <section className="lsheet-group lsheet-group--rhythm">
         <GroupHead title="Dynamics" description="Set each stop's velocity from the line's data." />

@@ -53,6 +53,9 @@ export default function LaneSheet({
   speed = 1,
   gridResolution = DEFAULT_GRID_RESOLUTION,
   loopRegion,
+  onTrackLoopRegion,
+  started = false, audioExporting = false, audioProgress = 0,
+  onExportMidi, onExportWav,
   arp,
   perStopSteps,
   stopVelocities,
@@ -98,7 +101,7 @@ export default function LaneSheet({
   const svmStatus = stopVelocityStatus({ cfg: svm, synthType })
   const setSvm = patch => onStopVelocityMap?.(route.id, { ...svm, ...patch })
 
-  const ctx = { glide, automationLanes, onSamplerPreset, onSamplerUpload, onDrumVoice, onGranular, onGlide, onLegato, route, volume, pan, disabled, soloed, synthType, adsr, granular, scale, octave,
+  const ctx = { onTrackLoopRegion, started, audioExporting, audioProgress, onExportMidi, onExportWav, glide, automationLanes, onSamplerPreset, onSamplerUpload, onDrumVoice, onGranular, onGlide, onLegato, route, volume, pan, disabled, soloed, synthType, adsr, granular, scale, octave,
     semitone, pitchVariety, speed, gridResolution, loopRegion, arp, perStopSteps,
     stopVelocities, noteChance, noteLength, stopNoteLength, stopVelocityMap, legato, drone,
     stopChances, loopPattern, sendMatrix, activeFxTracks, sidechain, sidechainSources, filter,
