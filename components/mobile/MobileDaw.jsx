@@ -18,9 +18,14 @@ import LaneSheet from './LaneSheet.jsx'
 import MoreSheet from './MoreSheet.jsx'
 import SongMenu from '../SongMenu.jsx'
 import Sheet from '../Sheet.jsx'
+import LinePicker from '../LinePicker.jsx'
+import DuplicateLaneDialog from '../DuplicateLaneDialog.jsx'
+import { linePickerProps } from '@/lib/linePickerProps.js'
 import './MobileDaw.css'
 
 export default function MobileDaw({ controls, lanes }) {
+  const [linePicker, setLinePicker] = useState(null)
+  const [dupPrompt, setDupPrompt] = useState(null)
   const [openLaneId, setOpenLaneId] = useState(null)
   const [moreOpen, setMoreOpen] = useState(false)
   const [songOpen, setSongOpen] = useState(false)
@@ -44,6 +49,13 @@ export default function MobileDaw({ controls, lanes }) {
             grid area by CSS, so switching views never remounts Leaflet. */}
         {controls.view === 'daw' && (
           <MobileLaneList
+            mode={controls.mode}
+            started={controls.started}
+            liveSnapshot={controls.liveSnapshot}
+            snapshotLoading={controls.snapshotLoading}
+            onRefetch={controls.onRefetch}
+            onAddLine={type => setLinePicker({ mode: 'add', type })}
+            onRepickType={lanes.onRepickType}
             routes={lanes.routes}
             disabled={lanes.disabled}
             soloRoutes={lanes.soloRoutes}
@@ -76,6 +88,11 @@ export default function MobileDaw({ controls, lanes }) {
 
       <LaneSheet
         route={openLane}
+        onChangeLine={() => { setOpenLaneId(null); setLinePicker({ mode: 'change', type: openLane.type, routeId: openLane.id }) }}
+        onRemoveLine={() => { lanes.onRemoveLine(openLane.id); setOpenLaneId(null) }}
+        onDuplicate={() => { setOpenLaneId(null); setDupPrompt({ routeId: openLane.id, routeName: openLane.name }) }}
+        onRemoveDuplicate={() => { lanes.onRemoveDuplicate(openLane.id); setOpenLaneId(null) }}
+        onUnmerge={() => { lanes.onUnmerge(openLane.id); setOpenLaneId(null) }}
         open={openLane != null}
         onClose={() => setOpenLaneId(null)}
         volume={lanes.volumes?.[openLaneId] ?? 0}
@@ -148,6 +165,16 @@ export default function MobileDaw({ controls, lanes }) {
         onLaneTag={lanes.onLaneTag}
         onFilter={lanes.onFilter}
       />
+
+      {linePicker && <LinePicker {...linePickerProps({
+        prompt: linePicker, allRoutes: lanes.allRoutes,
+        selectedIds: new Set(lanes.selectedRouteIds ?? []),
+        onAddLine: lanes.onAddLine, onChangeLine: lanes.onChangeLine, onRemoveLine: lanes.onRemoveLine,
+        onClose: () => setLinePicker(null),
+      })} />}
+      {dupPrompt && <DuplicateLaneDialog routeName={dupPrompt.routeName}
+        onConfirm={semitones => { lanes.onDuplicateTrack(dupPrompt.routeId, semitones); setDupPrompt(null) }}
+        onClose={() => setDupPrompt(null)} />}
 
       <MoreSheet
         open={moreOpen}

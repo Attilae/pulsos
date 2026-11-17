@@ -674,3 +674,10 @@
   color: var(--accent);
   border-color: var(--accent);
 }
+
+.mlanes-section-head { display: flex; align-items: center; gap: var(--space-075); }
+.mlanes-section-head .mlanes-heading { flex: 1; }
+.mlanes-action { background: var(--surface2); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius-sm); font-family: inherit; font-size: var(--fs-xs); cursor: pointer; }
+.mlanes-add { width: 100%; margin-top: var(--space-150); }
+.lsheet-line-actions { display: flex; flex-direction: column; gap: var(--space-050); padding-bottom: var(--space-100); }
+.lsheet-line-actions select { background: var(--surface2); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius-sm); font-family: inherit; font-size: var(--fs-sm); }

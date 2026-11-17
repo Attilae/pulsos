@@ -38,6 +38,7 @@ export default function LaneSheet({
   route,
   open,
   onClose,
+  onChangeLine, onRemoveLine, onDuplicate, onRemoveDuplicate, onUnmerge,
   // state
   volume = 0,
   pan = 0,
@@ -124,6 +125,23 @@ export default function LaneSheet({
       // on a bus route, and inside the scrolling body these tabs scrolled out
       // of reach — leaving no way back to Sound or Mix.
       toolbar={
+        <>
+          <div className="lsheet-line-actions">
+            <select aria-label="Line actions" value="" onChange={e => {
+              const actions = { change: onChangeLine, remove: onRemoveLine, duplicate: onDuplicate, removeCopy: onRemoveDuplicate, unmerge: onUnmerge }
+              actions[e.target.value]?.()
+            }}>
+              <option value="" disabled>Line actions</option>
+              {!route.isDuplicate && !route.isMerged && <>
+                <option value="change" disabled={started}>Change line</option>
+                <option value="remove" disabled={started}>Remove</option>
+              </>}
+              {!route.isMerged && <option value="duplicate">Duplicate</option>}
+              {route.isDuplicate && <option value="removeCopy">Remove this copy</option>}
+              {route.isMerged && <option value="unmerge">Un-merge</option>}
+            </select>
+            {started && !route.isDuplicate && !route.isMerged && <span className="lsheet-hint">Stop to change or remove lines.</span>}
+          </div>
         <div className="lsheet-segments" role="tablist">
           {SEGMENTS.map(s => (
             <button
@@ -136,6 +154,7 @@ export default function LaneSheet({
             >{s.label}</button>
           ))}
         </div>
+        </>
       }
     >
       {segment === 'sound' && <ToneSegment ctx={ctx} />}
