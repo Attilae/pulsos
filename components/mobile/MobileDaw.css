@@ -647,3 +647,6 @@
   border: none;
   padding: 0;
 }
+
+.envelope-fields--rack { display: contents; }
+.panel-knob-field { color: var(--text-subtle); }

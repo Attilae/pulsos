@@ -29,7 +29,7 @@ function arcPath(r, from, to) {
 
 export default function PanelKnob({
   label, value, onChange, onReset, format, size = 'lg', bipolar = false, steps = 0,
-  locked = false, group, laneName, hint, sublabel, dim = false,
+  variant = 'rack', locked = false, group, laneName, hint, sublabel, dim = false,
 }) {
   const id = useId()
   const drag = useRef(null)
@@ -95,6 +95,14 @@ export default function PanelKnob({
 
   const readout = format(v)
   const name = [laneName, group, label].filter(Boolean).join(' ')
+  if (variant === 'sheet') return (
+    <div className="panel-knob-field" role="group" aria-label={name}>
+      <span>{label} · {locked ? 'automated' : readout}</span>
+      <input type="range" min={0} max={1} step={steps > 0 ? 1 / steps : 0.001} value={v}
+        disabled={locked} aria-label={name} onChange={e => set(Number(e.target.value))} />
+      <button type="button" disabled={locked} onClick={e => { e.preventDefault(); onReset?.() }}>Reset {label}</button>
+    </div>
+  )
   return (
     <div className={`pk-knob pk-knob--${size}${dim ? ' is-dim' : ''}`}>
       <div

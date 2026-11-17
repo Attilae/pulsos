@@ -4,17 +4,30 @@ import { NOTE_ROOTS, SCALE_TYPES, pickerSynthTypes, CONTOUR_LABELS, CONTOUR_TITL
 import { LaneTagFields } from '../../LaneTagEditor.jsx'
 import ResonatorControls from '../../ResonatorControls.jsx'
 import MacroControls from '../../MacroControls.jsx'
-import { supportsGranular } from '@/lib/engine.js'
+import EnvelopeFields from '../../lane/EnvelopeFields.jsx'
+import GranularFields from '../../lane/GranularFields.jsx'
+import TextureControls from '../../TextureControls.jsx'
+import { TEXTURE_ENABLED } from '@/lib/granularEngine.js'
+import { autoCtl } from '@/lib/automationControl.js'
+import { supportsGranular, findTargetSpec } from '@/lib/engine.js'
 import { PITCH_CONTOURS, PITCH_SPANS, PITCH_LEAPS } from '@/lib/mappings.js'
-import { synthTypeLabel, POLY_VOICES, polyVoiceOf } from '@/lib/soundSpecs.js'
+import { synthTypeLabel, polyTargetActive } from '@/lib/soundSpecs.js'
 import { Field, GroupHead } from './fields.jsx'
 
 // One segment of the phone lane sheet (see ../LaneSheet.jsx). It receives the
 // sheet's props plus the values LaneSheet derives from them, as `ctx`.
 export default function ToneSegment({ ctx }) {
   const {
+    glide, legato, automationLanes, onSamplerPreset, onSamplerUpload, onDrumVoice, onGranular, onGlide, onLegato,
     route, synthType, adsr, granular, scale, octave, filter, tag, onSynthType, onADSR, onScale, onOctaveShift, onPitchVariety, onLaneTag, trackScale, pv, resonatorStatus,
   } = ctx
+
+  const autoTargets = {}
+  for (const cfg of Object.values(automationLanes ?? {})) {
+    if (!cfg?.sourceRouteId || !polyTargetActive(cfg.paramTarget, synthType, adsr)) continue
+    autoTargets[cfg.paramTarget] = { spec: findTargetSpec(cfg.paramTarget, synthType), value: null }
+  }
+  const glideAuto = autoCtl(autoTargets, 'glide', { divide: 1000 })
 
   return (
     <div className="lsheet-body">
@@ -31,17 +44,6 @@ export default function ToneSegment({ ctx }) {
           </select>
         </Field>
 
-        {synthType === 'PolySynth' && (
-          <Field label="Voice" hint="Which synth each note of the pad plays. Notes overlap instead of cutting each other off.">
-            <select
-              value={polyVoiceOf(adsr)}
-              onChange={e => onADSR?.(route.id, { voice: e.target.value })}
-            >
-              {POLY_VOICES.map(v => <option key={v.id} value={v.id}>{v.label}</option>)}
-            </select>
-          </Field>
-        )}
-
         {/* Same controls as the desktop label modal, imported rather than
             re-implemented, so the two can't drift on presets or swatches. */}
         <Field label="Label" hint="Name this lane by what it plays. The colour marks the lane.">
@@ -57,6 +59,7 @@ export default function ToneSegment({ ctx }) {
             onChange={patch => onADSR?.(route.id, patch)}
             status={resonatorStatus}
             granularEnabled={!!granular?.enabled}
+            autoTargets={autoTargets}
             variant="sheet"
           />
         </section>
@@ -69,11 +72,32 @@ export default function ToneSegment({ ctx }) {
             params={adsr}
             onChange={patch => onADSR?.(route.id, patch)}
             granularEnabled={!!granular?.enabled && !supportsGranular('Macro')}
+            autoTargets={autoTargets}
             variant="sheet"
             laneName={route.name}
           />
         </section>
       )}
+
+      {!['Resonator', 'Macro'].includes(synthType) && (
+        <section className="lsheet-group lsheet-group--sound">
+          <GroupHead title="Sound" description="Shape the instrument and its envelope." />
+          <EnvelopeFields variant="sheet" synthType={synthType ?? 'Synth'} adsr={adsr}
+            onADSR={patch => onADSR(route.id, patch)} autoTargets={autoTargets}
+            onSamplerPreset={id => onSamplerPreset(route.id, route.type, id)}
+            onSamplerUpload={(file, note) => onSamplerUpload(route.id, file, note)}
+            onDrumVoice={id => onDrumVoice(route.id, route.type, id)} />
+        </section>
+      )}
+
+      <section className="lsheet-group lsheet-group--sound">
+        <GroupHead title={TEXTURE_ENABLED ? 'Texture' : 'Granular'} description="Layer grains from this lane’s instrument." />
+        {TEXTURE_ENABLED
+          ? <TextureControls cfg={granular} onChange={patch => onGranular(route.id, patch)} autoTargets={autoTargets} laneName={route.name} variant="sheet" />
+          : supportsGranular(synthType)
+            ? <GranularFields route={route} granular={granular} onGranular={patch => onGranular(route.id, patch)} autoTargets={autoTargets} variant="sheet" />
+            : <p className="lsheet-note">Not available on the {synthType} yet.{granular?.enabled ? ' Its grain settings are kept for when you switch back.' : ''}</p>}
+      </section>
 
       <section className="lsheet-group lsheet-group--sound">
         <GroupHead title="Pitch map" description="Turn route data into melody." />
@@ -155,9 +179,20 @@ export default function ToneSegment({ ctx }) {
         </Field>
       </section>
 
-      <p className="lsheet-note">
-        Envelope and granular controls are on desktop for now. The filter is under Mix.
-      </p>
+      {!['Resonator', 'Macro'].includes(synthType) && (
+        <section className="lsheet-group lsheet-group--sound">
+          <GroupHead title="Expression" description="Slide between notes or hold connected phrases." />
+          <Field label={`Glide · ${glideAuto.disabled ? 'automated' : `${glide.toFixed(2)} s`}`}>
+            <input type="range" min={0} max={1} step={0.01} value={glide} disabled={glideAuto.disabled}
+              aria-label="Glide" onChange={e => onGlide(route.id, Number(e.target.value))} />
+            <button type="button" disabled={glideAuto.disabled} onClick={() => onGlide(route.id, 0)}>Reset glide</button>
+          </Field>
+          <Field label="Legato">
+            <button type="button" aria-pressed={legato} className={legato ? 'is-active' : ''}
+              onClick={() => onLegato(route.id, !legato)}>{legato ? 'On' : 'Off'}</button>
+          </Field>
+        </section>
+      )}
     </div>
   )
 }
