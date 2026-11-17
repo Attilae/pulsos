@@ -100,6 +100,8 @@ export default function MobileDaw({ controls, lanes }) {
         stopNoteLength={lanes.stopNoteLengths?.[openLaneId]}
         stopVelocityMap={lanes.stopVelocityMaps?.[openLaneId]}
         legato={!!lanes.legatos?.[openLaneId]}
+        glide={lanes.glides?.[openLaneId] ?? 0}
+        automationLanes={lanes.automationLanes?.[openLaneId]}
         drone={!!lanes.droneModes?.[openLaneId]}
         stopChances={lanes.stopChances?.[openLaneId]}
         loopPattern={lanes.loopPatterns?.[openLaneId]}
@@ -115,6 +117,12 @@ export default function MobileDaw({ controls, lanes }) {
         onSolo={lanes.onSolo}
         onSynthType={lanes.onSynthType}
         onADSR={lanes.onADSR}
+        onSamplerPreset={lanes.onSamplerPreset}
+        onSamplerUpload={lanes.onSamplerUpload}
+        onDrumVoice={lanes.onDrumVoice}
+        onGranular={lanes.onGranular}
+        onGlide={lanes.onGlide}
+        onLegato={lanes.onLegato}
         onScale={lanes.onScale}
         onOctaveShift={lanes.onOctaveShift}
         onPitchVariety={lanes.onPitchVariety}

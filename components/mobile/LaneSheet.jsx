@@ -60,6 +60,8 @@ export default function LaneSheet({
   noteLength,
   stopNoteLength,
   stopVelocityMap,
+  glide = 0,
+  automationLanes,
   legato = false,
   drone = false,
   stopChances,
@@ -71,6 +73,7 @@ export default function LaneSheet({
   filter,
   tag,
   // handlers — the same ones the desktop rack calls
+  onSamplerPreset, onSamplerUpload, onDrumVoice, onGranular, onGlide, onLegato,
   onVolume, onPan, onDisable, onSolo, onSynthType, onADSR, onScale, onOctaveShift,
   onPitchVariety, onTrackSpeed, onGridResolution, onArp,
   onSendLevel, onSidechain, onStopPitch, onStopVelocity, onLaneTag,
@@ -95,7 +98,7 @@ export default function LaneSheet({
   const svmStatus = stopVelocityStatus({ cfg: svm, synthType })
   const setSvm = patch => onStopVelocityMap?.(route.id, { ...svm, ...patch })
 
-  const ctx = { route, volume, pan, disabled, soloed, synthType, adsr, granular, scale, octave,
+  const ctx = { glide, automationLanes, onSamplerPreset, onSamplerUpload, onDrumVoice, onGranular, onGlide, onLegato, route, volume, pan, disabled, soloed, synthType, adsr, granular, scale, octave,
     semitone, pitchVariety, speed, gridResolution, loopRegion, arp, perStopSteps,
     stopVelocities, noteChance, noteLength, stopNoteLength, stopVelocityMap, legato, drone,
     stopChances, loopPattern, sendMatrix, activeFxTracks, sidechain, sidechainSources, filter,

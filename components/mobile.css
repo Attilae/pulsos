@@ -257,3 +257,39 @@
   .lsheet-field .lane-filter-status { font-size: var(--fs-2xs); }
   .lane-filter-retry { min-height: var(--tap-min); padding: 0 var(--space-100); }
 }
+
+/* Mobile parity Phase 1: the shared sound editors become stacked touch fields.
+   PHONE_MAX is 767 (lib/shared/breakpoints.js). */
+@media (max-width: 767px) {
+  .lane-sheet .envelope-fields--sheet .sp-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: var(--space-075);
+    height: auto;
+    padding-block: var(--space-075);
+  }
+  .lane-sheet .envelope-fields--sheet .sp-label { width: auto; }
+  .lane-sheet .envelope-fields--sheet .sp-track { grid-column: 1 / -1; width: 100%; min-width: 0; height: 44px; }
+  .lane-sheet .envelope-fields--sheet .sp-val { grid-column: 2; grid-row: 1; width: auto; }
+  .lane-sheet .envelope-fields--sheet .sp-reset { grid-column: 2; }
+  .lane-sheet .envelope-fields--sheet select { max-width: 100%; width: 100%; min-width: 0; min-height: 44px; }
+  .lane-sheet .envelope-fields--sheet .sp-curve { grid-row: 3; grid-column: 1; }
+  .lane-sheet .envelope-fields--sheet .sp-row--credits { display: block; overflow-wrap: anywhere; }
+  .lane-sheet .envelope-fields--sheet .sp-slider { height: 44px; }
+  .lane-sheet input[type='range']::-webkit-slider-thumb { width: 24px; height: 24px; }
+  .lane-sheet input[type='range']::-moz-range-thumb { width: 24px; height: 24px; }
+  .lane-sheet .rack-card { width: 100%; min-width: 0; box-sizing: border-box; }
+  .lane-sheet .glide-row { flex-wrap: wrap; gap: var(--space-075); }
+  .lane-sheet .glide-row .glide-slider { min-width: 0; flex: 1; height: 44px; }
+  .lane-sheet .tx-card--sheet .tx-row { display: grid; grid-template-columns: 1fr; }
+  .lane-sheet .tx-card--sheet .tx-strip { flex-wrap: wrap; }
+  .lane-sheet .tx-card--sheet .tx-body.is-hidden { display: none; }
+  .lane-sheet .tx-card--sheet .tx-bodies { display: block; }
+  .lane-sheet .panel-knob-field { display: flex; flex-direction: column; gap: var(--space-075); min-width: 0; width: 100%; font-size: var(--fs-sm); }
+  .lane-sheet .panel-knob-field input { width: 100%; }
+  .lane-sheet .mc-panel--sheet .mc-row { flex-wrap: wrap; }
+}
+@media (max-width: 767px) {
+  .lane-sheet .mc-panel--sheet .mc-row { grid-template-columns: 1fr; }
+  .lane-sheet .envelope-fields--sheet .sp-slider::-webkit-slider-thumb { margin-top: -10.5px; }
+}
