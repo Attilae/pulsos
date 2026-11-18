@@ -100,7 +100,7 @@ export default function MacroControls({ params, onChange, granularEnabled = fals
     const k = KNOBS[key]
     const a = auto(key)
     return (
-      <Knob
+      <Knob variant={variant}
         group="Macro"
         label={spec.label}
         sublabel={sublabel}
@@ -121,7 +121,7 @@ export default function MacroControls({ params, onChange, granularEnabled = fals
 
   // The envelope isn't automatable, so its knobs never lock.
   const envKnob = (spec) => (
-    <Knob
+    <Knob variant={variant}
       key={spec.key}
       group="Macro envelope"
       label={spec.label}

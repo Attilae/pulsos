@@ -49,7 +49,7 @@ function useMk2Status() {
   return useSyncExternalStore(subscribeBeadsStatus, getBeadsStatus, () => 'idle')
 }
 
-export default function TextureControls({ cfg, onChange, autoTargets, laneName }) {
+export default function TextureControls({ cfg, onChange, autoTargets, laneName, variant = 'rack' }) {
   const classicStatus = useClassicStatus()
   const mk2Status = useMk2Status()
   const c = { ...TEXTURE_DEFAULTS, ...TEXTURE_MK2_DEFAULTS, ...cfg }
@@ -73,7 +73,7 @@ export default function TextureControls({ cfg, onChange, autoTargets, laneName }
     const spec = KNOB[key]
     const a = auto(key)
     return (
-      <Knob
+      <Knob variant={variant}
         group={group ?? (mk2Key ? 'Texture Mk II' : 'Texture')}
         label={label ?? spec.label}
         value={a.live ?? c[key]}
@@ -92,7 +92,7 @@ export default function TextureControls({ cfg, onChange, autoTargets, laneName }
   const blendAuto = auto(blend.key)
 
   return (
-    <div className="rack-card rack-card--sound tx-card" data-tour="rack-granular">
+    <div className={`rack-card rack-card--sound tx-card tx-card--${variant}`} data-tour="rack-granular">
       <div className="rack-card-head">
         Texture
         <button
@@ -200,7 +200,7 @@ export default function TextureControls({ cfg, onChange, autoTargets, laneName }
           <div className="tx-row">
             {knob('txDensity')}
             {knob('txTexture')}
-            <Knob
+            <Knob variant={variant}
               group="Texture"
               label={`Blend ${blend.short}`}
               value={blendAuto.live ?? c[blend.key]}

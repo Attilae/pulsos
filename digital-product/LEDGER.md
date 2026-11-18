@@ -1,5 +1,20 @@
 # Digital product work
 
+## 2026-11-04: map implementation plan
+
+- Artifact: [Staged implementation plan](design/design-plans/map-view/implementation-2026-11-04/README.md) and machine-readable handoff.
+- Core release: fresh baseline, quiet theme-aware map, route hierarchy, accessible visual focus, progressive stops and bounded musical motion. Geometry-following heads are a separate later phase.
+- Constraints: retain the map stack/shared ticker, no per-frame React state, ring caps 8/4, trail samples 10/5, hidden/stopped cancellation, reduced-motion fallback and no repeatable audio regression.
+- Scope: documentation only. Includes files, state/motion contracts, responsive dimensions, commands, performance gates and stop conditions. Fresh app rendering, implementation and device/audio validation remain outstanding.
+
+## 2026-11-04: map visual research with a constrained rendering budget
+
+- Artifact: [Map visual research supplement](design/design-plans/map-view/research-2026-11-04.md).
+- Evidence: current map/performance code inspection, historical October screenshots, public Mobbin Citymapper/Apple Maps/Google Maps previews, Transit design accounts and browser animation guidance.
+- Recommendation: theme-aware quiet geography, route focus, cleaner legend and progressive stop detail; refine existing note feedback rather than add effects. Proposed ring caps are 8 desktop/4 phone, subject to profiling.
+- Corrects the older plan's React-state playhead assumption and replaces its proposed high trail sampling with current conservative limits. Existing October plan remains historical.
+- Validation limits: no fresh local app rendering, audio listening, benchmark or implementation. Mobbin full browsing requires sign-in. Only research documentation changed.
+
 ## 2026-10-26: Reddit community research
 
 - Request: find relevant subreddits for sharing the Leið video and product.
@@ -175,3 +190,105 @@ Owner approved voiced edit and said go on/continue. YouTube scheduled 18:00 CET 
 ### November 7 short — revised founder direction
 
 Founder requested replacing the one-stop/note edit with default lane sound → finished sound design. Prepared `marketing/nov-7-default-to-designed-sound.md` and updated the calendar: genuine initial lane capture, early finished-patch reveal, instrument choice (Resonator or Macro), arp, Texture and FX. Source route/pattern and base tempo remain traceable; compare perceived levels fairly. Capture and patch review pending. No new video, narration, shared preset or external post created.
+
+## 2026-11-06: Default-to-designed short prepared
+
+- Request: replace November 7’s stop-edit video with the supplied default/after WAVs and matching preset. Founder selected music and labels only; no ElevenLabs narration.
+- Delivered [19.47-second review MP4](../_videos/launch/out/default-to-designed/leid-default-to-designed.mp4), [cover](../_videos/launch/out/default-to-designed/cover.png), [platform copy](../_videos/launch/out/default-to-designed/publish-copy.txt), [production notes](../_videos/launch/content/default-to-designed/README.md) and [updated November 7 brief](marketing/nov-7-default-to-designed-sound.md).
+- Preset visually inspected in Chrome: Prague, 74 BPM, F# Dorian, metro A/B/C; A Resonator Modal with arp/Texture Mk II; B Macro Chords with reverb/delay/chorus sends. Real static finished-preset captures; no fabricated isolated intermediate audio, control changes or synchronized playback. Unsaved imported copy used; stored source preset untouched.
+- Constant gain matches full sources to -16.5 LUFS; preserves originals and hashes. Full-mix comparison with two bars before and four after. Encoded -16.54 LUFS / -1.88 dBTP. Video-project lint/TypeScript, render, scene/cover visual inspection and full file decode checked; founder listening/creative review remains.
+- Calendar target November 7 at 18:00 CET retained. No publication, scheduling, Lnk.Bio mutation or Reddit action. New Prague preset item remains a publishing handoff; video CTA is layth.space.
+
+
+## 2026-11-06: Narrated before/after revision
+
+- Founder rejected the music-only ending and requested narration again. Generated five new clips through signed-in ElevenLabs using the existing Ralf Eisend / Eleven v4 settings; retained Generation 1, source scripts, hashes and downloads. No account/payment changes.
+- Current deliverable: [27.07-second narrated short](../_videos/launch/out/default-to-designed/leid-default-to-designed-narrated.mp4), [revised cover](../_videos/launch/out/default-to-designed/cover-narrated.png), whole-clip captions and a new end card: “Start with this patch. Then make it yours.” Music-only v1 preserved. Clear music listening windows retained; matched source levels and smooth ducking under voice. After recording repeats to support longer timing.
+- Video-project ESLint/TypeScript, render, representative captions/ending visual inspection and full decode passed. Encoded -17.89 LUFS / -2.39 dBTP. Founder listening and creative review pending; no claim of independent listening approval. Calendar, brief and platform packet now point to the narrated revision. Exact shared preset is required for direct preload; new Prague Lnk.Bio item still pending before publication. No scheduling, posting or external messaging performed.
+
+
+## 2026-11-08: Loop-upload feature becomes next launch priority
+
+- Founder requested promoting Your loop before the next city performance, selected bass line, and will supply original/finished audio. Same ElevenLabs narrator requested.
+- Applied marketing, social, copywriting and video skills. Read-only CodeGraph exploration verified Pro gating, local-only reference storage, manual bar count/Match BPM, auditioning alongside routes and lane MIDI export. No live deployment or new example verified yet; no automatic key detection/time-stretch/audio-to-MIDI claim.
+- Prepared [feature brief](marketing/your-loop-bass-short.md), [five-part script and edit/asset packet](../_videos/launch/content/your-loop-bass/README.md), [draft caption](../_videos/launch/out/your-loop-bass/post-copy-draft.txt). Updated calendar: loop feature provisional Nov 10, supporting article Nov 12, held Prague Nov 14, Helsinki deferred Nov 17. Dates conditional on readiness; no queue changes/publication.
+- Final feature video awaits original loop, combined loop+bass, and matching setup/preset. Do not substitute unapproved output/loop.wav. Narration can be prepared independently with existing Ralf Eisend / Eleven v4 voice.
+
+
+### November 8 — Loop/bass narration completed
+
+Founder confirmed Chrome handoff to generate the five new clips. Used existing Ralf Eisend - Deep and Gravely / Eleven v4, stability 0.19, similarity 0.75; retained Generation 1. Five unique MP3s copied into `public/your-loop-bass`, durations/hashes recorded, complete decode clean; [voice ZIP](../_videos/launch/out/your-loop-bass/elevenlabs-voiceovers.zip) ready. Credit balance shown 39,218 → 39,002. No account or payment changes. Original loop, combined loop+bass and matching session/preset still awaited, so no feature video rendered or published. Calendar/brief now record voice readiness.
+
+### November 10 — Loop demo revised to bass plus two leads
+
+Founder provided `before.wav` and `after.wav`, describing the finished version as their loop with a bass line and two leads built in Leið. Copied the originals into the Remotion public assets and recorded hashes/metadata. Updated the hook, five-part narration, edit plan, marketing brief and caption to show a fuller loop-to-arrangement transformation. The Nov 10 target is now unscheduled pending matching UI/session captures, replacement ElevenLabs narration and founder review. Prior bass-only voice clips remain archived but no longer match the script. Audio has not yet been auditioned or boundary-checked in this session. No render, scheduling or post performed.
+
+
+## 2026-11-09: Founder-story short reviewed
+
+- Founder proposed own narration over a rehearsal-room drum fill, Budapest transport montage and a DAW overview. Separate from the loop/bass feature, whose source loops they are still preparing.
+- Prepared [creative review, revised script and shot guide](marketing/founder-story-short.md) plus [clean founder recording script](../_videos/launch/content/founder-story/narration-script.txt). Preserved the two personal-interest lines, tightened bridge to “So I built Leið”, added route/pattern/notes/instrument explanation and an uninterrupted music proof before a spoken product URL.
+- Recommended first-frame text revealing the transport/music premise, a brief fill, actual DAW route-to-lane shots, and returning to founder for CTA. Existing Remotion project selected for future assembly. No ElevenLabs generation for the founder's voice. No fabricated backstory or live-arrival claim.
+- Review concept only: footage/narration not received, no render, publication date, queue changes or external post. Loop/bass feature remains next priority.
+
+## 2026-11-11: Founder-story footage and Walkthrough Studio fit
+
+- Founder supplied an initial batch of six rehearsal/transport/work source movies and said more is coming. Reviewed technical metadata and contact sheets. Updated the founder-story README/marketing brief to make this the current production focus; loop/bass production is paused and no publication date changed.
+- Reviewed the public Walkthrough Studio overview and published `walkthrough-film` skill against the existing Remotion project and local HyperFrames/media-use skills. Recommended Walkthrough Studio for a genuine Leið UI capture only, with Remotion remaining the master assembly for portrait camera footage. Added a shot guide/fit note with source durations, production tradeoffs and readiness.
+- The external toolkit is not installed. No third-party code was installed or executed, and no video was rendered or scheduled.
+
+### November 11 — founder footage / Walkthrough Studio clarification
+
+- Founder clarified that `coding.MOV` is the right founder-at-work image for “So I built Leið”; it is not product footage. Use Walkthrough Studio for real product UI footage, with Remotion as the master editor.
+- User installed the Walkthrough Studio plugin. Initialized a project under `_videos/launch/content/founder-story/walkthrough-studio/`; recorder dependencies and Chromium are installed, and the CLI must run with Node 24.
+- A read-only phone-viewport explore of the public Budapest preset (`shr_656e05229dc64946`) succeeded, confirming the Budapest map and visible controls. Capture test and takes remain pending. The explore did not click controls or audition audio. About 17 GB free on the project volume.
+- Updated the shot plan, README and marketing brief to keep founder footage separate from product footage. No video recorded, rendered, scheduled or published.
+
+### November 11 — founder-story direction test rendered
+
+- The founder requested a test video. Recorded an action-logged Walkthrough Studio take of the public Budapest preset: route list → M1 Notes → M1 Tone. The accepted phone take passed sync with a 49.01 ms maximum gap outside waits; the isolated Chromium capture-quality test also passed. The first take included the welcome tour and the second had a 239.8 ms panel-transition gap; neither was used in the edit.
+- Rendered a 13.2-second 9:16 Remotion direction test at `../_videos/launch/out/founder-story-test/leid-founder-story-direction-test.mp4`. It uses a drum fill, Budapest transit clips, portrait-displayed `coding.MOV` under “So I built Leið,” and actual Walkthrough UI. Temporary captions stand in for the founder's own narration; no ElevenLabs voice was generated.
+- Full file decode passed; H.264/AAC, 1080×1920, 13.2 s. Audio measured -20.10 LUFS / -1.57 dBTP; founder listening and creative review remain pending. The files and shared preset were not changed. No scheduling or publishing.
+
+### November 11 — founder-story direction test revised
+
+- Founder asked to slow the cut, include both music-making clips and all three transport clips, and use multiple desktop screenshots for the product section.
+- Revised the Remotion test to 30 seconds: drum fill and piano footage, three Budapest transit excerpts, `coding.MOV` for “So I built Leið,” then desktop screenshots showing the Budapest map, DAW notes and M1 sound controls. The final section holds on the actual Budapest track, includes 3.5 seconds without text for listening, and ends with `layth.space`.
+- Rendered `../_videos/launch/out/founder-story-test/leid-founder-story-direction-test-v2.mp4`; 1080×1920, 30 fps, H.264/AAC. Full decode passed. Captions remain placeholders for founder narration; human listening and creative review are pending. Nothing scheduled or published.
+
+### November 12 — Your loop review video rendered
+
+- Resumed the loop-plus-bass-and-two-leads demo. Generated five revised ElevenLabs clips with the existing Ralf Eisend / Eleven v4 voice and retained Generation 1; old bass-only clips remain unused. Credits shown 39,002 → 38,790.
+- Verified Berlin, C minor, 100 BPM, four bars and U4/U8/U7 parts. Loaded the original before.wav in the signed-in capture browser. An uppercase filename wait interrupted the upload take; recovered actual stills, then captured instrument views separately. UI images are genuine editorial crops; no completed Match BPM click or synchronized app playback is fabricated. No authenticated state was saved into the project.
+- Rendered `_videos/launch/out/your-loop-bass/leid-your-loop-bass-and-leads-review.mp4`, 29.2 seconds, 1080×1920, H.264/AAC. Includes a finished-mix tease and an uninterrupted four-bar reveal. Matched the source phrase at about 6.478 seconds into after.wav and estimated reference gain without independently normalizing the complete mixes.
+- ESLint/TypeScript and full video decode passed; contact sheet inspected. Audio measured −16.1 LUFS / −2.8 dBTP. Founder listening and creative approval remain pending. No schedule or publication changes.
+
+
+## November 13 — Your loop video v3
+
+Founder changed uploaded loops to Free with sign-up and supplied `daw-preset-record.mov`. Replaced all screenshot components with real recording excerpts in `YourLoop`; preserved supplied before/after music and the four-bar reveal. Removed false Pro CTA from playback and captions. V3 review: `_videos/launch/out/your-loop-bass/leid-your-loop-bass-and-leads-v3-review.mp4`. Closing card says Free with sign-up. Reuses first four ElevenLabs clips; final spoken replacement “Sign up free and build around your own loop.” is prepared but awaits generation after the founder's meeting. Local-only work, no visible UI/browser use. Lint/typecheck and full decode passed; visual contact sheet inspected; encoded audio −17.04 LUFS / −2.64 dBTP. Not scheduled or published.
+
+
+## November 13 — Your loop final delivered
+
+After computer handoff, generated the corrected closing voiceover in signed-in ElevenLabs: “Sign up free and build around your own loop.” Same Ralf Eisend / Eleven v4 settings (0.19 stability, 0.75 similarity), Generation 1, 3.004 seconds; saved `v3-5-cta.mp3`. Rebuilt mixed audio/captions and rendered `_videos/launch/out/your-loop-bass/leid-your-loop-bass-and-leads-final.mp4` (29.2 s, 1080 × 1920, H.264/AAC). Final decode passed; closing card/captions inspected; −15.92 LUFS / −2.64 dBTP. No production work pending, nothing scheduled or published.
+
+
+## November 13 — Your loop video published
+
+Published the final screen-recording/Free-with-sign-up version on the existing DeettaLabs accounts, at founder's request:
+- YouTube Short: https://youtube.com/shorts/oX5VPiFRz8o — public; title “I added a bass line and two leads to this loop | Leið”; not made for kids; AI narration disclosed; copyright checks found no issues. Published confirmation verified.
+- Instagram Reel: https://www.instagram.com/deettalabs/reel/Dfr8hBSoXAs/ — full 9:16, sound on, AI label enabled; caption explicitly says uploaded loops are Free with sign-up and directs to layth.space / link in bio. Shared confirmation and live profile entry verified.
+- X video: https://x.com/deettalabs/status/2121261280933658693 — video published successfully but composer caption did not persist. Edit requires Plus, so context and free-sign-up tracked link were added in a verified reply: https://x.com/deettalabs/status/2121261526225195075 . No duplicate video posted.
+
+Founder authorized YouTube terms for this upload and manually opened the final MP4 in all three native file pickers, which remained disabled to agent controls. Publishing record and exact copy: `_videos/launch/out/your-loop-bass/publishing-2026-11-13.json`. No TikTok post requested or made.
+
+
+## November 13 — Founder-story narrated preview
+
+Founder supplied new synth/transit footage, a Budapest product screen recording, personal narration and preset WAV. Built `_videos/launch/out/founder-story/leid-founder-story-preview-v3.mp4` (31.2 s, 1080 × 1920, 30 fps). Uses real drums, piano, modular synth, bus/metro selfie and tram clips; coding.MOV remains under “So I built Leið.” Real recording replaces product screenshots. Local transcription drives phrase captions; 4.8-second music gap added before the URL, founder voice leveled and music ducked. Only original supplied audio, no ElevenLabs for this story. Lint/TypeScript and full decode passed; rendered contact sheet inspected; encoded audio −18.11 LUFS / −2.80 dBTP. Preview only, not published or scheduled. Reproducible asset/audio prep: `_videos/launch/scripts/prepare-founder-story.py`; composition: `FounderStoryPreview`.
+
+
+## November 15 — Streets & Score next-post brief
+
+Founder selected Map view (Streets and Score) for the next feature post and will supply a screen recording. Prepared narration and shot/recording plan at `digital-product/marketing/streets-and-score-short.md`, with narration text under `_videos/launch/content/streets-and-score/`. Hook: “Same track. Two ways to see it.” Read-only source verification confirms visual-only mode switch and pitch-height / note-event Score behavior. No live deployment check, voice generation, render or publishing for this item yet. Founder-story preview remains a separate draft. Publication date not assigned.

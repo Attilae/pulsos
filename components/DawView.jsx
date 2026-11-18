@@ -1,6 +1,16 @@
+import { drumSourceStep, drumPlaybackStep, drumVelocityClass } from '@/lib/drumLane.js'
+import { normalizeStep } from '@/lib/drumSpecs.js'
+import { linePickerProps } from '@/lib/linePickerProps.js'
+import SnapshotBar from './SnapshotBar.jsx'
+import { editLoopEdge, loopCellAtPointer, loopKeyCell } from '@/lib/loopRegionEdit.js'
+import GranularFields from './lane/GranularFields.jsx'
+import EnvPanel from './lane/EnvelopeFields.jsx'
+import { SpSlider, SpSelect } from './lane/SynthFields.jsx'
+import { autoCtl } from '@/lib/automationControl.js'
+import { useCustomUploadGate } from '@/lib/shared/useCustomUploadGate.js'
 import * as Tone from 'tone'
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
-import { SYNTH_DEFAULTS, supportsGranular, availableAutomationTargets, findTargetSpec, SAMPLER_PRESET_LIST, SAMPLER_PRESETS, DRUM_VOICES, DRUM_VOICE_LICENSE, DEFAULT_GRANULAR, DEFAULT_SIDECHAIN, ARP_STYLES, ARP_RATES, DEFAULT_ARP, DRUMS_ROUTE_ID } from '@/lib/engine.js'
+import { SYNTH_DEFAULTS, supportsGranular, availableAutomationTargets, findTargetSpec, DEFAULT_SIDECHAIN, ARP_STYLES, ARP_RATES, DEFAULT_ARP, DRUMS_ROUTE_ID } from '@/lib/engine.js'
 import { FX_BUSES, AUTOMATION_TARGETS, FX_PARAM_SPECS, FX_SYNC_TARGETS } from '@/lib/fxTrack.js'
 import { useLaneFilterEditor, AnalogFilterStatus, FilterModelSwitch, DRIVE_HELP } from './LaneFilterEditor.jsx'
 import { ANALOG_SLOPES, FILTER_RANGES, filterTargetActive, FILTER_TARGET_MODELS, FILTER_MODEL_LABELS } from '@/lib/laneFilterSpec.js'
@@ -8,9 +18,8 @@ import { PAD_DEFS as DRUM_PAD_DEFS, STEPS as DRUM_STEPS, SOURCE_STEPS as DRUM_SO
 import { noteToMidi, hashStopValue, snapStopsToGrid, GRID_TOTAL_CELLS, GRID_BARS, GRID_STEPS_PER_BAR, GRID_RESOLUTION_STEPS_PER_BAR, DEFAULT_GRID_RESOLUTION, denormalizeToRange, denormalizeExp, transposeNoteInScale, PITCH_CONTOURS, DEFAULT_PITCH_VARIETY, PITCH_SPANS, PITCH_LEAPS } from '@/lib/mappings.js'
 import { buildLanePitchMaps } from '@/lib/laneNotes.js'
 import {
-  pickerSynthTypes, synthTypeLabel, POLY_VOICES, POLY_VOICE_LABELS, POLY_TARGET_VOICES, polyVoiceOf, polyTargetActive, OSC_TYPES,
+  pickerSynthTypes, synthTypeLabel, POLY_VOICE_LABELS, POLY_TARGET_VOICES, polyTargetActive,
 } from '@/lib/soundSpecs.js'
-import MacroControls from './MacroControls.jsx'
 import { NOTE_LENGTHS, NOTE_LENGTH_LABELS, DEFAULT_NOTE_LENGTH } from '@/lib/noteLength.js'
 import {
   DEFAULT_STOP_NOTE_LENGTH, normalizeStopNoteLength, stopNoteLengthStatus, STOP_NOTE_LENGTH_SYNTHS,
@@ -31,8 +40,6 @@ import StopEditor from './StopEditor.jsx'
 import TextureControls from './TextureControls.jsx'
 import DeviceRack from './DeviceRack.jsx'
 import { TEXTURE_ENABLED, TEXTURE_MODEL_LABELS, textureTargetActive } from '@/lib/granularEngine.js'
-import ResonatorControls from './ResonatorControls.jsx'
-import { useResonatorStatus } from '@/lib/shared/useResonatorStatus.js'
 import LaneTagEditor from './LaneTagEditor.jsx'
 import DuplicateLaneDialog from './DuplicateLaneDialog.jsx'
 import LinePicker from './LinePicker.jsx'
@@ -111,9 +118,6 @@ export const CONTOUR_TITLES = {
   arch:       'Arch: rises then falls along the stop sequence',
 }
 
-const FILTER_TYPES = ['lowpass', 'highpass', 'bandpass', 'notch']
-const FILTER_ROLLOFFS = [-12, -24, -48, -96]
-const NOISE_TYPES = ['white', 'pink', 'brown']
 
 const DEFAULT_FILTER = { type: 'lowpass', frequency: 20000, Q: 4 }
 
@@ -182,13 +186,8 @@ function useLoopHandles({ railRef, startCell, endCell, onLoopRegion }) {
   const moveEdge = useCallback((edge, cell) => {
     const { startCell: s0, endCell: e0, onLoopRegion: set } = latestRef.current
     if (!set) return
-    if (edge === 'start') {
-      const next = Math.max(0, Math.min(e0 - 1, cell))
-      if (next !== s0) set({ startCell: next, endCell: e0 })
-    } else {
-      const next = Math.max(s0 + 1, Math.min(GRID_TOTAL_CELLS, cell))
-      if (next !== e0) set({ startCell: s0, endCell: next })
-    }
+    const next = editLoopEdge({ startCell: s0, endCell: e0 }, edge, cell)
+    if (next.startCell !== s0 || next.endCell !== e0) set(next)
   }, [])
 
   return useCallback((edge) => {
@@ -221,25 +220,16 @@ function useLoopHandles({ railRef, startCell, endCell, onLoopRegion }) {
         if (dragRef.current !== edge) return
         const rect = railRef.current?.getBoundingClientRect()
         if (!rect || rect.width === 0) return
-        const frac = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width))
-        moveEdge(edge, Math.round(frac * GRID_TOTAL_CELLS))
+        const cell = loopCellAtPointer(e.clientX, rect.left, rect.width)
+        if (cell != null) moveEdge(edge, cell)
       },
       onPointerUp: end,
       onPointerCancel: end,
       onLostPointerCapture: end,
       onKeyDown: (e) => {
         if (!onLoopRegion) return
-        const small = e.shiftKey ? CELLS_PER_BEAT : 1
-        let next = null
-        switch (e.key) {
-          case 'ArrowLeft': case 'ArrowDown': next = value - small; break
-          case 'ArrowRight': case 'ArrowUp':  next = value + small; break
-          case 'PageDown': next = value - GRID_STEPS_PER_BAR; break
-          case 'PageUp':   next = value + GRID_STEPS_PER_BAR; break
-          case 'Home': next = isStart ? 0 : startCell + 1; break
-          case 'End':  next = isStart ? endCell - 1 : GRID_TOTAL_CELLS; break
-          default: return
-        }
+        const next = loopKeyCell({ startCell, endCell }, edge, e.key, e.shiftKey)
+        if (next == null) return
         e.preventDefault()
         e.stopPropagation()
         moveEdge(edge, next)
@@ -426,20 +416,7 @@ export default function DawView(props) {
         {!routes && <div className="daw-loading">Loading line data…</div>}
 
         {mode === 'live' && routes && (
-          <div className="snapshot-bar">
-            <span className="snapshot-label">
-              {liveSnapshot
-                ? `${liveSnapshot.vehicles.length} vehicles loaded`
-                : 'No snapshot loaded'}
-            </span>
-            <button
-              className="refetch-btn"
-              onClick={onRefetch}
-              disabled={snapshotLoading || started}
-            >
-              {snapshotLoading ? 'Fetching…' : <><IconReset /> Refetch</>}
-            </button>
-          </div>
+          <SnapshotBar snapshot={liveSnapshot} loading={snapshotLoading} started={started} onRefetch={onRefetch} />
         )}
 
         {/* ── Your loop (free account): first, since it's what the lanes are tried against ── */}
@@ -730,22 +707,10 @@ export default function DawView(props) {
       )}
 
       {linePicker && (
-        <LinePicker
-          mode={linePicker.mode}
-          allRoutes={allRoutes ?? []}
-          selectedIds={selectedIds}
-          currentType={linePicker.type ?? null}
-          currentRouteId={linePicker.routeId ?? null}
-          onPick={(picked) => {
-            if (linePicker.mode === 'add') onAddLine?.(picked)
-            else onChangeLine?.(linePicker.routeId, picked)
-            setLinePicker(null)
-          }}
-          onRemove={linePicker.mode === 'change'
-            ? () => { onRemoveLine?.(linePicker.routeId); setLinePicker(null) }
-            : undefined}
-          onClose={() => setLinePicker(null)}
-        />
+        <LinePicker {...linePickerProps({
+          prompt: linePicker, allRoutes, selectedIds, onAddLine, onChangeLine, onRemoveLine,
+          onClose: () => setLinePicker(null),
+        })} />
       )}
     </div>
   )
@@ -801,8 +766,7 @@ function DrumLane({
     const unsubscribe = subscribePlayhead(() => {
       // Drum sequencer step (16th-note loop of DRUM_STEPS cells). The drum loop
       // is shorter than the 16-beat visual cycle, so derive it independently.
-      const stepDur = (60 / (Tone.getTransport().bpm.value || 120)) / 4
-      const step = Math.floor(Tone.getTransport().seconds / stepDur) % DRUM_STEPS
+      const step = drumPlaybackStep(Tone.getTransport().seconds, Tone.getTransport().bpm.value)
       if (step === playingStepRef.current) return
       root.querySelectorAll('.drum-lane-step.playing').forEach(el => el.classList.remove('playing'))
       root.querySelectorAll(`.drum-lane-step[data-step="${step}"]`).forEach(el => el.classList.add('playing'))
@@ -900,11 +864,11 @@ function DrumLane({
               >M</button>
               <div className="drum-lane-steps">
                 {Array.from({ length: DRUM_STEPS }).map((_, i) => {
-                  const src   = (offset + i) % DRUM_SOURCE_STEPS
+                  const src   = drumSourceStep(offset, i)
                   const vel   = padPat[src]
                   // Old snapshots store booleans (true → full); numbers are velocities.
-                  const v     = typeof vel === 'number' ? vel : (vel ? 1 : 0)
-                  const level = !v ? '' : v >= 0.85 ? 'vel-accent' : v >= 0.55 ? 'vel-norm' : 'vel-soft'
+                  const v     = normalizeStep(vel)
+                  const level = drumVelocityClass(v)
                   return (
                     <button
                       key={i}
@@ -1686,98 +1650,7 @@ function LineTrack({
                 {granular?.enabled ? ' Its grain settings are kept for when you switch back.' : ''}
               </p>
             </div>
-          ) : (() => {
-            const gg = { ...DEFAULT_GRANULAR, ...granular }
-            const grainOn = !!gg.enabled
-            const dim = grainOn ? {} : { opacity: 0.4, pointerEvents: 'none' }
-            // Sliders mirror live grain.* automation (greyed + swept value) like
-            // the other instrument controls.
-            const grainRow = (label, key, min, max, step, fmt) => {
-              const a = autoCtl(autoTargets, `grain.${key}`)
-              const val = a.display ?? gg[key]
-              return (
-                <div className="glide-row" style={dim}>
-                  <span className="glide-label">{label}</span>
-                  <input
-                    type="range" min={min} max={max} step={step}
-                    value={val}
-                    disabled={a.disabled}
-                    aria-label={`${route.name} grain ${label}`}
-                    aria-valuetext={a.disabled ? 'automated' : String(fmt(val))}
-                    onChange={e => onGranular({ [key]: parseFloat(e.target.value) })}
-                    className="glide-slider"
-                  />
-                  <span className="glide-val">{a.disabled ? 'auto' : fmt(val)}</span>
-                </div>
-              )
-            }
-            const pct = v => `${Math.round(v * 100)}%`
-            const ms  = v => `${Math.round(v * 1000)}ms`
-            return (
-              <div className="rack-card rack-card--sound" data-tour="rack-granular">
-                <div className="rack-card-head">
-                  Granular
-                  <button
-                    className={`legato-btn ${grainOn ? 'active' : ''}`}
-                    onClick={() => onGranular({ enabled: !grainOn })}
-                    title={grainOn
-                      ? 'Granular layer on. Click to disable'
-                      : 'Layer a grain cloud rendered from this track’s instrument'}
-                    style={{ marginLeft: 'auto', ...(grainOn ? { borderColor: route.color, color: route.color } : {}) }}
-                  >GRAIN</button>
-                </div>
-
-                {grainRow('MIX',   'mix',          0,    1,   0.01,  pct)}
-                {grainRow('SIZE',  'grainSize',    0.01, 0.5, 0.005, ms)}
-                {grainRow('OVLP',  'overlap',      0.01, 0.5, 0.005, ms)}
-                {grainRow('RATE',  'playbackRate', 0.25, 4,   0.01,  v => `${Number(v).toFixed(2)}×`)}
-                {grainRow('LP ST', 'loopStart',    0,    1,   0.01,  pct)}
-                {grainRow('LP EN', 'loopEnd',      0,    1,   0.01,  pct)}
-                {grainRow('JITR',  'jitter',       0,    1,   0.01,  pct)}
-
-                <div className="speed-row" style={dim}>
-                  <span className="speed-label">DIR</span>
-                  <div className="speed-btns">
-                    <button
-                      className={`speed-btn ${!gg.reverse ? 'active' : ''}`}
-                      style={!gg.reverse ? { borderColor: route.color, color: route.color } : {}}
-                      onClick={() => onGranular({ reverse: false })}
-                    >FWD</button>
-                    <button
-                      className={`speed-btn ${gg.reverse ? 'active' : ''}`}
-                      style={gg.reverse ? { borderColor: route.color, color: route.color } : {}}
-                      onClick={() => onGranular({ reverse: true })}
-                    >REV</button>
-                  </div>
-                </div>
-
-                <div className="glide-row" style={dim}>
-                  <span className="glide-label">ATK</span>
-                  <input
-                    type="range" min="0" max="2" step="0.005"
-                    value={gg.attack}
-                    aria-label={`${route.name} grain attack`}
-                    aria-valuetext={String(ms(gg.attack))}
-                    onChange={e => onGranular({ attack: parseFloat(e.target.value) })}
-                    className="glide-slider"
-                  />
-                  <span className="glide-val">{ms(gg.attack)}</span>
-                </div>
-                <div className="glide-row" style={dim}>
-                  <span className="glide-label">REL</span>
-                  <input
-                    type="range" min="0.01" max="6" step="0.01"
-                    value={gg.release}
-                    aria-label={`${route.name} grain release`}
-                    aria-valuetext={`${Number(gg.release).toFixed(2)} s`}
-                    onChange={e => onGranular({ release: parseFloat(e.target.value) })}
-                    className="glide-slider"
-                  />
-                  <span className="glide-val">{Number(gg.release).toFixed(2)}s</span>
-                </div>
-              </div>
-            )
-          })()}
+          ) : <GranularFields route={route} granular={granular} onGranular={onGranular} autoTargets={autoTargets} />}
 
           {(() => {
             const sc = { ...DEFAULT_SIDECHAIN, ...sidechain }
@@ -2081,20 +1954,6 @@ function autoYToValue(frac) {
 // Returns { disabled, display }: disabled iff any id is targeted by an armed lane (so the
 // control greys whenever automation owns it, playing or not); display is the denormalized
 // live value (in the control's own unit, via `divide`) only while a value is flowing.
-function autoCtl(autoTargets, ids, { divide = 1 } = {}) {
-  for (const id of [].concat(ids)) {
-    const a = autoTargets?.[id]
-    if (!a) continue
-    const { spec, value } = a
-    const display = (value == null || !spec) ? null
-      : ((spec.curve === 'exp'
-          ? denormalizeExp(value, spec.min, spec.max)
-          : denormalizeToRange(value, spec.min, spec.max)) / divide)
-    return { disabled: true, display }
-  }
-  return { disabled: false, display: null }
-}
-
 // Draggable per-stop automation curve. X = the chosen line's stops (snapped to the
 // same grid as instrument notes); Y = the authored value (override or hash default).
 function AutoCurveRail({ route, laneId, points, spec, started = false, visible = true, speed = 1, loopRegion, gridResolution, onLoopRegion, onUpdate, onActiveValue }) {
@@ -2540,16 +2399,6 @@ function FxTrackCard({ bus, wet, muted, soloed, params, onWet, onMute, onSolo, o
 
 // Custom uploads (IRs here, sampler files below) are Pro-only: on Free the
 // button opens the upgrade modal instead of the file picker.
-function useCustomUploadGate(inputRef) {
-  const { limits, openUpgrade } = useEntitlements()
-  const allowed = limits?.customUploads === true
-  const choose = useCallback(() => {
-    if (allowed) inputRef.current?.click()
-    else openUpgrade('custom_upload')
-  }, [allowed, inputRef, openUpgrade])
-  return { allowed, choose }
-}
-
 function CustomIRPicker({ onCustomIR }) {
   const inputRef = useRef(null)
   const [name, setName] = useState(null)
@@ -2587,50 +2436,6 @@ function CustomIRPicker({ onCustomIR }) {
         ref={inputRef}
         type="file"
         accept="audio/wav,audio/x-wav,audio/wave,.wav"
-        style={{ display: 'none' }}
-        onChange={handleFile}
-      />
-    </div>
-  )
-}
-
-function SamplerUploadRow({ onSamplerUpload }) {
-  const inputRef = useRef(null)
-  const [note, setNote] = useState('C4')
-  const [name, setName] = useState(null)
-  const [error, setError] = useState(null)
-  const { allowed, choose } = useCustomUploadGate(inputRef)
-  const baseNotes = ['C2', 'C3', 'C4', 'C5', 'A3', 'A4']
-
-  async function handleFile(e) {
-    const file = e.target.files?.[0]
-    e.target.value = ''   // so picking the same file again still fires onChange
-    if (!file) return
-    setError(null)
-    try {
-      await onSamplerUpload?.(file, note)
-      setName(file.name)
-    } catch (err) {
-      console.error('Sampler upload failed:', err)
-      setError(err.message)
-    }
-  }
-
-  return (
-    <div className="sp-row sp-row--select">
-      <span className="sp-label">File</span>
-      <select className="sp-select" value={note} onChange={e => setNote(e.target.value)}
-        title="Base note for the uploaded sample">
-        {baseNotes.map(n => <option key={n} value={n}>{n}</option>)}
-      </select>
-      <button type="button" className="sp-select" onClick={choose}
-        title={allowed ? undefined : 'Custom samples are a Pro feature'}>
-        {allowed ? (error ?? name ?? 'Choose…') : 'Pro'}
-      </button>
-      <input
-        ref={inputRef}
-        type="file"
-        accept="audio/*"
         style={{ display: 'none' }}
         onChange={handleFile}
       />
@@ -2708,349 +2513,6 @@ function FxAddButton({ activeFxTracks, onAdd }) {
 }
 
 // ── Synth Panel: redesigned per-synth parameter editor ───────────────────────
-
-const ALL_ENV_CURVES  = ['linear', 'exponential', 'bounce', 'cosine', 'ripple', 'sine', 'step']
-const DECAY_ENV_CURVES = ['linear', 'exponential']
-
-function AdsrVisualizer({ attack = 0.1, decay = 0.1, sustain = 0.5, release = 1.0 }) {
-  const W = 200, H = 44, P = 3
-  const peakY = P, floorY = H - P
-  const sustY = peakY + (1 - Math.max(0, Math.min(1, sustain))) * (floorY - peakY)
-  const inner = W - P * 2
-  const ax = P + inner * 0.27
-  const dx = ax + inner * 0.21
-  const sx = dx + inner * 0.21
-  const ex = sx + inner * 0.31
-
-  const fill = `M${P},${floorY} L${ax},${peakY} L${dx},${sustY} L${sx},${sustY} L${ex},${floorY} Z`
-  const line = `M${P},${floorY} L${ax},${peakY} L${dx},${sustY} L${sx},${sustY} L${ex},${floorY}`
-
-  return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="sp-viz" preserveAspectRatio="none">
-      <path d={fill} className="sp-viz-fill" />
-      <path d={line} className="sp-viz-line" />
-    </svg>
-  )
-}
-
-function SpSection({ label }) {
-  return <div className="sp-section">{label}</div>
-}
-
-function SpSlider({ label, min, max, step, value, onChange, unit, disabled = false }) {
-  const decimals = step < 0.01 ? 3 : step < 1 ? 2 : 0
-  const pct = ((value - min) / (max - min)) * 100
-  return (
-    <div className={`sp-row ${disabled ? 'sp-row--auto' : ''}`}>
-      <span className="sp-label">{label}</span>
-      <div className="sp-track">
-        <div className="sp-fill" style={{ width: `${Math.max(0, Math.min(100, pct))}%` }} />
-        <input type="range" min={min} max={max} step={step} value={value} disabled={disabled}
-          aria-label={typeof label === 'string' ? label : undefined}
-          className="sp-slider" onChange={e => onChange(Number(e.target.value))} />
-      </div>
-      <span className="sp-val">{Number(value).toFixed(decimals)}{unit ?? ''}</span>
-    </div>
-  )
-}
-
-function SpSelect({ label, value, options, onChange }) {
-  return (
-    <div className="sp-row sp-row--select">
-      <span className="sp-label">{label}</span>
-      <select className="sp-select" value={value} onChange={e => onChange(e.target.value)}>
-        {options.map(o => <option key={o} value={o}>{o}</option>)}
-      </select>
-    </div>
-  )
-}
-
-function SpCurve({ value, options, onChange }) {
-  return (
-    <select className="sp-curve" value={value} onChange={e => onChange(e.target.value)}
-      title="Curve shape">
-      {options.map(o => <option key={o} value={o}>{o.slice(0, 4)}</option>)}
-    </select>
-  )
-}
-
-function SpSliderWithCurve({ label, min, max, step, value, onChange, curveValue, curveOptions, onCurve, disabled = false }) {
-  const decimals = step < 0.01 ? 3 : step < 1 ? 2 : 0
-  const pct = ((value - min) / (max - min)) * 100
-  return (
-    <div className={`sp-row sp-row--curvy ${disabled ? 'sp-row--auto' : ''}`}>
-      <span className="sp-label">{label}</span>
-      <div className="sp-track">
-        <div className="sp-fill" style={{ width: `${Math.max(0, Math.min(100, pct))}%` }} />
-        <input type="range" min={min} max={max} step={step} value={value} disabled={disabled}
-          aria-label={typeof label === 'string' ? label : undefined}
-          className="sp-slider" onChange={e => onChange(Number(e.target.value))} />
-      </div>
-      <span className="sp-val">{Number(value).toFixed(decimals)}</span>
-      <SpCurve value={curveValue} options={curveOptions} onChange={onCurve} />
-    </div>
-  )
-}
-
-const AMP_ENV_KEYS = new Set(['attack', 'decay', 'sustain', 'release'])
-
-function EnvPanel(props) {
-  // A PolySynth stacks copies of one voice, so it edits that voice's controls,
-  // headed by the voice picker. Defaults follow the voice, as the engine's do.
-  if (props.synthType === 'PolySynth') {
-    const voice = polyVoiceOf(props.adsr)
-    const header = (
-      <>
-        <SpSection label="POLY" />
-        <div className="sp-row sp-row--select">
-          <span className="sp-label">Voice</span>
-          <select className="sp-select" value={voice} onChange={e => props.onADSR({ voice: e.target.value })}>
-            {POLY_VOICES.map(v => <option key={v.id} value={v.id}>{v.label}</option>)}
-          </select>
-        </div>
-      </>
-    )
-    return <EnvPanelBody {...props} synthType={voice} header={header} />
-  }
-  return <EnvPanelBody {...props} />
-}
-
-function EnvPanelBody({ synthType, adsr, onADSR, onSamplerPreset, onDrumVoice, onSamplerUpload, autoTargets = {}, granularEnabled = false, laneName, header = null }) {
-  const resonatorStatus = useResonatorStatus()
-  const def = SYNTH_DEFAULTS[synthType] ?? SYNTH_DEFAULTS['Synth']
-  const p = { ...def, ...adsr }
-
-  // An EnvPanel slider's onADSR({ key }) maps to automation id `synth.<key>`; the amp-env
-  // A/D/S/R are also driven by `adsr.<key>`. Returns { disabled, value } to spread onto the
-  // slider — value falls back to the stored param when no live automation value is flowing.
-  const a = (key, stored) => {
-    const ids = AMP_ENV_KEYS.has(key) ? [`synth.${key}`, `adsr.${key}`] : [`synth.${key}`]
-    const r = autoCtl(autoTargets, ids)
-    return { disabled: r.disabled, value: r.display ?? stored }
-  }
-
-  if (synthType === 'Drums') {
-    const voiceId = p.drumVoice ?? 'kick'
-    return (
-    <div className="sp-panel">
-      <SpSection label="DRUMS" />
-      <div className="sp-row sp-row--select">
-        <span className="sp-label">Voice</span>
-        <select className="sp-select" value={voiceId}
-          onChange={e => onDrumVoice?.(e.target.value)}>
-          {DRUM_VOICES.map(v => <option key={v.id} value={v.id}>{v.label}</option>)}
-        </select>
-      </div>
-      <div className="sp-row sp-row--credits" title={DRUM_VOICE_LICENSE.attribution}>
-        <span className="sp-label">©</span>
-        <span className="sp-credits-text">
-          {DRUM_VOICE_LICENSE.license} · {DRUM_VOICE_LICENSE.attribution}
-          {' · '}
-          <a className="sp-credits-link" href={DRUM_VOICE_LICENSE.source} target="_blank" rel="noopener noreferrer">source ↗</a>
-        </span>
-      </div>
-      <SpSection label="ENV" />
-      <SpSlider label="A" min={0} max={0.5} step={0.001} value={p.attack ?? 0.001} onChange={v => onADSR({ attack: v })} />
-      <SpSlider label="R" min={0.02} max={3} step={0.01} value={p.release ?? 0.6} onChange={v => onADSR({ release: v })} />
-    </div>
-    )
-  }
-
-  if (synthType === 'Resonator') return (
-    <div className="sp-panel">
-      <ResonatorControls params={p} onChange={onADSR} status={resonatorStatus} granularEnabled={granularEnabled} variant="rack" autoTargets={autoTargets} />
-    </div>
-  )
-
-  if (synthType === 'Macro') return (
-    <div className="sp-panel">
-      <MacroControls params={p} onChange={onADSR} granularEnabled={granularEnabled} variant="rack" autoTargets={autoTargets} laneName={laneName} />
-    </div>
-  )
-
-  if (synthType === 'Sampler') {
-    const presetId = p.samplerPreset ?? 'piano'
-    const preset   = SAMPLER_PRESETS[presetId]
-    return (
-    <div className="sp-panel">
-      <SpSection label="SAMPLER" />
-      <div className="sp-row sp-row--select">
-        <span className="sp-label">Inst</span>
-        <select className="sp-select" value={presetId}
-          onChange={e => onSamplerPreset?.(e.target.value)}>
-          {SAMPLER_PRESET_LIST.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
-        </select>
-      </div>
-      {preset?.license && (
-        <div className="sp-row sp-row--credits" title={preset.attribution}>
-          <span className="sp-label">©</span>
-          <span className="sp-credits-text">
-            {preset.license} · {preset.attribution}
-            {preset.source && (
-              <> · <a className="sp-credits-link" href={preset.source} target="_blank" rel="noopener noreferrer">source ↗</a></>
-            )}
-          </span>
-        </div>
-      )}
-      <SpSection label="ENV" />
-      <SpSlider label="A" min={0} max={2} step={0.001} value={p.attack ?? 0.01} onChange={v => onADSR({ attack: v })} />
-      <SpSlider label="R" min={0.01} max={6} step={0.01} value={p.release ?? 1.0} onChange={v => onADSR({ release: v })} />
-      <SpSection label="UPLOAD" />
-      <SamplerUploadRow onSamplerUpload={onSamplerUpload} />
-    </div>
-    )
-  }
-
-  const envBlock = (hasViz = true) => (
-    <>
-      {hasViz && <AdsrVisualizer attack={p.attack} decay={p.decay} sustain={p.sustain} release={p.release} />}
-      <SpSliderWithCurve
-        label="A" min={0.001} max={2} step={0.001} {...a('attack', p.attack ?? 0.005)} onChange={v => onADSR({ attack: v })}
-        curveValue={p.attackCurve ?? 'exponential'} curveOptions={ALL_ENV_CURVES} onCurve={v => onADSR({ attackCurve: v })}
-      />
-      <SpSliderWithCurve
-        label="D" min={0.001} max={2} step={0.001} {...a('decay', p.decay ?? 0.1)} onChange={v => onADSR({ decay: v })}
-        curveValue={p.decayCurve ?? 'exponential'} curveOptions={DECAY_ENV_CURVES} onCurve={v => onADSR({ decayCurve: v })}
-      />
-      <SpSlider label="S" min={0} max={1} step={0.01} {...a('sustain', p.sustain ?? 0.5)} onChange={v => onADSR({ sustain: v })} />
-      <SpSliderWithCurve
-        label="R" min={0.01} max={4} step={0.01} {...a('release', p.release ?? 1.0)} onChange={v => onADSR({ release: v })}
-        curveValue={p.releaseCurve ?? 'exponential'} curveOptions={ALL_ENV_CURVES} onCurve={v => onADSR({ releaseCurve: v })}
-      />
-    </>
-  )
-
-  if (synthType === 'PluckSynth') return (
-    <div className="sp-panel">
-      <SpSlider label="Noise" min={0.1} max={20} step={0.1}  {...a('attackNoise', p.attackNoise ?? 1)}  onChange={v => onADSR({ attackNoise: v })} />
-      <SpSlider label="Damp"  min={200} max={8000} step={10} {...a('dampening', p.dampening ?? 4000)}   onChange={v => onADSR({ dampening: v })} unit="Hz" />
-      <SpSlider label="Res"   min={0} max={0.98} step={0.01} {...a('resonance', p.resonance ?? 0.7)}    onChange={v => onADSR({ resonance: v })} />
-    </div>
-  )
-
-  if (synthType === 'NoiseSynth') return (
-    <div className="sp-panel">
-      <SpSection label="NOISE" />
-      <SpSelect label="Type" value={p.noiseType ?? 'white'} options={NOISE_TYPES} onChange={v => onADSR({ noiseType: v })} />
-      <SpSection label="ENV" />
-      {envBlock()}
-    </div>
-  )
-
-  if (synthType === 'MembraneSynth') return (
-    <div className="sp-panel">
-      <SpSection label="DRUM" />
-      <SpSlider label="Decay"  min={0.001} max={0.5} step={0.001} {...a('pitchDecay', p.pitchDecay ?? 0.05)}  onChange={v => onADSR({ pitchDecay: v })} />
-      <SpSlider label="Octav"  min={1}     max={20}  step={0.5}   {...a('membOctaves', p.membOctaves ?? 10)}  onChange={v => onADSR({ membOctaves: v })} />
-      <SpSection label="ENV" />
-      {envBlock()}
-    </div>
-  )
-
-  if (synthType === 'MetalSynth') return (
-    <div className="sp-panel">
-      <SpSection label="METAL" />
-      <SpSlider label="Harm"   min={0.1}  max={20}    step={0.1}  {...a('metalHarmonicity', p.metalHarmonicity ?? 5.1)} onChange={v => onADSR({ metalHarmonicity: v })} />
-      <SpSlider label="ModIdx" min={1}    max={100}   step={1}    {...a('metalModIndex', p.metalModIndex ?? 32)}        onChange={v => onADSR({ metalModIndex: v })} />
-      <SpSlider label="Octav"  min={0.1}  max={5}     step={0.1}  {...a('metalOctaves', p.metalOctaves ?? 1.5)}         onChange={v => onADSR({ metalOctaves: v })} />
-      <SpSlider label="Res"    min={100}  max={10000} step={10}   {...a('resonance', p.resonance ?? 4000)}              onChange={v => onADSR({ resonance: v })} unit="Hz" />
-      <SpSection label="ENV" />
-      {envBlock()}
-    </div>
-  )
-
-  if (synthType === 'MonoSynth') return (
-    <div className="sp-panel">
-      <SpSection label="OSC" />
-      <SpSelect label="Type"  value={p.oscillatorType ?? 'sawtooth'} options={OSC_TYPES}   onChange={v => onADSR({ oscillatorType: v })} />
-      <SpSlider label="Phase" min={0} max={360} step={1}              value={p.phase ?? 0}  onChange={v => onADSR({ phase: v })} unit="°" />
-      <SpSlider label="Dtn"   min={-200} max={200} step={1}           {...a('detune', p.detune ?? 0)} onChange={v => onADSR({ detune: v })} unit="¢" />
-      <SpSection label="ENV" />
-      {envBlock()}
-      <SpSection label="FILTER" />
-      <SpSelect label="Type"   value={p.filterType ?? 'lowpass'}        options={FILTER_TYPES}               onChange={v => onADSR({ filterType: v })} />
-      <SpSelect label="Roll"   value={String(p.filterRolloff ?? -12)}   options={FILTER_ROLLOFFS.map(String)} onChange={v => onADSR({ filterRolloff: Number(v) })} />
-      <SpSlider label="Q"      min={0.1} max={20}   step={0.1}          {...a('filterQ', p.filterQ ?? 1)}                   onChange={v => onADSR({ filterQ: v })} />
-      <SpSection label="FILTER ENV" />
-      <SpSlider label="A"      min={0.001} max={2}  step={0.001}        {...a('filterEnvAttack', p.filterEnvAttack ?? 0.001)}  onChange={v => onADSR({ filterEnvAttack: v })} />
-      <SpSlider label="D"      min={0.001} max={2}  step={0.001}        {...a('filterEnvDecay', p.filterEnvDecay ?? 0.3)}      onChange={v => onADSR({ filterEnvDecay: v })} />
-      <SpSlider label="S"      min={0} max={1}      step={0.01}         {...a('filterEnvSustain', p.filterEnvSustain ?? 0.3)}  onChange={v => onADSR({ filterEnvSustain: v })} />
-      <SpSlider label="R"      min={0.01} max={4}   step={0.01}         {...a('filterEnvRelease', p.filterEnvRelease ?? 0.8)}  onChange={v => onADSR({ filterEnvRelease: v })} />
-      <SpSlider label="Base"   min={20}  max={5000} step={10}           {...a('filterEnvBaseFreq', p.filterEnvBaseFreq ?? 200)} onChange={v => onADSR({ filterEnvBaseFreq: v })} unit="Hz" />
-      <SpSlider label="Oct"    min={0}   max={8}    step={0.5}          {...a('filterEnvOctaves', p.filterEnvOctaves ?? 3)}    onChange={v => onADSR({ filterEnvOctaves: v })} />
-      <SpSlider label="Exp"    min={0.1} max={8}    step={0.1}          value={p.filterEnvExponent ?? 2}     onChange={v => onADSR({ filterEnvExponent: v })} />
-    </div>
-  )
-
-  if (synthType === 'FMSynth') return (
-    <div className="sp-panel">
-      {header}
-      <SpSection label="CARRIER OSC" />
-      <SpSelect label="Type"   value={p.oscillatorType ?? 'sine'}     options={OSC_TYPES} onChange={v => onADSR({ oscillatorType: v })} />
-      <SpSlider label="Phase"  min={0} max={360} step={1}              value={p.phase ?? 0}              onChange={v => onADSR({ phase: v })} unit="°" />
-      <SpSlider label="Dtn"    min={-200} max={200} step={1}           {...a('detune', p.detune ?? 0)}             onChange={v => onADSR({ detune: v })} unit="¢" />
-      <SpSection label="MODULATOR" />
-      <SpSelect label="Type"   value={p.modulationOscType ?? 'sine'}  options={OSC_TYPES} onChange={v => onADSR({ modulationOscType: v })} />
-      <SpSlider label="Harm"   min={0.1} max={20}  step={0.1}          {...a('harmonicity', p.harmonicity ?? 3)}        onChange={v => onADSR({ harmonicity: v })} />
-      <SpSlider label="Idx"    min={0}   max={100} step={0.5}          {...a('modulationIndex', p.modulationIndex ?? 0)} onChange={v => onADSR({ modulationIndex: v })} />
-      <SpSection label="MOD ENV" />
-      <SpSlider label="A"      min={0.001} max={2} step={0.001}        {...a('modAttack', p.modAttack ?? 0.5)}        onChange={v => onADSR({ modAttack: v })} />
-      <SpSlider label="D"      min={0.001} max={2} step={0.001}        {...a('modDecay', p.modDecay ?? 0.1)}          onChange={v => onADSR({ modDecay: v })} />
-      <SpSlider label="S"      min={0} max={1}     step={0.01}         {...a('modSustain', p.modSustain ?? 1.0)}      onChange={v => onADSR({ modSustain: v })} />
-      <SpSlider label="R"      min={0.01} max={4}  step={0.01}         {...a('modRelease', p.modRelease ?? 1.4)}      onChange={v => onADSR({ modRelease: v })} />
-      <SpSection label="AMP ENV" />
-      {envBlock()}
-    </div>
-  )
-
-  if (synthType === 'AMSynth') return (
-    <div className="sp-panel">
-      {header}
-      <SpSection label="CARRIER OSC" />
-      <SpSelect label="Type"   value={p.oscillatorType ?? 'sine'}      options={OSC_TYPES} onChange={v => onADSR({ oscillatorType: v })} />
-      <SpSlider label="Phase"  min={0} max={360} step={1}               value={p.phase ?? 0}             onChange={v => onADSR({ phase: v })} unit="°" />
-      <SpSlider label="Dtn"    min={-200} max={200} step={1}            {...a('detune', p.detune ?? 0)}            onChange={v => onADSR({ detune: v })} unit="¢" />
-      <SpSection label="MODULATOR" />
-      <SpSelect label="Type"   value={p.modulationOscType ?? 'square'}  options={OSC_TYPES} onChange={v => onADSR({ modulationOscType: v })} />
-      <SpSlider label="Harm"   min={0.1} max={20}  step={0.1}           {...a('harmonicity', p.harmonicity ?? 3)}     onChange={v => onADSR({ harmonicity: v })} />
-      <SpSection label="MOD ENV" />
-      <SpSlider label="A"      min={0.001} max={2} step={0.001}         {...a('modAttack', p.modAttack ?? 0.5)}       onChange={v => onADSR({ modAttack: v })} />
-      <SpSlider label="D"      min={0.001} max={2} step={0.001}         {...a('modDecay', p.modDecay ?? 0.0)}         onChange={v => onADSR({ modDecay: v })} />
-      <SpSlider label="S"      min={0} max={1}     step={0.01}          {...a('modSustain', p.modSustain ?? 1.0)}     onChange={v => onADSR({ modSustain: v })} />
-      <SpSlider label="R"      min={0.01} max={4}  step={0.01}          {...a('modRelease', p.modRelease ?? 0.5)}     onChange={v => onADSR({ modRelease: v })} />
-      <SpSection label="AMP ENV" />
-      {envBlock()}
-    </div>
-  )
-
-  if (synthType === 'DuoSynth') return (
-    <div className="sp-panel">
-      <SpSection label="OSC" />
-      <SpSelect label="Osc 1"   value={p.voice0OscType ?? 'sawtooth'} options={OSC_TYPES} onChange={v => onADSR({ voice0OscType: v })} />
-      <SpSelect label="Osc 2"   value={p.voice1OscType ?? p.voice0OscType ?? 'sawtooth'} options={OSC_TYPES} onChange={v => onADSR({ voice1OscType: v })} />
-      <SpSlider label="Dtn"     min={-200} max={200} step={1}          {...a('detune', p.detune ?? 0)}              onChange={v => onADSR({ detune: v })} unit="¢" />
-      <SpSlider label="Harm"    min={0.1} max={6}    step={0.1}        {...a('duoHarmonicity', p.duoHarmonicity ?? 1.5)}  onChange={v => onADSR({ duoHarmonicity: v })} />
-      <SpSection label="VIBRATO" />
-      <SpSlider label="Rate"    min={0.1} max={20}   step={0.1}        {...a('vibratoRate', p.vibratoRate ?? 5)}          onChange={v => onADSR({ vibratoRate: v })} unit="Hz" />
-      <SpSlider label="Amt"     min={0}   max={1}    step={0.01}       {...a('vibratoAmount', p.vibratoAmount ?? 0.5)}    onChange={v => onADSR({ vibratoAmount: v })} />
-      <SpSection label="ENV" />
-      {envBlock()}
-    </div>
-  )
-
-  // Default: basic Synth
-  return (
-    <div className="sp-panel">
-      {header}
-      <SpSection label="OSC" />
-      <SpSelect label="Type"  value={p.oscillatorType ?? 'sine'} options={OSC_TYPES} onChange={v => onADSR({ oscillatorType: v })} />
-      <SpSlider label="Phase" min={0} max={360} step={1}          value={p.phase ?? 0}  onChange={v => onADSR({ phase: v })} unit="°" />
-      <SpSlider label="Dtn"   min={-200} max={200} step={1}       {...a('detune', p.detune ?? 0)} onChange={v => onADSR({ detune: v })} unit="¢" />
-      <SpSection label="ENV" />
-      {envBlock()}
-    </div>
-  )
-}
 
 function FilterPanel({ filter, onFilter, autoTargets = {} }) {
   const ed = useLaneFilterEditor(filter, onFilter)

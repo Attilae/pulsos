@@ -116,3 +116,16 @@ test('live mode is clamped away in cities with no feed', () => {
   assert.equal(clampMode('live', { liveWsUrl: 'ws://localhost:3005' }), 'live')
   assert.equal(clampMode(undefined, { liveWsUrl: 'ws://x' }), 'mock')
 })
+
+test('modern drum-only saves preserve an explicitly empty selection despite stale settings', () => {
+  for (const schemaVersion of [3, 4]) {
+    const snapshot = { schemaVersion, routeIds: [], muted: { M1: false }, drumPattern: { patterns: {} } }
+    assert.deepEqual(snapshotBaseRouteIds(snapshot), [])
+    assert.deepEqual(resolveSnapshotLanes(CITY, snapshot).lanes, [])
+  }
+  assert.deepEqual(resolveSnapshotRoutes(CITY, { schemaVersion: 4, state: { routeIds: [] } }).base, [])
+})
+test('legacy empty or absent selections retain route recovery and the whole-city fallback', () => {
+  assert.deepEqual(snapshotBaseRouteIds({ schemaVersion: 2, routeIds: [], muted: { M1: false } }), ['M1'])
+  assert.deepEqual(resolveSnapshotRoutes(CITY, { schemaVersion: 2, routeIds: [] }).base, CITY)
+})

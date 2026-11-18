@@ -12,10 +12,11 @@ import { ReferenceControls, ReferenceUploadButton, REFERENCE_LANE_LABEL, REFEREN
 export default function MoreSheet({
   open, onClose,
   cityName,
+  started = false,
   mode, onMode, liveAvailable,
   harmony, onHarmony, harmonyMixed,
   onRepick,
-  onExportMidi, onExportWav, canExport, audioExporting,
+  onExportMidi, onExportWav, canExport, audioExporting, audioProgress = 0,
   canImportDrums, hasDrums, onImportDrums,
   reference, bpm,
   onOpenAi,
@@ -62,9 +63,12 @@ export default function MoreSheet({
       )}
 
       <div className="msheet-actions">
-        <button type="button" className="msheet-action" onClick={onRepick}>
+        {/* Same rule as the desktop header: re-picking swaps lanes under a
+            running engine, so it waits for Stop rather than silently doing nothing. */}
+        <button type="button" className="msheet-action" onClick={onRepick} disabled={started}>
           ↻ Re-pick all lines
         </button>
+        {started && <span className="msheet-hint">Stop playback to re-pick lines.</span>}
         {canImportDrums && (
           <button type="button" className="msheet-action" onClick={onImportDrums}>
             ♪ {hasDrums ? 'Update drums' : 'Add drums'}
@@ -102,12 +106,14 @@ export default function MoreSheet({
           <button type="button" className="msheet-action" onClick={onExportMidi} disabled={!canExport}>
             ↓ MIDI
           </button>
-          <button type="button" className="msheet-action" onClick={onExportWav} disabled={!canExport || audioExporting}>
-            {audioExporting ? 'Recording…' : <><IconDownload /> WAV</>}
+          <button type="button" className="msheet-action" onClick={onExportWav} disabled={!started || !canExport || audioExporting}>
+            {audioExporting ? `Recording ${Math.round(audioProgress * 100)}%` : <><IconDownload /> WAV</>}
           </button>
         </div>
         <span className="msheet-hint">
-          WAV records in real time: it plays the song through once to capture it.
+          {started
+            ? 'WAV records in real time: it plays the song through once to capture it.'
+            : 'WAV records the live mix in real time, so press Play first.'}
         </span>
       </div>
 

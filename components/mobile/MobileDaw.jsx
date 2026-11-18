@@ -13,14 +13,21 @@
 import { useState } from 'react'
 import MobileTopBar from './MobileTopBar.jsx'
 import MobileLaneList from './MobileLaneList.jsx'
+import DrumLaneSheet from './DrumLaneSheet.jsx'
 import MobileTransportBar from './MobileTransportBar.jsx'
 import LaneSheet from './LaneSheet.jsx'
 import MoreSheet from './MoreSheet.jsx'
 import SongMenu from '../SongMenu.jsx'
 import Sheet from '../Sheet.jsx'
+import LinePicker from '../LinePicker.jsx'
+import DuplicateLaneDialog from '../DuplicateLaneDialog.jsx'
+import { linePickerProps } from '@/lib/linePickerProps.js'
 import './MobileDaw.css'
 
 export default function MobileDaw({ controls, lanes }) {
+  const [drumOpen, setDrumOpen] = useState(false)
+  const [linePicker, setLinePicker] = useState(null)
+  const [dupPrompt, setDupPrompt] = useState(null)
   const [openLaneId, setOpenLaneId] = useState(null)
   const [moreOpen, setMoreOpen] = useState(false)
   const [songOpen, setSongOpen] = useState(false)
@@ -44,6 +51,15 @@ export default function MobileDaw({ controls, lanes }) {
             grid area by CSS, so switching views never remounts Leaflet. */}
         {controls.view === 'daw' && (
           <MobileLaneList
+            drums={lanes.drums}
+            onOpenDrums={() => setDrumOpen(true)}
+            mode={controls.mode}
+            started={controls.started}
+            liveSnapshot={controls.liveSnapshot}
+            snapshotLoading={controls.snapshotLoading}
+            onRefetch={controls.onRefetch}
+            onAddLine={type => setLinePicker({ mode: 'add', type })}
+            onRepickType={lanes.onRepickType}
             routes={lanes.routes}
             disabled={lanes.disabled}
             soloRoutes={lanes.soloRoutes}
@@ -74,8 +90,21 @@ export default function MobileDaw({ controls, lanes }) {
         onSoundCheck={controls.onSoundCheck}
       />
 
+      {lanes.drums?.pattern && <DrumLaneSheet
+        open={drumOpen} onClose={() => setDrumOpen(false)}
+        drums={lanes.drums} started={controls.started}
+        onVolume={lanes.onVolume} onFilter={lanes.onFilter} onSendLevel={lanes.onSendLevel}
+        activeFxTracks={lanes.activeFxTracks} sendMatrix={lanes.sendMatrix}
+        onClear={() => { setDrumOpen(false); lanes.drums.onClear() }}
+      />}
+
       <LaneSheet
         route={openLane}
+        onChangeLine={() => { setOpenLaneId(null); setLinePicker({ mode: 'change', type: openLane.type, routeId: openLane.id }) }}
+        onRemoveLine={() => { lanes.onRemoveLine(openLane.id); setOpenLaneId(null) }}
+        onDuplicate={() => { setOpenLaneId(null); setDupPrompt({ routeId: openLane.id, routeName: openLane.name }) }}
+        onRemoveDuplicate={() => { lanes.onRemoveDuplicate(openLane.id); setOpenLaneId(null) }}
+        onUnmerge={() => { lanes.onUnmerge(openLane.id); setOpenLaneId(null) }}
         open={openLane != null}
         onClose={() => setOpenLaneId(null)}
         volume={lanes.volumes?.[openLaneId] ?? 0}
@@ -92,6 +121,12 @@ export default function MobileDaw({ controls, lanes }) {
         speed={lanes.speeds?.[openLaneId] ?? 1}
         gridResolution={lanes.gridResolutions?.[openLaneId]}
         loopRegion={lanes.loopRegions?.[openLaneId]}
+        onTrackLoopRegion={lanes.onTrackLoopRegion}
+        started={lanes.started}
+        audioExporting={lanes.audioExporting}
+        audioProgress={lanes.audioProgress}
+        onExportMidi={lanes.onExportMidi}
+        onExportWav={lanes.onExportWav}
         arp={lanes.arps?.[openLaneId]}
         perStopSteps={lanes.pitchOffsets?.[openLaneId]}
         stopVelocities={lanes.stopVelocities?.[openLaneId]}
@@ -100,6 +135,8 @@ export default function MobileDaw({ controls, lanes }) {
         stopNoteLength={lanes.stopNoteLengths?.[openLaneId]}
         stopVelocityMap={lanes.stopVelocityMaps?.[openLaneId]}
         legato={!!lanes.legatos?.[openLaneId]}
+        glide={lanes.glides?.[openLaneId] ?? 0}
+        automationLanes={lanes.automationLanes?.[openLaneId]}
         drone={!!lanes.droneModes?.[openLaneId]}
         stopChances={lanes.stopChances?.[openLaneId]}
         loopPattern={lanes.loopPatterns?.[openLaneId]}
@@ -115,6 +152,12 @@ export default function MobileDaw({ controls, lanes }) {
         onSolo={lanes.onSolo}
         onSynthType={lanes.onSynthType}
         onADSR={lanes.onADSR}
+        onSamplerPreset={lanes.onSamplerPreset}
+        onSamplerUpload={lanes.onSamplerUpload}
+        onDrumVoice={lanes.onDrumVoice}
+        onGranular={lanes.onGranular}
+        onGlide={lanes.onGlide}
+        onLegato={lanes.onLegato}
         onScale={lanes.onScale}
         onOctaveShift={lanes.onOctaveShift}
         onPitchVariety={lanes.onPitchVariety}
@@ -135,10 +178,21 @@ export default function MobileDaw({ controls, lanes }) {
         onFilter={lanes.onFilter}
       />
 
+      {linePicker && <LinePicker {...linePickerProps({
+        prompt: linePicker, allRoutes: lanes.allRoutes,
+        selectedIds: new Set(lanes.selectedRouteIds ?? []),
+        onAddLine: lanes.onAddLine, onChangeLine: lanes.onChangeLine, onRemoveLine: lanes.onRemoveLine,
+        onClose: () => setLinePicker(null),
+      })} />}
+      {dupPrompt && <DuplicateLaneDialog routeName={dupPrompt.routeName}
+        onConfirm={semitones => { lanes.onDuplicateTrack(dupPrompt.routeId, semitones); setDupPrompt(null) }}
+        onClose={() => setDupPrompt(null)} />}
+
       <MoreSheet
         open={moreOpen}
         onClose={() => setMoreOpen(false)}
         cityName={controls.cityName}
+        started={controls.started}
         mode={controls.mode}
         onMode={controls.onMode}
         liveAvailable={controls.liveAvailable}
@@ -150,6 +204,7 @@ export default function MobileDaw({ controls, lanes }) {
         onExportWav={controls.onExportWav}
         canExport={controls.canExport}
         audioExporting={controls.audioExporting}
+        audioProgress={controls.audioProgress}
         canImportDrums={controls.canImportDrums}
         hasDrums={controls.hasDrums}
         onImportDrums={() => { setMoreOpen(false); controls.onImportDrums() }}
@@ -160,9 +215,11 @@ export default function MobileDaw({ controls, lanes }) {
       />
 
       {/* SongMenu is an anchored dropdown on desktop; at 390px an anchored
-          popover clips against the viewport edge, so it gets a sheet. */}
+          popover clips against the viewport edge, so it gets a sheet. The
+          sheet *is* the menu, so SongMenu renders inline (no second trigger)
+          and closes the sheet after an action. */}
       <Sheet open={songOpen} onClose={() => setSongOpen(false)} title="Song" className="song-sheet">
-        <SongMenu {...controls.song} />
+        <SongMenu {...controls.song} inline onDone={() => setSongOpen(false)} />
       </Sheet>
     </div>
   )

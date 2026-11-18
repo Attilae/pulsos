@@ -27,6 +27,7 @@ import SongMenu from '../SongMenu.jsx'
 import { useSongPersistence } from '../../lib/useSongPersistence.js'
 import { applySnapshot, buildSnapshot } from '@/lib/songState.js'
 import { audibleDrumPattern } from '@/lib/drumSpecs.js'
+import { drumLaneEnabled } from '@/lib/drumLane.js'
 import { getMasterBus } from '@/lib/masterBus.js'
 import { normalizeMasterChain } from '@/lib/masterChain.js'
 import { describeSnapshot } from '@/lib/ai/planSnapshot.js'
@@ -412,8 +413,10 @@ export default function MixerTab({ active = true, onReady }) {
   }, [routes, duplicates, merges])
 
   const visibleInstrumentRoutes = useMemo(() => (mergedRoutes ?? []).filter(route =>
-    !mergedConsumedIds.has(route.id) && !automationSourceIds.has(route.id) && route.id !== DRUMS_ROUTE_ID
-  ), [mergedRoutes, mergedConsumedIds, automationSourceIds])
+    // Automation-source lines stay in: they also play as lanes, so they count toward
+    // the lane cap, the saved laneManifest, the map and the phone lane list.
+    !mergedConsumedIds.has(route.id) && route.id !== DRUMS_ROUTE_ID
+  ), [mergedRoutes, mergedConsumedIds])
   // The map's lane list: the same lanes, each resolved to the base route lines
   // it draws on (duplicates via sourceId, merged lanes via sourceIds).
   const mapLanes = useMemo(() => buildMapLanes(visibleInstrumentRoutes), [visibleInstrumentRoutes])
@@ -819,8 +822,8 @@ export default function MixerTab({ active = true, onReady }) {
 
   const handleToggleDrumsMute = useCallback(() => setDrumsMuted(m => !m), [])
 
-  // Cycle a step's velocity level by *visible* index (0..15); map through the pad's
-  // offset to the 64-slot source buffer, same as DrumMachineTab. Live: the effect
+  // Cycle velocity by offset-relative index: desktop uses 0..15; the phone
+  // maps any source page to 0..63 through drumVisibleStep. Live: the effect
   // re-pushes into the engine's sequencer, which reads the updated buffer on the
   // next 16th.
   const handleToggleDrumStep = useCallback((padId, visibleIdx) => {
@@ -1778,8 +1781,8 @@ export default function MixerTab({ active = true, onReady }) {
   // How many lanes can actually be heard right now — the answer the sound check
   // needs, and the reason a fresh session is silent (every lane starts off).
   const activeLaneCount = useMemo(
-    () => countActiveLanes(visibleInstrumentRoutes, disabledRoutes),
-    [visibleInstrumentRoutes, disabledRoutes],
+    () => countActiveLanes(visibleInstrumentRoutes, disabledRoutes) + (drumLaneEnabled(drumPattern, drumsMuted) ? 1 : 0),
+    [visibleInstrumentRoutes, disabledRoutes, drumPattern, drumsMuted],
   )
 
   // "Enable a lane" from the sound check: turn on the first available one
@@ -1965,6 +1968,13 @@ export default function MixerTab({ active = true, onReady }) {
     trackLegatos, trackSpeeds, trackLoopRegions, trackGridResolutions, trackPitchVariety, trackStopVelocities, trackDroneModes,
     trackNoteChances, trackStopChances, trackNoteLengths, trackStopNoteLengths, trackStopVelocityMaps, trackSynthTypes, automationSourceIds, trackPitchOffsets, trackArps, trackLabels,
   ])
+
+  // Switching data source stops mock playback first. Shared by the desktop
+  // header and the phone's More sheet so the two can't diverge.
+  const switchMode = (next) => {
+    if (started) { engineRef.current?.stopMock(); setStarted(false) }
+    setMode(next)
+  }
 
   const canExportMix = useMemo(
     () => exportableMixRoutes(mergedRoutes, midiExportCtx).length > 0,
@@ -2328,14 +2338,14 @@ export default function MixerTab({ active = true, onReady }) {
             <button
               className={`mode-btn ${mode === 'mock' ? 'active' : ''}`}
               aria-pressed={mode === 'mock'}
-              onClick={() => { if (started) { engineRef.current?.stopMock(); setStarted(false) }; setMode('mock') }}
+              onClick={() => switchMode('mock')}
             >Mock</button>
             <button
               className={`mode-btn ${mode === 'live' ? 'active' : ''}`}
               aria-pressed={mode === 'live'}
               disabled={!cityEntry.liveWsUrl}
               aria-describedby={cityEntry.liveWsUrl ? undefined : 'live-unavailable-note'}
-              onClick={() => { if (started) { engineRef.current?.stopMock(); setStarted(false) }; setMode('live') }}
+              onClick={() => switchMode('live')}
             >Live</button>
           </div>
           {!cityEntry.liveWsUrl && (
@@ -2612,9 +2622,10 @@ export default function MixerTab({ active = true, onReady }) {
           controls={{
             cityName: cityEntry.name,
             view, onView: setView, mapStyle, onMapStyle: setMapStyle,
+            liveSnapshot, snapshotLoading, onRefetch: fetchSnapshot,
             started, onPlayPause: handlePlayPause,
             bpm, onBpm: setBpm,
-            mode, onMode: setMode, liveAvailable: !!cityEntry.liveWsUrl,
+            mode, onMode: switchMode, liveAvailable: !!cityEntry.liveWsUrl,
             harmony: harmonyCommon ?? globalHarmony,
             onHarmony: handleGlobalHarmony,
             harmonyMixed,
@@ -2622,7 +2633,7 @@ export default function MixerTab({ active = true, onReady }) {
             onExportMidi: handleExportMixMidi,
             onExportWav: handleExportMixAudio,
             canExport: canExportMix,
-            audioExporting,
+            audioExporting, audioProgress,
             canImportDrums, hasDrums: !!drumPattern, onImportDrums: handleImportDrums,
             reference: referenceTrack,
             onOpenAi: () => setAiOpen(true),
@@ -2633,6 +2644,28 @@ export default function MixerTab({ active = true, onReady }) {
           }}
           lanes={{
             routes: visibleInstrumentRoutes,
+            drums: {
+              pattern: drumPattern, muted: drumsMuted,
+              volume: volumes[DRUMS_ROUTE_ID] ?? 0,
+              filter: trackFilters[DRUMS_ROUTE_ID],
+              onToggleMute: handleToggleDrumsMute,
+              onToggleStep: handleToggleDrumStep,
+              onTogglePadMute: handleToggleDrumPadMute,
+              onClear: handleClearDrums,
+            },
+            allRoutes: allRoutesRef.current,
+            selectedRouteIds: (mergedRoutes ?? []).map(route => route.id),
+            onAddLine: handleAddLine,
+            onChangeLine: handleChangeLine,
+            onRemoveLine: handleRemoveLine,
+            onRepickType: handleRepickType,
+            onDuplicateTrack: handleDuplicateTrack,
+            onRemoveDuplicate: handleRemoveDuplicate,
+            onUnmerge: handleUnmerge,
+            started, audioExporting, audioProgress,
+            onTrackLoopRegion: handleTrackLoopRegion,
+            onExportMidi: handleExportRouteMidi,
+            onExportWav: handleExportRouteAudio,
             mergedConsumedIds,
             disabled: disabledRoutes,
             soloRoutes,
@@ -2655,6 +2688,8 @@ export default function MixerTab({ active = true, onReady }) {
             stopNoteLengths: trackStopNoteLengths,
             stopVelocityMaps: trackStopVelocityMaps,
             legatos: trackLegatos,
+            glides: trackGlides,
+            automationLanes: automationCfg,
             droneModes: trackDroneModes,
             stopChances: trackStopChances,
             loopPatterns: trackLoopPatterns,
@@ -2671,6 +2706,12 @@ export default function MixerTab({ active = true, onReady }) {
             onPan: handlePan,
             onSynthType: handleSynthType,
             onADSR: handleADSR,
+            onSamplerPreset: handleSamplerPreset,
+            onSamplerUpload: handleSamplerUpload,
+            onDrumVoice: handleDrumVoice,
+            onGranular: handleGranular,
+            onGlide: handleGlide,
+            onLegato: handleLegato,
             onScale: handleScale,
             onOctaveShift: handleOctaveShift,
             onPitchVariety: handlePitchVariety,
