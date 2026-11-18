@@ -681,3 +681,30 @@
 .mlanes-add { width: 100%; margin-top: var(--space-150); }
 .lsheet-line-actions { display: flex; flex-direction: column; gap: var(--space-050); padding-bottom: var(--space-100); }
 .lsheet-line-actions select { background: var(--surface2); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius-sm); font-family: inherit; font-size: var(--fs-sm); }
+
+/* Map-tab drum lane. The pad grid shows one page of the 64-slot saved pattern;
+   a transformed cursor marks the 16-step window's actual read position. */
+.mdrum-strip { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: var(--space-100); }
+.mdrum-strip-head, .mdrum-strip-controls, .mdrum-pad-head { display: flex; align-items: center; gap: var(--space-100); }
+.mdrum-strip-head h3, .mdrum-pad-head > div { flex: 1; }
+.mdrum-strip h3, .mdrum-pad h3 { font-size: var(--fs-sm); color: var(--text); }
+.mdrum-strip-controls input { flex: 1; min-width: 0; }
+.mdrum-strip-controls .mono { font-size: var(--fs-xs); color: var(--muted); }
+.mdrum-toolbar { display: flex; flex-direction: column; gap: var(--space-100); }
+.mdrum-pages { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-075); }
+.mdrum-pages button { position: relative; padding-inline: var(--space-025); }
+.mdrum-pages .is-selected { border-color: var(--accent); color: var(--accent); }
+.mdrum-pages [data-playing='true']::after { content: ''; position: absolute; bottom: var(--space-050); right: var(--space-050); width: 5px; height: 5px; border-radius: var(--radius-pill); background: var(--accent); }
+.mdrum-pad-head { padding-bottom: var(--space-100); }
+.mdrum-strip .is-muted, .mdrum-pad .is-muted { border-color: var(--warning-text); color: var(--warning-text); }
+.mdrum-grid { --mdrum-gap: var(--space-075); position: relative; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); grid-auto-rows: var(--mdrum-cell); gap: var(--mdrum-gap); }
+.mdrum-step { position: relative; overflow: hidden; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: var(--space-025); background: var(--surface2); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius-sm); font: inherit; font-family: var(--font-mono); font-size: var(--fs-sm); cursor: pointer; }
+.mdrum-step.in-window { border-color: var(--muted-line); }
+.mdrum-step::before { content: ''; position: absolute; inset: auto 0 0; background: color-mix(in srgb, var(--accent) 25%, transparent); pointer-events: none; }
+.mdrum-step.on.vel-accent::before { height: 100%; }
+.mdrum-step.on.vel-norm::before { height: 65%; }
+.mdrum-step.on.vel-soft::before { height: 30%; }
+.mdrum-step span { position: relative; }
+.mdrum-step .mdrum-velocity { font-size: var(--fs-3xs); color: var(--text-subtle); }
+.mdrum-cursor { position: absolute; top: 0; left: 0; width: calc((100% - 3 * var(--mdrum-gap)) / 4); height: var(--mdrum-cell); box-sizing: border-box; border: 2px solid var(--accent); border-radius: var(--radius-sm); pointer-events: none; }
+.mdrum-remove { width: 100%; color: var(--danger); }

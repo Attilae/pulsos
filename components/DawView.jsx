@@ -1,3 +1,5 @@
+import { drumSourceStep, drumPlaybackStep, drumVelocityClass } from '@/lib/drumLane.js'
+import { normalizeStep } from '@/lib/drumSpecs.js'
 import { linePickerProps } from '@/lib/linePickerProps.js'
 import SnapshotBar from './SnapshotBar.jsx'
 import { editLoopEdge, loopCellAtPointer, loopKeyCell } from '@/lib/loopRegionEdit.js'
@@ -764,8 +766,7 @@ function DrumLane({
     const unsubscribe = subscribePlayhead(() => {
       // Drum sequencer step (16th-note loop of DRUM_STEPS cells). The drum loop
       // is shorter than the 16-beat visual cycle, so derive it independently.
-      const stepDur = (60 / (Tone.getTransport().bpm.value || 120)) / 4
-      const step = Math.floor(Tone.getTransport().seconds / stepDur) % DRUM_STEPS
+      const step = drumPlaybackStep(Tone.getTransport().seconds, Tone.getTransport().bpm.value)
       if (step === playingStepRef.current) return
       root.querySelectorAll('.drum-lane-step.playing').forEach(el => el.classList.remove('playing'))
       root.querySelectorAll(`.drum-lane-step[data-step="${step}"]`).forEach(el => el.classList.add('playing'))
@@ -863,11 +864,11 @@ function DrumLane({
               >M</button>
               <div className="drum-lane-steps">
                 {Array.from({ length: DRUM_STEPS }).map((_, i) => {
-                  const src   = (offset + i) % DRUM_SOURCE_STEPS
+                  const src   = drumSourceStep(offset, i)
                   const vel   = padPat[src]
                   // Old snapshots store booleans (true → full); numbers are velocities.
-                  const v     = typeof vel === 'number' ? vel : (vel ? 1 : 0)
-                  const level = !v ? '' : v >= 0.85 ? 'vel-accent' : v >= 0.55 ? 'vel-norm' : 'vel-soft'
+                  const v     = normalizeStep(vel)
+                  const level = drumVelocityClass(v)
                   return (
                     <button
                       key={i}

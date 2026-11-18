@@ -4,9 +4,10 @@
 import { SECTIONS } from '../DawView.jsx'
 import SnapshotBar from '../SnapshotBar.jsx'
 import MobileLaneStrip from './MobileLaneStrip.jsx'
+import MobileDrumStrip from './MobileDrumStrip.jsx'
 
 export default function MobileLaneList({
-  routes, disabled, soloRoutes, volumes, lockedIds, labels, mergedConsumedIds,
+  drums, onOpenDrums, routes, disabled, soloRoutes, volumes, lockedIds, labels, mergedConsumedIds,
   onDisable, onSolo, onVolume, onOpenLane,
   mode, started, liveSnapshot, snapshotLoading, onRefetch, onAddLine, onRepickType,
 }) {
@@ -22,7 +23,8 @@ export default function MobileLaneList({
     <div className="mlanes">
       {mode === 'live' && <SnapshotBar snapshot={liveSnapshot} loading={snapshotLoading}
         started={started} onRefetch={onRefetch} variant="phone" />}
-      {!total && <p className="mlanes-empty">No lines in this song. Add a line to start.</p>}
+      {drums?.pattern && <MobileDrumStrip drums={drums} onVolume={onVolume} onOpen={onOpenDrums} />}
+      {!total && !drums?.pattern && <p className="mlanes-empty">No lines in this song. Add a line to start.</p>}
       {SECTIONS.map(({ type, label }) => byType[type].length > 0 && (
         <section className="mlanes-section" key={type} aria-label={`${label} lanes`}>
           <div className="mlanes-section-head">

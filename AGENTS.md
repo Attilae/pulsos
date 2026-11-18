@@ -440,8 +440,10 @@ visual contract: tokens, named rules, do's and don'ts. The UI conventions it rel
   that track; Cmd/Ctrl-click toggles additive membership (`handleSolo(routeId, additive)`).
   Gating happens at note-trigger time in the engine (`_soloRoutes`), same mechanism as disable.
 - Active (soloed or non-disabled) tracks are **excluded as automation-lane sources** in
-  `DawView.jsx`'s `AutomationLane` — picking one as a source would make it vanish from the
-  instrument view once music starts.
+  `DawView.jsx`'s `AutomationLane`'s picker, but a source lane can still be enabled afterwards
+  and then **both drives automation and plays** as a normal lane. The engine builds its synth,
+  `visibleInstrumentRoutes` keeps it, and MIDI exports it. Before this, the engine skipped
+  synths for source routes, so such a lane went silent after any Stop/Play or song load.
 - **Choosing which lines are lanes** is `components/LinePicker.jsx`, a portal modal driven by a
   `linePicker` payload assembled in `DawView.jsx`. `mode: 'add'` picks a new line (lines already in
   the mix are listed disabled); `mode: 'change'` swaps the line backing an existing lane while

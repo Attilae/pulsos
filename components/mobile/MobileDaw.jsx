@@ -13,6 +13,7 @@
 import { useState } from 'react'
 import MobileTopBar from './MobileTopBar.jsx'
 import MobileLaneList from './MobileLaneList.jsx'
+import DrumLaneSheet from './DrumLaneSheet.jsx'
 import MobileTransportBar from './MobileTransportBar.jsx'
 import LaneSheet from './LaneSheet.jsx'
 import MoreSheet from './MoreSheet.jsx'
@@ -24,6 +25,7 @@ import { linePickerProps } from '@/lib/linePickerProps.js'
 import './MobileDaw.css'
 
 export default function MobileDaw({ controls, lanes }) {
+  const [drumOpen, setDrumOpen] = useState(false)
   const [linePicker, setLinePicker] = useState(null)
   const [dupPrompt, setDupPrompt] = useState(null)
   const [openLaneId, setOpenLaneId] = useState(null)
@@ -49,6 +51,8 @@ export default function MobileDaw({ controls, lanes }) {
             grid area by CSS, so switching views never remounts Leaflet. */}
         {controls.view === 'daw' && (
           <MobileLaneList
+            drums={lanes.drums}
+            onOpenDrums={() => setDrumOpen(true)}
             mode={controls.mode}
             started={controls.started}
             liveSnapshot={controls.liveSnapshot}
@@ -85,6 +89,14 @@ export default function MobileDaw({ controls, lanes }) {
         noOutput={controls.noOutput}
         onSoundCheck={controls.onSoundCheck}
       />
+
+      {lanes.drums?.pattern && <DrumLaneSheet
+        open={drumOpen} onClose={() => setDrumOpen(false)}
+        drums={lanes.drums} started={controls.started}
+        onVolume={lanes.onVolume} onFilter={lanes.onFilter} onSendLevel={lanes.onSendLevel}
+        activeFxTracks={lanes.activeFxTracks} sendMatrix={lanes.sendMatrix}
+        onClear={() => { setDrumOpen(false); lanes.drums.onClear() }}
+      />}
 
       <LaneSheet
         route={openLane}

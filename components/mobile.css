@@ -309,3 +309,13 @@
   .duplicate-lane-dialog .stop-editor-control { flex-wrap: wrap; min-width: 0; }
   .duplicate-lane-dialog .stop-editor-step, .duplicate-lane-dialog .stop-editor-reset, .duplicate-lane-dialog .dlg-btn { min-width: 44px; min-height: 44px; }
 }
+
+/* Phase 4: touch-sized drum controls; 16 steps are laid out as a 4×4 page. */
+@media (max-width: 767px) {
+  .mdrum-strip-controls button, .mdrum-pages button, .mdrum-pad-head button, .mdrum-remove { min-height: 44px; }
+  .mdrum-strip-controls input { min-height: 44px; }
+  .mdrum-strip-controls input::-webkit-slider-thumb { width: 24px; height: 24px; }
+  .mdrum-strip-controls input::-moz-range-thumb { width: 24px; height: 24px; }
+  .mdrum-grid { --mdrum-cell: 56px; }
+  .mdrum-step { min-width: 44px; min-height: var(--mdrum-cell); padding: var(--space-050); }
+}
