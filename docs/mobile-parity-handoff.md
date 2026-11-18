@@ -63,7 +63,30 @@ Ship it as **phased PRs, one area per PR**, each releasable on its own. Branch e
     Browser checks used mocked account/storage/entitlements and had no page errors or
     horizontal overflow. The snapshot refetch/loading check used a mocked live-mode callback;
     the app-wide mock-only Live configuration is unchanged.
-  - **Next is Phase 4: Drum lane on the Map tab.** Phases 4–8 are not implemented yet.
+
+- **Phase 4 is implemented** on `feature/mobile-parity-phase4` (stacked on Phase 3):
+  - `MobileDrumStrip` exposes drum master mute, volume and the sheet opener, independently of
+    the transit lanes. `DrumLaneSheet` has Pads/Mix, four pinned source pages, pad mutes,
+    shared filter/send fields, and a pinned Remove action.
+  - **Playback remains a 16-step per-pad window into a 64-slot buffer.** Pages edit that
+    buffer; they do not turn it into a 64-step playback loop. Each pad shows its play window,
+    and cursors/page markers follow its actual source indices, including offset wraparound.
+  - `lib/drumLane.js` shares index/timing/velocity rules with the desktop lane. The existing
+    velocity helpers now live in pure `lib/drumSpecs.js`, re-exported by drumEngine unchanged.
+    `LaneMixFields` is shared by instrument and drum sheets.
+  - The shared ticker has one extra subscriber only while Pads is open and playing. It paints
+    cached DOM cursors with transforms; Mix/close/stop unsubscribe, with no per-frame React state.
+  - Two related existing bugs were fixed: sound diagnostics now include enabled drums, and
+    modern snapshots honor an explicitly empty transit-lane list, allowing drum-only reloads.
+    Legacy snapshots still recover their lanes as before. No new Mixer state was added;
+    the diagnostic derived count is the sole non-bundle Mixer change.
+  - Verified: 636 tests, production build, 390px light/dark touch layouts and 820px/1440px
+    desktop checks, all velocity levels, nonzero/wrapping offsets, pad/master mutes, mix
+    save/reload, two-way Drum Machine sync, removal/re-import and drum-only saves. Ticker
+    open/close/Mix cycles restore the baseline subscriber count; measured drum output is nonzero.
+  - Performance results are in `docs/mobile-parity-phase4-validation.md`. Human listening on
+    phone hardware remains a release check.
+  - **Next is Phase 5: FX buses and master.** Phases 5–8 are not implemented yet.
 
 ### How the phone is wired
 
@@ -186,6 +209,10 @@ D = `components/DawView.jsx`.
   `dropSidechainSource` working. They do if you call the same handlers.
 
 ### Phase 4: Drum lane on the Map tab
+
+**Playback clarification:** each pad plays a 16-step sliding window from its 64-slot source
+buffer. The four pages edit the source buffer; per-pad offsets determine which slots play.
+Keep that model unless a separate engine/timeline change is explicitly requested.
 
 - **Lane list.** Add a `MobileDrumStrip` when a drum pattern is loaded, with mute-all, volume
   and a "more" button. Today `visibleInstrumentRoutes` excludes `DRUMS_ROUTE_ID`.

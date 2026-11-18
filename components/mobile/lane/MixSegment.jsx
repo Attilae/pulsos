@@ -1,9 +1,8 @@
 'use client'
 
 import { SidechainSourceOptions } from '../../DawView.jsx'
-import { LaneFilterFields } from '../../LaneFilterEditor.jsx'
+import LaneMixFields from './LaneMixFields.jsx'
 import { DEFAULT_SIDECHAIN } from '@/lib/engine.js'
-import { FX_BUSES } from '@/lib/fxTrack.js'
 import { Field, GroupHead, panLabel } from './fields.jsx'
 
 // One segment of the phone lane sheet (see ../LaneSheet.jsx). It receives the
@@ -56,26 +55,8 @@ export default function MixSegment({ ctx }) {
         </button>
       </Field>
 
-      {onFilter && <LaneFilterFields filter={filter} onFilter={p => onFilter(route.id, p)} Field={Field} />}
-
-      {activeFxTracks.length > 0 && (
-        <Field label="Sends">
-          {activeFxTracks.map(bus => {
-            const label = FX_BUSES.find(b => b.id === bus)?.label ?? bus
-            return (
-              <div className="lsheet-send" key={bus}>
-                <span className="lsheet-send-name">{label}</span>
-                <input
-                  type="range" min={0} max={1} step={0.01}
-                  value={sendMatrix?.[`${route.id}:${bus}`] ?? 0}
-                  onChange={e => onSendLevel(route.id, bus, Number(e.target.value))}
-                  aria-label={`${label} send`}
-                />
-              </div>
-            )
-          })}
-        </Field>
-      )}
+      <LaneMixFields routeId={route.id} filter={filter} onFilter={onFilter}
+        activeFxTracks={activeFxTracks} sendMatrix={sendMatrix} onSendLevel={onSendLevel} />
 
       {(() => {
         const sc = { ...DEFAULT_SIDECHAIN, ...sidechain }
