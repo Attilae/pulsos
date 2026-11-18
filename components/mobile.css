@@ -293,3 +293,19 @@
   .lane-sheet .mc-panel--sheet .mc-row { grid-template-columns: 1fr; }
   .lane-sheet .envelope-fields--sheet .sp-slider::-webkit-slider-thumb { margin-top: -10.5px; }
 }
+
+/* Phase 3: lane management and the shared pickers. PHONE_MAX is 767. */
+@media (max-width: 767px) {
+  .mlanes-action, .mlanes-add, .lsheet-line-actions select { min-height: 44px; padding: var(--space-075) var(--space-150); }
+  .mlanes-section-head { padding-block: var(--space-100); }
+  .mlanes-section-head .mlanes-heading { padding-block: 0; }
+  .snapshot-bar--phone { flex-wrap: wrap; gap: var(--space-100); }
+  .snapshot-bar--phone .refetch-btn { min-height: 44px; }
+  .line-picker { max-width: 100%; max-height: 85dvh; box-sizing: border-box; min-width: 0; }
+  .line-picker-close, .lp-type-chip, .line-picker-search, .line-picker-row, .line-picker-remove { min-height: 44px; }
+  .line-picker-close { min-width: 44px; }
+  .duplicate-lane-dialog { max-width: 100%; min-width: 0; box-sizing: border-box; }
+  .duplicate-lane-dialog .stop-editor-row { flex-wrap: wrap; gap: var(--space-100); }
+  .duplicate-lane-dialog .stop-editor-control { flex-wrap: wrap; min-width: 0; }
+  .duplicate-lane-dialog .stop-editor-step, .duplicate-lane-dialog .stop-editor-reset, .duplicate-lane-dialog .dlg-btn { min-width: 44px; min-height: 44px; }
+}

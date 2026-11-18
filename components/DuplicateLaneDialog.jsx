@@ -46,7 +46,7 @@ export default function DuplicateLaneDialog({ routeName, onConfirm, onClose }) {
     <div className="dlg-overlay" onPointerDown={onClose}>
       <div
         ref={panelRef}
-        className="dlg-panel"
+        className="dlg-panel duplicate-lane-dialog"
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}

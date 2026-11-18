@@ -2619,6 +2619,7 @@ export default function MixerTab({ active = true, onReady }) {
           controls={{
             cityName: cityEntry.name,
             view, onView: setView, mapStyle, onMapStyle: setMapStyle,
+            liveSnapshot, snapshotLoading, onRefetch: fetchSnapshot,
             started, onPlayPause: handlePlayPause,
             bpm, onBpm: setBpm,
             mode, onMode: switchMode, liveAvailable: !!cityEntry.liveWsUrl,
@@ -2640,6 +2641,15 @@ export default function MixerTab({ active = true, onReady }) {
           }}
           lanes={{
             routes: visibleInstrumentRoutes,
+            allRoutes: allRoutesRef.current,
+            selectedRouteIds: (mergedRoutes ?? []).map(route => route.id),
+            onAddLine: handleAddLine,
+            onChangeLine: handleChangeLine,
+            onRemoveLine: handleRemoveLine,
+            onRepickType: handleRepickType,
+            onDuplicateTrack: handleDuplicateTrack,
+            onRemoveDuplicate: handleRemoveDuplicate,
+            onUnmerge: handleUnmerge,
             started, audioExporting, audioProgress,
             onTrackLoopRegion: handleTrackLoopRegion,
             onExportMidi: handleExportRouteMidi,

@@ -25,7 +25,7 @@ Ship it as **phased PRs, one area per PR**, each releasable on its own. Branch e
   - The mode switch, the BPM/Re-pick lock while playing, WAV gating with %, the aria-live
     transport status and `SongMenu inline` are all aligned with desktop.
 
-- **Phase 1 is implemented**: draft PR #129 (`feature/mobile-parity-phase1`):
+- **Phase 1 is merged**: PR #129 (`feature/mobile-parity-phase1`):
   - Desktop and phone share `components/lane/EnvelopeFields.jsx`, `SynthFields.jsx`, and
     `GranularFields.jsx`; `lib/automationControl.js` shares the automation value conversion.
   - Tone now exposes envelopes, sampler presets/base-note uploads (Pro gated), drum voices,
@@ -37,7 +37,7 @@ Ship it as **phased PRs, one area per PR**, each releasable on its own. Branch e
     resize to 1440×900. Custom uploaded sample buffers remain session-only, as on desktop.
   - Human listening on phone hardware remains a release check.
 
-- **Phase 2 is implemented**: draft PR #130 (`feature/mobile-parity-phase2`, stacked on Phase 1):
+- **Phase 2 is merged**: PR #130 (`feature/mobile-parity-phase2`, stacked on Phase 1):
   - `lib/loopRegionEdit.js` shares desktop clamp/pointer/keyboard maths with the phone’s
     grid-stepping editor. Loop windows remain integer canonical cells (0–64); triplet/fine
     grids round to the same positions the engine supports.
@@ -47,7 +47,23 @@ Ship it as **phased PRs, one area per PR**, each releasable on its own. Branch e
     including playback/busy gating and recording percentage.
   - Verified: 625 tests, production build, 390×844 browser save/reload/reset and grid edits,
     real MIDI/WAV downloads (4 MIDI notes; nonzero WAV PCM), desktop loop drag/keyboard controls, dark theme, and 820px/1440px layouts.
-  - **Next is Phase 3: Line management.** Phases 3–8 are not implemented yet.
+
+- **Phase 3 is implemented** on `feature/mobile-parity-phase3` (from updated `develop`):
+  - The pinned lane toolbar has a native Line actions menu: base-lane Change/Remove,
+    Duplicate with transpose, Remove this copy, and Un-merge. Playback locks match desktop.
+  - Section headers offer Add line and non-metro Re-pick; the general Add line remains
+    available in an empty song.
+  - `lib/linePickerProps.js` shares desktop/phone picker dispatch and the complete selected
+    route set includes hidden automation sources. `SnapshotBar.jsx` is also shared.
+  - Existing LinePicker/DuplicateLaneDialog overlays retain `useModal`; their 390px layout
+    and scoped 44px controls are verified. MixerTab changes only pass existing state/handlers.
+  - Verified: 628 tests, production build, phone add/change/remove/duplicate/un-merge and
+    re-pick flows, sound settings through save/reload, sidechain remap/drop, playback and
+    plan-cap guards, light/dark dialog layouts, desktop picker actions, and 1440px/820px layouts.
+    Browser checks used mocked account/storage/entitlements and had no page errors or
+    horizontal overflow. The snapshot refetch/loading check used a mocked live-mode callback;
+    the app-wide mock-only Live configuration is unchanged.
+  - **Next is Phase 4: Drum lane on the Map tab.** Phases 4–8 are not implemented yet.
 
 ### How the phone is wired
 

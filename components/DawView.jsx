@@ -1,3 +1,5 @@
+import { linePickerProps } from '@/lib/linePickerProps.js'
+import SnapshotBar from './SnapshotBar.jsx'
 import { editLoopEdge, loopCellAtPointer, loopKeyCell } from '@/lib/loopRegionEdit.js'
 import GranularFields from './lane/GranularFields.jsx'
 import EnvPanel from './lane/EnvelopeFields.jsx'
@@ -412,20 +414,7 @@ export default function DawView(props) {
         {!routes && <div className="daw-loading">Loading line data…</div>}
 
         {mode === 'live' && routes && (
-          <div className="snapshot-bar">
-            <span className="snapshot-label">
-              {liveSnapshot
-                ? `${liveSnapshot.vehicles.length} vehicles loaded`
-                : 'No snapshot loaded'}
-            </span>
-            <button
-              className="refetch-btn"
-              onClick={onRefetch}
-              disabled={snapshotLoading || started}
-            >
-              {snapshotLoading ? 'Fetching…' : <><IconReset /> Refetch</>}
-            </button>
-          </div>
+          <SnapshotBar snapshot={liveSnapshot} loading={snapshotLoading} started={started} onRefetch={onRefetch} />
         )}
 
         {/* ── Your loop (free account): first, since it's what the lanes are tried against ── */}
@@ -716,22 +705,10 @@ export default function DawView(props) {
       )}
 
       {linePicker && (
-        <LinePicker
-          mode={linePicker.mode}
-          allRoutes={allRoutes ?? []}
-          selectedIds={selectedIds}
-          currentType={linePicker.type ?? null}
-          currentRouteId={linePicker.routeId ?? null}
-          onPick={(picked) => {
-            if (linePicker.mode === 'add') onAddLine?.(picked)
-            else onChangeLine?.(linePicker.routeId, picked)
-            setLinePicker(null)
-          }}
-          onRemove={linePicker.mode === 'change'
-            ? () => { onRemoveLine?.(linePicker.routeId); setLinePicker(null) }
-            : undefined}
-          onClose={() => setLinePicker(null)}
-        />
+        <LinePicker {...linePickerProps({
+          prompt: linePicker, allRoutes, selectedIds, onAddLine, onChangeLine, onRemoveLine,
+          onClose: () => setLinePicker(null),
+        })} />
       )}
     </div>
   )
