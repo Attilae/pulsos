@@ -17,6 +17,7 @@ import DrumLaneSheet from './DrumLaneSheet.jsx'
 import MobileTransportBar from './MobileTransportBar.jsx'
 import LaneSheet from './LaneSheet.jsx'
 import MoreSheet from './MoreSheet.jsx'
+import MixerSheet from './MixerSheet.jsx'
 import SongMenu from '../SongMenu.jsx'
 import Sheet from '../Sheet.jsx'
 import LinePicker from '../LinePicker.jsx'
@@ -25,6 +26,7 @@ import { linePickerProps } from '@/lib/linePickerProps.js'
 import './MobileDaw.css'
 
 export default function MobileDaw({ controls, lanes }) {
+  const [mixerOpen, setMixerOpen] = useState(false)
   const [drumOpen, setDrumOpen] = useState(false)
   const [linePicker, setLinePicker] = useState(null)
   const [dupPrompt, setDupPrompt] = useState(null)
@@ -76,6 +78,7 @@ export default function MobileDaw({ controls, lanes }) {
       </div>
 
       <MobileTransportBar
+        onOpenMixer={() => setMixerOpen(true)}
         started={controls.started}
         onPlayPause={controls.onPlayPause}
         bpm={controls.bpm}
@@ -188,6 +191,8 @@ export default function MobileDaw({ controls, lanes }) {
         onConfirm={semitones => { lanes.onDuplicateTrack(dupPrompt.routeId, semitones); setDupPrompt(null) }}
         onClose={() => setDupPrompt(null)} />}
 
+      <MixerSheet open={mixerOpen} onClose={() => setMixerOpen(false)} mixer={controls.mixer} />
+
       <MoreSheet
         open={moreOpen}
         onClose={() => setMoreOpen(false)}
@@ -210,6 +215,7 @@ export default function MobileDaw({ controls, lanes }) {
         onImportDrums={() => { setMoreOpen(false); controls.onImportDrums() }}
         reference={controls.reference}
         bpm={controls.bpm}
+        onOpenMixer={() => { setMoreOpen(false); setMixerOpen(true) }}
         onOpenAi={() => { setMoreOpen(false); controls.onOpenAi() }}
         onSoundCheck={() => { setMoreOpen(false); controls.onSoundCheck() }}
       />

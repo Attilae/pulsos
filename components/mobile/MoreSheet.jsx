@@ -6,7 +6,7 @@
 
 import Sheet from '../Sheet.jsx'
 import { NOTE_ROOTS, SCALE_TYPES } from '../DawView.jsx'
-import { IconDownload, IconWaveform } from '../icons.jsx'
+import { IconDownload, IconWaveform, IconMixer } from '../icons.jsx'
 import { ReferenceControls, ReferenceUploadButton, REFERENCE_LANE_LABEL, REFERENCE_UPLOAD_LABEL } from '../ReferenceLane.jsx'
 
 export default function MoreSheet({
@@ -19,7 +19,7 @@ export default function MoreSheet({
   onExportMidi, onExportWav, canExport, audioExporting, audioProgress = 0,
   canImportDrums, hasDrums, onImportDrums,
   reference, bpm,
-  onOpenAi,
+  onOpenAi, onOpenMixer,
   onSoundCheck,
 }) {
   return (
@@ -63,6 +63,7 @@ export default function MoreSheet({
       )}
 
       <div className="msheet-actions">
+        <button type="button" className="msheet-action" onClick={onOpenMixer}><IconMixer /> Mixer</button>
         {/* Same rule as the desktop header: re-picking swaps lanes under a
             running engine, so it waits for Stop rather than silently doing nothing. */}
         <button type="button" className="msheet-action" onClick={onRepick} disabled={started}>

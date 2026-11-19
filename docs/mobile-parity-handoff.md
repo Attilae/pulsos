@@ -48,7 +48,7 @@ Ship it as **phased PRs, one area per PR**, each releasable on its own. Branch e
   - Verified: 625 tests, production build, 390×844 browser save/reload/reset and grid edits,
     real MIDI/WAV downloads (4 MIDI notes; nonzero WAV PCM), desktop loop drag/keyboard controls, dark theme, and 820px/1440px layouts.
 
-- **Phase 3 is implemented** on `feature/mobile-parity-phase3` (from updated `develop`):
+- **Phase 3 is merged**: PR #131 (`feature/mobile-parity-phase3`):
   - The pinned lane toolbar has a native Line actions menu: base-lane Change/Remove,
     Duplicate with transpose, Remove this copy, and Un-merge. Playback locks match desktop.
   - Section headers offer Add line and non-metro Re-pick; the general Add line remains
@@ -64,7 +64,7 @@ Ship it as **phased PRs, one area per PR**, each releasable on its own. Branch e
     horizontal overflow. The snapshot refetch/loading check used a mocked live-mode callback;
     the app-wide mock-only Live configuration is unchanged.
 
-- **Phase 4 is implemented** on `feature/mobile-parity-phase4` (stacked on Phase 3):
+- **Phase 4 is merged**: PR #132 (`feature/mobile-parity-phase4`):
   - `MobileDrumStrip` exposes drum master mute, volume and the sheet opener, independently of
     the transit lanes. `DrumLaneSheet` has Pads/Mix, four pinned source pages, pad mutes,
     shared filter/send fields, and a pinned Remove action.
@@ -86,7 +86,25 @@ Ship it as **phased PRs, one area per PR**, each releasable on its own. Branch e
     open/close/Mix cycles restore the baseline subscriber count; measured drum output is nonzero.
   - Performance results are in `docs/mobile-parity-phase4-validation.md`. Human listening on
     phone hardware remains a release check.
-  - **Next is Phase 5: FX buses and master.** Phases 5–8 are not implemented yet.
+
+- **Phase 5 is implemented** on `feature/mobile-parity-phase5` (from updated `develop`):
+  - More → Mixer opens a sheet with FX buses and Master sections. A transport shortcut is
+    also available from 360px. All 14 buses have expandable parameters, mute/solo, return
+    level, remove, sync locks and visible resets. Custom reverb IR loading uses the existing
+    Pro gate and decoder; saved custom IR metadata remains readable on Free.
+  - Desktop and phone share `components/fx/{FxTrackCard,FxParamControl,FxAddButton,CustomIRPicker}`,
+    `MasterStrip` and `MasterChainCard`. Master meter polling runs only while the Master
+    section is open and enabled; hidden desktop tabs also stop polling.
+  - No new MixerTab state was added. Besides the prop bundle, the shared removal handler now
+    clears drum/stale sends, releases a removed bus's solo gate, and resets only automation
+    targeting that bus. Pure removal rules live in `lib/fxBusRemoval.js` with regression tests.
+  - Verified: 639 tests, production build, 390px light/dark and 320px touch layouts,
+    820px/1440px regressions, all bus editors, sync/reset behavior, save/reload, real Pro WAV
+    IR decoding, Free upgrade gating, and meter interval cleanup. Browser checks had no page
+    errors or horizontal overflow. Real playback measured nonzero output and master gain
+    reduction; human listening on phone hardware remains a release check.
+  - Details: `docs/mobile-parity-phase5-validation.md`.
+  - **Next is Phase 6: EQ on touch.** Phases 6–8 are not implemented yet.
 
 ### How the phone is wired
 

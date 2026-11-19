@@ -708,3 +708,21 @@
 .mdrum-step .mdrum-velocity { font-size: var(--fs-3xs); color: var(--text-subtle); }
 .mdrum-cursor { position: absolute; top: 0; left: 0; width: calc((100% - 3 * var(--mdrum-gap)) / 4); height: var(--mdrum-cell); box-sizing: border-box; border: 2px solid var(--accent); border-radius: var(--radius-sm); pointer-events: none; }
 .mdrum-remove { width: 100%; color: var(--danger); }
+
+/* The phone Mixer composes the same FX and mastering controls as the footer. */
+.mtransport-mixer, .fx-track-expand { background: var(--surface2); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius-sm); font: inherit; cursor: pointer; }
+.mtransport-mixer { display: grid; place-items: center; flex-shrink: 0; margin-left: auto; }
+.fx-track-expand { display: flex; align-items: center; justify-content: space-between; gap: var(--space-075); min-width: 0; text-align: left; }
+.fx-track-expand[aria-expanded='true'] { color: var(--accent); }
+.fx-sheet-return { display: flex; align-items: center; gap: var(--space-075); min-width: 0; }
+.mixer-sheet .master-strip { padding: 0; border: none; gap: var(--space-100); }
+.mixer-sheet .master-chain-flow { white-space: normal; }
+.mixer-sheet .fx-track-card--muted { opacity: 1; }
+.mixer-sheet .fx-track-card--muted .master-chain-params,
+.mixer-sheet .fx-track-card--muted .master-chain-flow,
+.mixer-sheet .fx-param-row--disabled { opacity: 1; }
+.mixer-sheet .fx-track-params { gap: var(--space-150); }
+.mixer-sheet .fx-param-row { flex-wrap: wrap; }
+.mixer-sheet .fx-param-label { color: var(--text-subtle); }
+.mixer-sheet .fx-param-val { color: var(--text-subtle); }
+.mixer-sheet .fx-param-reset { margin-left: auto; }
