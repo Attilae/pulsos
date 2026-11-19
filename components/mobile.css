@@ -354,3 +354,12 @@
   .mixer-sheet .master-chain-toggle { grid-column: 3; grid-row: 1; }
   .mixer-sheet .master-chain-flow { grid-column: 1 / -1; grid-row: 2; }
 }
+
+/* Touch EQ is also used by the phone fallback in the shared device rack. */
+@media (max-width: 767px), (pointer: coarse) {
+  .touch-eq button, .touch-eq select, .touch-eq input[type="range"] { min-height: 44px; }
+  .touch-eq button { min-width: 44px; }
+  .touch-eq select { font-size: var(--fs-lg); }
+  .touch-eq input[type="range"]::-webkit-slider-thumb { width: 24px; height: 24px; }
+  .touch-eq input[type="range"]::-moz-range-thumb { width: 24px; height: 24px; }
+}

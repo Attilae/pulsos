@@ -2706,6 +2706,7 @@ export default function MixerTab({ active = true, onReady }) {
             granulars: trackGranulars,
             sidechains: trackSidechains,
             sidechainSources,
+            getEqRuntime, engineGen,
             filters: trackFilters,
             sendMatrix,
             activeFxTracks,

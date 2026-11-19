@@ -96,6 +96,7 @@ export default function MobileDaw({ controls, lanes }) {
       {lanes.drums?.pattern && <DrumLaneSheet
         open={drumOpen} onClose={() => setDrumOpen(false)}
         drums={lanes.drums} started={controls.started}
+        getEqRuntime={lanes.getEqRuntime} engineGen={lanes.engineGen}
         onVolume={lanes.onVolume} onFilter={lanes.onFilter} onSendLevel={lanes.onSendLevel}
         activeFxTracks={lanes.activeFxTracks} sendMatrix={lanes.sendMatrix}
         onClear={() => { setDrumOpen(false); lanes.drums.onClear() }}
@@ -148,6 +149,7 @@ export default function MobileDaw({ controls, lanes }) {
         sidechain={lanes.sidechains?.[openLaneId]}
         sidechainSources={lanes.sidechainSources}
         filter={lanes.filters?.[openLaneId]}
+        getEqRuntime={lanes.getEqRuntime} engineGen={lanes.engineGen}
         tag={lanes.labels?.[openLaneId]}
         onVolume={lanes.onVolume}
         onPan={lanes.onPan}

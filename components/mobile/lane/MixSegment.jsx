@@ -9,7 +9,7 @@ import { Field, GroupHead, panLabel } from './fields.jsx'
 // sheet's props plus the values LaneSheet derives from them, as `ctx`.
 export default function MixSegment({ ctx }) {
   const {
-    started, audioExporting, audioProgress, onExportMidi, onExportWav, route, volume, pan, disabled, soloed, sendMatrix, activeFxTracks, sidechain, sidechainSources, filter, onVolume, onPan, onDisable, onSolo, onSendLevel, onSidechain, onFilter,
+    getEqRuntime, engineGen, started, audioExporting, audioProgress, onExportMidi, onExportWav, route, volume, pan, disabled, soloed, sendMatrix, activeFxTracks, sidechain, sidechainSources, filter, onVolume, onPan, onDisable, onSolo, onSendLevel, onSidechain, onFilter,
   } = ctx
 
   return (
@@ -55,7 +55,7 @@ export default function MixSegment({ ctx }) {
         </button>
       </Field>
 
-      <LaneMixFields routeId={route.id} filter={filter} onFilter={onFilter}
+      <LaneMixFields getEqRuntime={getEqRuntime} engineGen={engineGen} routeId={route.id} filter={filter} onFilter={onFilter}
         activeFxTracks={activeFxTracks} sendMatrix={sendMatrix} onSendLevel={onSendLevel} />
 
       {(() => {

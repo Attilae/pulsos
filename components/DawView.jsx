@@ -1,3 +1,4 @@
+import TouchEqEditor from './lane/TouchEqEditor.jsx'
 import MasterStrip from './MasterStrip.jsx'
 import MasterChainCard from './MasterChainCard.jsx'
 import FxTrackCard from './fx/FxTrackCard.jsx'
@@ -2287,13 +2288,7 @@ function EqPanel({ getRuntime }) {
   const hostRef  = useRef(null)
   const boundRef = useRef(null)
   const [ready, setReady] = useState(weq8Loaded)
-  // <weq8-ui> is a 300×360px drag-to-place curve editor from a third-party
-  // package — precision pointer work we don't control the internals of. Below
-  // 768px we don't load or mount it at all.
-  //
-  // The EQ *runtime* is unaffected: it lives on the engine and is created by
-  // MixerTab's getEqRuntime, so a song saved with EQ on desktop still filters
-  // audio here — only the curve editor is missing.
+  // Keep the pointer editor on desktop; phones share the touch band editor.
   const isPhone = useIsPhone()
 
   // Register the custom element once (client-only; never during SSR).
@@ -2328,16 +2323,7 @@ function EqPanel({ getRuntime }) {
     }
   })
 
-  if (isPhone) {
-    return (
-      <div className="sp-panel eq-weq8 eq-weq8--stub">
-        <p className="eq-stub-note">
-          This lane&rsquo;s EQ is still applied. Editing the curve needs a
-          pointer. Open Leið on a desktop browser.
-        </p>
-      </div>
-    )
-  }
+  if (isPhone) return <TouchEqEditor getRuntime={getRuntime} />
 
   return (
     <div className="sp-panel eq-weq8">

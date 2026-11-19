@@ -726,3 +726,19 @@
 .mixer-sheet .fx-param-label { color: var(--text-subtle); }
 .mixer-sheet .fx-param-val { color: var(--text-subtle); }
 .mixer-sheet .fx-param-reset { margin-left: auto; }
+
+/* Touch EQ uses runtime response data, without an analyser or animation loop. */
+.touch-eq { min-width: 0; margin-block: var(--space-200); }
+.touch-eq h3 { font-size: var(--fs-sm); text-transform: uppercase; letter-spacing: var(--tracking-caps); }
+.touch-eq-response { margin: var(--space-100) 0 var(--space-200); background: var(--surface-sunken); border: 1px solid var(--border); }
+.touch-eq-response canvas { display: block; width: 100%; height: 140px; }
+.touch-eq-response figcaption { display: flex; justify-content: space-between; padding: var(--space-100); color: var(--muted); font-size: var(--fs-xs); font-family: var(--font-mono); }
+.touch-eq-band { min-width: 0; margin: 0 0 var(--space-200); padding: var(--space-150); border: 1px solid var(--border); border-radius: var(--radius-sm); }
+.touch-eq-band legend { color: var(--text); font-size: var(--fs-sm); padding-inline: var(--space-050); }
+.touch-eq-head { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: var(--space-100); align-items: center; }
+.touch-eq-head select { min-width: 0; width: 100%; background: var(--surface2); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius-sm); }
+.touch-eq-head [aria-pressed="true"] { color: var(--accent); border-color: var(--accent); }
+.touch-eq-field { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--space-100); align-items: end; margin-top: var(--space-150); }
+.touch-eq-field label { display: grid; grid-template-columns: 1fr auto; gap: var(--space-050); color: var(--muted); font-size: var(--fs-sm); }
+.touch-eq-field output { font-family: var(--font-mono); }
+.touch-eq-field input { grid-column: 1 / -1; width: 100%; min-width: 0; accent-color: var(--accent); }

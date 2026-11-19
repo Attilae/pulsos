@@ -87,7 +87,7 @@ Ship it as **phased PRs, one area per PR**, each releasable on its own. Branch e
   - Performance results are in `docs/mobile-parity-phase4-validation.md`. Human listening on
     phone hardware remains a release check.
 
-- **Phase 5 is implemented** on `feature/mobile-parity-phase5` (from updated `develop`):
+- **Phase 5 is merged**: PR #134 (`feature/mobile-parity-phase5`):
   - More → Mixer opens a sheet with FX buses and Master sections. A transport shortcut is
     also available from 360px. All 14 buses have expandable parameters, mute/solo, return
     level, remove, sync locks and visible resets. Custom reverb IR loading uses the existing
@@ -104,7 +104,23 @@ Ship it as **phased PRs, one area per PR**, each releasable on its own. Branch e
     errors or horizontal overflow. Real playback measured nonzero output and master gain
     reduction; human listening on phone hardware remains a release check.
   - Details: `docs/mobile-parity-phase5-validation.md`.
-  - **Next is Phase 6: EQ on touch.** Phases 6–8 are not implemented yet.
+
+- **Phase 6 is implemented** on `feature/mobile-parity-phase6` (from updated `develop`):
+  - `components/lane/TouchEqEditor.jsx` edits the engine-owned weq8 runtime directly in the
+    instrument and drum Mix sheets, and replaces the shared EqPanel phone stub. Eight bands
+    expose on/off, all supported filter types, frequency, gain and Q with visible resets.
+    Frequency and Q use logarithmic sliders; controls unavailable for the filter type are disabled.
+  - The read-only canvas response includes both cascaded sections of 24 dB filters and redraws
+    on EQ changes, resize and theme changes. It mounts no weq8 custom element, analyser or
+    animation loop. Closing the editor releases its event listener and observers.
+  - The existing engine change callback mirrors setters into trackEqs and autosave. The prop
+    bundle passes getEqRuntime and engineGen so replacement engines bind correctly; no new
+    MixerTab state or alternate persistence path was added.
+  - Verified: 642 tests, production build, transit/drum save/reload, resets, all 14 filter types
+    plus unused slots, live playback edits, real runtime frequency response, repeated cleanup,
+    light/dark and 320px/390px/820px/1440px layouts. Human listening on phone hardware remains
+    a release check. Details: `docs/mobile-parity-phase6-validation.md`.
+  - **Next is Phase 7: automation lanes.** Phases 7–8 are not implemented yet.
 
 ### How the phone is wired
 
