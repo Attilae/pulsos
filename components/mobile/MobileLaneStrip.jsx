@@ -6,10 +6,8 @@
 // people actually reach for during a mix below, and everything else behind a
 // sheet.
 //
-// Deliberately has no playhead. Desktop runs one requestAnimationFrame loop
-// per lane (plus one per automation rail); on a 20-lane phone session that is
-// 20+ loops and 20 re-renders a frame. The transport bar carries a single
-// shared playhead instead.
+// The list stays compact without individual playheads. The transport shows
+// session position; the open automation sheet uses the shared DOM ticker.
 'use client'
 
 import { memo } from 'react'
@@ -17,7 +15,7 @@ import { normalizeLaneTag } from '@/lib/laneTags.js'
 import { IconMore, IconPower } from '../icons.jsx'
 
 function MobileLaneStrip({
-  route,
+  isData, volumeAutomated, route,
   disabled,
   soloed,
   anySoloed,
@@ -56,6 +54,7 @@ function MobileLaneStrip({
         <span className="mlane-badge" style={{ background: route.color, color: route.textColor }}>
           {route.name}
         </span>
+        {isData && <span className="mlane-data" title="This line also supplies automation data">Data</span>}
         {laneTag.text && (
           <span className={`mlane-tag${laneTag.color ? ' is-colored' : ''}`}>{laneTag.text}</span>
         )}
@@ -90,10 +89,12 @@ function MobileLaneStrip({
           className="mlane-vol"
           min={-40} max={6} step={1}
           value={volume}
+          disabled={volumeAutomated}
+          aria-valuetext={volumeAutomated ? "Automated; open Mix for the live value" : `${volume} dB`}
           onChange={e => onVolume(route.id, Number(e.target.value))}
           aria-label={`Volume, ${label}`}
         />
-        <span className="mlane-db mono">{volume > 0 ? `+${volume}` : volume}</span>
+        <span className="mlane-db mono">{volumeAutomated ? 'Auto' : volume > 0 ? `+${volume}` : volume}</span>
 
         <button
           type="button"

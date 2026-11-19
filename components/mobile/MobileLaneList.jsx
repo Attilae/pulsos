@@ -7,7 +7,7 @@ import MobileLaneStrip from './MobileLaneStrip.jsx'
 import MobileDrumStrip from './MobileDrumStrip.jsx'
 
 export default function MobileLaneList({
-  drums, onOpenDrums, routes, disabled, soloRoutes, volumes, lockedIds, labels, mergedConsumedIds,
+  automationSourceIds, automationLanes, drums, onOpenDrums, routes, disabled, soloRoutes, volumes, lockedIds, labels, mergedConsumedIds,
   onDisable, onSolo, onVolume, onOpenLane,
   mode, started, liveSnapshot, snapshotLoading, onRefetch, onAddLine, onRepickType,
 }) {
@@ -36,7 +36,7 @@ export default function MobileLaneList({
           </div>
           <ul className="mlanes-list">
             {byType[type].map(route => (
-              <MobileLaneStrip key={route.id} route={route}
+              <MobileLaneStrip isData={automationSourceIds?.has(route.id)} volumeAutomated={Object.values(automationLanes?.[route.id] ?? {}).some(cfg => cfg.sourceRouteId && cfg.paramTarget === 'volume')} key={route.id} route={route}
                 disabled={!!disabled?.[route.id]} soloed={!!soloRoutes?.has(route.id)} anySoloed={anySoloed}
                 volume={volumes?.[route.id] ?? 0} locked={!!lockedIds?.has(route.id)} tag={labels?.[route.id]}
                 onDisable={onDisable} onSolo={onSolo} onVolume={onVolume} onOpen={onOpenLane} />

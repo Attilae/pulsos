@@ -363,3 +363,19 @@
   .touch-eq input[type="range"]::-webkit-slider-thumb { width: 24px; height: 24px; }
   .touch-eq input[type="range"]::-moz-range-thumb { width: 24px; height: 24px; }
 }
+
+@media (max-width: 767px) {
+  .lane-sheet .auto-lane-controls--sheet { display: flex; flex-direction: column; align-items: stretch; gap: var(--space-100); padding: 0; min-width: 0; width: 100%; }
+  .lane-sheet .auto-lane-controls--sheet select { width: 100%; max-width: 100%; min-width: 0; height: auto; min-height: 44px; font-size: var(--fs-lg); }
+  .lane-sheet .auto-lane-controls--sheet button { min-height: 44px; min-width: 44px; }
+  .lane-sheet .auto-lane-controls--sheet .auto-remove-btn { width: 100%; height: auto; margin: 0; color: var(--text); }
+  .lane-sheet .auto-lane-controls--sheet .auto-speed-row, .lane-sheet .auto-lane-controls--sheet .auto-glide-row { width: 100%; flex-wrap: wrap; gap: var(--space-100); }
+  .lane-sheet .auto-lane-controls--sheet .speed-btns { flex-wrap: wrap; }
+  .lane-sheet .auto-lane-controls--sheet .speed-btn.active { color: var(--accent); border-color: var(--accent); }
+  .lane-sheet .auto-lane-controls--sheet .auto-lane-inactive { width: 100%; margin: 0; font-size: var(--fs-sm); }
+  .lane-sheet .auto-lane-controls--sheet input[type="range"] { min-height: 44px; flex: 1; min-width: 100px; }
+  .lane-sheet .auto-lane-controls--sheet input[type="range"]::-webkit-slider-thumb { width: 24px; height: 24px; }
+  .lane-sheet .auto-lane-controls--sheet input[type="range"]::-moz-range-thumb { width: 24px; height: 24px; }
+  .lane-sheet .mauto-editor button, .lane-sheet .mauto-editor select { min-height: 44px; }
+  .lane-sheet .mauto-editor select { width: 100%; min-width: 0; font-size: var(--fs-lg); }
+}

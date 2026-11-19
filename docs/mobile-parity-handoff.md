@@ -105,7 +105,7 @@ Ship it as **phased PRs, one area per PR**, each releasable on its own. Branch e
     reduction; human listening on phone hardware remains a release check.
   - Details: `docs/mobile-parity-phase5-validation.md`.
 
-- **Phase 6 is implemented** on `feature/mobile-parity-phase6` (from updated `develop`):
+- **Phase 6 is merged**: PR #135 (`feature/mobile-parity-phase6`):
   - `components/lane/TouchEqEditor.jsx` edits the engine-owned weq8 runtime directly in the
     instrument and drum Mix sheets, and replaces the shared EqPanel phone stub. Eight bands
     expose on/off, all supported filter types, frequency, gain and Q with visible resets.
@@ -120,7 +120,24 @@ Ship it as **phased PRs, one area per PR**, each releasable on its own. Branch e
     plus unused slots, live playback edits, real runtime frequency response, repeated cleanup,
     light/dark and 320px/390px/820px/1440px layouts. Human listening on phone hardware remains
     a release check. Details: `docs/mobile-parity-phase6-validation.md`.
-  - **Next is Phase 7: automation lanes.** Phases 7–8 are not implemented yet.
+
+- **Phase 7 is implemented** on `feature/mobile-parity-phase7` (from updated `develop`):
+  - Lane sheets have an Auto segment for adding/removing automation, selecting a session source
+    and grouped target, inactive model notices, speed/glide, and a subloop with Reset to source.
+    `AutomationFields` is shared with the desktop rack.
+  - The full-width touch curve supports point-column taps/vertical drags, a selected-stop picker,
+    ±5%/±1% steps, keyboard edits and visible point/curve resets. Desktop and phone share the
+    point/grid/value maths in `lib/automationPoints.js`.
+  - `useAutomationPlayback` runs one ticker subscriber only for an open, playing lane sheet.
+    It paints curve needles/highlights directly and publishes values only at stop changes.
+    Tone/Mix use the existing autoCtl conversion for live values and armed locks; closing or
+    stopping clears the mirror. The list's automated volume fader is locked as well.
+  - Current architecture keeps source lines audible/editable; they now carry a Data badge.
+    Phone source polylines already render, so no map behavior change was needed. Extra value-sized
+    map markers remain disabled on phones.
+  - No new MixerTab state: only existing state/handlers were added to the mobile bundle.
+  - Validation and performance comparison: `docs/mobile-parity-phase7-validation.md`.
+  - **Next is Phase 8: leftovers and docs.** Phase 8 is not implemented yet.
 
 ### How the phone is wired
 
@@ -314,11 +331,11 @@ Keep that model unless a separate engine/timeline change is explicitly requested
     `lib/automationPoints.js` with tests.
 - **Add button.** "+ Automation" calls `handleAddAutomationLane` (~1720).
 - **Handlers:** `handleUpdateAutomationLane` (~1739) and `handleRemoveAutomationLane` (~1730).
-- **Source lanes in the list.** Automation source lanes are filtered out of
-  `visibleInstrumentRoutes`. Show them in the lane list as compact read-only "Data" rows.
+- **Source lanes in the list.** Sources now remain audible, editable instrument lanes in
+  `visibleInstrumentRoutes`. Preserve those controls and badge them as "Data" sources.
 - **Lock display.** Use the live value mirror (D ~324) for controls under automation.
-- **Phone map links.** The phone map skips automation links (`MapView.jsx` ~858). Turn them on
-  only if `?perf=1` shows no frame cost.
+- **Phone map links.** Source polylines already render on phones. Value-sized stop markers
+  remain disabled (`MapView.jsx` ~858); enable them only if `?perf=1` shows no frame cost.
 
 ### Phase 8: Leftovers and docs
 

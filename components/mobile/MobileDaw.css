@@ -742,3 +742,21 @@
 .touch-eq-field label { display: grid; grid-template-columns: 1fr auto; gap: var(--space-050); color: var(--muted); font-size: var(--fs-sm); }
 .touch-eq-field output { font-family: var(--font-mono); }
 .touch-eq-field input { grid-column: 1 / -1; width: 100%; min-width: 0; accent-color: var(--accent); }
+
+/* Automation uses one touch surface, plus precise selected-stop controls. */
+.mlane-data { color: var(--automation-text); font-size: var(--fs-3xs); text-transform: uppercase; letter-spacing: var(--tracking-wide); }
+.mauto-lane { min-width: 0; }
+.mauto-lane h3 { margin: 0 0 var(--space-150); font-size: var(--fs-sm); }
+.mauto-editor { min-width: 0; margin-block: var(--space-200); }
+.mauto-curve { height: 180px; position: relative; touch-action: none; background: var(--surface-sunken); border: 1px solid var(--border); overflow: hidden; }
+.mauto-curve svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.mauto-curve polyline { fill: none; stroke: var(--automation-text); stroke-width: 1; }
+.mauto-curve circle { fill: var(--muted); stroke: var(--surface-sunken); stroke-width: .4; }
+.mauto-curve circle[data-selected] { fill: var(--accent); }
+.mauto-curve circle[data-active] { fill: var(--automation-text); stroke: var(--text); }
+.mauto-window { position: absolute; top: 0; bottom: 0; background: var(--surface2); opacity: .5; pointer-events: none; }
+.mauto-needle-track { position: absolute; inset: 0; pointer-events: none; }
+.mauto-needle-track i { display: block; width: 100%; height: 100%; border-left: 2px solid var(--automation-text); will-change: transform; }
+.mauto-needle-track i[hidden] { display: none; }
+.mauto-nudges { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-100); margin-block: var(--space-150); }
+.mauto-value { display: block; margin-block: var(--space-100); font: var(--fs-sm) var(--font-mono); color: var(--text); }

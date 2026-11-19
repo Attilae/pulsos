@@ -6,6 +6,7 @@
 // desktop and phone can't disagree about ranges, defaults or rules — all of which
 // come from lib/laneFilterSpec.js.
 
+import { autoCtl } from '@/lib/automationControl.js'
 import { useState } from 'react'
 import * as Tone from 'tone'
 import {
@@ -93,9 +94,13 @@ export function FilterModelSwitch({ value, onChange, className = '' }) {
 }
 
 // Phone lane sheet fields (components/mobile/LaneSheet.jsx, Mix segment).
-export function LaneFilterFields({ filter, onFilter, Field }) {
+export function LaneFilterFields({ filter, onFilter, Field, autoTargets }) {
   const ed = useLaneFilterEditor(filter, onFilter)
   const { p, analog } = ed
+  const cutoff = autoCtl(autoTargets, 'filter.frequency')
+  const resonance = autoCtl(autoTargets, 'filter.resonance', { divide: FILTER_RANGES.resonance.max / 100 })
+  const drive = autoCtl(autoTargets, 'filter.drive')
+  const q = autoCtl(autoTargets, 'filter.Q')
   return (
     <Field
       label={`Filter · ${FILTER_MODEL_LABELS[p.model]}${p.bypass ? ' · bypassed' : ''}`}
@@ -120,10 +125,10 @@ export function LaneFilterFields({ filter, onFilter, Field }) {
       </div>
 
       <div className="lsheet-send lsheet-send--wide">
-        <span className="lsheet-send-name">Cutoff · {formatHz(p.frequency)}</span>
+        <span className="lsheet-send-name">Cutoff · {formatHz(cutoff.display ?? p.frequency)}{cutoff.disabled ? " · automated" : ""}</span>
         <input
           type="range" min={FILTER_RANGES.frequency.min} max={FILTER_RANGES.frequency.max} step={10}
-          value={p.frequency}
+          value={cutoff.display ?? p.frequency} disabled={cutoff.disabled}
           onChange={e => ed.set({ frequency: Number(e.target.value) })}
           aria-label="Filter cutoff"
         />
@@ -133,17 +138,17 @@ export function LaneFilterFields({ filter, onFilter, Field }) {
       {analog ? (
         <>
           <div className="lsheet-send lsheet-send--wide">
-            <span className="lsheet-send-name">Resonance · {ed.resonancePct}%</span>
+            <span className="lsheet-send-name">Resonance · {Math.round(resonance.display ?? ed.resonancePct)}%{resonance.disabled ? " · automated" : ""}</span>
             <input
-              type="range" min={0} max={100} step={1} value={ed.resonancePct}
+              type="range" min={0} max={100} step={1} value={resonance.display ?? ed.resonancePct} disabled={resonance.disabled}
               onChange={e => ed.setResonancePct(Number(e.target.value))}
               aria-label="Filter resonance"
             />
           </div>
           <div className="lsheet-send lsheet-send--wide">
-            <span className="lsheet-send-name">Drive · {p.drive.toFixed(2)}</span>
+            <span className="lsheet-send-name">Drive · {(drive.display ?? p.drive).toFixed(2)}{drive.disabled ? " · automated" : ""}</span>
             <input
-              type="range" min={FILTER_RANGES.drive.min} max={FILTER_RANGES.drive.max} step={0.05} value={p.drive}
+              type="range" min={FILTER_RANGES.drive.min} max={FILTER_RANGES.drive.max} step={0.05} value={drive.display ?? p.drive} disabled={drive.disabled}
               onChange={e => ed.set({ drive: Number(e.target.value) })}
               aria-label="Filter drive"
             />
@@ -157,9 +162,9 @@ export function LaneFilterFields({ filter, onFilter, Field }) {
         </>
       ) : (
         <div className="lsheet-send lsheet-send--wide">
-          <span className="lsheet-send-name">Q · {p.Q.toFixed(1)}</span>
+          <span className="lsheet-send-name">Q · {(q.display ?? p.Q).toFixed(1)}{q.disabled ? " · automated" : ""}</span>
           <input
-            type="range" min={FILTER_RANGES.Q.min} max={FILTER_RANGES.Q.max} step={0.1} value={p.Q}
+            type="range" min={FILTER_RANGES.Q.min} max={FILTER_RANGES.Q.max} step={0.1} value={q.display ?? p.Q} disabled={q.disabled}
             onChange={e => ed.set({ Q: Number(e.target.value) })}
             aria-label="Filter Q"
           />
