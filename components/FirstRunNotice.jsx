@@ -81,10 +81,7 @@ export default function FirstRunNotice({ onDismiss }) {
         This is the compact version. Play the city, mix lanes, pick instruments
         and drums, and edit each stop&rsquo;s note.
       </p>
-      <p className="intro-note">
-        Automation drawing is on
-        desktop for now.
-      </p>
+
 
       {isIOS() && (
         <p className="intro-warn">

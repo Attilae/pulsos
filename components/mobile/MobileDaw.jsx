@@ -63,6 +63,7 @@ export default function MobileDaw({ controls, lanes }) {
             onAddLine={type => setLinePicker({ mode: 'add', type })}
             onRepickType={lanes.onRepickType}
             routes={lanes.routes}
+            automationSourceIds={lanes.automationSourceIds} automationLanes={lanes.automationLanes}
             disabled={lanes.disabled}
             soloRoutes={lanes.soloRoutes}
             volumes={lanes.volumes}
@@ -141,6 +142,11 @@ export default function MobileDaw({ controls, lanes }) {
         legato={!!lanes.legatos?.[openLaneId]}
         glide={lanes.glides?.[openLaneId] ?? 0}
         automationLanes={lanes.automationLanes?.[openLaneId]}
+        automationRoutes={lanes.automationRoutes}
+        sourceRegions={lanes.sourceRegions} sourceResolutions={lanes.sourceResolutions}
+        onAddAutomationLane={lanes.onAddAutomationLane}
+        onUpdateAutomationLane={lanes.onUpdateAutomationLane}
+        onRemoveAutomationLane={lanes.onRemoveAutomationLane}
         drone={!!lanes.droneModes?.[openLaneId]}
         stopChances={lanes.stopChances?.[openLaneId]}
         loopPattern={lanes.loopPatterns?.[openLaneId]}

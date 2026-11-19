@@ -1,11 +1,12 @@
 // Everything about one lane that doesn't fit on its strip.
 //
 // Desktop shows this as a multi-column "device rack" of dense cards. Here it's
-// four segments in a bottom sheet:
+// five segments in a bottom sheet:
 //   Tone   — instrument, harmony and pitch mapping
 //   Rhythm — playback timing and arpeggiation
-//   Mix   — level, stereo position, filter, FX sends, sidechain ducking
+//   Mix   — level, stereo position, filter, EQ, FX sends, sidechain ducking
 //   Notes — the touch replacement for the stop rail (see below)
+//   Auto  — source-driven curves and loop windows
 //
 // The stop rail can't be made tappable at this size: dots are 8px and sit
 // 10–20px apart, so 44px hit areas would overlap several neighbours. Notes is
@@ -26,12 +27,15 @@ import ToneSegment from './lane/ToneSegment.jsx'
 import RhythmSegment from './lane/RhythmSegment.jsx'
 import MixSegment from './lane/MixSegment.jsx'
 import NotesSegment from './lane/NotesSegment.jsx'
+import AutoSegment from './lane/AutoSegment.jsx'
+import { useAutomationPlayback } from '@/lib/shared/useAutomationPlayback.js'
 
 const SEGMENTS = [
   { id: 'sound', label: 'Tone' },
   { id: 'rhythm', label: 'Rhythm' },
   { id: 'mix',   label: 'Mix' },
   { id: 'notes', label: 'Notes' },
+  { id: 'auto', label: 'Auto' },
 ]
 
 export default function LaneSheet({
@@ -65,7 +69,8 @@ export default function LaneSheet({
   stopNoteLength,
   stopVelocityMap,
   glide = 0,
-  automationLanes,
+  automationLanes, automationRoutes, sourceRegions, sourceResolutions,
+  onAddAutomationLane, onUpdateAutomationLane, onRemoveAutomationLane,
   legato = false,
   drone = false,
   stopChances,
@@ -85,6 +90,9 @@ export default function LaneSheet({
 }) {
   const [segment, setSegment] = useState('sound')
   const resonatorStatus = useResonatorStatus()
+  const { targets: autoTargets, visuals: autoVisuals } = useAutomationPlayback({ lanes: automationLanes, routes: automationRoutes,
+    regions: sourceRegions, resolutions: sourceResolutions, started, active: open && !!route,
+    synthType: synthType ?? 'Synth', adsr, filter, granular })
 
   const trackScale = scale ?? { root: 'C', scaleType: 'major' }
   const pv = { ...DEFAULT_PITCH_VARIETY, ...pitchVariety }
@@ -102,7 +110,8 @@ export default function LaneSheet({
   const svmStatus = stopVelocityStatus({ cfg: svm, synthType })
   const setSvm = patch => onStopVelocityMap?.(route.id, { ...svm, ...patch })
 
-  const ctx = { onTrackLoopRegion, started, audioExporting, audioProgress, onExportMidi, onExportWav, glide, automationLanes, onSamplerPreset, onSamplerUpload, onDrumVoice, onGranular, onGlide, onLegato, route, volume, pan, disabled, soloed, synthType, adsr, granular, scale, octave,
+  const ctx = { autoTargets, autoVisuals, automationRoutes, sourceRegions, sourceResolutions,
+    onAddAutomationLane, onUpdateAutomationLane, onRemoveAutomationLane, onTrackLoopRegion, started, audioExporting, audioProgress, onExportMidi, onExportWav, glide, automationLanes, onSamplerPreset, onSamplerUpload, onDrumVoice, onGranular, onGlide, onLegato, route, volume, pan, disabled, soloed, synthType, adsr, granular, scale, octave,
     semitone, pitchVariety, speed, gridResolution, loopRegion, arp, perStopSteps,
     stopVelocities, noteChance, noteLength, stopNoteLength, stopVelocityMap, legato, drone,
     stopChances, loopPattern, sendMatrix, activeFxTracks, sidechain, sidechainSources, filter, getEqRuntime, engineGen,
@@ -161,6 +170,7 @@ export default function LaneSheet({
       {segment === 'rhythm' && <RhythmSegment ctx={ctx} />}
       {segment === 'mix' && <MixSegment ctx={ctx} />}
       {segment === 'notes' && <NotesSegment ctx={ctx} />}
+      {segment === 'auto' && <AutoSegment ctx={ctx} />}
     </Sheet>
   )
 }

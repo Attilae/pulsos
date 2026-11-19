@@ -1,3 +1,5 @@
+import AutomationFields from './lane/AutomationFields.jsx'
+import { automationPoints, autoValueToY, autoYToValue, automationKeyValue, automationPointPatch, activeAutomationPoint } from '@/lib/automationPoints.js'
 import TouchEqEditor from './lane/TouchEqEditor.jsx'
 import MasterStrip from './MasterStrip.jsx'
 import MasterChainCard from './MasterChainCard.jsx'
@@ -1775,20 +1777,6 @@ function AutomationLane({ laneId, instRoute, laneCfg, allRoutes, activeFxTracks,
   )
 
   const sourceRoute    = allRoutes.find(r => r.id === sourceRouteId) ?? null
-  // Any lane (active or not) can be a source: a source now stays visible and audible
-  // in its own section while its geographic data also drives this automation curve.
-  // A merged lane has no per-stop geography of its own, so it can't be a source.
-  const pickableRoutes = allRoutes.filter(r => r.id !== instRoute.id && !r.isMerged)
-
-  // Target options, grouped by .group, filtered to what's valid for this synth type.
-  const groupedTargets = useMemo(() => {
-    const groups = {}
-    for (const t of availableAutomationTargets(synthType, activeFxTracks ?? [], granularEnabled, granular)) {
-      const g = t.group ?? 'Other'
-      ;(groups[g] ??= []).push(t)
-    }
-    return groups
-  }, [synthType, activeFxTracks, granularEnabled, granular])
 
   return (
     <div className="automation-lane">
@@ -1796,89 +1784,9 @@ function AutomationLane({ laneId, instRoute, laneCfg, allRoutes, activeFxTracks,
         <span className="auto-lane-badge">AUTO</span>
       </div>
 
-      <div className="auto-lane-controls">
-        <select className="auto-select auto-select--source-line" value={sourceRouteId}
-          onChange={e => onUpdate({ sourceRouteId: e.target.value })}>
-          <option value="">Pick a line</option>
-          {pickableRoutes.map(r => {
-            // Some cities (e.g. NYC/MTA) carry paragraph-length descriptions; native <option>
-            // text can't be CSS-truncated, so cap it here or the dropdown popup overflows.
-            const desc = r.desc && r.desc.length > 48 ? `${r.desc.slice(0, 48).trimEnd()}…` : r.desc
-            return (
-              <option key={r.id} value={r.id}>
-                {r.name}{desc ? ` · ${desc}` : ''}
-              </option>
-            )
-          })}
-        </select>
-
-        <select className="auto-select" value={paramTarget}
-          onChange={e => onUpdate({ paramTarget: e.target.value })}>
-          {Object.entries(groupedTargets).map(([group, targets]) => (
-            <optgroup key={group} label={group}>
-              {targets.map(t => (
-                <option key={t.id} value={t.id}>
-                  {t.label}{FILTER_TARGET_MODELS[t.id] ? ` (${FILTER_MODEL_LABELS[FILTER_TARGET_MODELS[t.id]]})` : ''}
-                  {synthType === 'PolySynth' && POLY_TARGET_VOICES[t.id] ? ` (${POLY_TARGET_VOICES[t.id].map(v => POLY_VOICE_LABELS[v]).join(', ')})` : ''}
-                </option>
-              ))}
-            </optgroup>
-          ))}
-        </select>
-
-        <button className="auto-remove-btn" onClick={onRemove} title="Remove lane" aria-label="Remove automation lane"><IconClose /></button>
-
-        {!filterTargetActive(paramTarget, filter) && (
-          <p className="auto-lane-inactive" role="status">
-            Inactive: this target needs the {FILTER_MODEL_LABELS[FILTER_TARGET_MODELS[paramTarget]]} filter.
-            It resumes when the lane switches back.
-          </p>
-        )}
-        {!polyTargetActive(paramTarget, synthType, adsr) && (
-          <p className="auto-lane-inactive" role="status">
-            Inactive: this target needs the {POLY_TARGET_VOICES[paramTarget].map(v => POLY_VOICE_LABELS[v]).join(' or ')} voice.
-            It resumes when the lane switches back.
-          </p>
-        )}
-        {!textureTargetActive(paramTarget, granular) && (
-          <p className="auto-lane-inactive" role="status">
-            Inactive: this target needs Texture {TEXTURE_MODEL_LABELS[paramTarget.startsWith('grain.tx2') ? 'mk2' : 'classic']}.
-            It resumes when the lane switches back.
-          </p>
-        )}
-
-        <div className="speed-row auto-speed-row">
-          <span className="speed-label">SPEED</span>
-          <div className="speed-btns">
-            {SPEED_OPTIONS.map(opt => (
-              <button
-                key={opt.value}
-                className={`speed-btn ${speed === opt.value ? 'active' : ''}`}
-                style={speed === opt.value ? { borderColor: instRoute.color, color: instRoute.color } : {}}
-                onClick={() => onUpdate({ speed: opt.value })}
-                title={opt.title}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="glide-row auto-glide-row">
-          <span className="glide-label">GLIDE</span>
-          <input
-            type="range" min="0" max="1" step="0.01"
-            value={glide}
-            aria-label="Automation glide"
-            aria-valuetext={`${Math.round(glide * 100)}%`}
-            onChange={e => onUpdate({ glide: parseFloat(e.target.value) })}
-            {...useResetGesture(() => onUpdate({ glide: 0 }))}
-            className="glide-slider"
-            style={{ accentColor: instRoute.color }}
-          />
-          <span className="glide-val" style={{ color: instRoute.color }}>{Math.round(glide * 1000)}ms</span>
-        </div>
-      </div>
+      <AutomationFields instRoute={instRoute} allRoutes={allRoutes} synthType={synthType} adsr={adsr} filter={filter}
+        granular={granular} activeFxTracks={activeFxTracks} sourceRouteId={sourceRouteId} paramTarget={paramTarget}
+        speed={speed} glide={glide} onUpdate={onUpdate} onRemove={onRemove} />
 
       <AutoCurveRail
         route={sourceRoute}
@@ -1937,18 +1845,6 @@ function AutomationSourceTrack({ srcRoute, instRoute, automationCfg, srcGridReso
   )
 }
 
-const AUTO_PAD = 0.1   // vertical padding so dots at value 0/1 stay inside the rail
-
-// y% (0..100, top→bottom) for a 0..1 automation value, matching StopRail's padding.
-function autoValueToY(value) {
-  return (AUTO_PAD + (1 - value) * (1 - AUTO_PAD * 2)) * 100
-}
-// Inverse: a clientY fraction (0 top .. 1 bottom) back to a clamped 0..1 value.
-function autoYToValue(frac) {
-  const v = 1 - (frac - AUTO_PAD) / (1 - AUTO_PAD * 2)
-  return Math.max(0, Math.min(1, v))
-}
-
 // Resolve a control's automation state from a route's `autoTargets` map.
 // `ids` may be a single target id or a list (a control owned by either of several ids,
 // e.g. the amp-env "A" slider is locked by both `synth.attack` and `adsr.attack`).
@@ -1958,8 +1854,6 @@ function autoYToValue(frac) {
 // Draggable per-stop automation curve. X = the chosen line's stops (snapped to the
 // same grid as instrument notes); Y = the authored value (override or hash default).
 function AutoCurveRail({ route, laneId, points, spec, started = false, visible = true, speed = 1, loopRegion, gridResolution, onLoopRegion, onUpdate, onActiveValue }) {
-  const noteStepsPerBar = GRID_RESOLUTION_STEPS_PER_BAR[gridResolution ?? DEFAULT_GRID_RESOLUTION] ?? GRID_STEPS_PER_BAR
-  const noteTotalCells  = GRID_BARS * noteStepsPerBar
   const railRef = useRef(null)
   const needleRef = useRef(null)
   const stopPointsRef = useRef([])
@@ -2007,10 +1901,7 @@ function AutoCurveRail({ route, laneId, points, spec, started = false, visible =
       el.style.transform = `translateX(${playLeft}%)`
       // Highlight the point currently in effect: the last dot the needle has passed.
       const ds = dotsRef.current
-      let active = -1
-      for (let i = 0; i < ds.length; i++) {
-        if (ds[i].x <= playLeft) active = i
-      }
+      const active = activeAutomationPoint(stopPointsRef.current, playLeft, { startCell, endCell })
       if (active !== lastActiveRef.current) {
         ds.forEach((d, i) => d.el.classList.toggle('active', i === active))
         lastActiveRef.current = active
@@ -2045,16 +1936,7 @@ function AutoCurveRail({ route, laneId, points, spec, started = false, visible =
     }
   }
 
-  const stopPoints = useMemo(() => {
-    if (!route?.stops?.length) return []
-    const gridStops = snapStopsToGrid(route.stops, route.totalDist, noteTotalCells, noteStepsPerBar)
-    return gridStops.map((stop) => {
-      const override = points?.[stop.id]
-      const value = (typeof override === 'number') ? override : hashStopValue(laneId, stop.id)
-      const x = (stop.cellIdx / noteTotalCells) * 100
-      return { id: stop.id, name: stop.name, x, y: autoValueToY(value), value }
-    })
-  }, [route, laneId, points, noteTotalCells, noteStepsPerBar])
+  const stopPoints = useMemo(() => automationPoints(route, laneId, points, gridResolution), [route, laneId, points, gridResolution])
   stopPointsRef.current = stopPoints
 
   const polylinePoints = stopPoints.map(p => `${p.x},${p.y}`).join(' ')
@@ -2077,7 +1959,7 @@ function AutoCurveRail({ route, laneId, points, spec, started = false, visible =
     if (dragId !== stopId) return
     const v = valueFromEvent(e.clientY)
     if (v == null) return
-    onUpdate({ points: { ...points, [stopId]: v } })
+    onUpdate(automationPointPatch(points, stopId, v))
   }, [dragId, points, onUpdate, valueFromEvent])
   const onDotUp = useCallback((e, stopId) => {
     if (dragId !== stopId) return
@@ -2093,20 +1975,11 @@ function AutoCurveRail({ route, laneId, points, spec, started = false, visible =
     : `${Math.round(v * 100)}%`)
   // Keyboard: Up/Down nudge 5%, Shift 1%, PageUp/PageDown 25%, Home/End to the limits.
   const onDotKey = (e, p) => {
-    const fine = e.shiftKey ? 0.01 : 0.05
-    let next = null
-    switch (e.key) {
-      case 'ArrowUp': case 'ArrowRight': next = p.value + fine; break
-      case 'ArrowDown': case 'ArrowLeft': next = p.value - fine; break
-      case 'PageUp': next = p.value + 0.25; break
-      case 'PageDown': next = p.value - 0.25; break
-      case 'Home': next = 0; break
-      case 'End': next = 1; break
-      default: return
-    }
+    const next = automationKeyValue(p.value, e.key, e.shiftKey)
+    if (next == null) return
     e.preventDefault()
     e.stopPropagation()
-    onUpdate({ points: { ...points, [p.id]: Math.max(0, Math.min(1, next)) } })
+    onUpdate(automationPointPatch(points, p.id, next))
   }
   const maxLabel = spec ? `${spec.max}${unit}` : ''
   const minLabel = spec ? `${spec.min}${unit}` : ''
