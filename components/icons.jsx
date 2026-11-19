@@ -35,6 +35,7 @@ import { MusicNotes as MusicNotesIcon } from '@phosphor-icons/react/dist/csr/Mus
 import { Play as PlayIcon } from '@phosphor-icons/react/dist/csr/Play'
 import { Plus as PlusIcon } from '@phosphor-icons/react/dist/csr/Plus'
 import { Power as PowerIcon } from '@phosphor-icons/react/dist/csr/Power'
+import { SlidersHorizontal as SlidersHorizontalIcon } from '@phosphor-icons/react/dist/csr/SlidersHorizontal'
 import { Stop as StopIcon } from '@phosphor-icons/react/dist/csr/Stop'
 import { Warning as WarningIcon } from '@phosphor-icons/react/dist/csr/Warning'
 import { WarningCircle as WarningCircleIcon } from '@phosphor-icons/react/dist/csr/WarningCircle'
@@ -88,6 +89,7 @@ export const IconPlay        = wrap(PlayIcon, 'fill')
 export const IconStop        = wrap(StopIcon, 'fill')
 export const IconMusic       = wrap(MusicNotesIcon)
 export const IconUpload      = wrap(UploadSimpleIcon)
+export const IconMixer       = wrap(SlidersHorizontalIcon)
 export const IconWaveform    = wrap(WaveformIcon)
 export const IconClear       = wrap(BackspaceIcon)
 export const IconMoveUp      = wrap(ArrowUpIcon)

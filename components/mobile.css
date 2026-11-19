@@ -319,3 +319,38 @@
   .mdrum-grid { --mdrum-cell: 56px; }
   .mdrum-step { min-width: 44px; min-height: var(--mdrum-cell); padding: var(--space-050); }
 }
+
+/* Phase 5: shared mixer controls become stacked touch fields below PHONE_MAX. */
+@media (max-width: 767px) {
+  .mtransport-mixer { min-width: 44px; min-height: 44px; }
+  .mixer-sheet .fx-track-card, .mixer-sheet .master-chain-card, .mixer-sheet .master-strip { width: 100%; min-width: 0; max-width: none; box-sizing: border-box; }
+  .mixer-sheet .fx-track-card { border: 1px solid var(--border); border-radius: var(--radius-sm); }
+  .mixer-sheet .fx-track-card-header { flex-wrap: wrap; gap: var(--space-075); }
+  .mixer-sheet .fx-track-card--sheet .fx-track-card-header { display: grid; grid-template-columns: minmax(0, 1fr) repeat(3, 44px); }
+  .mixer-sheet .fx-sheet-return { grid-column: 1 / -1; }
+  .mixer-sheet .fx-track-expand { min-height: 44px; padding: var(--space-075); font-size: var(--fs-sm); }
+  .mixer-sheet button { min-height: 44px; }
+  .mixer-sheet .mute-btn, .mixer-sheet .solo-btn, .mixer-sheet .fx-track-remove-btn, .mixer-sheet .master-chain-reset { min-width: 44px; }
+  .mixer-sheet .master-chain-params { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; grid-auto-flow: row; }
+  .mixer-sheet .fx-param-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--space-075); }
+  .mixer-sheet .fx-param-slider { grid-column: 1 / -1; width: 100%; }
+  .mixer-sheet .fx-param-val { grid-column: 2; grid-row: 1; width: auto; }
+  .mixer-sheet .fx-param-reset { grid-column: 2; }
+  .mixer-sheet .fx-param-label, .mixer-sheet .fx-param-val { font-size: var(--fs-xs); }
+  .mixer-sheet .fx-param-select, .mixer-sheet .fx-add-select { width: 100%; min-width: 0; min-height: 44px; max-width: 100%; font-size: var(--fs-lg); }
+  .mixer-sheet .fx-add-area { padding: 0; }
+  .mixer-sheet .fx-param-select { grid-column: 1 / -1; overflow: hidden; text-overflow: ellipsis; }
+  .mixer-sheet .master-vol-slider, .mixer-sheet .fx-track-wet-slider, .mixer-sheet .fx-param-slider { min-height: 44px; }
+  .mixer-sheet input[type='range']::-webkit-slider-thumb { width: 24px; height: 24px; }
+  .mixer-sheet input[type='range']::-moz-range-thumb { width: 24px; height: 24px; }
+}
+@media (max-width: 359px) {
+  .mtransport-mixer { display: none; } /* Mixer stays available in Session settings. */
+}
+@media (max-width: 767px) {
+  .mixer-sheet .master-chain-card .fx-track-card-header { display: grid; grid-template-columns: minmax(0, 1fr) 44px auto; }
+  .mixer-sheet .master-chain-name { grid-column: 1; grid-row: 1; }
+  .mixer-sheet .master-chain-reset { grid-column: 2; grid-row: 1; }
+  .mixer-sheet .master-chain-toggle { grid-column: 3; grid-row: 1; }
+  .mixer-sheet .master-chain-flow { grid-column: 1 / -1; grid-row: 2; }
+}

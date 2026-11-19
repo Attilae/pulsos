@@ -82,7 +82,7 @@ export default function FirstRunNotice({ onDismiss }) {
         and drums, and edit each stop&rsquo;s note.
       </p>
       <p className="intro-note">
-        A few deeper editors (EQ curves, automation drawing, FX buses) are on
+        A few deeper editors (EQ curves and automation drawing) are on
         desktop for now.
       </p>
 
