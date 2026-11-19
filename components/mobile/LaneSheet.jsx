@@ -74,7 +74,7 @@ export default function LaneSheet({
   activeFxTracks = [],
   sidechain,
   sidechainSources = [],
-  filter,
+  filter, getEqRuntime, engineGen,
   tag,
   // handlers — the same ones the desktop rack calls
   onSamplerPreset, onSamplerUpload, onDrumVoice, onGranular, onGlide, onLegato,
@@ -105,7 +105,7 @@ export default function LaneSheet({
   const ctx = { onTrackLoopRegion, started, audioExporting, audioProgress, onExportMidi, onExportWav, glide, automationLanes, onSamplerPreset, onSamplerUpload, onDrumVoice, onGranular, onGlide, onLegato, route, volume, pan, disabled, soloed, synthType, adsr, granular, scale, octave,
     semitone, pitchVariety, speed, gridResolution, loopRegion, arp, perStopSteps,
     stopVelocities, noteChance, noteLength, stopNoteLength, stopVelocityMap, legato, drone,
-    stopChances, loopPattern, sendMatrix, activeFxTracks, sidechain, sidechainSources, filter,
+    stopChances, loopPattern, sendMatrix, activeFxTracks, sidechain, sidechainSources, filter, getEqRuntime, engineGen,
     tag, onVolume, onPan, onDisable, onSolo, onSynthType, onADSR, onScale, onOctaveShift,
     onPitchVariety, onTrackSpeed, onGridResolution, onArp, onSendLevel, onSidechain,
     onStopPitch, onStopVelocity, onLaneTag, onNoteChance, onStopChance, onLoopPattern,

@@ -1,12 +1,15 @@
 'use client'
 import { LaneFilterFields } from '../../LaneFilterEditor.jsx'
 import { FX_BUSES } from '@/lib/fxTrack.js'
+import TouchEqEditor from '../../lane/TouchEqEditor.jsx'
 import { Field } from './fields.jsx'
 
 // Shared by the instrument lane Mix segment and the drum lane's Mix sheet.
-export default function LaneMixFields({ routeId, filter, onFilter, activeFxTracks = [], sendMatrix, onSendLevel }) {
+export default function LaneMixFields({ routeId, filter, onFilter, activeFxTracks = [], sendMatrix, onSendLevel, getEqRuntime, engineGen }) {
   return <>
       {onFilter && <LaneFilterFields filter={filter} onFilter={p => onFilter(routeId, p)} Field={Field} />}
+
+      <TouchEqEditor getRuntime={getEqRuntime} routeId={routeId} engineGen={engineGen} />
 
       {activeFxTracks.length > 0 && (
         <Field label="Sends">
