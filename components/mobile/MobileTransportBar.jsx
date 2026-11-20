@@ -95,7 +95,7 @@ export default function MobileTransportBar({
               onClick={() => onView('map')}
             >Map</button>
             <button
-              type="button" role="tab" aria-selected={view === 'daw'}
+              type="button" role="tab" aria-selected={view === 'daw'} data-tour="mobile-lanes"
               className={view === 'daw' ? 'is-active' : ''}
               onClick={() => onView('daw')}
             >Lanes</button>
