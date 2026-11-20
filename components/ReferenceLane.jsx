@@ -181,7 +181,7 @@ function StoredLoops({ reference }) {
 
 const msOf = (sec) => Math.round((sec ?? 0) * 1000)
 
-export function ReferenceControls({ reference, bpm }) {
+export function ReferenceControls({ reference, bpm, variant = 'rack' }) {
   const meta = reference.reference
   const offsetReset = useResetGesture(() => reference.update({ offsetSec: 0 }))
   const volumeReset = useResetGesture(() => reference.update({ volumeDb: -6 }))
@@ -243,6 +243,11 @@ export function ReferenceControls({ reference, bpm }) {
         <span className="reference-value">{meta.volumeDb} dB</span>
       </label>
 
+      {variant === 'sheet' && <div className="reference-sheet-resets">
+        <button type="button" className="reference-btn" onClick={() => reference.update({ offsetSec: 0 })}>Reset loop start</button>
+        <button type="button" className="reference-btn" onClick={() => reference.update({ volumeDb: -6 })}>Reset loop volume</button>
+      </div>}
+
       <button
         type="button"
         className={`reference-btn ${meta.muted ? 'on' : ''}`}
@@ -277,7 +282,7 @@ export function ReferenceControls({ reference, bpm }) {
 
 // Static waveform of the whole file; the played window (offset → offset + one
 // cycle) is highlighted and the playhead is drawn from the shared ticker.
-function ReferenceWaveform({ peaks, meta, bpm, started, visible }) {
+export function ReferenceWaveform({ peaks, meta, bpm, started, visible }) {
   const canvasRef = useRef(null)
   const headRef = useRef(null)
   const wrapRef = useRef(null)
@@ -306,7 +311,9 @@ function ReferenceWaveform({ peaks, meta, bpm, started, visible }) {
     draw()
     const ro = new ResizeObserver(draw)
     ro.observe(wrap)
-    return () => ro.disconnect()
+    const theme = new MutationObserver(draw)
+    theme.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] })
+    return () => { ro.disconnect(); theme.disconnect() }
   }, [peaks])
 
   const duration = meta.durationSec || 0
@@ -335,7 +342,7 @@ function ReferenceWaveform({ peaks, meta, bpm, started, visible }) {
   }, [started, visible, duration, meta.bars, meta.offsetSec, bpm])
 
   return (
-    <div className="reference-wave" ref={wrapRef}>
+    <div className="reference-wave" ref={wrapRef} role="img" aria-label={`Waveform of ${meta.name || "your loop"}, starting at ${msOf(meta.offsetSec)} ms`}>
       <canvas ref={canvasRef} className="reference-wave-canvas" aria-hidden="true" />
       <div
         className="reference-wave-window"

@@ -1,3 +1,4 @@
+import EventLog from './EventLog.jsx'
 import AutomationFields from './lane/AutomationFields.jsx'
 import { automationPoints, autoValueToY, autoYToValue, automationKeyValue, automationPointPatch, activeAutomationPoint } from '@/lib/automationPoints.js'
 import TouchEqEditor from './lane/TouchEqEditor.jsx'
@@ -15,7 +16,7 @@ import EnvPanel from './lane/EnvelopeFields.jsx'
 import { SpSlider, SpSelect } from './lane/SynthFields.jsx'
 import { autoCtl } from '@/lib/automationControl.js'
 import * as Tone from 'tone'
-import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { SYNTH_DEFAULTS, supportsGranular, availableAutomationTargets, findTargetSpec, DEFAULT_SIDECHAIN, ARP_STYLES, ARP_RATES, DEFAULT_ARP, DRUMS_ROUTE_ID } from '@/lib/engine.js'
 import { FX_BUSES, AUTOMATION_TARGETS } from '@/lib/fxTrack.js'
 import { useLaneFilterEditor, AnalogFilterStatus, FilterModelSwitch, DRIVE_HELP } from './LaneFilterEditor.jsx'
@@ -39,7 +40,6 @@ import {
 import { useResetGesture } from '@/lib/shared/useResetGesture.js'
 import { useIsPhone } from '@/lib/shared/useViewport.js'
 import { subscribePlayhead } from '@/lib/shared/playheadTicker.js'
-import { subscribeEvents, getEvents } from '@/lib/shared/eventLogStore.js'
 import { normalizeLaneTag } from '@/lib/laneTags.js'
 import { LOOP_PATTERN_PRESETS, MAX_PATTERN_PLAY, MAX_PATTERN_REST, normalizeLoopPattern, normalizeNoteChance, formatLoopPattern, loopIndexAt, loopPlays } from '@/lib/laneGating.js'
 import StopEditor from './StopEditor.jsx'
@@ -726,26 +726,6 @@ export default function DawView(props) {
 // ── Event log ────────────────────────────────────────────────────────────────
 // Subscribes to the note feed itself (lib/shared/eventLogStore.js), so a note
 // burst re-renders this list and nothing above it. Hidden → no subscription.
-const noSubscribe = () => () => {}
-function EventLog({ visible }) {
-  const events = useSyncExternalStore(visible ? subscribeEvents : noSubscribe, getEvents, getEvents)
-  return (
-    <aside className="event-log">
-      <h2>Event Log</h2>
-      <ul>
-        {/* Keyed by event, not index: a new note then inserts one row instead
-            of rewriting the text of all 24 (a layout per note burst). */}
-        {events.slice(0, 24).map((ev) => (
-          <li key={ev.seq}>
-            <span className="ev-line">{ev.routeShortName ?? ev.lineId}</span>
-            <span className="ev-stop">{ev.stopName}</span>
-            <span className="ev-note">{ev.note}</span>
-          </li>
-        ))}
-      </ul>
-    </aside>
-  )
-}
 
 function DrumLane({
   pattern, muted, started = false, visible = true, onToggleStep, onTogglePadMute, onToggleMute, onClear,

@@ -18,6 +18,7 @@ import MobileTransportBar from './MobileTransportBar.jsx'
 import LaneSheet from './LaneSheet.jsx'
 import MoreSheet from './MoreSheet.jsx'
 import MixerSheet from './MixerSheet.jsx'
+import EventLog from '../EventLog.jsx'
 import SongMenu from '../SongMenu.jsx'
 import Sheet from '../Sheet.jsx'
 import LinePicker from '../LinePicker.jsx'
@@ -26,6 +27,7 @@ import { linePickerProps } from '@/lib/linePickerProps.js'
 import './MobileDaw.css'
 
 export default function MobileDaw({ controls, lanes }) {
+  const [activityOpen, setActivityOpen] = useState(false)
   const [mixerOpen, setMixerOpen] = useState(false)
   const [drumOpen, setDrumOpen] = useState(false)
   const [linePicker, setLinePicker] = useState(null)
@@ -39,7 +41,7 @@ export default function MobileDaw({ controls, lanes }) {
     : null
 
   return (
-    <div className="mdaw">
+    <div className="mdaw" data-tour="mobile-daw">
       <MobileTopBar
         cityName={controls.cityName}
         songName={controls.song?.currentSong?.name ?? 'Untitled'}
@@ -201,6 +203,11 @@ export default function MobileDaw({ controls, lanes }) {
 
       <MixerSheet open={mixerOpen} onClose={() => setMixerOpen(false)} mixer={controls.mixer} />
 
+      <Sheet open={activityOpen} onClose={() => setActivityOpen(false)} title="Activity" className="activity-sheet">
+        <p className="lsheet-hint">The latest 24 notes, newest first.</p>
+        <EventLog visible={activityOpen} variant="sheet" />
+      </Sheet>
+
       <MoreSheet
         open={moreOpen}
         onClose={() => setMoreOpen(false)}
@@ -224,6 +231,7 @@ export default function MobileDaw({ controls, lanes }) {
         reference={controls.reference}
         bpm={controls.bpm}
         onOpenMixer={() => { setMoreOpen(false); setMixerOpen(true) }}
+        onOpenActivity={() => { setMoreOpen(false); setActivityOpen(true) }}
         onOpenAi={() => { setMoreOpen(false); controls.onOpenAi() }}
         onSoundCheck={() => { setMoreOpen(false); controls.onSoundCheck() }}
       />

@@ -99,6 +99,7 @@ function MobileLaneStrip({
         <button
           type="button"
           className="mlane-btn mlane-more"
+          data-tour="mobile-lane-settings"
           onClick={() => onOpen(route.id)}
           aria-label={`${label} settings`}
         ><IconMore /></button>

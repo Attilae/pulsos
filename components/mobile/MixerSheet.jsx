@@ -10,7 +10,7 @@ import { GroupHead } from './lane/fields.jsx'
 
 export default function MixerSheet({ open, onClose, mixer }) {
   const [segment, setSegment] = useState('fx')
-  return <Sheet open={open} onClose={onClose} title="Mixer" className="mixer-sheet"
+  return <Sheet open={open} onClose={onClose} title="Mixer" className="mixer-sheet" tourId="mobile-mixer"
     toolbar={<div className="lsheet-segments" role="tablist" aria-label="Mixer sections">
       {[['fx', 'FX buses'], ['master', 'Master']].map(([id, label]) => <button key={id} type="button" role="tab"
         aria-selected={segment === id} className={`lsheet-segment${segment === id ? ' is-active' : ''}`}

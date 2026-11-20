@@ -44,7 +44,7 @@ export default function MobileLaneList({
           </ul>
         </section>
       ))}
-      <button type="button" className="mlanes-add lsheet-action" disabled={started} onClick={() => onAddLine(null)}>Add line</button>
+      <button type="button" className="mlanes-add lsheet-action" data-tour="mobile-add-line" disabled={started} onClick={() => onAddLine(null)}>Add line</button>
     </div>
   )
 }

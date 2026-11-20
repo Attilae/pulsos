@@ -121,7 +121,7 @@ Ship it as **phased PRs, one area per PR**, each releasable on its own. Branch e
     light/dark and 320px/390px/820px/1440px layouts. Human listening on phone hardware remains
     a release check. Details: `docs/mobile-parity-phase6-validation.md`.
 
-- **Phase 7 is implemented** on `feature/mobile-parity-phase7` (from updated `develop`):
+- **Phase 7 is merged**: PR #136 (`feature/mobile-parity-phase7`):
   - Lane sheets have an Auto segment for adding/removing automation, selecting a session source
     and grouped target, inactive model notices, speed/glide, and a subloop with Reset to source.
     `AutomationFields` is shared with the desktop rack.
@@ -137,7 +137,22 @@ Ship it as **phased PRs, one area per PR**, each releasable on its own. Branch e
     map markers remain disabled on phones.
   - No new MixerTab state: only existing state/handlers were added to the mobile bundle.
   - Validation and performance comparison: `docs/mobile-parity-phase7-validation.md`.
-  - **Next is Phase 8: leftovers and docs.** Phase 8 is not implemented yet.
+
+- **Phase 8 is implemented** on `feature/mobile-parity-phase8` (from updated `develop`):
+  - More → Activity opens the shared EventLog, with an empty state and the latest 24 notes.
+    Only the log subscribes to note batches; closing the sheet releases the subscription.
+  - Your loop now shows the shared waveform/playhead, visible start/volume resets, existing
+    account/device status and stored-loop management. Waveform ticker work runs only while
+    More is open and playing; theme/resize observers are released on unmount.
+  - The phone tour opens Tone/Rhythm/Mix/Notes/Auto and Mixer in either direction. It restores
+    prior tabs/view and closes its own sheets while preserving user-opened sheets. A scoped
+    modal companion makes its controls keyboard-accessible. Tour cleanup restores authored
+    ARIA attributes, and the desktop rack tour reads the button's real open state.
+  - FirstRunNotice describes the completed touch controls without desktop-only claims. The
+    CLAUDE.md Mobile section now documents phases 1–8; AGENTS.md was regenerated with sync:agents.
+  - Validation: `docs/mobile-parity-phase8-validation.md`.
+  - **All parity phases are implemented.** Phase 8 still needs PR review/merge. Human listening
+    on phone hardware remains the release check recorded throughout this handoff.
 
 ### How the phone is wired
 
