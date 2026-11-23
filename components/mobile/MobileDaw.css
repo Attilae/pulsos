@@ -760,3 +760,10 @@
 .mauto-needle-track i[hidden] { display: none; }
 .mauto-nudges { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-100); margin-block: var(--space-150); }
 .mauto-value { display: block; margin-block: var(--space-100); font: var(--fs-sm) var(--font-mono); color: var(--text); }
+
+.event-log-empty { color: var(--muted); font-size: var(--fs-sm); line-height: 1.5; }
+.activity-sheet .event-log--sheet { display: block; border: 0; padding: 0; overflow: visible; background: transparent; min-width: 0; }
+.activity-sheet .event-log ul { gap: var(--space-100); }
+.activity-sheet .event-log li { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; padding-block: var(--space-100); border-bottom: 1px solid var(--border); font-size: var(--fs-sm); }
+.activity-sheet .ev-stop { white-space: normal; overflow-wrap: anywhere; }
+.activity-sheet .ev-line, .activity-sheet .ev-note { width: auto; }

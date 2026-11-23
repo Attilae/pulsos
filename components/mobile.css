@@ -379,3 +379,31 @@
   .lane-sheet .mauto-editor button, .lane-sheet .mauto-editor select { min-height: 44px; }
   .lane-sheet .mauto-editor select { width: 100%; min-width: 0; font-size: var(--fs-lg); }
 }
+
+/* Reference loop controls in the session sheet use the desktop state/actions. */
+@media (max-width: 767px) {
+  .more-sheet .reference-wave { height: 80px; width: 100%; min-width: 0; margin: var(--space-100) 0; flex-shrink: 0; }
+  .more-sheet .reference-controls { min-width: 0; padding: 0; gap: var(--space-150); }
+  .more-sheet .reference-field { width: 100%; min-width: 0; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; }
+  .more-sheet .reference-field--bpm { display: flex; }
+  .more-sheet .reference-field input[type="range"] { min-height: 44px; width: 100%; min-width: 0; }
+  .more-sheet .reference-field select { min-height: 44px; font-size: var(--fs-lg); }
+  .more-sheet .reference-field input[type="range"]::-webkit-slider-thumb { width: 24px; height: 24px; }
+  .more-sheet .reference-field input[type="range"]::-moz-range-thumb { width: 24px; height: 24px; }
+  .more-sheet .reference-btn, .more-sheet .reference-link { min-height: 44px; min-width: 44px; }
+  .more-sheet .reference-check { min-height: 44px; }
+  .more-sheet .reference-sheet-resets { display: flex; flex-wrap: wrap; gap: var(--space-100); }
+  .more-sheet .reference-actions { margin-left: 0; width: 100%; flex-wrap: wrap; }
+  .more-sheet .reference-library { width: 100%; min-width: 0; }
+  .more-sheet .reference-library summary { min-height: 44px; align-content: center; }
+  .more-sheet .reference-library-list li { display: grid; grid-template-columns: minmax(0, 1fr) auto; }
+  .more-sheet .reference-library-name { grid-column: 1 / -1; white-space: normal; overflow-wrap: anywhere; }
+  .more-sheet .reference-library-tag { grid-column: 1; }
+  .more-sheet .reference-library-list .reference-btn { grid-column: 2; grid-row: 2 / 4; }
+}
+
+@media (max-width: 767px) {
+  .sheet-panel .sheet-close { width: 44px; height: 44px; }
+  .driver-popover.leid-tour--mobile .driver-popover-close-btn { width: 44px; height: 44px; }
+  .driver-popover.leid-tour--mobile .driver-popover-close-btn::before { inset: 14px; }
+}

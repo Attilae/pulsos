@@ -128,6 +128,7 @@ export default function LaneSheet({
     <Sheet
       open={open}
       onClose={onClose}
+      tourId="mobile-lane-sheet"
       title={route.name ?? route.id}
       className="lane-sheet"
       // In the sheet's toolbar, not its body: the Notes list runs to 60+ rows
@@ -155,6 +156,7 @@ export default function LaneSheet({
           {SEGMENTS.map(s => (
             <button
               key={s.id}
+              data-tour={`mobile-${s.id}`}
               type="button"
               role="tab"
               aria-selected={segment === s.id}

@@ -694,8 +694,8 @@ NetworkState (drone hum + hub-convergence chords) → AlertLayer input
       says the code is unverified on hardware. Plan and open gates: `docs/texture-mk2-plan.md`;
       ABI, upstream quirks and measurements: `dsp/beads/README.md`.
   - **UI names**: "Classic" and "Mk II", never the module names (upstream's request). The panel is
-    `components/TextureControls.jsx` (desktop only; the phone lane sheet has no granular
-    controls).
+    `components/TextureControls.jsx`, shared by the desktop rack and phone Tone segment
+    with rack/sheet variants.
   - **Automation**: `textureParamTargets(cfg)` gives `grain.tx*` (Classic) and `grain.tx2*`
     (Mk II) targets. A lane on the other model's target is kept and shown inactive in DawView,
     like the lane filter's model-specific targets. `prepareSounds`/`prepareSnapshotSounds` warm Mk
@@ -1308,25 +1308,61 @@ the mistake this split exists to prevent.
 **The rule for where a change goes**: sizing/stacking/hiding → a media query in
 `components/mobile.css` (imported by `App.jsx` *after* `app.css`, which is what makes it win at
 equal specificity — a rule placed in `components/mobile/*.css` loses, because those load earlier
-via the module graph). A different component *tree* → a `useIsPhone()` branch in JSX. There are
-only five such branches: the MixerTab layout swap, `<weq8-ui>` mounting, `MobileLaneList`
-mounting, MapView's `preferCanvas`/zoom buttons/stop cap/lane list (a panel and focus card on
-desktop, a "Lanes" button, `Sheet` and compact focus card on phones), and which tour step list runs.
+via the module graph). A different component *tree* → a `useIsPhone()` branch in JSX.
+The branches cover the MixerTab phone layout, EqPanel's touch editor, App's tour list,
+FirstRunNotice, AIComposerPanel's drag behavior and MapView's canvas/zoom/stop-density and
+lane-list controls. Keep layout detection separate from platform-specific audio handling.
 
 **The phone Map/DAW** (`components/mobile/`) — `MobileDaw` replaces `.daw-header` + `DawView`
-below 768px, but **MixerTab still owns every piece of state**: the branch lives inside MixerTab's
-own return and passes `controls`/`lanes` prop bundles built from the same handlers the desktop
-view uses. Branching in `App.jsx` instead would unmount MixerTab on rotation and destroy the song.
-`MapView` keeps rendering in both branches (positioned over the stage by `.daw--phone
-.map-wrapper`) so Leaflet never remounts. It mounts on the first Map visit (`mapMounted` in
-MixerTab), not at startup, and stays mounted from then on. Pieces: `MobileTopBar` (city · song · ⋯),
-`MobileLaneList`/`MobileLaneStrip` (⏻ · S · volume · ⋯ per lane), `LaneSheet` (Sound/Mix/Notes),
-`MobileTransportBar` (play, BPM, Map⇄Lanes, and the *one* shared playhead — desktop runs one rAF
-per lane, which a phone can't afford), `MoreSheet` (the other eight header controls).
+below 768px, but **MixerTab still owns song and engine state**. Its `controls`/`lanes` bundles
+pass the same state and handlers as desktop; phone-only sheet selection lives in MobileDaw.
+`controls.mixer` carries the existing FX/master controls. The lane bundle includes drums,
+selected automation sources, source grids/loop windows and EQ runtime access with engineGen.
+Branching in App would unmount MixerTab on rotation and destroy the song. MapView mounts on the
+first Map visit (`mapMounted`), stays mounted through view changes and sits over the phone stage.
 
-The lane sheet's Mix segment also carries **sidechain ducking** — source picker plus
-amount/attack/release. It reuses `SidechainSourceOptions`, exported from `DawView.jsx` (the same
-`SYNTH_TYPES` trick), so the phone and the desktop rack can't drift on what's pickable.
+The phone shell contains MobileTopBar (city, song and session settings), MobileLaneList and
+MobileLaneStrip (power, solo, level, settings), MobileDrumStrip, MobileTransportBar (play, BPM,
+Map/Lanes and a Mixer shortcut where space permits), and MoreSheet for session controls.
+Automation sources remain audible/editable lanes and carry a Data badge; they count toward the
+same plan cap as other lanes. Line actions reuse the desktop picker and duplication handlers.
+
+**LaneSheet** has five pinned segments under `components/mobile/lane/`: ToneSegment,
+RhythmSegment, MixSegment, NotesSegment and AutoSegment. The thin shell derives shared values
+and passes one ctx object. Tone shares envelopes, synth/Texture/GrainPlayer editors and upload
+gates with desktop. Rhythm includes loop-window steppers, timing and arpeggiation. Mix exposes
+level/pan, shared filter controls, touch EQ, sends, sidechain ducking and per-lane MIDI/WAV export.
+SidechainSourceOptions is exported from DawView so both views offer the same sources.
+
+TouchEqEditor edits the engine-owned weq8 runtime directly; its change callback mirrors edits
+into song state for autosave. It shows eight bands and a read-only response canvas, without
+mounting weq8's pointer UI/analyser. Its listener and observers are released on close. The desktop
+curve editor retains the lifecycle protection described in the EQ section.
+
+AutoSegment shares AutomationFields with desktop. AutomationCurveEditor adds column taps,
+vertical drags, a stop picker and precise steps over the shared lib/automationPoints.js maths.
+useAutomationPlayback runs one shared-ticker subscriber only while a lane sheet is open and
+playing, painting needles/highlights on the DOM and publishing values only at stop changes.
+Tone/Mix mirror armed values and lock the controls they drive, including model-specific gating.
+
+DrumLaneSheet has Pads/Mix and four source-buffer pages. Each pad still plays a 16-step window
+within its 64-slot buffer; pages do not extend the playback loop. The sheet shares filter/EQ/send
+controls with instrument lanes and paints cached cursors only while Pads is open and playing.
+MixerSheet shares FX bus cards, return/mute/solo controls, custom IR gates, master volume and
+master-chain controls with desktop. Its meter poll runs only in the open, enabled Master section.
+
+Activity is a Sheet containing the same EventLog as desktop. The log alone subscribes to
+lib/shared/eventLogStore.js while visible; no per-note state is added to MixerTab. MoreSheet's
+Your loop section reuses ReferenceWaveform and ReferenceControls, including visible resets,
+cloud status and stored-loop management. A loop can be stored on the device and in the account;
+the shared status notes describe which copy is available. Its playhead subscribes only while
+More is open and playback is running.
+
+The transport has one DOM playhead. Open drum, automation and reference editors use the shared
+playheadTicker as needed and unsubscribe on close/stop; none use per-frame React state. The
+phone tour opens these editing surfaces without changing song settings, restores existing tabs
+and closes only its own sheets. A registered modal companion lets its popover own keyboard
+navigation while a sheet is open; other dialogs retain the ordinary modal contract.
 
 **Per-stop editing on a phone** is a list, not the stop rail: dots are 8px and 10–20px apart, so
 44px hit areas would overlap neighbours. `lib/laneNotes.js` (`buildLanePitchMaps` /

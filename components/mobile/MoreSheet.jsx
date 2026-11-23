@@ -6,8 +6,8 @@
 
 import Sheet from '../Sheet.jsx'
 import { NOTE_ROOTS, SCALE_TYPES } from '../DawView.jsx'
-import { IconDownload, IconWaveform, IconMixer } from '../icons.jsx'
-import { ReferenceControls, ReferenceUploadButton, REFERENCE_LANE_LABEL, REFERENCE_UPLOAD_LABEL } from '../ReferenceLane.jsx'
+import { IconDownload, IconWaveform, IconMixer, IconMotion, IconRepick, IconMusic, IconAdd } from '../icons.jsx'
+import { ReferenceControls, ReferenceWaveform, ReferenceUploadButton, REFERENCE_LANE_LABEL, REFERENCE_UPLOAD_LABEL } from '../ReferenceLane.jsx'
 
 export default function MoreSheet({
   open, onClose,
@@ -19,11 +19,11 @@ export default function MoreSheet({
   onExportMidi, onExportWav, canExport, audioExporting, audioProgress = 0,
   canImportDrums, hasDrums, onImportDrums,
   reference, bpm,
-  onOpenAi, onOpenMixer,
+  onOpenAi, onOpenMixer, onOpenActivity,
   onSoundCheck,
 }) {
   return (
-    <Sheet open={open} onClose={onClose} title={`${cityName} · session`} className="more-sheet">
+    <Sheet open={open} onClose={onClose} title={`${cityName} · session`} className="more-sheet" tourId="mobile-session-sheet">
       <div className="msheet-field">
         <span className="msheet-label">
           Harmony {harmonyMixed && <em className="msheet-mixed">lanes differ</em>}
@@ -63,20 +63,21 @@ export default function MoreSheet({
       )}
 
       <div className="msheet-actions">
-        <button type="button" className="msheet-action" onClick={onOpenMixer}><IconMixer /> Mixer</button>
+        <button type="button" className="msheet-action" data-tour="mobile-mixer-open" onClick={onOpenMixer}><IconMixer /> Mixer</button>
+        <button type="button" className="msheet-action" onClick={onOpenActivity}><IconMotion /> Activity</button>
         {/* Same rule as the desktop header: re-picking swaps lanes under a
             running engine, so it waits for Stop rather than silently doing nothing. */}
         <button type="button" className="msheet-action" onClick={onRepick} disabled={started}>
-          ↻ Re-pick all lines
+          <IconRepick /> Re-pick all lines
         </button>
         {started && <span className="msheet-hint">Stop playback to re-pick lines.</span>}
         {canImportDrums && (
           <button type="button" className="msheet-action" onClick={onImportDrums}>
-            ♪ {hasDrums ? 'Update drums' : 'Add drums'}
+            <IconMusic /> {hasDrums ? 'Update drums' : 'Add drums'}
           </button>
         )}
         <button type="button" className="msheet-action" onClick={onOpenAi}>
-          ✦ AI Composer
+          <IconAdd /> AI Composer
         </button>
       </div>
 
@@ -86,7 +87,8 @@ export default function MoreSheet({
           {reference.reference ? (
             <>
               <span className="msheet-hint">{reference.reference.name}</span>
-              <ReferenceControls reference={reference} bpm={bpm} />
+              {reference.peaks && <ReferenceWaveform peaks={reference.peaks} meta={reference.reference} bpm={bpm} started={started} visible={open} />}
+              <ReferenceControls reference={reference} bpm={bpm} variant="sheet" />
             </>
           ) : (
             <div className="msheet-actions">
@@ -96,7 +98,7 @@ export default function MoreSheet({
             </div>
           )}
           <span className="msheet-hint">
-            Play your own loop on the bar grid and find the missing part against it. The file stays on this device.
+            Play your own loop on the bar grid and find the missing part against it.
           </span>
         </div>
       )}
@@ -105,7 +107,7 @@ export default function MoreSheet({
         <span className="msheet-label">Export</span>
         <div className="msheet-actions">
           <button type="button" className="msheet-action" onClick={onExportMidi} disabled={!canExport}>
-            ↓ MIDI
+            <IconDownload /> MIDI
           </button>
           <button type="button" className="msheet-action" onClick={onExportWav} disabled={!started || !canExport || audioExporting}>
             {audioExporting ? `Recording ${Math.round(audioProgress * 100)}%` : <><IconDownload /> WAV</>}
