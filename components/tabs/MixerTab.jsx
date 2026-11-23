@@ -40,7 +40,7 @@ import { alertDialog } from '@/components/Dialog.jsx'
 import { useEntitlements } from '@/lib/shared/EntitlementsContext.jsx'
 import { decodeCustomAudio, checkDecodedAudio } from '@/lib/customAudio.js'
 import { countActiveLanes, normalizeLaneAccess, normalizeSnapshotLaneAccess } from '@/lib/billing/plans.js'
-import { buildReplacementLaneState, sendsToClear, trackSynthParams, planFilterState } from '@/lib/ai/planApply.js'
+import { buildReplacementLaneState, sendsToClear, trackSynthParams, planFilterState, planDrumPattern } from '@/lib/ai/planApply.js'
 import { trackProductEvent } from '@/lib/productAnalytics.js'
 import { useReferenceTrack } from '@/lib/useReferenceTrack.js'
 import { setPerfWorkload } from '@/lib/perfMonitor.js'
@@ -1850,13 +1850,7 @@ export default function MixerTab({ active = true, onReady }) {
         handleClearDrums()
         engine?.setDrumPattern(null)
       } else {
-        const padIds = Object.keys(plan.drums.patterns ?? {})
-        const nextDrumPattern = {
-          patterns: plan.drums.patterns,
-          offsets: Object.fromEntries(padIds.map(id => [id, 0])),
-          muted: Object.fromEntries(padIds.map(id => [id, false])),
-          bpm: plan.bpm ?? bpm,
-        }
+        const nextDrumPattern = planDrumPattern(plan.drums, drumPatternRef.current, plan.bpm ?? bpm)
         setSyncedDrumPattern(nextDrumPattern)
         // Apply directly as well as through the React mirror effect. AI Apply
         // starts playback from another effect in this same commit; making the
