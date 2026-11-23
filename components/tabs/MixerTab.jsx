@@ -7,6 +7,7 @@ import { DEFAULT_FX_TRACKS, usesResonator, usesMacro } from '@/lib/soundSpecs.js
 import { warmResonatorAsset } from '@/lib/resonatorLoader.js'
 import { warmMacroAsset } from '@/lib/macroLoader.js'
 import { FX_BUSES } from '@/lib/fxTrack.js'
+import { fxBusRemovalPlan, clearFxBusSends } from '@/lib/fxBusRemoval.js'
 import { randomFromScale, shiftOctaveNote, geoToMidi, routeBounds, midiToNote, noteToMidi, SCALES, MODES, setCityBounds } from '@/lib/mappings.js'
 import { buildRouteSoundModes, buildLanePitchMaps } from '@/lib/lanePitch.js'
 import { fetchLines } from '@/lib/shared/useRoutes.js'
@@ -1711,14 +1712,15 @@ export default function MixerTab({ active = true, onReady }) {
 
   const handleRemoveFxTrack = useCallback((busId) => {
     setActiveFxTracks(prev => prev.filter(id => id !== busId))
-    if (mergedRoutes) {
-      for (const route of mergedRoutes) {
-        const key = `${route.id}:${busId}`
-        setSendMatrix(m => ({ ...m, [key]: 0 }))
-        engineRef.current?.setSendLevel(route.id, busId, 0)
-      }
-    }
-  }, [mergedRoutes])
+    const engine = engineRef.current
+    // Solo affects other returns, so it cannot survive on an invisible bus.
+    setFxBusSoloed(prev => ({ ...prev, [busId]: false }))
+    engine?.setFxBusSolo(busId, false)
+    const { routeIds, automationRoutes } = fxBusRemovalPlan(busId, mergedRoutes, sendMatrix, automationCfg)
+    setSendMatrix(prev => clearFxBusSends(prev, busId, routeIds))
+    for (const routeId of routeIds) engine?.setSendLevel(routeId, busId, 0)
+    for (const { routeId, validIds } of automationRoutes) resetInvalidAutomationLanes(routeId, validIds)
+  }, [mergedRoutes, sendMatrix, automationCfg, resetInvalidAutomationLanes])
 
   const handleAddAutomationLane = useCallback((routeId) => {
     const laneId = `lane_${Date.now()}`
@@ -2620,6 +2622,13 @@ export default function MixerTab({ active = true, onReady }) {
       {isPhone && (
         <MobileDaw
           controls={{
+            mixer: {
+              activeFxTracks, fxBusWet, fxBusMuted, fxBusSoloed, fxBusParams, masterVolume, masterChain,
+              onAddFxTrack: handleAddFxTrack, onRemoveFxTrack: handleRemoveFxTrack,
+              onFxBusWet: handleFxBusWet, onFxBusMute: handleFxBusMute, onFxBusSolo: handleFxBusSolo,
+              onFxBusParam: handleFxBusParam, onFxBusCustomIR: handleFxBusCustomIR,
+              onMasterVolume: handleMasterVolume, onMasterChain: handleMasterChain,
+            },
             cityName: cityEntry.name,
             view, onView: setView, mapStyle, onMapStyle: setMapStyle,
             liveSnapshot, snapshotLoading, onRefetch: fetchSnapshot,
@@ -2690,6 +2699,12 @@ export default function MixerTab({ active = true, onReady }) {
             legatos: trackLegatos,
             glides: trackGlides,
             automationLanes: automationCfg,
+            automationRoutes: mergedRoutes,
+            sourceRegions: trackLoopRegions, sourceResolutions: trackGridResolutions,
+            automationSourceIds,
+            onAddAutomationLane: handleAddAutomationLane,
+            onUpdateAutomationLane: handleUpdateAutomationLane,
+            onRemoveAutomationLane: handleRemoveAutomationLane,
             droneModes: trackDroneModes,
             stopChances: trackStopChances,
             loopPatterns: trackLoopPatterns,
@@ -2697,6 +2712,7 @@ export default function MixerTab({ active = true, onReady }) {
             granulars: trackGranulars,
             sidechains: trackSidechains,
             sidechainSources,
+            getEqRuntime, engineGen,
             filters: trackFilters,
             sendMatrix,
             activeFxTracks,

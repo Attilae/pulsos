@@ -1,10 +1,9 @@
-// Shown once, on touch devices, in place of the old MobileGate.
+// Shown once in the phone layout, in place of the old MobileGate.
 //
 // The gate used to block phones entirely. This replaces the block with an
-// expectation: the phone build is real and playable, the precision editing
-// lives on desktop, and — the part that actually costs people their first
-// session — iOS will silently mute everything if the ring/silent switch is
-// down, and nothing in the browser can detect or fix that for them.
+// expectation: the phone build supports touch editing and shares the desktop
+// audio engine. The notice also explains the iOS ring/silent switch, which
+// the browser cannot detect.
 //
 // "Got it" doubles as the audio unlock. It is the first guaranteed user
 // gesture of the session, which makes it the best possible moment to promote
@@ -78,19 +77,14 @@ export default function FirstRunNotice({ onDismiss }) {
       }
     >
       <p className="intro-lead">
-        This is the compact version. Play the city, mix lanes, pick instruments
-        and drums, and edit each stop&rsquo;s note.
-      </p>
-      <p className="intro-note">
-        A few deeper editors (EQ curves, automation drawing, FX buses) are on
-        desktop for now.
+        Play the city and shape each lane in Tone, Rhythm, Mix, Notes and Auto.
+        Open Mixer from session settings for FX buses and the master output.
       </p>
 
       {isIOS() && (
         <p className="intro-warn">
-          <strong>Check your ring/silent switch.</strong> iPhones mute browser
-          audio when the switch above the volume buttons is flipped down. If you
-          can see orange, flip it back or you won&rsquo;t hear a thing.
+          <strong>If playback is silent on iPhone,</strong> check media volume
+          and the ring/silent switch. Sound problems? can check the browser&rsquo;s output.
         </p>
       )}
 

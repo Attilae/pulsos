@@ -708,3 +708,62 @@
 .mdrum-step .mdrum-velocity { font-size: var(--fs-3xs); color: var(--text-subtle); }
 .mdrum-cursor { position: absolute; top: 0; left: 0; width: calc((100% - 3 * var(--mdrum-gap)) / 4); height: var(--mdrum-cell); box-sizing: border-box; border: 2px solid var(--accent); border-radius: var(--radius-sm); pointer-events: none; }
 .mdrum-remove { width: 100%; color: var(--danger); }
+
+/* The phone Mixer composes the same FX and mastering controls as the footer. */
+.mtransport-mixer, .fx-track-expand { background: var(--surface2); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius-sm); font: inherit; cursor: pointer; }
+.mtransport-mixer { display: grid; place-items: center; flex-shrink: 0; margin-left: auto; }
+.fx-track-expand { display: flex; align-items: center; justify-content: space-between; gap: var(--space-075); min-width: 0; text-align: left; }
+.fx-track-expand[aria-expanded='true'] { color: var(--accent); }
+.fx-sheet-return { display: flex; align-items: center; gap: var(--space-075); min-width: 0; }
+.mixer-sheet .master-strip { padding: 0; border: none; gap: var(--space-100); }
+.mixer-sheet .master-chain-flow { white-space: normal; }
+.mixer-sheet .fx-track-card--muted { opacity: 1; }
+.mixer-sheet .fx-track-card--muted .master-chain-params,
+.mixer-sheet .fx-track-card--muted .master-chain-flow,
+.mixer-sheet .fx-param-row--disabled { opacity: 1; }
+.mixer-sheet .fx-track-params { gap: var(--space-150); }
+.mixer-sheet .fx-param-row { flex-wrap: wrap; }
+.mixer-sheet .fx-param-label { color: var(--text-subtle); }
+.mixer-sheet .fx-param-val { color: var(--text-subtle); }
+.mixer-sheet .fx-param-reset { margin-left: auto; }
+
+/* Touch EQ uses runtime response data, without an analyser or animation loop. */
+.touch-eq { min-width: 0; margin-block: var(--space-200); }
+.touch-eq h3 { font-size: var(--fs-sm); text-transform: uppercase; letter-spacing: var(--tracking-caps); }
+.touch-eq-response { margin: var(--space-100) 0 var(--space-200); background: var(--surface-sunken); border: 1px solid var(--border); }
+.touch-eq-response canvas { display: block; width: 100%; height: 140px; }
+.touch-eq-response figcaption { display: flex; justify-content: space-between; padding: var(--space-100); color: var(--muted); font-size: var(--fs-xs); font-family: var(--font-mono); }
+.touch-eq-band { min-width: 0; margin: 0 0 var(--space-200); padding: var(--space-150); border: 1px solid var(--border); border-radius: var(--radius-sm); }
+.touch-eq-band legend { color: var(--text); font-size: var(--fs-sm); padding-inline: var(--space-050); }
+.touch-eq-head { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: var(--space-100); align-items: center; }
+.touch-eq-head select { min-width: 0; width: 100%; background: var(--surface2); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius-sm); }
+.touch-eq-head [aria-pressed="true"] { color: var(--accent); border-color: var(--accent); }
+.touch-eq-field { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--space-100); align-items: end; margin-top: var(--space-150); }
+.touch-eq-field label { display: grid; grid-template-columns: 1fr auto; gap: var(--space-050); color: var(--muted); font-size: var(--fs-sm); }
+.touch-eq-field output { font-family: var(--font-mono); }
+.touch-eq-field input { grid-column: 1 / -1; width: 100%; min-width: 0; accent-color: var(--accent); }
+
+/* Automation uses one touch surface, plus precise selected-stop controls. */
+.mlane-data { color: var(--automation-text); font-size: var(--fs-3xs); text-transform: uppercase; letter-spacing: var(--tracking-wide); }
+.mauto-lane { min-width: 0; }
+.mauto-lane h3 { margin: 0 0 var(--space-150); font-size: var(--fs-sm); }
+.mauto-editor { min-width: 0; margin-block: var(--space-200); }
+.mauto-curve { height: 180px; position: relative; touch-action: none; background: var(--surface-sunken); border: 1px solid var(--border); overflow: hidden; }
+.mauto-curve svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.mauto-curve polyline { fill: none; stroke: var(--automation-text); stroke-width: 1; }
+.mauto-curve circle { fill: var(--muted); stroke: var(--surface-sunken); stroke-width: .4; }
+.mauto-curve circle[data-selected] { fill: var(--accent); }
+.mauto-curve circle[data-active] { fill: var(--automation-text); stroke: var(--text); }
+.mauto-window { position: absolute; top: 0; bottom: 0; background: var(--surface2); opacity: .5; pointer-events: none; }
+.mauto-needle-track { position: absolute; inset: 0; pointer-events: none; }
+.mauto-needle-track i { display: block; width: 100%; height: 100%; border-left: 2px solid var(--automation-text); will-change: transform; }
+.mauto-needle-track i[hidden] { display: none; }
+.mauto-nudges { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-100); margin-block: var(--space-150); }
+.mauto-value { display: block; margin-block: var(--space-100); font: var(--fs-sm) var(--font-mono); color: var(--text); }
+
+.event-log-empty { color: var(--muted); font-size: var(--fs-sm); line-height: 1.5; }
+.activity-sheet .event-log--sheet { display: block; border: 0; padding: 0; overflow: visible; background: transparent; min-width: 0; }
+.activity-sheet .event-log ul { gap: var(--space-100); }
+.activity-sheet .event-log li { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; padding-block: var(--space-100); border-bottom: 1px solid var(--border); font-size: var(--fs-sm); }
+.activity-sheet .ev-stop { white-space: normal; overflow-wrap: anywhere; }
+.activity-sheet .ev-line, .activity-sheet .ev-note { width: auto; }

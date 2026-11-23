@@ -32,6 +32,7 @@ export default function Sheet({
   footer = null,
   className = '',
   labelledBy,
+  tourId,
 }) {
   const panelRef = useRef(null)
   const dragRef = useRef(null)     // { startY, startT, dy } while a drag is live
@@ -98,6 +99,7 @@ export default function Sheet({
     >
       <div
         ref={panelRef}
+        data-tour={tourId}
         className={`sheet-panel ${className}`}
         role="dialog"
         aria-modal="true"

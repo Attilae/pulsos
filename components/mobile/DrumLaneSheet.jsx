@@ -9,7 +9,7 @@ import { subscribePlayhead } from '@/lib/shared/playheadTicker.js'
 import LaneMixFields from './lane/LaneMixFields.jsx'
 import { Field, GroupHead } from './lane/fields.jsx'
 
-export default function DrumLaneSheet({ open, onClose, drums, started, onVolume, onFilter, onSendLevel, activeFxTracks, sendMatrix, onClear }) {
+export default function DrumLaneSheet({ open, onClose, drums, started, onVolume, onFilter, onSendLevel, activeFxTracks, sendMatrix, onClear, getEqRuntime, engineGen }) {
   const [segment, setSegment] = useState('pads')
   const [page, setPage] = useState(() => drumSourcePage(drums.pattern.offsets?.kick ?? 0))
   const rootRef = useRef(null)
@@ -106,7 +106,7 @@ export default function DrumLaneSheet({ open, onClose, drums, started, onVolume,
         <input type="range" min={-40} max={6} step={1} value={drums.volume} aria-label="Drum level"
           onChange={e => onVolume(DRUMS_ROUTE_ID, Number(e.target.value))} />
       </Field>
-      <LaneMixFields routeId={DRUMS_ROUTE_ID} filter={drums.filter} onFilter={onFilter}
+      <LaneMixFields getEqRuntime={getEqRuntime} engineGen={engineGen} routeId={DRUMS_ROUTE_ID} filter={drums.filter} onFilter={onFilter}
         activeFxTracks={activeFxTracks} sendMatrix={sendMatrix} onSendLevel={onSendLevel} />
     </div>}
   </Sheet>

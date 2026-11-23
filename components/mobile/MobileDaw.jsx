@@ -17,6 +17,8 @@ import DrumLaneSheet from './DrumLaneSheet.jsx'
 import MobileTransportBar from './MobileTransportBar.jsx'
 import LaneSheet from './LaneSheet.jsx'
 import MoreSheet from './MoreSheet.jsx'
+import MixerSheet from './MixerSheet.jsx'
+import EventLog from '../EventLog.jsx'
 import SongMenu from '../SongMenu.jsx'
 import Sheet from '../Sheet.jsx'
 import LinePicker from '../LinePicker.jsx'
@@ -25,6 +27,8 @@ import { linePickerProps } from '@/lib/linePickerProps.js'
 import './MobileDaw.css'
 
 export default function MobileDaw({ controls, lanes }) {
+  const [activityOpen, setActivityOpen] = useState(false)
+  const [mixerOpen, setMixerOpen] = useState(false)
   const [drumOpen, setDrumOpen] = useState(false)
   const [linePicker, setLinePicker] = useState(null)
   const [dupPrompt, setDupPrompt] = useState(null)
@@ -37,7 +41,7 @@ export default function MobileDaw({ controls, lanes }) {
     : null
 
   return (
-    <div className="mdaw">
+    <div className="mdaw" data-tour="mobile-daw">
       <MobileTopBar
         cityName={controls.cityName}
         songName={controls.song?.currentSong?.name ?? 'Untitled'}
@@ -61,6 +65,7 @@ export default function MobileDaw({ controls, lanes }) {
             onAddLine={type => setLinePicker({ mode: 'add', type })}
             onRepickType={lanes.onRepickType}
             routes={lanes.routes}
+            automationSourceIds={lanes.automationSourceIds} automationLanes={lanes.automationLanes}
             disabled={lanes.disabled}
             soloRoutes={lanes.soloRoutes}
             volumes={lanes.volumes}
@@ -76,6 +81,7 @@ export default function MobileDaw({ controls, lanes }) {
       </div>
 
       <MobileTransportBar
+        onOpenMixer={() => setMixerOpen(true)}
         started={controls.started}
         onPlayPause={controls.onPlayPause}
         bpm={controls.bpm}
@@ -93,6 +99,7 @@ export default function MobileDaw({ controls, lanes }) {
       {lanes.drums?.pattern && <DrumLaneSheet
         open={drumOpen} onClose={() => setDrumOpen(false)}
         drums={lanes.drums} started={controls.started}
+        getEqRuntime={lanes.getEqRuntime} engineGen={lanes.engineGen}
         onVolume={lanes.onVolume} onFilter={lanes.onFilter} onSendLevel={lanes.onSendLevel}
         activeFxTracks={lanes.activeFxTracks} sendMatrix={lanes.sendMatrix}
         onClear={() => { setDrumOpen(false); lanes.drums.onClear() }}
@@ -137,6 +144,11 @@ export default function MobileDaw({ controls, lanes }) {
         legato={!!lanes.legatos?.[openLaneId]}
         glide={lanes.glides?.[openLaneId] ?? 0}
         automationLanes={lanes.automationLanes?.[openLaneId]}
+        automationRoutes={lanes.automationRoutes}
+        sourceRegions={lanes.sourceRegions} sourceResolutions={lanes.sourceResolutions}
+        onAddAutomationLane={lanes.onAddAutomationLane}
+        onUpdateAutomationLane={lanes.onUpdateAutomationLane}
+        onRemoveAutomationLane={lanes.onRemoveAutomationLane}
         drone={!!lanes.droneModes?.[openLaneId]}
         stopChances={lanes.stopChances?.[openLaneId]}
         loopPattern={lanes.loopPatterns?.[openLaneId]}
@@ -145,6 +157,7 @@ export default function MobileDaw({ controls, lanes }) {
         sidechain={lanes.sidechains?.[openLaneId]}
         sidechainSources={lanes.sidechainSources}
         filter={lanes.filters?.[openLaneId]}
+        getEqRuntime={lanes.getEqRuntime} engineGen={lanes.engineGen}
         tag={lanes.labels?.[openLaneId]}
         onVolume={lanes.onVolume}
         onPan={lanes.onPan}
@@ -188,6 +201,13 @@ export default function MobileDaw({ controls, lanes }) {
         onConfirm={semitones => { lanes.onDuplicateTrack(dupPrompt.routeId, semitones); setDupPrompt(null) }}
         onClose={() => setDupPrompt(null)} />}
 
+      <MixerSheet open={mixerOpen} onClose={() => setMixerOpen(false)} mixer={controls.mixer} />
+
+      <Sheet open={activityOpen} onClose={() => setActivityOpen(false)} title="Activity" className="activity-sheet">
+        <p className="lsheet-hint">The latest 24 notes, newest first.</p>
+        <EventLog visible={activityOpen} variant="sheet" />
+      </Sheet>
+
       <MoreSheet
         open={moreOpen}
         onClose={() => setMoreOpen(false)}
@@ -210,6 +230,8 @@ export default function MobileDaw({ controls, lanes }) {
         onImportDrums={() => { setMoreOpen(false); controls.onImportDrums() }}
         reference={controls.reference}
         bpm={controls.bpm}
+        onOpenMixer={() => { setMoreOpen(false); setMixerOpen(true) }}
+        onOpenActivity={() => { setMoreOpen(false); setActivityOpen(true) }}
         onOpenAi={() => { setMoreOpen(false); controls.onOpenAi() }}
         onSoundCheck={() => { setMoreOpen(false); controls.onSoundCheck() }}
       />

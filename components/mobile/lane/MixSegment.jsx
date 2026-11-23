@@ -2,6 +2,7 @@
 
 import { SidechainSourceOptions } from '../../DawView.jsx'
 import LaneMixFields from './LaneMixFields.jsx'
+import { autoCtl } from '@/lib/automationControl.js'
 import { DEFAULT_SIDECHAIN } from '@/lib/engine.js'
 import { Field, GroupHead, panLabel } from './fields.jsx'
 
@@ -9,8 +10,13 @@ import { Field, GroupHead, panLabel } from './fields.jsx'
 // sheet's props plus the values LaneSheet derives from them, as `ctx`.
 export default function MixSegment({ ctx }) {
   const {
-    started, audioExporting, audioProgress, onExportMidi, onExportWav, route, volume, pan, disabled, soloed, sendMatrix, activeFxTracks, sidechain, sidechainSources, filter, onVolume, onPan, onDisable, onSolo, onSendLevel, onSidechain, onFilter,
+    autoTargets, getEqRuntime, engineGen, started, audioExporting, audioProgress, onExportMidi, onExportWav, route, volume, pan, disabled, soloed, sendMatrix, activeFxTracks, sidechain, sidechainSources, filter, onVolume, onPan, onDisable, onSolo, onSendLevel, onSidechain, onFilter,
   } = ctx
+
+  const levelAuto = autoCtl(autoTargets, 'volume')
+  const panAuto = autoCtl(autoTargets, 'pan', { divide: 100 })
+  const level = levelAuto.display ?? volume
+  const stereo = panAuto.display ?? pan
 
   return (
     <div className="lsheet-body">
@@ -34,28 +40,28 @@ export default function MixSegment({ ctx }) {
         >Add to solo</button>
       </div>
 
-      <Field label={`Level · ${volume > 0 ? `+${volume}` : volume} dB`}>
+      <Field label={`Level · ${level.toFixed(1)} dB${levelAuto.disabled ? " · automated" : ""}`}>
         <input
-          type="range" min={-40} max={6} step={1} value={volume}
+          type="range" min={-40} max={6} step={1} value={level} disabled={levelAuto.disabled}
           onChange={e => onVolume(route.id, Number(e.target.value))}
           aria-label="Level"
         />
       </Field>
 
-      <Field label={`Pan · ${panLabel(pan)}`}>
+      <Field label={`Pan · ${panLabel(stereo)}${panAuto.disabled ? " · automated" : ""}`}>
         <input
-          type="range" min={-1} max={1} step={0.05} value={pan}
+          type="range" min={-1} max={1} step={0.05} value={stereo} disabled={panAuto.disabled}
           onChange={e => onPan(route.id, Number(e.target.value))}
           aria-label="Pan"
         />
         {/* Desktop resets pan with a double-click; that gesture doesn't
             exist on touch, so the reset is a visible control. */}
-        <button type="button" className="lsheet-reset" onClick={() => onPan(route.id, 0)}>
+        <button type="button" className="lsheet-reset" disabled={panAuto.disabled} onClick={() => onPan(route.id, 0)}>
           Centre
         </button>
       </Field>
 
-      <LaneMixFields routeId={route.id} filter={filter} onFilter={onFilter}
+      <LaneMixFields autoTargets={autoTargets} getEqRuntime={getEqRuntime} engineGen={engineGen} routeId={route.id} filter={filter} onFilter={onFilter}
         activeFxTracks={activeFxTracks} sendMatrix={sendMatrix} onSendLevel={onSendLevel} />
 
       {(() => {

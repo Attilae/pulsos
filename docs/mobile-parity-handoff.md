@@ -48,7 +48,7 @@ Ship it as **phased PRs, one area per PR**, each releasable on its own. Branch e
   - Verified: 625 tests, production build, 390×844 browser save/reload/reset and grid edits,
     real MIDI/WAV downloads (4 MIDI notes; nonzero WAV PCM), desktop loop drag/keyboard controls, dark theme, and 820px/1440px layouts.
 
-- **Phase 3 is implemented** on `feature/mobile-parity-phase3` (from updated `develop`):
+- **Phase 3 is merged**: PR #131 (`feature/mobile-parity-phase3`):
   - The pinned lane toolbar has a native Line actions menu: base-lane Change/Remove,
     Duplicate with transpose, Remove this copy, and Un-merge. Playback locks match desktop.
   - Section headers offer Add line and non-metro Re-pick; the general Add line remains
@@ -64,7 +64,7 @@ Ship it as **phased PRs, one area per PR**, each releasable on its own. Branch e
     horizontal overflow. The snapshot refetch/loading check used a mocked live-mode callback;
     the app-wide mock-only Live configuration is unchanged.
 
-- **Phase 4 is implemented** on `feature/mobile-parity-phase4` (stacked on Phase 3):
+- **Phase 4 is merged**: PR #132 (`feature/mobile-parity-phase4`):
   - `MobileDrumStrip` exposes drum master mute, volume and the sheet opener, independently of
     the transit lanes. `DrumLaneSheet` has Pads/Mix, four pinned source pages, pad mutes,
     shared filter/send fields, and a pinned Remove action.
@@ -86,7 +86,73 @@ Ship it as **phased PRs, one area per PR**, each releasable on its own. Branch e
     open/close/Mix cycles restore the baseline subscriber count; measured drum output is nonzero.
   - Performance results are in `docs/mobile-parity-phase4-validation.md`. Human listening on
     phone hardware remains a release check.
-  - **Next is Phase 5: FX buses and master.** Phases 5–8 are not implemented yet.
+
+- **Phase 5 is merged**: PR #134 (`feature/mobile-parity-phase5`):
+  - More → Mixer opens a sheet with FX buses and Master sections. A transport shortcut is
+    also available from 360px. All 14 buses have expandable parameters, mute/solo, return
+    level, remove, sync locks and visible resets. Custom reverb IR loading uses the existing
+    Pro gate and decoder; saved custom IR metadata remains readable on Free.
+  - Desktop and phone share `components/fx/{FxTrackCard,FxParamControl,FxAddButton,CustomIRPicker}`,
+    `MasterStrip` and `MasterChainCard`. Master meter polling runs only while the Master
+    section is open and enabled; hidden desktop tabs also stop polling.
+  - No new MixerTab state was added. Besides the prop bundle, the shared removal handler now
+    clears drum/stale sends, releases a removed bus's solo gate, and resets only automation
+    targeting that bus. Pure removal rules live in `lib/fxBusRemoval.js` with regression tests.
+  - Verified: 639 tests, production build, 390px light/dark and 320px touch layouts,
+    820px/1440px regressions, all bus editors, sync/reset behavior, save/reload, real Pro WAV
+    IR decoding, Free upgrade gating, and meter interval cleanup. Browser checks had no page
+    errors or horizontal overflow. Real playback measured nonzero output and master gain
+    reduction; human listening on phone hardware remains a release check.
+  - Details: `docs/mobile-parity-phase5-validation.md`.
+
+- **Phase 6 is merged**: PR #135 (`feature/mobile-parity-phase6`):
+  - `components/lane/TouchEqEditor.jsx` edits the engine-owned weq8 runtime directly in the
+    instrument and drum Mix sheets, and replaces the shared EqPanel phone stub. Eight bands
+    expose on/off, all supported filter types, frequency, gain and Q with visible resets.
+    Frequency and Q use logarithmic sliders; controls unavailable for the filter type are disabled.
+  - The read-only canvas response includes both cascaded sections of 24 dB filters and redraws
+    on EQ changes, resize and theme changes. It mounts no weq8 custom element, analyser or
+    animation loop. Closing the editor releases its event listener and observers.
+  - The existing engine change callback mirrors setters into trackEqs and autosave. The prop
+    bundle passes getEqRuntime and engineGen so replacement engines bind correctly; no new
+    MixerTab state or alternate persistence path was added.
+  - Verified: 642 tests, production build, transit/drum save/reload, resets, all 14 filter types
+    plus unused slots, live playback edits, real runtime frequency response, repeated cleanup,
+    light/dark and 320px/390px/820px/1440px layouts. Human listening on phone hardware remains
+    a release check. Details: `docs/mobile-parity-phase6-validation.md`.
+
+- **Phase 7 is merged**: PR #136 (`feature/mobile-parity-phase7`):
+  - Lane sheets have an Auto segment for adding/removing automation, selecting a session source
+    and grouped target, inactive model notices, speed/glide, and a subloop with Reset to source.
+    `AutomationFields` is shared with the desktop rack.
+  - The full-width touch curve supports point-column taps/vertical drags, a selected-stop picker,
+    ±5%/±1% steps, keyboard edits and visible point/curve resets. Desktop and phone share the
+    point/grid/value maths in `lib/automationPoints.js`.
+  - `useAutomationPlayback` runs one ticker subscriber only for an open, playing lane sheet.
+    It paints curve needles/highlights directly and publishes values only at stop changes.
+    Tone/Mix use the existing autoCtl conversion for live values and armed locks; closing or
+    stopping clears the mirror. The list's automated volume fader is locked as well.
+  - Current architecture keeps source lines audible/editable; they now carry a Data badge.
+    Phone source polylines already render, so no map behavior change was needed. Extra value-sized
+    map markers remain disabled on phones.
+  - No new MixerTab state: only existing state/handlers were added to the mobile bundle.
+  - Validation and performance comparison: `docs/mobile-parity-phase7-validation.md`.
+
+- **Phase 8 is implemented** on `feature/mobile-parity-phase8` (from updated `develop`):
+  - More → Activity opens the shared EventLog, with an empty state and the latest 24 notes.
+    Only the log subscribes to note batches; closing the sheet releases the subscription.
+  - Your loop now shows the shared waveform/playhead, visible start/volume resets, existing
+    account/device status and stored-loop management. Waveform ticker work runs only while
+    More is open and playing; theme/resize observers are released on unmount.
+  - The phone tour opens Tone/Rhythm/Mix/Notes/Auto and Mixer in either direction. It restores
+    prior tabs/view and closes its own sheets while preserving user-opened sheets. A scoped
+    modal companion makes its controls keyboard-accessible. Tour cleanup restores authored
+    ARIA attributes, and the desktop rack tour reads the button's real open state.
+  - FirstRunNotice describes the completed touch controls without desktop-only claims. The
+    CLAUDE.md Mobile section now documents phases 1–8; AGENTS.md was regenerated with sync:agents.
+  - Validation: `docs/mobile-parity-phase8-validation.md`.
+  - **All parity phases are implemented.** Phase 8 still needs PR review/merge. Human listening
+    on phone hardware remains the release check recorded throughout this handoff.
 
 ### How the phone is wired
 
@@ -280,11 +346,11 @@ Keep that model unless a separate engine/timeline change is explicitly requested
     `lib/automationPoints.js` with tests.
 - **Add button.** "+ Automation" calls `handleAddAutomationLane` (~1720).
 - **Handlers:** `handleUpdateAutomationLane` (~1739) and `handleRemoveAutomationLane` (~1730).
-- **Source lanes in the list.** Automation source lanes are filtered out of
-  `visibleInstrumentRoutes`. Show them in the lane list as compact read-only "Data" rows.
+- **Source lanes in the list.** Sources now remain audible, editable instrument lanes in
+  `visibleInstrumentRoutes`. Preserve those controls and badge them as "Data" sources.
 - **Lock display.** Use the live value mirror (D ~324) for controls under automation.
-- **Phone map links.** The phone map skips automation links (`MapView.jsx` ~858). Turn them on
-  only if `?perf=1` shows no frame cost.
+- **Phone map links.** Source polylines already render on phones. Value-sized stop markers
+  remain disabled (`MapView.jsx` ~858); enable them only if `?perf=1` shows no frame cost.
 
 ### Phase 8: Leftovers and docs
 

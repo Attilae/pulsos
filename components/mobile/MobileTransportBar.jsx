@@ -10,7 +10,7 @@
 
 import { useEffect, useRef } from 'react'
 import * as Tone from 'tone'
-import { IconPlay, IconStop } from '../icons.jsx'
+import { IconPlay, IconStop, IconMixer } from '../icons.jsx'
 
 export default function MobileTransportBar({
   started,
@@ -24,7 +24,7 @@ export default function MobileTransportBar({
   needsGesture,
   onGestureStart,
   noOutput,
-  onSoundCheck,
+  onSoundCheck, onOpenMixer,
 }) {
   const playheadRef = useRef(null)
 
@@ -95,11 +95,13 @@ export default function MobileTransportBar({
               onClick={() => onView('map')}
             >Map</button>
             <button
-              type="button" role="tab" aria-selected={view === 'daw'}
+              type="button" role="tab" aria-selected={view === 'daw'} data-tour="mobile-lanes"
               className={view === 'daw' ? 'is-active' : ''}
               onClick={() => onView('daw')}
             >Lanes</button>
           </div>
+          {onOpenMixer && view === 'daw' && !noOutput && <button type="button" className="mtransport-mixer"
+            aria-label="Open mixer" onClick={onOpenMixer}><IconMixer /></button>}
           {view === 'map' && onMapStyle && (
             <div className="mtransport-view mtransport-view--style" role="group" aria-label="Map style">
               <button

@@ -1,3 +1,11 @@
+import EventLog from './EventLog.jsx'
+import AutomationFields from './lane/AutomationFields.jsx'
+import { automationPoints, autoValueToY, autoYToValue, automationKeyValue, automationPointPatch, activeAutomationPoint } from '@/lib/automationPoints.js'
+import TouchEqEditor from './lane/TouchEqEditor.jsx'
+import MasterStrip from './MasterStrip.jsx'
+import MasterChainCard from './MasterChainCard.jsx'
+import FxTrackCard from './fx/FxTrackCard.jsx'
+import FxAddButton from './fx/FxAddButton.jsx'
 import { drumSourceStep, drumPlaybackStep, drumVelocityClass } from '@/lib/drumLane.js'
 import { normalizeStep } from '@/lib/drumSpecs.js'
 import { linePickerProps } from '@/lib/linePickerProps.js'
@@ -7,11 +15,10 @@ import GranularFields from './lane/GranularFields.jsx'
 import EnvPanel from './lane/EnvelopeFields.jsx'
 import { SpSlider, SpSelect } from './lane/SynthFields.jsx'
 import { autoCtl } from '@/lib/automationControl.js'
-import { useCustomUploadGate } from '@/lib/shared/useCustomUploadGate.js'
 import * as Tone from 'tone'
-import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { SYNTH_DEFAULTS, supportsGranular, availableAutomationTargets, findTargetSpec, DEFAULT_SIDECHAIN, ARP_STYLES, ARP_RATES, DEFAULT_ARP, DRUMS_ROUTE_ID } from '@/lib/engine.js'
-import { FX_BUSES, AUTOMATION_TARGETS, FX_PARAM_SPECS, FX_SYNC_TARGETS } from '@/lib/fxTrack.js'
+import { FX_BUSES, AUTOMATION_TARGETS } from '@/lib/fxTrack.js'
 import { useLaneFilterEditor, AnalogFilterStatus, FilterModelSwitch, DRIVE_HELP } from './LaneFilterEditor.jsx'
 import { ANALOG_SLOPES, FILTER_RANGES, filterTargetActive, FILTER_TARGET_MODELS, FILTER_MODEL_LABELS } from '@/lib/laneFilterSpec.js'
 import { PAD_DEFS as DRUM_PAD_DEFS, STEPS as DRUM_STEPS, SOURCE_STEPS as DRUM_SOURCE_STEPS, emptyPattern as emptyDrumPattern } from '@/lib/engines/drumEngine.js'
@@ -33,7 +40,6 @@ import {
 import { useResetGesture } from '@/lib/shared/useResetGesture.js'
 import { useIsPhone } from '@/lib/shared/useViewport.js'
 import { subscribePlayhead } from '@/lib/shared/playheadTicker.js'
-import { subscribeEvents, getEvents } from '@/lib/shared/eventLogStore.js'
 import { normalizeLaneTag } from '@/lib/laneTags.js'
 import { LOOP_PATTERN_PRESETS, MAX_PATTERN_PLAY, MAX_PATTERN_REST, normalizeLoopPattern, normalizeNoteChance, formatLoopPattern, loopIndexAt, loopPlays } from '@/lib/laneGating.js'
 import StopEditor from './StopEditor.jsx'
@@ -45,11 +51,7 @@ import DuplicateLaneDialog from './DuplicateLaneDialog.jsx'
 import LinePicker from './LinePicker.jsx'
 import ReferenceLane, { ReferenceUploadButton, REFERENCE_UPLOAD_LABEL } from './ReferenceLane.jsx'
 import { NOTE_ROOTS, SCALE_TYPES } from '@/lib/harmony.js'
-import { getMasterBus } from '@/lib/masterBus.js'
-import { MASTER_CHAIN_DEFAULTS, MASTER_CHAIN_SPECS, MASTER_CHAIN_STAGES, isDefaultMasterChain } from '@/lib/masterChain.js'
 import { installWeq8Lifecycle, observeWeq8 } from '@/lib/shared/weq8Lifecycle.js'
-import { useEntitlements } from '@/lib/shared/EntitlementsContext.jsx'
-import { decodeCustomAudio } from '@/lib/customAudio.js'
 import './DawView.css'
 import { IconWaveform, IconAdd, IconCaretDown, IconChangeLine, IconClose, IconDuplicate, IconPower, IconRepick, IconReset } from './icons.jsx'
 
@@ -659,6 +661,7 @@ export default function DawView(props) {
       <EventLog visible={visible} />
 
       <DawFooter
+        active={visible}
         activeFxTracks={activeFxTracks ?? []}
         masterVolume={masterVolume ?? 0}
         masterChain={masterChain}
@@ -723,26 +726,6 @@ export default function DawView(props) {
 // ── Event log ────────────────────────────────────────────────────────────────
 // Subscribes to the note feed itself (lib/shared/eventLogStore.js), so a note
 // burst re-renders this list and nothing above it. Hidden → no subscription.
-const noSubscribe = () => () => {}
-function EventLog({ visible }) {
-  const events = useSyncExternalStore(visible ? subscribeEvents : noSubscribe, getEvents, getEvents)
-  return (
-    <aside className="event-log">
-      <h2>Event Log</h2>
-      <ul>
-        {/* Keyed by event, not index: a new note then inserts one row instead
-            of rewriting the text of all 24 (a layout per note burst). */}
-        {events.slice(0, 24).map((ev) => (
-          <li key={ev.seq}>
-            <span className="ev-line">{ev.routeShortName ?? ev.lineId}</span>
-            <span className="ev-stop">{ev.stopName}</span>
-            <span className="ev-note">{ev.note}</span>
-          </li>
-        ))}
-      </ul>
-    </aside>
-  )
-}
 
 function DrumLane({
   pattern, muted, started = false, visible = true, onToggleStep, onTogglePadMute, onToggleMute, onClear,
@@ -1774,20 +1757,6 @@ function AutomationLane({ laneId, instRoute, laneCfg, allRoutes, activeFxTracks,
   )
 
   const sourceRoute    = allRoutes.find(r => r.id === sourceRouteId) ?? null
-  // Any lane (active or not) can be a source: a source now stays visible and audible
-  // in its own section while its geographic data also drives this automation curve.
-  // A merged lane has no per-stop geography of its own, so it can't be a source.
-  const pickableRoutes = allRoutes.filter(r => r.id !== instRoute.id && !r.isMerged)
-
-  // Target options, grouped by .group, filtered to what's valid for this synth type.
-  const groupedTargets = useMemo(() => {
-    const groups = {}
-    for (const t of availableAutomationTargets(synthType, activeFxTracks ?? [], granularEnabled, granular)) {
-      const g = t.group ?? 'Other'
-      ;(groups[g] ??= []).push(t)
-    }
-    return groups
-  }, [synthType, activeFxTracks, granularEnabled, granular])
 
   return (
     <div className="automation-lane">
@@ -1795,89 +1764,9 @@ function AutomationLane({ laneId, instRoute, laneCfg, allRoutes, activeFxTracks,
         <span className="auto-lane-badge">AUTO</span>
       </div>
 
-      <div className="auto-lane-controls">
-        <select className="auto-select auto-select--source-line" value={sourceRouteId}
-          onChange={e => onUpdate({ sourceRouteId: e.target.value })}>
-          <option value="">Pick a line</option>
-          {pickableRoutes.map(r => {
-            // Some cities (e.g. NYC/MTA) carry paragraph-length descriptions; native <option>
-            // text can't be CSS-truncated, so cap it here or the dropdown popup overflows.
-            const desc = r.desc && r.desc.length > 48 ? `${r.desc.slice(0, 48).trimEnd()}…` : r.desc
-            return (
-              <option key={r.id} value={r.id}>
-                {r.name}{desc ? ` · ${desc}` : ''}
-              </option>
-            )
-          })}
-        </select>
-
-        <select className="auto-select" value={paramTarget}
-          onChange={e => onUpdate({ paramTarget: e.target.value })}>
-          {Object.entries(groupedTargets).map(([group, targets]) => (
-            <optgroup key={group} label={group}>
-              {targets.map(t => (
-                <option key={t.id} value={t.id}>
-                  {t.label}{FILTER_TARGET_MODELS[t.id] ? ` (${FILTER_MODEL_LABELS[FILTER_TARGET_MODELS[t.id]]})` : ''}
-                  {synthType === 'PolySynth' && POLY_TARGET_VOICES[t.id] ? ` (${POLY_TARGET_VOICES[t.id].map(v => POLY_VOICE_LABELS[v]).join(', ')})` : ''}
-                </option>
-              ))}
-            </optgroup>
-          ))}
-        </select>
-
-        <button className="auto-remove-btn" onClick={onRemove} title="Remove lane" aria-label="Remove automation lane"><IconClose /></button>
-
-        {!filterTargetActive(paramTarget, filter) && (
-          <p className="auto-lane-inactive" role="status">
-            Inactive: this target needs the {FILTER_MODEL_LABELS[FILTER_TARGET_MODELS[paramTarget]]} filter.
-            It resumes when the lane switches back.
-          </p>
-        )}
-        {!polyTargetActive(paramTarget, synthType, adsr) && (
-          <p className="auto-lane-inactive" role="status">
-            Inactive: this target needs the {POLY_TARGET_VOICES[paramTarget].map(v => POLY_VOICE_LABELS[v]).join(' or ')} voice.
-            It resumes when the lane switches back.
-          </p>
-        )}
-        {!textureTargetActive(paramTarget, granular) && (
-          <p className="auto-lane-inactive" role="status">
-            Inactive: this target needs Texture {TEXTURE_MODEL_LABELS[paramTarget.startsWith('grain.tx2') ? 'mk2' : 'classic']}.
-            It resumes when the lane switches back.
-          </p>
-        )}
-
-        <div className="speed-row auto-speed-row">
-          <span className="speed-label">SPEED</span>
-          <div className="speed-btns">
-            {SPEED_OPTIONS.map(opt => (
-              <button
-                key={opt.value}
-                className={`speed-btn ${speed === opt.value ? 'active' : ''}`}
-                style={speed === opt.value ? { borderColor: instRoute.color, color: instRoute.color } : {}}
-                onClick={() => onUpdate({ speed: opt.value })}
-                title={opt.title}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="glide-row auto-glide-row">
-          <span className="glide-label">GLIDE</span>
-          <input
-            type="range" min="0" max="1" step="0.01"
-            value={glide}
-            aria-label="Automation glide"
-            aria-valuetext={`${Math.round(glide * 100)}%`}
-            onChange={e => onUpdate({ glide: parseFloat(e.target.value) })}
-            {...useResetGesture(() => onUpdate({ glide: 0 }))}
-            className="glide-slider"
-            style={{ accentColor: instRoute.color }}
-          />
-          <span className="glide-val" style={{ color: instRoute.color }}>{Math.round(glide * 1000)}ms</span>
-        </div>
-      </div>
+      <AutomationFields instRoute={instRoute} allRoutes={allRoutes} synthType={synthType} adsr={adsr} filter={filter}
+        granular={granular} activeFxTracks={activeFxTracks} sourceRouteId={sourceRouteId} paramTarget={paramTarget}
+        speed={speed} glide={glide} onUpdate={onUpdate} onRemove={onRemove} />
 
       <AutoCurveRail
         route={sourceRoute}
@@ -1936,18 +1825,6 @@ function AutomationSourceTrack({ srcRoute, instRoute, automationCfg, srcGridReso
   )
 }
 
-const AUTO_PAD = 0.1   // vertical padding so dots at value 0/1 stay inside the rail
-
-// y% (0..100, top→bottom) for a 0..1 automation value, matching StopRail's padding.
-function autoValueToY(value) {
-  return (AUTO_PAD + (1 - value) * (1 - AUTO_PAD * 2)) * 100
-}
-// Inverse: a clientY fraction (0 top .. 1 bottom) back to a clamped 0..1 value.
-function autoYToValue(frac) {
-  const v = 1 - (frac - AUTO_PAD) / (1 - AUTO_PAD * 2)
-  return Math.max(0, Math.min(1, v))
-}
-
 // Resolve a control's automation state from a route's `autoTargets` map.
 // `ids` may be a single target id or a list (a control owned by either of several ids,
 // e.g. the amp-env "A" slider is locked by both `synth.attack` and `adsr.attack`).
@@ -1957,8 +1834,6 @@ function autoYToValue(frac) {
 // Draggable per-stop automation curve. X = the chosen line's stops (snapped to the
 // same grid as instrument notes); Y = the authored value (override or hash default).
 function AutoCurveRail({ route, laneId, points, spec, started = false, visible = true, speed = 1, loopRegion, gridResolution, onLoopRegion, onUpdate, onActiveValue }) {
-  const noteStepsPerBar = GRID_RESOLUTION_STEPS_PER_BAR[gridResolution ?? DEFAULT_GRID_RESOLUTION] ?? GRID_STEPS_PER_BAR
-  const noteTotalCells  = GRID_BARS * noteStepsPerBar
   const railRef = useRef(null)
   const needleRef = useRef(null)
   const stopPointsRef = useRef([])
@@ -2006,10 +1881,7 @@ function AutoCurveRail({ route, laneId, points, spec, started = false, visible =
       el.style.transform = `translateX(${playLeft}%)`
       // Highlight the point currently in effect: the last dot the needle has passed.
       const ds = dotsRef.current
-      let active = -1
-      for (let i = 0; i < ds.length; i++) {
-        if (ds[i].x <= playLeft) active = i
-      }
+      const active = activeAutomationPoint(stopPointsRef.current, playLeft, { startCell, endCell })
       if (active !== lastActiveRef.current) {
         ds.forEach((d, i) => d.el.classList.toggle('active', i === active))
         lastActiveRef.current = active
@@ -2044,16 +1916,7 @@ function AutoCurveRail({ route, laneId, points, spec, started = false, visible =
     }
   }
 
-  const stopPoints = useMemo(() => {
-    if (!route?.stops?.length) return []
-    const gridStops = snapStopsToGrid(route.stops, route.totalDist, noteTotalCells, noteStepsPerBar)
-    return gridStops.map((stop) => {
-      const override = points?.[stop.id]
-      const value = (typeof override === 'number') ? override : hashStopValue(laneId, stop.id)
-      const x = (stop.cellIdx / noteTotalCells) * 100
-      return { id: stop.id, name: stop.name, x, y: autoValueToY(value), value }
-    })
-  }, [route, laneId, points, noteTotalCells, noteStepsPerBar])
+  const stopPoints = useMemo(() => automationPoints(route, laneId, points, gridResolution), [route, laneId, points, gridResolution])
   stopPointsRef.current = stopPoints
 
   const polylinePoints = stopPoints.map(p => `${p.x},${p.y}`).join(' ')
@@ -2076,7 +1939,7 @@ function AutoCurveRail({ route, laneId, points, spec, started = false, visible =
     if (dragId !== stopId) return
     const v = valueFromEvent(e.clientY)
     if (v == null) return
-    onUpdate({ points: { ...points, [stopId]: v } })
+    onUpdate(automationPointPatch(points, stopId, v))
   }, [dragId, points, onUpdate, valueFromEvent])
   const onDotUp = useCallback((e, stopId) => {
     if (dragId !== stopId) return
@@ -2092,20 +1955,11 @@ function AutoCurveRail({ route, laneId, points, spec, started = false, visible =
     : `${Math.round(v * 100)}%`)
   // Keyboard: Up/Down nudge 5%, Shift 1%, PageUp/PageDown 25%, Home/End to the limits.
   const onDotKey = (e, p) => {
-    const fine = e.shiftKey ? 0.01 : 0.05
-    let next = null
-    switch (e.key) {
-      case 'ArrowUp': case 'ArrowRight': next = p.value + fine; break
-      case 'ArrowDown': case 'ArrowLeft': next = p.value - fine; break
-      case 'PageUp': next = p.value + 0.25; break
-      case 'PageDown': next = p.value - 0.25; break
-      case 'Home': next = 0; break
-      case 'End': next = 1; break
-      default: return
-    }
+    const next = automationKeyValue(p.value, e.key, e.shiftKey)
+    if (next == null) return
     e.preventDefault()
     e.stopPropagation()
-    onUpdate({ points: { ...points, [p.id]: Math.max(0, Math.min(1, next)) } })
+    onUpdate(automationPointPatch(points, p.id, next))
   }
   const maxLabel = spec ? `${spec.max}${unit}` : ''
   const minLabel = spec ? `${spec.min}${unit}` : ''
@@ -2191,7 +2045,7 @@ function AutoCurveRail({ route, laneId, points, spec, started = false, visible =
 
 // ── DAW Footer ────────────────────────────────────────────────────────────────
 function DawFooter({
-  activeFxTracks, masterVolume, masterChain, onMasterChain,
+  active = true, activeFxTracks, masterVolume, masterChain, onMasterChain,
   fxBusWet, fxBusMuted, fxBusSoloed, fxBusParams,
   onMasterVolume, onFxBusWet, onFxBusMute, onFxBusSolo, onFxBusParam, onFxBusCustomIR,
   onAddFxTrack, onRemoveFxTrack,
@@ -2201,7 +2055,7 @@ function DawFooter({
       <div className="daw-footer-inner">
         <MasterStrip volume={masterVolume} onVolume={onMasterVolume} />
         {masterChain && onMasterChain && (
-          <MasterChainCard settings={masterChain} onChange={onMasterChain} />
+          <MasterChainCard settings={masterChain} onChange={onMasterChain} active={active} />
         )}
         {activeFxTracks.map(busId => {
           const bus = FX_BUSES.find(b => b.id === busId)
@@ -2226,289 +2080,6 @@ function DawFooter({
         <FxAddButton activeFxTracks={activeFxTracks} onAdd={onAddFxTrack} />
       </div>
     </footer>
-  )
-}
-
-function MasterStrip({ volume, onVolume }) {
-  return (
-    <div className="master-strip">
-      <span className="master-strip-label">Master</span>
-      <div className="master-vol-row">
-        <span className="master-vol-label">Vol</span>
-        <input
-          type="range" min="-40" max="0" step="1"
-          value={volume}
-          onChange={e => onVolume(Number(e.target.value))}
-          aria-label="Master volume"
-          aria-valuetext={`${volume} dB`}
-          className="master-vol-slider"
-        />
-        <span className="master-vol-val">{volume}dB</span>
-      </div>
-    </div>
-  )
-}
-
-// The hidden master bus (lib/masterBus.js) made visible: what's on it, how hard
-// its two dynamics stages are working, and a few narrow-range controls
-// (lib/masterChain.js). "Off" falls back to the classic compressor + limiter, so
-// the output is never left unprotected.
-const MASTER_METER_POLL_MS = 100
-const MASTER_METER_RANGE_DB = 8
-
-function MasterChainCard({ settings, onChange }) {
-  const { enabled } = settings
-  const [meter, setMeter] = useState(null)
-
-  useEffect(() => {
-    if (!enabled) { setMeter(null); return }
-    const bus = getMasterBus()
-    const id = setInterval(() => {
-      if (document.hidden) return
-      const next = bus.status()
-      // Only re-render when the shown reading (0.1 dB) actually moves; an idle
-      // master otherwise re-rendered this card ten times a second for nothing.
-      setMeter(prev => (
-        prev
-        && prev.limiter === next.limiter
-        && Math.round((prev.glueReductionDb ?? 0) * 10) === Math.round((next.glueReductionDb ?? 0) * 10)
-        && Math.round((prev.limiterReductionDb ?? 0) * 10) === Math.round((next.limiterReductionDb ?? 0) * 10)
-      ) ? prev : next)
-    }, MASTER_METER_POLL_MS)
-    return () => clearInterval(id)
-  }, [enabled])
-
-  const isDefault = isDefaultMasterChain(settings)
-
-  return (
-    <div className={`fx-track-card master-chain-card ${enabled ? '' : 'fx-track-card--muted'}`}>
-      <div className="fx-track-card-header">
-        <span className="fx-track-name master-chain-name">Mastering</span>
-        <span className="master-chain-flow" aria-label="Signal chain">
-          {MASTER_CHAIN_STAGES.map((st, i) => (
-            <span key={st.id}>{i > 0 && <span className="master-chain-arrow">›</span>}{st.label}</span>
-          ))}
-        </span>
-        <button
-          type="button"
-          className="master-chain-reset"
-          onClick={() => onChange({ ...MASTER_CHAIN_DEFAULTS, enabled })}
-          disabled={isDefault}
-          title="Reset mastering to defaults"
-          aria-label="Reset mastering to defaults"
-        ><IconReset /></button>
-        <button
-          type="button"
-          className={`master-chain-toggle ${enabled ? 'active' : ''}`}
-          onClick={() => onChange({ enabled: !enabled })}
-          aria-pressed={enabled}
-          title={enabled ? 'Turn mastering off (keeps a safety limiter)' : 'Turn mastering on'}
-        >{enabled ? 'On' : 'Off'}</button>
-      </div>
-      <div className="fx-track-params master-chain-params">
-        {MASTER_CHAIN_SPECS.map(spec => (
-          <FxParamControl
-            key={spec.id}
-            spec={spec}
-            value={settings[spec.id]}
-            onChange={v => onChange({ [spec.id]: v })}
-            disabled={!enabled}
-            disabledText={null}
-          />
-        ))}
-      </div>
-      <div className="master-chain-meters">
-        {enabled ? (
-          <>
-            <GainReductionMeter label="Glue" db={meter?.glueReductionDb} />
-            <GainReductionMeter
-              label="Limit"
-              title={meter?.limiter === 'true-peak worklet' ? 'True-peak limiter gain reduction' : 'Limiter gain reduction'}
-              db={meter?.limiterReductionDb}
-            />
-          </>
-        ) : (
-          <span className="master-chain-off-note">Off: safety limiter only</span>
-        )}
-      </div>
-    </div>
-  )
-}
-
-function GainReductionMeter({ label, db, title = `${label} gain reduction` }) {
-  const gr = Math.min(0, db ?? 0)
-  const frac = Math.min(1, -gr / MASTER_METER_RANGE_DB)
-  return (
-    <div className="gr-meter" title={title}>
-      <span className="fx-param-label">{label}</span>
-      <div className="gr-meter-track">
-        <div className="gr-meter-fill" style={{ transform: `scaleX(${frac})` }} />
-      </div>
-      <span className="fx-param-val">{gr === 0 ? '0.0' : gr.toFixed(1)} dB</span>
-    </div>
-  )
-}
-
-// The "Custom…" IR needs an uploaded file, which is Pro-only, so Free doesn't list it.
-const CUSTOM_IR_VALUES = ['custom']
-
-function FxTrackCard({ bus, wet, muted, soloed, params, onWet, onMute, onSolo, onParam, onCustomIR, onRemove }) {
-  const specs = FX_PARAM_SPECS[bus.id] ?? []
-  // When tempo-synced, the raw ms/Hz slider for the synced param is inert.
-  const syncTarget = FX_SYNC_TARGETS[bus.id]
-  const synced = (params?.sync ?? bus.defaults?.sync ?? 'free') !== 'free'
-  const { limits } = useEntitlements()
-  const customUploads = limits?.customUploads === true
-  return (
-    <div className={`fx-track-card ${muted ? 'fx-track-card--muted' : ''}`}>
-      <div className="fx-track-card-header">
-        <span className="fx-track-name">{bus.label}</span>
-        <button className={`mute-btn ${muted ? 'active' : ''}`} onClick={onMute} aria-pressed={muted} aria-label={`Mute ${bus.label}`} title="Mute">M</button>
-        <button className={`solo-btn ${soloed ? 'active' : ''}`} onClick={onSolo} aria-pressed={soloed} aria-label={`Solo ${bus.label}`} title="Solo">S</button>
-        <input
-          type="range" min="0" max="1" step="0.01"
-          value={wet}
-          onChange={e => onWet(parseFloat(e.target.value))}
-          aria-label={`${bus.label} return level`}
-          aria-valuetext={`${Math.round(wet * 100)}%`}
-          className="fx-track-wet-slider"
-        />
-        <span className="fx-track-wet-val">{Math.round(wet * 100)}%</span>
-        <button className="fx-track-remove-btn" onClick={onRemove} title="Remove FX track" aria-label={`Remove ${bus.label}`}><IconClose /></button>
-      </div>
-      {specs.length > 0 && (
-        <div className="fx-track-params">
-          {specs.map(spec => (
-            <FxParamControl
-              key={spec.id}
-              spec={spec}
-              value={params?.[spec.id] ?? bus.defaults?.[spec.id]}
-              onChange={v => onParam(spec.id, v)}
-              disabled={synced && spec.id === syncTarget}
-              hiddenValues={spec.id === 'irType' && !customUploads ? CUSTOM_IR_VALUES : null}
-            />
-          ))}
-          {bus.id === 'reverb' && onCustomIR && (
-            <CustomIRPicker onCustomIR={onCustomIR} />
-          )}
-        </div>
-      )}
-    </div>
-  )
-}
-
-// Custom uploads (IRs here, sampler files below) are Pro-only: on Free the
-// button opens the upgrade modal instead of the file picker.
-function CustomIRPicker({ onCustomIR }) {
-  const inputRef = useRef(null)
-  const [name, setName] = useState(null)
-  const [error, setError] = useState(null)
-  const { allowed, choose } = useCustomUploadGate(inputRef)
-
-  async function handleFile(e) {
-    const file = e.target.files?.[0]
-    e.target.value = ''   // so picking the same file again still fires onChange
-    if (!file) return
-    setError(null)
-    try {
-      const raw = Tone.getContext().rawContext
-      const audioBuffer = await decodeCustomAudio(file, 'ir', buf => raw.decodeAudioData(buf))
-      setName(file.name)
-      onCustomIR(audioBuffer)
-    } catch (err) {
-      console.error('Custom IR load failed:', err)
-      setError(err.message)
-    }
-  }
-
-  return (
-    <div className="fx-param-row">
-      <span className="fx-param-label">Load IR</span>
-      <button
-        type="button"
-        className="fx-param-select"
-        onClick={choose}
-        title={allowed ? undefined : 'Custom impulse responses are a Pro feature'}
-      >
-        {allowed ? (error ?? name ?? 'Choose WAV…') : 'Pro'}
-      </button>
-      <input
-        ref={inputRef}
-        type="file"
-        accept="audio/wav,audio/x-wav,audio/wave,.wav"
-        style={{ display: 'none' }}
-        onChange={handleFile}
-      />
-    </div>
-  )
-}
-
-// `disabledText` replaces the value readout while disabled (a tempo-synced delay
-// time reads "synced"); null keeps showing the value.
-// `hiddenValues` drops enum options from the list; one that is the current value
-// stays, disabled, so a song that already uses it still reads correctly.
-function FxParamControl({ spec, value, onChange, disabled = false, disabledText = 'synced', hiddenValues = null }) {
-  if (spec.kind === 'enum') {
-    const current = value ?? spec.values[0]
-    const values = hiddenValues ? spec.values.filter(v => v === current || !hiddenValues.includes(v)) : spec.values
-    return (
-      <div className="fx-param-row">
-        <span className="fx-param-label">{spec.label}</span>
-        <select
-          className="fx-param-select"
-          value={current}
-          onChange={e => onChange(e.target.value)}
-        >
-          {values.map(v => (
-            <option key={v} value={v} disabled={hiddenValues?.includes(v)}>{spec.valueLabels?.[v] ?? v}</option>
-          ))}
-        </select>
-      </div>
-    )
-  }
-
-  const v = value ?? spec.min
-  const scale = spec.displayScale ?? 1
-  const displayVal = v * scale
-  const decimals = spec.decimals ?? (spec.step < 0.01 ? 3 : spec.step < 1 ? 2 : 0)
-  return (
-    <div className={`fx-param-row ${disabled ? 'fx-param-row--disabled' : ''}`}>
-      <span className="fx-param-label">{spec.label}</span>
-      <input
-        type="range"
-        min={spec.min}
-        max={spec.max}
-        step={spec.step}
-        value={v}
-        aria-label={spec.label}
-        disabled={disabled}
-        onChange={e => onChange(parseFloat(e.target.value))}
-        className="fx-param-slider"
-      />
-      <span className="fx-param-val">
-        {disabled && disabledText != null ? disabledText : `${displayVal.toFixed(decimals)}${spec.unit ? ` ${spec.unit}` : ''}`}
-      </span>
-    </div>
-  )
-}
-
-function FxAddButton({ activeFxTracks, onAdd }) {
-  const available = FX_BUSES.filter(b => !activeFxTracks.includes(b.id))
-  if (available.length === 0) return null
-
-  return (
-    <div className="fx-add-area">
-      <select
-        className="fx-add-select"
-        value=""
-        onChange={e => { if (e.target.value) onAdd(e.target.value) }}
-      >
-        <option value="">+ Add FX…</option>
-        {available.map(bus => (
-          <option key={bus.id} value={bus.id}>{bus.label}</option>
-        ))}
-      </select>
-    </div>
   )
 }
 
@@ -2570,13 +2141,7 @@ function EqPanel({ getRuntime }) {
   const hostRef  = useRef(null)
   const boundRef = useRef(null)
   const [ready, setReady] = useState(weq8Loaded)
-  // <weq8-ui> is a 300×360px drag-to-place curve editor from a third-party
-  // package — precision pointer work we don't control the internals of. Below
-  // 768px we don't load or mount it at all.
-  //
-  // The EQ *runtime* is unaffected: it lives on the engine and is created by
-  // MixerTab's getEqRuntime, so a song saved with EQ on desktop still filters
-  // audio here — only the curve editor is missing.
+  // Keep the pointer editor on desktop; phones share the touch band editor.
   const isPhone = useIsPhone()
 
   // Register the custom element once (client-only; never during SSR).
@@ -2611,16 +2176,7 @@ function EqPanel({ getRuntime }) {
     }
   })
 
-  if (isPhone) {
-    return (
-      <div className="sp-panel eq-weq8 eq-weq8--stub">
-        <p className="eq-stub-note">
-          This lane&rsquo;s EQ is still applied. Editing the curve needs a
-          pointer. Open Leið on a desktop browser.
-        </p>
-      </div>
-    )
-  }
+  if (isPhone) return <TouchEqEditor getRuntime={getRuntime} />
 
   return (
     <div className="sp-panel eq-weq8">

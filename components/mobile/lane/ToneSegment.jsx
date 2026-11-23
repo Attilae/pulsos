@@ -9,24 +9,19 @@ import GranularFields from '../../lane/GranularFields.jsx'
 import TextureControls from '../../TextureControls.jsx'
 import { TEXTURE_ENABLED } from '@/lib/granularEngine.js'
 import { autoCtl } from '@/lib/automationControl.js'
-import { supportsGranular, findTargetSpec } from '@/lib/engine.js'
+import { supportsGranular } from '@/lib/engine.js'
 import { PITCH_CONTOURS, PITCH_SPANS, PITCH_LEAPS } from '@/lib/mappings.js'
-import { synthTypeLabel, polyTargetActive } from '@/lib/soundSpecs.js'
+import { synthTypeLabel } from '@/lib/soundSpecs.js'
 import { Field, GroupHead } from './fields.jsx'
 
 // One segment of the phone lane sheet (see ../LaneSheet.jsx). It receives the
 // sheet's props plus the values LaneSheet derives from them, as `ctx`.
 export default function ToneSegment({ ctx }) {
   const {
-    glide, legato, automationLanes, onSamplerPreset, onSamplerUpload, onDrumVoice, onGranular, onGlide, onLegato,
+    glide, legato, autoTargets, onSamplerPreset, onSamplerUpload, onDrumVoice, onGranular, onGlide, onLegato,
     route, synthType, adsr, granular, scale, octave, filter, tag, onSynthType, onADSR, onScale, onOctaveShift, onPitchVariety, onLaneTag, trackScale, pv, resonatorStatus,
   } = ctx
 
-  const autoTargets = {}
-  for (const cfg of Object.values(automationLanes ?? {})) {
-    if (!cfg?.sourceRouteId || !polyTargetActive(cfg.paramTarget, synthType, adsr)) continue
-    autoTargets[cfg.paramTarget] = { spec: findTargetSpec(cfg.paramTarget, synthType), value: null }
-  }
   const glideAuto = autoCtl(autoTargets, 'glide', { divide: 1000 })
 
   return (
@@ -182,8 +177,8 @@ export default function ToneSegment({ ctx }) {
       {!['Resonator', 'Macro'].includes(synthType) && (
         <section className="lsheet-group lsheet-group--sound">
           <GroupHead title="Expression" description="Slide between notes or hold connected phrases." />
-          <Field label={`Glide · ${glideAuto.disabled ? 'automated' : `${glide.toFixed(2)} s`}`}>
-            <input type="range" min={0} max={1} step={0.01} value={glide} disabled={glideAuto.disabled}
+          <Field label={`Glide · ${glideAuto.disabled ? `automated · ${(glideAuto.display ?? glide).toFixed(2)} s` : `${glide.toFixed(2)} s`}`}>
+            <input type="range" min={0} max={1} step={0.01} value={glideAuto.display ?? glide} disabled={glideAuto.disabled}
               aria-label="Glide" onChange={e => onGlide(route.id, Number(e.target.value))} />
             <button type="button" disabled={glideAuto.disabled} onClick={() => onGlide(route.id, 0)}>Reset glide</button>
           </Field>
