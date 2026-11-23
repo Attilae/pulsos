@@ -784,14 +784,19 @@ time left before the next step; humanize is capped so hits never swap order; cha
 per pass). Plans set `drums.swing`/`humanize` and each pattern's `chance`/`ratchets`;
 `planDrumPattern` (`planApply.js`) is the one builder both apply paths use. Swing and humanize
 are only editable in the Drum Machine tab so far.
-**Kits** work the same way: sparse `kit` (`'layered'`; absent = Classic) and `voices: {pad: {tune,
+**Kits** work the same way: sparse `kit` (`'layered'`, `'tr808'`; absent = Classic) and `voices: {pad: {tune,
 decay, tone}}` keys (`lib/drumKit.js`, pure). `lib/drumVoices.js` builds the Tone voices per kit
 (`createPadVoice`); `DrumSequencer._buildVoices` rebuilds them on a kit switch, keeping the pad
 Volumes and the schedule. Classic at default settings is wired exactly as before: tone 0 inserts
 no filter. `PadVoice.trigger` keeps each voice's start times in the future and strictly increasing,
 because Tone clamps a past start to "now" and then refuses a restart at the same instant (a late
 scheduler tick did this to rolls). Plans: `drums.kit` and per-pattern `tune`/`decay`/`tone`; edits
-keep the current values, a new composition resets to Classic at defaults.
+keep the current values, a new composition resets to Classic at defaults. **Sample kits** (`samples`
+on a `DRUM_KITS` entry; `tr808` is Fischer's CC0 TR-808 set in `public/samples/drums/808/`, credited
+in `ATTRIBUTION.md`, which `test/drum-kit.test.js` checks) play one `Tone.Sampler` per pad; tune
+repitches and decay can only shorten. `setKit` warms the files through `lib/sampleCache.js` and keeps
+the previous voices playing until they're decoded, and `prefetchSnapshotSamples` warms them for
+Song Chainer sections.
 
 ### Persistence & AI
 

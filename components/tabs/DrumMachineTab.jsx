@@ -659,6 +659,9 @@ export default function DrumMachineTab({ active = true }) {
                     value={decayToSlider(voice.decay)}
                     onChange={e => handlePadVoice(pad.id, { decay: sliderToDecay(Number(e.target.value)) })}
                     onDoubleClick={() => handlePadVoice(pad.id, { decay: 1 })}
+                    title={DRUM_KITS.find(k => k.id === kit)?.samples
+                      ? 'Samples can only get shorter: above ×1 the full recording plays.'
+                      : undefined}
                   />
                   <output>×{voice.decay.toFixed(2)}</output>
                 </label>

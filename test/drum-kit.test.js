@@ -105,3 +105,33 @@ test('plans: a plan without kit settings builds the same pattern object as befor
   assert.deepEqual(Object.keys(planDrumPattern(plan.drums, null, 100)), ['patterns', 'offsets', 'muted', 'bpm'])
   assert.equal(plan.drums.patterns.kick.length, STEPS * 4)
 })
+
+// ── Sample kits ──────────────────────────────────────────────────────────────
+
+test('sample kits: every pad has a file in public/, it is a WAV, and it is credited', async () => {
+  const { readFileSync } = await import('node:fs')
+  const { drumKitSampleUrls, drumKitDef, DRUM_KITS } = await import('../lib/drumKit.js')
+  const { PAD_DEFS } = await import('../lib/drumSpecs.js')
+  const attribution = readFileSync(new URL('../public/samples/drums/ATTRIBUTION.md', import.meta.url), 'utf8')
+  const sampleKits = DRUM_KITS.filter(k => k.samples)
+  assert.ok(sampleKits.some(k => k.id === 'tr808'))
+  for (const kit of sampleKits) {
+    assert.deepEqual(Object.keys(kit.samples).sort(), PAD_DEFS.map(p => p.id).sort(), `${kit.id} covers every pad`)
+    for (const url of drumKitSampleUrls(kit.id)) {
+      const bytes = readFileSync(new URL(`../public${url}`, import.meta.url))
+      assert.equal(bytes.toString('ascii', 0, 4), 'RIFF', url)
+      assert.equal(bytes.toString('ascii', 8, 12), 'WAVE', url)
+      const dir = url.split('/').slice(-2, -1)[0]
+      const file = url.split('/').pop()
+      assert.ok(attribution.includes(`## \`${dir}/\``) && attribution.includes(`\`${file}\``), `${url} credited`)
+    }
+  }
+  assert.deepEqual(drumKitSampleUrls('classic'), [])
+  assert.equal(drumKitDef('nope').id, 'classic')
+})
+
+test('sample kits: plans can choose one', () => {
+  const plan = validatePlan({ tracks: [{ routeId: 'P' }], drums: { enabled: true, kit: 'tr808', patterns: [{ padId: 'kick', steps: KICK }] } }, CITY).plan
+  assert.equal(plan.drums.kit, 'tr808')
+  assert.equal(planDrumPattern(plan.drums, null, 90).kit, 'tr808')
+})

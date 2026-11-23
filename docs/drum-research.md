@@ -1,6 +1,6 @@
 # Drums: a more exciting sound, and patterns driven by GTFS data
 
-Research note, 2026-11-23. Status: P1 (pattern generator), P2 (groove) and most of P3 (Classic and Layered kits, per-pad tune/decay/tone) are implemented; the Macro kit, P4 and P5 are not. The roadmap at the end proposes the order.
+Research note, 2026-11-23. Status: P1 (pattern generator), P2 (groove) and most of P3 (Classic and Layered kits, per-pad tune/decay/tone) are implemented; P4's first sample kit (808) is in; the Macro kit, more sample kits and P5 are not. The roadmap at the end proposes the order.
 
 ## 1. Where the drums are today
 
@@ -146,7 +146,7 @@ When Live is turned back on: vehicle speed, delay, occupancy, arrivals and alert
 - **P3. Kits.** *Done:* `lib/drumKit.js`, `lib/drumVoices.js`, `test/drum-kit.test.js`, with Classic and Layered kits. The 808 sample kit moved to P4 (it needs the new samples) and the Macro kit is still open.
   - Layered synth voices with tune/decay/tone per pad, plus a kit picker: Synth, 808 samples, Macro.
   - Put the kit and voice vocabulary in `lib/drumSpecs.js` (server-pure, for plans and MCP).
-- **P4. More sample kits** from the CC0 sources verified above, with `ATTRIBUTION.md` entries and preloading via `sampleCache`.
+- **P4. More sample kits** *Started:* the `tr808` kit (Fischer's CC0 TR-808 set, `public/samples/drums/808/`). Acoustic kits from the other CC0 sources above (Meadowlark, SFZ Instruments) are still open; each needs `ATTRIBUTION.md` entries and goes through the same `sampleCache` warm-up.
 - **P5. Data-driven extras:** polymeter lengths, line-type archetypes, the geography map and the live hooks.
 
 **Verification for each phase:**
