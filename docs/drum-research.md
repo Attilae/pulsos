@@ -63,7 +63,7 @@ Load them through `lib/sampleCache.js`, as the Sampler and Drums lanes already d
 | Source | Licence | Contents |
 |---|---|---|
 | Michael Fischer TR-808 set (via [Dirt-Samples](https://github.com/tidalcycles/Dirt-Samples)) | CC0 / public domain | Already used. The full set has many more kick, snare and tom tunings, plus cowbell, clave, conga, maracas and rimshot. |
-| [Meadowlark factory library](https://github.com/BillyDM/meadowlark-factory-library) | CC0 | Kicks, snares, claps, hats, rides, crashes, loops |
+| [Meadowlark factory library](https://github.com/BillyDM/meadowlark-factory-library) | CC0 | Only 17 kicks (checked 2026-11; see `drum-samples-research.md`) |
 | [SFZ Instruments drums](https://sfzinstruments.github.io/drums) | CC0 / public domain (check each kit) | Acoustic kits, e.g. [SM Drums](https://sfzinstruments.github.io/drums/sm_drums) and Karoryfer's Unruly Drums |
 | [Cybernetic Orchestra samples](https://github.com/d0kt0r0/cybernetic-samples) | CC0 | Mixed one-shots |
 | [oramics/sampled](https://github.com/oramics/sampled), [danigb/samples](https://github.com/danigb/samples) | Varies by folder | Check each folder before use |
@@ -146,7 +146,7 @@ When Live is turned back on: vehicle speed, delay, occupancy, arrivals and alert
 - **P3. Kits.** *Done:* `lib/drumKit.js`, `lib/drumVoices.js`, `test/drum-kit.test.js`, with Classic and Layered kits. The 808 sample kit moved to P4 (it needs the new samples) and the Macro kit is still open.
   - Layered synth voices with tune/decay/tone per pad, plus a kit picker: Synth, 808 samples, Macro.
   - Put the kit and voice vocabulary in `lib/drumSpecs.js` (server-pure, for plans and MCP).
-- **P4. More sample kits** *Started:* the `tr808` kit (Fischer's CC0 TR-808 set, `public/samples/drums/808/`). Acoustic kits from the other CC0 sources above (Meadowlark, SFZ Instruments) are still open; each needs `ATTRIBUTION.md` entries and goes through the same `sampleCache` warm-up.
+- **P4. More sample kits** *Started:* the `tr808` kit (Fischer's CC0 TR-808 set, `public/samples/drums/808/`). More kits are still open: sources, a kit shortlist and model extensions are in `docs/drum-samples-research.md`; each needs `ATTRIBUTION.md` entries and goes through the same `sampleCache` warm-up.
 - **P5. Data-driven extras:** polymeter lengths, line-type archetypes, the geography map and the live hooks.
 
 **Verification for each phase:**
