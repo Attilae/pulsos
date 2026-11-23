@@ -68,7 +68,7 @@ test('plans: kit and pad voices validated, clamped and reported', () => {
   const { plan } = validatePlan(raw, CITY)
   assert.equal(plan.drums.kit, 'layered')
   assert.deepEqual(plan.drums.voices, { kick: { tune: -5, decay: 4 } })
-  assert.ok(validatePlan({ ...raw, drums: { ...raw.drums, kit: 'acoustic' } }, CITY).dropped.some(d => d.includes('"acoustic"')))
+  assert.ok(validatePlan({ ...raw, drums: { ...raw.drums, kit: 'marimba-kit' } }, CITY).dropped.some(d => d.includes('"marimba-kit"')))
   const strict = JSON.stringify(COMPOSITION_RESPONSE_FORMAT)
   for (const key of ['kit', 'tune', 'decay', 'tone']) assert.ok(strict.includes(`"${key}"`), key)
 })
