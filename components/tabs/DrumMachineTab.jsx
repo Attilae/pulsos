@@ -5,11 +5,18 @@ import { useDrumClipboard } from '@/lib/shared/DrumClipboardContext.jsx'
 import { useEntitlements } from '@/lib/shared/EntitlementsContext.jsx'
 import {
   DrumEngine, PAD_DEFS, STEPS, SOURCE_STEPS,
-  emptyPattern, emptyStops, patternFromRoute, cycleStepValue,
+  emptyPattern, emptyStops, cycleStepValue,
+  patternFromStops, DRUM_GEN_MODES, DRUM_GEN_LABELS, DRUM_GEN_HINTS, DEFAULT_DRUM_GEN_MODE,
 } from '@/lib/engines/drumEngine.js'
+import {
+  normalizeDrumGroove, cycleRatchet, drumStepHits, padGrooveAt, swingRatio, CHANCE_OPTIONS,
+} from '@/lib/drumGroove.js'
+import {
+  normalizeDrumKit, normalizePadVoice, drumKitOf, DRUM_KITS, PAD_VOICE_RANGES, decayToSlider, sliderToDecay,
+} from '@/lib/drumKit.js'
 import { trackProductEvent } from '@/lib/productAnalytics.js'
 import './DrumMachineTab.css'
-import { IconCheck, IconClear, IconDownload, IconForward, IconPlay, IconRepick, IconStop } from '../icons.jsx'
+import { IconCheck, IconClear, IconDownload, IconForward, IconMixer, IconPlay, IconRepick, IconReset, IconStop } from '../icons.jsx'
 
 const PAD_MIDI_NOTES = {
   kick:  36,
@@ -36,6 +43,11 @@ function cloneSharedPattern(value) {
     ])),
     muted: Object.fromEntries(PAD_DEFS.map(p => [p.id, !!value?.muted?.[p.id]])),
     bpm: Math.max(40, Math.min(240, Number.isFinite(rawBpm) ? rawBpm : 96)),
+    // Swing / humanize / chance / rolls: sparse, so a pattern without them
+    // compares equal to one saved before they existed.
+    ...normalizeDrumGroove(value),
+    // Kit + per-pad tune/decay/tone, sparse the same way.
+    ...normalizeDrumKit(value),
   }
 }
 
@@ -55,10 +67,15 @@ export default function DrumMachineTab({ active = true }) {
   const [sent,       setSent]       = useState(false)
 
   const [padRoutes, setPadRoutes] = useState({})                                            // padId → routeId
+  const [genMode,   setGenMode]   = useState(DEFAULT_DRUM_GEN_MODE)                          // how a line becomes a pattern
   const [patterns,  setPatterns]  = useState(() => Object.fromEntries(PAD_DEFS.map(p => [p.id, emptyPattern()])))
   const [stepStops, setStepStops] = useState(() => Object.fromEntries(PAD_DEFS.map(p => [p.id, emptyStops()])))
   const [offsets,   setOffsets]   = useState(() => Object.fromEntries(PAD_DEFS.map(p => [p.id, 0])))
   const [muted,     setMuted]     = useState({})
+  // Sparse { groove?, chances?, ratchets? } (lib/drumGroove.js) and
+  // { kit?, voices? } (lib/drumKit.js): everything beyond steps/offsets/mute.
+  const [grooveFields, setGrooveFieldsState] = useState({})
+  const grooveRef   = useRef(grooveFields)
   const patternsRef = useRef(patterns)
   const offsetsRef  = useRef(offsets)
   const mutedRef    = useRef(muted)
@@ -69,7 +86,27 @@ export default function DrumMachineTab({ active = true }) {
     offsets:  overrides.offsets  ?? offsetsRef.current,
     muted:    overrides.muted    ?? mutedRef.current,
     bpm:      overrides.bpm      ?? bpmRef.current,
+    ...grooveRef.current,
   }), [])
+
+  // Local + engine only; the caller publishes (so one publish carries every change).
+  const setGrooveFields = useCallback((next) => {
+    const norm = { ...normalizeDrumGroove(next), ...normalizeDrumKit(next) }
+    grooveRef.current = norm
+    setGrooveFieldsState(norm)
+    engineRef.current?.setGroove(norm)
+    engineRef.current?.setKit(norm)
+  }, [])
+  const [openVoice, setOpenVoice] = useState(null)   // padId whose sound panel is open
+
+  // Rolls belong to steps; a pad whose steps were replaced or cleared loses them.
+  const dropRatchets = useCallback((padIds) => {
+    const cur = grooveRef.current
+    if (!cur.ratchets || !padIds.some(id => cur.ratchets[id])) return
+    const ratchets = { ...cur.ratchets }
+    for (const id of padIds) delete ratchets[id]
+    setGrooveFields({ ...cur, ratchets })
+  }, [setGrooveFields])
 
   // Only publish automatic edits after a pattern has been sent at least once.
   // This keeps a fresh Map session drumless until the user explicitly adds it.
@@ -96,7 +133,9 @@ export default function DrumMachineTab({ active = true }) {
     for (const pad of PAD_DEFS) {
       const r = routes.find(r => r.name === pad.defaultRouteName)
       if (r) bind[pad.id] = r.id
-      const { pattern, stops } = r ? patternFromRoute(r) : { pattern: emptyPattern(), stops: emptyStops() }
+      const { pattern, stops } = r
+        ? patternFromStops(r, { mode: genMode, padId: pad.id })
+        : { pattern: emptyPattern(), stops: emptyStops() }
       initPatterns[pad.id] = pattern
       initStops[pad.id]    = stops
       engineRef.current?.setStops(pad.id, stops)
@@ -115,6 +154,7 @@ export default function DrumMachineTab({ active = true }) {
       engineRef.current?.setPattern(pad.id, nextPatterns[pad.id])
     }
     if (linked) {
+      setGrooveFields(linked)
       offsetsRef.current = linked.offsets
       mutedRef.current = linked.muted
       bpmRef.current = linked.bpm
@@ -141,6 +181,7 @@ export default function DrumMachineTab({ active = true }) {
     offsetsRef.current = next.offsets
     mutedRef.current = next.muted
     bpmRef.current = next.bpm
+    setGrooveFields(next)
     setPatterns(next.patterns)
     setOffsets(next.offsets)
     setMuted(next.muted)
@@ -153,7 +194,7 @@ export default function DrumMachineTab({ active = true }) {
       engine?.setPadMute(pad.id, next.muted[pad.id])
     }
     engine?.setBpm(next.bpm)
-  }, [clipboard.pattern, sharedSnapshot])
+  }, [clipboard.pattern, sharedSnapshot, setGrooveFields])
 
   // ── Controls ────────────────────────────────────────────────────────────
   const handlePlayStop = useCallback(async () => {
@@ -178,17 +219,64 @@ export default function DrumMachineTab({ active = true }) {
     publishIfLinked({ bpm: n })
   }, [publishIfLinked])
 
-  const handleToggleStep = useCallback((padId, visibleIdx) => {
-    engineRef.current?.toggleStep(padId, visibleIdx)
+  const handleToggleStep = useCallback((padId, visibleIdx, roll = false) => {
     const offset = offsetsRef.current[padId] ?? 0
     const srcIdx = (offset + visibleIdx) % SOURCE_STEPS
+    // Shift-click on a sounding step cycles its roll (1 → 2 → 3 → 4 hits).
+    if (roll && patternsRef.current[padId]?.[srcIdx]) {
+      const cur = grooveRef.current
+      const padRolls = (cur.ratchets?.[padId] ?? new Array(SOURCE_STEPS).fill(1)).slice()
+      padRolls[srcIdx] = cycleRatchet(padRolls[srcIdx])
+      setGrooveFields({ ...cur, ratchets: { ...cur.ratchets, [padId]: padRolls } })
+      publishIfLinked({})
+      return
+    }
+    engineRef.current?.toggleStep(padId, visibleIdx)
     const padPattern = patternsRef.current[padId].slice()
     padPattern[srcIdx] = cycleStepValue(padPattern[srcIdx])
     const next = { ...patternsRef.current, [padId]: padPattern }
     patternsRef.current = next
     setPatterns(next)
+    // A step switched off loses its roll.
+    if (!padPattern[srcIdx] && grooveRef.current.ratchets?.[padId]?.[srcIdx] > 1) {
+      const cur = grooveRef.current
+      const padRolls = cur.ratchets[padId].slice()
+      padRolls[srcIdx] = 1
+      setGrooveFields({ ...cur, ratchets: { ...cur.ratchets, [padId]: padRolls } })
+    }
     publishIfLinked({ patterns: next })
-  }, [publishIfLinked])
+  }, [publishIfLinked, setGrooveFields])
+
+  const handleSwing = useCallback((v) => {
+    const cur = grooveRef.current
+    setGrooveFields({ ...cur, groove: { swing: Number(v), humanize: cur.groove?.humanize ?? 0 } })
+    publishIfLinked({})
+  }, [publishIfLinked, setGrooveFields])
+
+  const handleHumanize = useCallback((v) => {
+    const cur = grooveRef.current
+    setGrooveFields({ ...cur, groove: { swing: cur.groove?.swing ?? 0, humanize: Number(v) } })
+    publishIfLinked({})
+  }, [publishIfLinked, setGrooveFields])
+
+  const handleChance = useCallback((padId, v) => {
+    const cur = grooveRef.current
+    setGrooveFields({ ...cur, chances: { ...cur.chances, [padId]: Number(v) } })
+    publishIfLinked({})
+  }, [publishIfLinked, setGrooveFields])
+
+  const handleKit = useCallback((kit) => {
+    setGrooveFields({ ...grooveRef.current, kit })
+    publishIfLinked({})
+    trackProductEvent('drum_kit', { kit })
+  }, [publishIfLinked, setGrooveFields])
+
+  const handlePadVoice = useCallback((padId, patch) => {
+    const cur = grooveRef.current
+    const voice = patch ? { ...normalizePadVoice(cur.voices?.[padId]), ...patch } : null
+    setGrooveFields({ ...cur, voices: { ...cur.voices, [padId]: voice } })
+    publishIfLinked({})
+  }, [publishIfLinked, setGrooveFields])
 
   const handleMute = useCallback((padId) => {
     const padMuted = !mutedRef.current[padId]
@@ -201,26 +289,31 @@ export default function DrumMachineTab({ active = true }) {
 
   const handleClear = useCallback((padId) => {
     engineRef.current?.clear(padId)
+    dropRatchets([padId])
     const next = { ...patternsRef.current, [padId]: emptyPattern() }
     patternsRef.current = next
     setPatterns(next)
     setStepStops(s => ({ ...s, [padId]: emptyStops() }))
     publishIfLinked({ patterns: next })
-  }, [publishIfLinked])
+  }, [publishIfLinked, dropRatchets])
 
   const handleClearAll = useCallback(() => {
     engineRef.current?.clear()
+    dropRatchets(PAD_DEFS.map(p => p.id))
     const next = Object.fromEntries(PAD_DEFS.map(p => [p.id, emptyPattern()]))
     patternsRef.current = next
     setPatterns(next)
     setStepStops(Object.fromEntries(PAD_DEFS.map(p => [p.id, emptyStops()])))
     publishIfLinked({ patterns: next })
-  }, [publishIfLinked])
+  }, [publishIfLinked, dropRatchets])
 
   const handlePickRoute = useCallback((padId, routeId) => {
     setPadRoutes(r => ({ ...r, [padId]: routeId }))
+    dropRatchets([padId])
     const route = routes?.find(r => r.id === routeId)
-    const { pattern, stops } = route ? patternFromRoute(route) : { pattern: emptyPattern(), stops: emptyStops() }
+    const { pattern, stops } = route
+      ? patternFromStops(route, { mode: genMode, padId })
+      : { pattern: emptyPattern(), stops: emptyStops() }
     engineRef.current?.setPattern(padId, pattern)
     engineRef.current?.setStops(padId, stops)
     const next = { ...patternsRef.current, [padId]: pattern }
@@ -228,13 +321,14 @@ export default function DrumMachineTab({ active = true }) {
     setPatterns(next)
     setStepStops(prev => ({ ...prev, [padId]: stops }))
     publishIfLinked({ patterns: next })
-  }, [routes, publishIfLinked])
+  }, [routes, genMode, publishIfLinked, dropRatchets])
 
   const handleRegenerate = useCallback((padId) => {
     const routeId = padRoutes[padId]
     const route = routes?.find(r => r.id === routeId)
     if (!route) return
-    const { pattern, stops } = patternFromRoute(route)
+    dropRatchets([padId])
+    const { pattern, stops } = patternFromStops(route, { mode: genMode, padId })
     engineRef.current?.setPattern(padId, pattern)
     engineRef.current?.setStops(padId, stops)
     const next = { ...patternsRef.current, [padId]: pattern }
@@ -242,7 +336,30 @@ export default function DrumMachineTab({ active = true }) {
     setPatterns(next)
     setStepStops(prev => ({ ...prev, [padId]: stops }))
     publishIfLinked({ patterns: next })
-  }, [padRoutes, routes, publishIfLinked])
+  }, [padRoutes, routes, genMode, publishIfLinked, dropRatchets])
+
+  // Switching the generator rebuilds every pad that has a line, so the kit
+  // changes as one. Pads without a line (or hand-cleared ones) keep their steps.
+  const handleGenMode = useCallback((mode) => {
+    setGenMode(mode)
+    const nextPatterns = { ...patternsRef.current }
+    const nextStops = {}
+    dropRatchets(PAD_DEFS.filter(p => routes?.some(r => r.id === padRoutes[p.id])).map(p => p.id))
+    for (const pad of PAD_DEFS) {
+      const route = routes?.find(r => r.id === padRoutes[pad.id])
+      if (!route) continue
+      const { pattern, stops } = patternFromStops(route, { mode, padId: pad.id })
+      nextPatterns[pad.id] = pattern
+      nextStops[pad.id] = stops
+      engineRef.current?.setPattern(pad.id, pattern)
+      engineRef.current?.setStops(pad.id, stops)
+    }
+    patternsRef.current = nextPatterns
+    setPatterns(nextPatterns)
+    setStepStops(prev => ({ ...prev, ...nextStops }))
+    publishIfLinked({ patterns: nextPatterns })
+    trackProductEvent('drum_pattern_mode', { mode })
+  }, [routes, padRoutes, publishIfLinked, dropRatchets])
 
   const handleOffset = useCallback((padId, value) => {
     const n = ((Math.round(value) % SOURCE_STEPS) + SOURCE_STEPS) % SOURCE_STEPS
@@ -271,12 +388,20 @@ export default function DrumMachineTab({ active = true }) {
       const track = midi.addTrack()
       track.name = pad.label
       for (let i = 0; i < STEPS; i++) {
-        if (visible[i]) {
+        if (!visible[i]) continue
+        // Swing and rolls are part of the pattern; chance and humanize are
+        // per-pass dice, so the file holds every step, on the (swung) grid.
+        const g = padGrooveAt(grooveFields, pad.id, (offset + i) % SOURCE_STEPS)
+        const hits = drumStepHits({
+          step: i, vel: visible[i], sixteenthSec: stepSeconds,
+          ratchet: g.ratchet, swing: g.swing, humanize: 0, chance: 1,
+        })
+        for (const hit of hits) {
           track.addNote({
             midi:     PAD_MIDI_NOTES[pad.id] ?? 60,
-            time:     i * stepSeconds,
-            duration: stepSeconds,
-            velocity: 0.9 * visible[i],  // full step keeps the old flat 0.9
+            time:     i * stepSeconds + hit.offset,
+            duration: stepSeconds / hits.length,
+            velocity: 0.9 * hit.vel,  // full step keeps the old flat 0.9
           })
         }
       }
@@ -289,7 +414,7 @@ export default function DrumMachineTab({ active = true }) {
     a.download = `transit-drum-pattern-${Date.now()}.mid`
     a.click()
     URL.revokeObjectURL(url)
-  }, [bpm, patterns, offsets, claim])
+  }, [bpm, patterns, offsets, grooveFields, claim])
 
   // Push the current pattern into the app-level channel, establishing the link.
   const handleSendToMap = useCallback(() => {
@@ -312,6 +437,10 @@ export default function DrumMachineTab({ active = true }) {
 
   if (!routes) return <div className="tab-placeholder">Loading routes…</div>
 
+  const kit      = drumKitOf(grooveFields)
+  const swing    = grooveFields.groove?.swing ?? 0
+  const humanize = grooveFields.groove?.humanize ?? 0
+
   return (
     <div className="drum-tab">
       <header className="drum-header">
@@ -326,6 +455,58 @@ export default function DrumMachineTab({ active = true }) {
             onChange={e => handleBpm(e.target.value)}
             disabled={started}
           />
+        </div>
+
+        <div className="drum-bpm drum-gen">
+          <label htmlFor="drum-gen-mode">Pattern</label>
+          <select
+            id="drum-gen-mode"
+            className="drum-route-pick"
+            value={genMode}
+            onChange={e => handleGenMode(e.target.value)}
+            title={DRUM_GEN_HINTS[genMode]}
+          >
+            {DRUM_GEN_MODES.map(m => <option key={m} value={m}>{DRUM_GEN_LABELS[m]}</option>)}
+          </select>
+        </div>
+
+        <div className="drum-bpm drum-gen">
+          <label htmlFor="drum-kit">Kit</label>
+          <select
+            id="drum-kit"
+            className="drum-route-pick"
+            value={kit}
+            onChange={e => handleKit(e.target.value)}
+            title={DRUM_KITS.find(k => k.id === kit)?.hint}
+          >
+            {DRUM_KITS.map(k => <option key={k.id} value={k.id}>{k.label}</option>)}
+          </select>
+        </div>
+
+        <div className="drum-bpm drum-groove">
+          <label htmlFor="drum-swing">Swing</label>
+          <input
+            id="drum-swing"
+            type="range" min="0" max="1" step="0.05"
+            value={swing}
+            onChange={e => handleSwing(e.target.value)}
+            onDoubleClick={() => handleSwing(0)}
+            title="Delays every second 16th. Double-click for straight."
+          />
+          <span className="drum-groove-value">{Math.round(swingRatio(swing) * 100)}%</span>
+        </div>
+
+        <div className="drum-bpm drum-groove">
+          <label htmlFor="drum-humanize">Humanize</label>
+          <input
+            id="drum-humanize"
+            type="range" min="0" max="1" step="0.05"
+            value={humanize}
+            onChange={e => handleHumanize(e.target.value)}
+            onDoubleClick={() => handleHumanize(0)}
+            title="Small timing and velocity changes on every pass. Double-click for none."
+          />
+          <span className="drum-groove-value">{Math.round(humanize * 100)}%</span>
         </div>
 
         <button className="drum-btn drum-btn--ghost" onClick={handleClearAll}>Clear</button>
@@ -351,8 +532,14 @@ export default function DrumMachineTab({ active = true }) {
           const offset   = offsets[pad.id]   ?? 0
           const isMuted  = !!muted[pad.id]
           const routeId  = padRoutes[pad.id] ?? ''
+          const chance   = grooveFields.chances?.[pad.id] ?? 1
+          const rolls    = grooveFields.ratchets?.[pad.id]
+          const voice    = normalizePadVoice(grooveFields.voices?.[pad.id])
+          const voiceSet = voice.tune !== 0 || voice.decay !== 1 || voice.tone !== 0
+          const panelOpen = openVoice === pad.id
           return (
-            <div key={pad.id} className={`drum-row ${isMuted ? 'is-muted' : ''}`}>
+            <div key={pad.id} className="drum-row-wrap">
+            <div className={`drum-row ${isMuted ? 'is-muted' : ''}`}>
               <div className="drum-row-label">
                 <span className="drum-pad-name">{pad.label}</span>
                 <select
@@ -385,6 +572,23 @@ export default function DrumMachineTab({ active = true }) {
                   disabled={!routeId}
                 ><IconRepick /></button>
                 <button
+                  className={`drum-mini-btn ${panelOpen ? 'on' : ''} ${voiceSet ? 'is-set' : ''}`}
+                  onClick={() => setOpenVoice(id => (id === pad.id ? null : pad.id))}
+                  aria-expanded={panelOpen}
+                  aria-controls={`drum-voice-${pad.id}`}
+                  aria-label={`${pad.label} sound`}
+                  title="Tune, decay and tone"
+                ><IconMixer /></button>
+                <select
+                  className="drum-route-pick drum-chance"
+                  value={CHANCE_OPTIONS.includes(chance) ? chance : 1}
+                  onChange={e => handleChance(pad.id, e.target.value)}
+                  aria-label={`${pad.label} chance`}
+                  title="Chance each step plays, rolled fresh every pass"
+                >
+                  {CHANCE_OPTIONS.map(c => <option key={c} value={c}>{Math.round(c * 100)}%</option>)}
+                </select>
+                <button
                   className="drum-mini-btn"
                   onClick={() => handleClear(pad.id)}
                   title="Clear row"
@@ -410,8 +614,11 @@ export default function DrumMachineTab({ active = true }) {
                   const vel      = pattern[srcIdx]
                   const level    = !vel ? '' : vel >= 0.85 ? 'vel-accent' : vel >= 0.55 ? 'vel-norm' : 'vel-soft'
                   const stopList = stops[srcIdx] ?? []
+                  const roll     = vel ? (rolls?.[srcIdx] ?? 1) : 1
                   const tip      = (stopList.length ? stopList.join(' · ') : `(empty · slot ${srcIdx})`)
                     + (vel ? `, vel ${Math.round(vel * 100)}%` : '')
+                    + (roll > 1 ? `, roll ×${roll}` : '')
+                    + (vel ? ' (Shift-click: roll)' : '')
                   return (
                     <button
                       key={i}
@@ -421,15 +628,62 @@ export default function DrumMachineTab({ active = true }) {
                         level,
                         activeStep === i ? 'playing' : '',
                         i % 4 === 0 ? 'beat' : '',
+                        roll > 1 ? 'has-roll' : '',
                       ].filter(Boolean).join(' ')}
-                      onClick={() => handleToggleStep(pad.id, i)}
+                      onClick={e => handleToggleStep(pad.id, i, e.shiftKey)}
                       title={tip}
-                      aria-label={`${pad.label} step ${i + 1}${vel ? `, velocity ${Math.round(vel * 100)}%` : ''}`}
+                      aria-label={`${pad.label} step ${i + 1}${vel ? `, velocity ${Math.round(vel * 100)}%` : ''}${roll > 1 ? `, roll of ${roll}` : ''}`}
                       aria-pressed={!!vel}
-                    />
+                    >{roll > 1 && <span className="drum-roll" aria-hidden="true">×{roll}</span>}</button>
                   )
                 })}
               </div>
+            </div>
+            {panelOpen && (
+              <div className="drum-voice-panel" id={`drum-voice-${pad.id}`} role="group" aria-label={`${pad.label} sound`}>
+                <label className="drum-voice-field">
+                  <span>Tune</span>
+                  <input
+                    type="range"
+                    min={PAD_VOICE_RANGES.tune.min} max={PAD_VOICE_RANGES.tune.max} step={PAD_VOICE_RANGES.tune.step}
+                    value={voice.tune}
+                    onChange={e => handlePadVoice(pad.id, { tune: Number(e.target.value) })}
+                    onDoubleClick={() => handlePadVoice(pad.id, { tune: 0 })}
+                  />
+                  <output>{voice.tune > 0 ? `+${voice.tune}` : voice.tune} st</output>
+                </label>
+                <label className="drum-voice-field">
+                  <span>Decay</span>
+                  <input
+                    type="range" min="0" max="1" step="0.01"
+                    value={decayToSlider(voice.decay)}
+                    onChange={e => handlePadVoice(pad.id, { decay: sliderToDecay(Number(e.target.value)) })}
+                    onDoubleClick={() => handlePadVoice(pad.id, { decay: 1 })}
+                    title={DRUM_KITS.find(k => k.id === kit)?.samples
+                      ? 'Samples can only get shorter: above ×1 the full recording plays.'
+                      : undefined}
+                  />
+                  <output>×{voice.decay.toFixed(2)}</output>
+                </label>
+                <label className="drum-voice-field">
+                  <span>Tone</span>
+                  <input
+                    type="range"
+                    min={PAD_VOICE_RANGES.tone.min} max={PAD_VOICE_RANGES.tone.max} step={PAD_VOICE_RANGES.tone.step}
+                    value={voice.tone}
+                    onChange={e => handlePadVoice(pad.id, { tone: Number(e.target.value) })}
+                    onDoubleClick={() => handlePadVoice(pad.id, { tone: 0 })}
+                    title="Left darkens, right thins"
+                  />
+                  <output>{voice.tone === 0 ? 'Open' : voice.tone < 0 ? `Dark ${Math.round(-voice.tone * 100)}` : `Thin ${Math.round(voice.tone * 100)}`}</output>
+                </label>
+                <button
+                  className="drum-btn drum-btn--ghost drum-voice-reset"
+                  onClick={() => handlePadVoice(pad.id, null)}
+                  disabled={!voiceSet}
+                ><IconReset /> Reset</button>
+              </div>
+            )}
             </div>
           )
         })}
@@ -439,7 +693,8 @@ export default function DrumMachineTab({ active = true }) {
         <div className="drum-hint">
           Patterns derived as a 64-step buffer; the 16-cell grid shows a sliding window.
           Drag the offset slider to shift which slice plays. Click a step to cycle its
-          velocity: full → norm → soft → off. Hover any cell to see the stop name.
+          velocity: full → norm → soft → off. Shift-click a playing step to roll it
+          (2, 3 or 4 quick hits). Hover any cell to see the stop name.
         </div>
       </footer>
     </div>

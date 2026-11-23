@@ -138,7 +138,10 @@ styling, Fit framing and overlay padding, plus `lib/mapBasemapStyle.js`), `map-l
 `reference-track` (`lib/referenceTrack.js`: bar guess, Match BPM, drift, snapshot sanitising)
 `reference-loops` (`lib/referenceLoops.js`: plan limits, upload pathnames, metadata bounds) and
 `aiff` (`lib/aiff.js`),
-`poly-voice` and `lane-pitch` (described in their sections below). There is **no linter
+`drum-gen` (`lib/drumGen.js`: distance/euclidean/stop-role pad patterns, distance pinned to the
+original generator), `drum-groove` (`lib/drumGroove.js`: swing, humanize, chance, rolls, and the
+groove through plans), `drum-kit` (`lib/drumKit.js`: kits, per-pad tune/decay/tone, both through
+plans), `poly-voice` and `lane-pitch` (described in their sections below). There is **no linter
 configured** and the audio/UI code has no tests. Run a single file with
 `node --test test/ai-plan-apply.test.js`.
 
@@ -766,6 +769,33 @@ boolean-array patterns). `DrumSequencer._trigger(padId, time, stepVel)` multipli
 baked velocity by the step's level, so `1` reproduces pre-velocity playback exactly. Both the Drum
 Machine grid and the DAW's `DrumLane` render the levels via `vel-accent`/`vel-norm`/`vel-soft` CSS
 classes.
+
+**Drum patterns from lines and groove** (research and roadmap: `docs/drum-research.md`). The Drum
+Machine's Pattern picker turns a pad's line into steps with `patternFromStops` (`lib/drumGen.js`,
+pure): `distance` (the original `patternFromRoute`, still the default), `euclid` (each bar's
+density spread evenly, rotated by route id) or `roles` (stop `signals` pick the pad: hubs → kick on
+the beat, transfers → snare/clap on the backbeat, quiet stops → rim ghosts). Groove lives in
+`lib/drumGroove.js` (pure) as **sparse keys on the drum pattern object** (`groove: {swing,
+humanize}`, `chances: {pad}`, `ratchets: {pad: number[64]}`), so a pattern without them plays as
+before, with no schema bump; songs, the drum clipboard and the DAW lane carry them untouched.
+`DrumSequencer` plays every step through `drumStepHits` (swing delays odd 16ths; a roll fits the
+time left before the next step; humanize is capped so hits never swap order; chance rolls fresh
+per pass). Plans set `drums.swing`/`humanize` and each pattern's `chance`/`ratchets`;
+`planDrumPattern` (`planApply.js`) is the one builder both apply paths use. Swing and humanize
+are only editable in the Drum Machine tab so far.
+**Kits** work the same way: sparse `kit` (`'layered'`, `'tr808'`; absent = Classic) and `voices: {pad: {tune,
+decay, tone}}` keys (`lib/drumKit.js`, pure). `lib/drumVoices.js` builds the Tone voices per kit
+(`createPadVoice`); `DrumSequencer._buildVoices` rebuilds them on a kit switch, keeping the pad
+Volumes and the schedule. Classic at default settings is wired exactly as before: tone 0 inserts
+no filter. `PadVoice.trigger` keeps each voice's start times in the future and strictly increasing,
+because Tone clamps a past start to "now" and then refuses a restart at the same instant (a late
+scheduler tick did this to rolls). Plans: `drums.kit` and per-pattern `tune`/`decay`/`tone`; edits
+keep the current values, a new composition resets to Classic at defaults. **Sample kits** (`samples`
+on a `DRUM_KITS` entry; `tr808` is Fischer's CC0 TR-808 set in `public/samples/drums/808/`, credited
+in `ATTRIBUTION.md`, which `test/drum-kit.test.js` checks) play one `Tone.Sampler` per pad; tune
+repitches and decay can only shorten. `setKit` warms the files through `lib/sampleCache.js` and keeps
+the previous voices playing until they're decoded, and `prefetchSnapshotSamples` warms them for
+Song Chainer sections.
 
 ### Persistence & AI
 

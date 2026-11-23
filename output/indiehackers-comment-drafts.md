@@ -1,8 +1,8 @@
 # Indie Hackers comment drafts for Leið
 
-Prepared 2 November 2026. Updated 3 November 2026. Eight posts. The first four have a main comment and a shorter alternative; choose one version per thread. Entries five through eight each have one comment drafted for the articles you selected. The first two, fifth, seventh and eighth are the strongest fits for discussing Leið naturally.
+Prepared 2 November 2026. Updated 4 November 2026. Nine posts. The first four have a main comment and a shorter alternative; choose one version per thread. Entries five through nine each have one comment drafted for the articles you selected. The ninth responds to an explicit invitation to share a product and its audience.
 
-The readable Indie Hackers feed was an October snapshot. Direct access was blocked, so the first four entries are drafts for verified posts from that snapshot, not a confirmed list of today's newest posts. Entries five through eight are articles you selected separately. Entries one through five were read with their available comments; entries six through eight use the full articles and replies you supplied. Open the linked thread before using a draft to check for newer replies.
+The readable Indie Hackers feed was an October snapshot. Direct access was blocked, so the first four entries are drafts for verified posts from that snapshot, not a confirmed list of today's newest posts. Entries five through nine are articles you selected separately. Entries one through five were read with their available comments; entries six through nine use the text you supplied. Open the linked thread before using a draft to check for newer replies.
 
 ## 1 Testing AI tools in CI
 
@@ -116,8 +116,23 @@ The detail that 11 of the 15 owners with 10+ users skipped the goal question mak
 
 I'd add one more test: how much work does disagreeing with the tool create? I'm building Leið, a browser music tool with an AI composer, and that question carries over into creative work. If I like an arrangement except for the bass, I want to change the bass and keep the rest. An explanation alone doesn't give me that control. For your example, could a founder reject the audience recommendation, keep the message, and run the next experiment without starting over? Making that kind of disagreement easy would matter to me when deciding whether to pay.
 
+## 9 Sharing Leið for the next AI discovery check
+
+**Post:** [Drop your product and I'll ask 5 AIs about it](https://www.indiehackers.com/post/drop-your-product-and-ill-ask-5-ais-about-it-i-m-0-for-400-something-so-no-judgment-8OOEraWP3yjjBtHcdxxX)  
+**Author:** Dasha
+
+**Context:** The author offers to check how five AI assistants recommend products and asks for a URL and one line describing the audience. The update says all five spots are taken. This draft expresses interest in the next round and includes the requested product details.
+
+### Comment
+
+If you do another round, I'd be interested: https://www.layth.space/
+
+Leið is for musicians and producers looking for unusual melody ideas: it turns public transport routes into music in the browser, with MIDI and WAV export to keep working in their DAW.
+
+I'd be curious what comes up for someone asking how to turn real-world data into MIDI. That seems closer to how someone might discover a use for it than searching for a transit music app by name.
+
 ## Product facts behind the drafts
 
 Leið turns public transport routes into music in the browser: each line becomes a track and each stop becomes a note. It includes an AI composer that produces structured arrangement plans. Current playback uses simulated timing; live mode is disabled. These drafts make no claims about customer numbers, revenue, conversion improvements or distribution results.
 
-Product reference: [Leið](https://www.layth.space/). The comments omit a promotional link so the contribution can stand on its own.
+Product reference: [Leið](https://www.layth.space/). Entries one through eight omit a promotional link. Entry nine includes it because the author explicitly asks for a product URL.

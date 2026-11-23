@@ -70,7 +70,7 @@
 
 .drum-row {
   display: grid;
-  grid-template-columns: 220px 110px 130px 1fr;
+  grid-template-columns: 220px 212px 130px 1fr;
   gap: 12px;
   align-items: center;
   padding: 8px 12px;
@@ -245,4 +245,67 @@
   .drum-steps > :nth-child(4n+1) { margin-left: 4px; }
   .drum-steps > :first-child { margin-left: 0; }
   .drum-step { height: 40px; }
+}
+
+/* Pattern generator picker sits in the header; keep it content-sized on phones
+   too (the row pickers go full-width there). */
+.drum-gen .drum-route-pick { width: auto; min-width: 0; }
+
+/* Groove (swing / humanize) sliders in the header. */
+.drum-groove input[type="range"] { width: 72px; }
+.drum-groove-value {
+  min-width: 3ch;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+
+/* Per-pad chance picker in the row controls. */
+.drum-chance { width: auto; min-width: 0; padding: 4px 2px; }
+
+/* A rolled step: its hit count, on top of the velocity fill. */
+.drum-step { position: relative; }
+.drum-roll {
+  position: absolute;
+  inset: 2px 3px auto auto;
+  font-size: var(--fs-micro);
+  font-weight: 700;
+  line-height: 1;
+  color: var(--bg);
+  pointer-events: none;
+}
+.drum-step.on.vel-norm .drum-roll,
+.drum-step.on.vel-soft .drum-roll { color: var(--text); }
+.drum-step.playing.on .drum-roll { color: var(--bg); }
+
+/* Per-pad sound panel (tune / decay / tone), opened from the row's mixer button. */
+.drum-row-wrap { display: flex; flex-direction: column; gap: 4px; }
+.drum-mini-btn.is-set { border-color: var(--accent); }
+.drum-voice-panel {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-100) var(--space-200);
+  padding: 8px 12px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+}
+.drum-voice-field {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--fs-xs);
+  color: var(--muted);
+}
+.drum-voice-field input[type="range"] { width: 120px; }
+.drum-voice-field output {
+  min-width: 6ch;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.drum-voice-reset { margin-left: auto; padding: 4px 10px; font-size: var(--fs-xs); }
+@media (max-width: 767px) { /* lib/shared/breakpoints.js */
+  .drum-voice-field { flex: 1 1 100%; }
+  .drum-voice-field input[type="range"] { flex: 1; width: auto; min-width: 0; }
+  .drum-voice-reset { margin-left: 0; }
 }
