@@ -796,7 +796,12 @@ on a `DRUM_KITS` entry; `tr808` is Fischer's CC0 TR-808 set in `public/samples/d
 in `ATTRIBUTION.md`, which `test/drum-kit.test.js` checks) play one `Tone.Sampler` per pad; tune
 repitches and decay can only shorten. `setKit` warms the files through `lib/sampleCache.js` and keeps
 the previous voices playing until they're decoded, and `prefetchSnapshotSamples` warms them for
-Song Chainer sections.
+Song Chainer sections. The Stargate kits (`x0x`, `x0x-grit`, `synth`, `distorted`, `acoustic`, `rusty`: Fugue
+State Audio's synthesized kits and Karoryfer's acoustic picks from the CC0 Stargate DAW sample pack)
+are written by `node scripts/import_drum_samples.js` (needs ffmpeg), which pins the pack to one commit,
+trims and peak-normalises each file to the 808 kit's level, and regenerates their part of
+`ATTRIBUTION.md`. Change a kit's files in that script's manifest and rerun it, never by hand. Source
+and licence research: `docs/drum-samples-research.md`.
 
 ### Persistence & AI
 
