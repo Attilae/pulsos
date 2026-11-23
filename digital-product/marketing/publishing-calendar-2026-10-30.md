@@ -4,19 +4,11 @@ Prepared October 30, 2026 with the marketing skill. This replaces the unused Oct
 
 Audience: musicians, curious producers and people interested in the featured cities. Surface: a self-serve browser instrument. Goal: earn a meaningful playback trial of the prepared arrangement and learn what viewers want explained. Constraints: founder-operated company channels, little existing audience, essentially zero advertising budget.
 
-## Next publication
+## Next publication — revised November 8
 
-**Saturday, October 31, 2026 at 18:00 Europe/Budapest (CET, UTC+1; 17:00 UTC).** Publish the completed second short, **Berlin routes. One track.**, natively on the DeettaLabs X, YouTube Shorts, Instagram and TikTok accounts. A few minutes between platforms is fine; no cross-platform timing precision is required by this plan.
+**Next priority: Your loop → bass + two leads**, using the founder's original loop and finished arrangement made in Leið. The previous Nov 10 target is no longer realistic: after receiving audio, matching preset/UI capture and replacement narration are still needed. Keep this unscheduled until the final render and founder review; publish the supporting article after the video is ready. [Brief and current readiness](your-loop-bass-short.md).
 
-This is a practical starting slot that leaves time for review and replies, not a measured best hour or a requirement to wait for the first video's reach to end. We have one day's history and no established audience activity pattern. YouTube explicitly says publish time is not known to affect long-term video performance: [official performance FAQ](https://support.google.com/youtube/answer/141805), rechecked October 30. This statement applies to YouTube and is not evidence for other platforms.
-
-Ready assets:
-
-- [Video 2 MP4](../../_videos/launch/out/route-notes-v2/leid-berlin-route-notes-v2.mp4)
-- [Cover](../../_videos/launch/out/route-notes-v2/cover.png)
-- [Platform copy](../../_videos/launch/out/route-notes-v2/publish-copy.txt)
-
-Destination for Berlin video 2: https://www.layth.space/?shared=shr_8750587429f441ba . Preserve the `shared` parameter. No campaign tags have been added to the exact URL the founder requested. Use a profile-link CTA only where that link is actually present and tested.
+The Prague before/after short is held for the next short slot; Helsinki moves behind it. This is an agenda change, not a platform queue change. No new post has been scheduled.
 
 ## Scheduling status (October 30)
 
@@ -45,9 +37,11 @@ Reddit remains **on hold at the founder's request**, with no publication date or
 | Mon Nov 2 | How I Made a Track from Berlin's Transport Map: the approved U4/N36 arrangement breakdown | DeettaLabs blog; dedicated X link post; Instagram Story; Lnk.Bio | Blog, X, Instagram Story and Lnk.Bio published and verified (see publication status file) |
 | Tue Nov 3, 18:00 | Short 3: Your next melody could start with a transport map | All four video channels | Published and verified on all four channels November 3. YouTube scheduled 18:00; remaining posts published that evening after the resumed handoff. |
 | Thu Nov 5, 12:00 | Article: how a transport route becomes a melody; answer the route-data/instrument distinction | Blog; X article post; optional Story | Reuse or improve an existing article if it already covers this question |
-| Sat Nov 7, 18:00 | Short 4: default lane sound → designed patch, using Resonator or Macro, arp, Texture and FX | All four video channels | Revised to founder direction; needs genuine default capture and a strong same-route transformation. [Brief](nov-7-default-to-designed-sound.md) |
-| Tue Nov 10, 18:00 | Short 5: a new supported-city performance, chosen from useful requests; Helsinki is the fallback | All four video channels | Planned; needs a new arrangement and matching capture; do not invent audience requests |
-| Thu Nov 12, 12:00 | Article: annotated breakdown of the new city arrangement | Blog; X article post; optional Story | Planned; uses the exact recorded preset and settings |
+| Sat Nov 7 (past target; held Nov 8) | Prague: Default sound → your sound | All four video channels | Narrated asset ready; now follows the loop feature; publication unverified |
+| Unscheduled, next short | Build a bass line and two leads around your loop in Leið | All four video channels | Audio received; replacement narration and matching product capture pending; then founder review |
+| After the short is ready | Article: building parts around your loop in Leið | Blog; X article post; optional Story | Draft after confirming the real demo workflow, bar/tempo/key setup and any MIDI details |
+| Sat Nov 14, 18:00 target | Held Prague before/after narrated short | All four video channels | Existing asset; founder review and matching destination needed |
+| Tue Nov 17, 18:00 target | New-city performance; Helsinki fallback | All four video channels | Deferred behind loop feature and held Prague short; new music/capture needed |
 
 Later videos are production targets, not assets already available or posts scheduled inside the platforms. If a recording is not musically ready, move the slot rather than publish a name-swapped version of the Budapest performance.
 
@@ -105,3 +99,15 @@ X/TikTok/Instagram were published that evening because the 18:00 slot had passed
 ## November 7 concept revised
 
 Founder replaced the single-note edit with a default-sound-to-designed-patch demonstration. Show the genuine initial lane sound, reveal the finished version early, then show the instrument, arp, Texture and FX stages. Keep the source route/pattern recognizable and compare at similar perceived loudness. [Production brief](nov-7-default-to-designed-sound.md). Musical before/after must be captured before final voiceover or edit.
+
+## November 7 content update (November 6)
+
+The founder replaced the stop-editing idea with a default-versus-designed sound comparison and chose **music and labels only**. [The finished review packet](nov-7-default-to-designed-sound.md) uses the two supplied WAVs and the matching Prague preset. The 19.47-second edit shows real finished-patch close-ups and uses matched source loudness. November 7 at 18:00 CET remains the target, pending founder review. It has not been uploaded or scheduled. The preset-specific Lnk.Bio item still needs to be added and tested before using a matching bio-link caption.
+
+## Narrated revision (November 6)
+
+On review, the founder requested narration again and a stronger ending. The current [27.07-second narrated cut](../../_videos/launch/out/default-to-designed/leid-default-to-designed-narrated.mp4) uses five new ElevenLabs clips, measured full-sentence captions and clear music-only breaks. Ending: “Start with this patch. Then make it yours.” This supersedes the music-only review packet above. Founder listening/review pending; November 7 at 18:00 CET remains a target, not a confirmed scheduled post.
+
+## Feature priority changed (November 8)
+
+Founder requested promoting Your loop before the next city performance and chose a bass-line example. New order: loop demo → supporting loop/bass article → held Prague comparison → Helsinki. Founder will provide original and finished audio. Production packet and source-backed script prepared; existing narrator retained. Dates are provisional production targets. No platform queue changed and no new post published. Reddit remains on hold.
