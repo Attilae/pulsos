@@ -135,3 +135,21 @@ test('sample kits: plans can choose one', () => {
   assert.equal(plan.drums.kit, 'tr808')
   assert.equal(planDrumPattern(plan.drums, null, 90).kit, 'tr808')
 })
+
+// ── Pad levels ───────────────────────────────────────────────────────────────
+
+test('pad levels: sparse, clamped, snapped; plan edits keep them, new ideas reset them', async () => {
+  const { normalizePadLevel, drumPadLevels } = await import('../lib/drumKit.js')
+  assert.deepEqual(normalizeDrumKit({ levels: { kick: 0, snare: -0 } }), {})
+  assert.deepEqual(normalizeDrumKit({ levels: { kick: -6.3, hat: 40, ride: -99, foo: 3, clap: 'x' } }),
+    { levels: { kick: -6.5, hat: 6, ride: -30 } })
+  assert.equal(normalizePadLevel(undefined), 0)
+  assert.equal(drumPadLevels({ levels: { rim: -3 } }).rim, -3)
+  assert.equal(drumPadLevels(null).kick, 0)
+
+  const current = { kit: 'tr808', levels: { kick: -4, hat: 2 } }
+  const edit = validatePlan({ tracks: [{ routeId: 'P' }], drums: { enabled: true, patterns: [{ padId: 'kick', steps: KICK }] } }, CITY).plan
+  assert.deepEqual(planDrumPattern(edit.drums, current, 100).levels, { kick: -4, hat: 2 })
+  const fresh = withNewCompositionBaseline(edit)
+  assert.equal(planDrumPattern(fresh.drums, current, 100).levels, undefined)
+})

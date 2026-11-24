@@ -12,8 +12,10 @@ import {
   normalizeDrumGroove, cycleRatchet, drumStepHits, padGrooveAt, swingRatio, CHANCE_OPTIONS,
 } from '@/lib/drumGroove.js'
 import {
-  normalizeDrumKit, normalizePadVoice, drumKitOf, DRUM_KITS, PAD_VOICE_RANGES, decayToSlider, sliderToDecay,
+  normalizeDrumKit, normalizePadVoice, normalizePadLevel, drumKitOf, DRUM_KITS, PAD_VOICE_RANGES, PAD_LEVEL_RANGE,
+  decayToSlider, sliderToDecay,
 } from '@/lib/drumKit.js'
+import { useResetGesture } from '@/lib/shared/useResetGesture.js'
 import { trackProductEvent } from '@/lib/productAnalytics.js'
 import './DrumMachineTab.css'
 import { IconCheck, IconClear, IconDownload, IconForward, IconMixer, IconPlay, IconRepick, IconReset, IconStop } from '../icons.jsx'
@@ -49,6 +51,28 @@ function cloneSharedPattern(value) {
     // Kit + per-pad tune/decay/tone, sparse the same way.
     ...normalizeDrumKit(value),
   }
+}
+
+const formatDb = db => (db > 0 ? `+${db}` : `${db}`) + ' dB'
+
+// One pad's volume fader. Double-click (long-press on touch) resets it to 0 dB.
+function PadLevel({ pad, db, onChange }) {
+  const reset = useResetGesture(() => onChange(pad.id, 0))
+  return (
+    <div className="drum-level">
+      <input
+        type="range"
+        min={PAD_LEVEL_RANGE.min} max={PAD_LEVEL_RANGE.max} step={PAD_LEVEL_RANGE.step}
+        value={db}
+        onChange={e => onChange(pad.id, Number(e.target.value))}
+        {...reset}
+        aria-label={`${pad.label} volume`}
+        aria-valuetext={formatDb(db)}
+        title={`Volume: ${formatDb(db)} (double-click for 0 dB)`}
+      />
+      <span className="drum-level-value">{formatDb(db)}</span>
+    </div>
+  )
 }
 
 function sameSharedPattern(a, b) {
@@ -275,6 +299,12 @@ export default function DrumMachineTab({ active = true }) {
     const cur = grooveRef.current
     const voice = patch ? { ...normalizePadVoice(cur.voices?.[padId]), ...patch } : null
     setGrooveFields({ ...cur, voices: { ...cur.voices, [padId]: voice } })
+    publishIfLinked({})
+  }, [publishIfLinked, setGrooveFields])
+
+  const handlePadLevel = useCallback((padId, db) => {
+    const cur = grooveRef.current
+    setGrooveFields({ ...cur, levels: { ...cur.levels, [padId]: normalizePadLevel(db) } })
     publishIfLinked({})
   }, [publishIfLinked, setGrooveFields])
 
@@ -595,6 +625,8 @@ export default function DrumMachineTab({ active = true }) {
                   aria-label={`Clear ${pad.label}`}
                 ><IconClear /></button>
               </div>
+
+              <PadLevel pad={pad} db={normalizePadLevel(grooveFields.levels?.[pad.id])} onChange={handlePadLevel} />
 
               <div className="drum-offset">
                 <input
