@@ -58,3 +58,22 @@ test('an arpeggiated lane exports its arp steps, clipped to the loop', () => {
   assert.ok(events.every(ev => Math.abs(ev.duration - step * 0.5) < 1e-9))
   assertInsideLoop(events, 8)
 })
+
+test('an Arp on/off lane arpeggiates only the notes inside its on stretch', () => {
+  const arp = { enabled: false, style: 'up', rate: '16n', gate: 0.5, octaves: 1, steps: 3, distance: 2 }
+  // On from bar 3 (cell 32) to the loop end; the manual switch is off.
+  const automationCfg = { A: { l: { paramTarget: 'device.arp', steps: [{ cell: 0, on: false }, { cell: 32, on: true }] } } }
+  const plain = buildLoopMidiEvents(route, { bpm: 120 })
+  const events = buildLoopMidiEvents(route, { bpm: 120, trackArps: { A: arp }, automationCfg })
+  const firstHalf = plain.filter(ev => ev.time < 4).length
+  const secondHalf = plain.length - firstHalf
+  assert.ok(firstHalf > 0 && secondHalf > 0)
+  assert.equal(events.length, firstHalf + secondHalf * 3)
+  // An unconfigured arp switched on by the lane plays at the arp defaults.
+  const defaults = buildLoopMidiEvents(route, { bpm: 120, automationCfg })
+  assert.equal(defaults.length, events.length)
+  // A lane with every point off keeps the lane plain even when the button is on.
+  const off = { A: { l: { paramTarget: 'device.arp', steps: [{ cell: 0, on: false }] } } }
+  assert.equal(buildLoopMidiEvents(route, { bpm: 120, trackArps: { A: { ...arp, enabled: true } }, automationCfg: off }).length, plain.length)
+  assertInsideLoop(events, 8)
+})

@@ -1,0 +1,105 @@
+/* Drawn on/off automation (ToggleAutomationRail.jsx). Sits where the per-stop
+   curve rail sits in an automation lane, so it shares its height and axis labels. */
+.toggle-auto {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-075);
+}
+.toggle-auto-rail {
+  position: relative;
+  height: 52px;
+  touch-action: none;
+  cursor: crosshair;
+  border-radius: var(--radius-sm, 3px);
+  outline-offset: 2px;
+}
+.toggle-auto-rail:focus-visible { outline: 2px solid var(--accent); }
+.toggle-auto--sheet .toggle-auto-rail { height: 120px; background: var(--surface2); }
+.toggle-auto.is-inactive .toggle-auto-rail { opacity: 0.5; }
+
+.toggle-auto-bar {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--muted-line);
+  opacity: 0.5;
+  pointer-events: none;
+}
+.toggle-auto-on {
+  position: absolute;
+  top: 22%;
+  bottom: 22%;
+  background: color-mix(in srgb, var(--line-color, var(--accent)) 22%, transparent);
+  pointer-events: none;
+}
+.toggle-auto-line {
+  stroke: var(--line-color, var(--accent));
+  stroke-width: 1.5px;
+}
+.toggle-auto-hint {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  font-size: var(--fs-3xs);
+  color: var(--muted);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.toggle-auto-point {
+  position: absolute;
+  width: 11px;
+  height: 11px;
+  margin: 0;
+  padding: 0;
+  border: 1.5px solid var(--line-color, var(--muted-line));
+  border-radius: 2px;
+  background: var(--bg);
+  transform: translate(-50%, -50%);
+  cursor: grab;
+  touch-action: none;
+  z-index: 2;
+}
+.toggle-auto-point.is-on { background: var(--line-color, var(--accent)); }
+.toggle-auto-point:hover,
+.toggle-auto-point:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--line-color, var(--muted-line)) 35%, transparent);
+}
+.toggle-auto-point.dragging { cursor: grabbing; transform: translate(-50%, -50%) scale(1.2); }
+.toggle-auto-point.is-outside { opacity: 0.4; }
+.toggle-auto--sheet .toggle-auto-point { width: 22px; height: 22px; }
+/* Invisible 44px hit area on touch, without growing the drawn square. */
+.toggle-auto--sheet .toggle-auto-point::after {
+  content: '';
+  position: absolute;
+  inset: -11px;
+}
+
+.toggle-auto-list { display: flex; flex-direction: column; gap: var(--space-050); }
+.toggle-auto-row { display: flex; align-items: center; gap: var(--space-050); }
+.toggle-auto-pos {
+  min-width: 4.5em;
+  font-size: var(--fs-2xs);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-subtle, var(--muted));
+}
+.toggle-auto-row button,
+.toggle-auto-actions button {
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0 var(--space-100);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 3px);
+  background: var(--surface2);
+  color: var(--text);
+  font-size: var(--fs-2xs);
+}
+.toggle-auto-state.is-on { border-color: var(--accent); color: var(--accent); }
+.toggle-auto-del { margin-left: auto; display: inline-flex; align-items: center; justify-content: center; }
+.toggle-auto-actions { display: flex; gap: var(--space-050); flex-wrap: wrap; }
+.toggle-auto-empty { margin: 0; font-size: var(--fs-2xs); color: var(--muted); }

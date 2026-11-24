@@ -1,10 +1,13 @@
 'use client'
 import { DEFAULT_GRANULAR } from '@/lib/engine.js'
-import { autoCtl } from '@/lib/automationControl.js'
+import { autoCtl, deviceToggleState } from '@/lib/automationControl.js'
 export default function GranularFields({ route, granular, onGranular, autoTargets = {}, variant = 'rack' }) {
   const gg = { ...DEFAULT_GRANULAR, ...granular }
-  const grainOn = !!gg.enabled
-  const dim = grainOn ? {} : { opacity: 0.4 }
+  const dev = deviceToggleState(autoTargets, 'device.texture', gg.enabled)
+  const grainOn = dev.on
+  // An on/off lane may switch the layer on, so its settings stay editable.
+  const editable = dev.editable
+  const dim = editable ? {} : { opacity: 0.4 }
   // Sliders mirror live grain.* automation (greyed + swept value) like
   // the other instrument controls.
   const grainRow = (label, key, min, max, step, fmt) => {
@@ -16,14 +19,14 @@ export default function GranularFields({ route, granular, onGranular, autoTarget
         <input
           type="range" min={min} max={max} step={step}
           value={val}
-          disabled={!grainOn || a.disabled}
+          disabled={!editable || a.disabled}
           aria-label={`${route.name} grain ${label}`}
           aria-valuetext={a.disabled ? 'automated' : String(fmt(val))}
           onChange={e => onGranular({ [key]: parseFloat(e.target.value) })}
           className="glide-slider"
         />
         <span className="glide-val">{a.disabled ? 'auto' : fmt(val)}</span>
-        {variant === 'sheet' && <button type="button" disabled={!grainOn || a.disabled} onClick={() => onGranular({ [key]: DEFAULT_GRANULAR[key] })} aria-label={`Reset grain ${label}`}>Reset</button>}
+        {variant === 'sheet' && <button type="button" disabled={!editable || a.disabled} onClick={() => onGranular({ [key]: DEFAULT_GRANULAR[key] })} aria-label={`Reset grain ${label}`}>Reset</button>}
       </div>
     )
   }
@@ -35,12 +38,15 @@ export default function GranularFields({ route, granular, onGranular, autoTarget
         Granular
         <button
           aria-pressed={grainOn}
-          className={`legato-btn ${grainOn ? 'active' : ''}`}
-          onClick={() => onGranular({ enabled: !grainOn })}
-          title={grainOn
-            ? 'Granular layer on. Click to disable'
-            : 'Layer a grain cloud rendered from this track’s instrument'}
-          style={{ marginLeft: 'auto', ...(grainOn ? { borderColor: route.color, color: route.color } : {}) }}
+          className={`legato-btn ${grainOn ? 'active' : ''}${dev.automated ? ' is-automated' : ''}`}
+          disabled={dev.automated}
+          onClick={() => onGranular({ enabled: !gg.enabled })}
+          title={dev.automated
+            ? 'Switched by an automation lane. Remove the lane to set it by hand'
+            : grainOn
+              ? 'Granular layer on. Click to disable'
+              : 'Layer a grain cloud rendered from this track’s instrument'}
+          style={{ marginLeft: 'auto', ...(grainOn && !dev.automated ? { borderColor: route.color, color: route.color } : {}) }}
         >GRAIN</button>
       </div>
 

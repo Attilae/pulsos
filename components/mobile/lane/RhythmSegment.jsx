@@ -8,13 +8,16 @@ import { DEFAULT_STOP_VELOCITY, STOP_VELOCITY_SOURCES, STOP_VELOCITY_LABELS, STO
 import { LOOP_PATTERN_PRESETS, MAX_PATTERN_PLAY, MAX_PATTERN_REST } from '@/lib/laneGating.js'
 import LoopRegionFields from './LoopRegionFields.jsx'
 import { Field, GroupHead } from './fields.jsx'
+import { deviceToggleState } from '@/lib/automationControl.js'
 
 // One segment of the phone lane sheet (see ../LaneSheet.jsx). It receives the
 // sheet's props plus the values LaneSheet derives from them, as `ctx`.
 export default function RhythmSegment({ ctx }) {
   const {
-    loopRegion, onTrackLoopRegion, route, disabled, synthType, adsr, speed, gridResolution, noteLength, legato, onTrackSpeed, onGridResolution, onArp, onNoteChance, onLoopPattern, onNoteLength, onStopNoteLength, onStopVelocityMap, ag, laneChance, pattern, snl, snlStatus, setSnlBound, svm, svmStatus, setSvm,
+    autoTargets, loopRegion, onTrackLoopRegion, route, disabled, synthType, adsr, speed, gridResolution, noteLength, legato, onTrackSpeed, onGridResolution, onArp, onNoteChance, onLoopPattern, onNoteLength, onStopNoteLength, onStopVelocityMap, ag, laneChance, pattern, snl, snlStatus, setSnlBound, svm, svmStatus, setSvm,
   } = ctx
+  // An arp on/off lane may switch it on, so its settings stay editable.
+  const arpEditable = deviceToggleState(autoTargets, 'device.arp', ag.enabled).editable
 
   return (
     <div className="lsheet-body">
@@ -244,21 +247,28 @@ export default function RhythmSegment({ ctx }) {
 
       <section className="lsheet-group lsheet-group--rhythm">
         <GroupHead title="Arpeggiator" description="Break each stop note into a rhythmic pattern." />
-        <button
-          type="button"
-          className={`lsheet-toggle lsheet-toggle--inline ${ag.enabled ? 'is-on' : ''}`}
-          onClick={() => onArp(route.id, { enabled: !ag.enabled })}
-          aria-pressed={ag.enabled}
-        >{ag.enabled ? 'Arpeggiator on' : 'Arpeggiator off'}</button>
+        {(() => {
+          const dev = deviceToggleState(autoTargets, 'device.arp', ag.enabled)
+          return <>
+            <button
+              type="button"
+              className={`lsheet-toggle lsheet-toggle--inline ${dev.on ? 'is-on' : ''}`}
+              onClick={() => onArp(route.id, { enabled: !ag.enabled })}
+              aria-pressed={dev.on}
+              disabled={dev.automated}
+            >{dev.automated ? `Automated · ${dev.on ? 'on' : 'off'}` : dev.on ? 'Arpeggiator on' : 'Arpeggiator off'}</button>
+            {dev.automated && <p className="lsheet-hint">An automation lane switches the arpeggiator. Remove it in Auto to set it by hand.</p>}
+          </>
+        })()}
 
-        <div className={ag.enabled ? '' : 'lsheet-disabled-group'}>
+        <div className={arpEditable ? '' : 'lsheet-disabled-group'}>
           <Field label="Style">
             <div className="lsheet-choice-grid">
               {ARP_STYLES.map(style => (
                 <button
                   key={style}
                   type="button"
-                  disabled={!ag.enabled}
+                  disabled={!arpEditable}
                   className={ag.style === style ? 'is-active' : ''}
                   onClick={() => onArp(route.id, { style })}
                   aria-pressed={ag.style === style}
@@ -273,7 +283,7 @@ export default function RhythmSegment({ ctx }) {
                 <button
                   key={rate}
                   type="button"
-                  disabled={!ag.enabled}
+                  disabled={!arpEditable}
                   className={ag.rate === rate ? 'is-active' : ''}
                   onClick={() => onArp(route.id, { rate })}
                   aria-pressed={ag.rate === rate}
@@ -285,16 +295,16 @@ export default function RhythmSegment({ ctx }) {
           <div className="lsheet-pair lsheet-pair--steppers">
             <Field label="Octaves">
               <div className="lsheet-stepper">
-                <button type="button" disabled={!ag.enabled} onClick={() => onArp(route.id, { octaves: Math.max(1, ag.octaves - 1) })} aria-label="Arpeggiator octaves down">−</button>
+                <button type="button" disabled={!arpEditable} onClick={() => onArp(route.id, { octaves: Math.max(1, ag.octaves - 1) })} aria-label="Arpeggiator octaves down">−</button>
                 <span className="mono">{ag.octaves}</span>
-                <button type="button" disabled={!ag.enabled} onClick={() => onArp(route.id, { octaves: Math.min(4, ag.octaves + 1) })} aria-label="Arpeggiator octaves up">+</button>
+                <button type="button" disabled={!arpEditable} onClick={() => onArp(route.id, { octaves: Math.min(4, ag.octaves + 1) })} aria-label="Arpeggiator octaves up">+</button>
               </div>
             </Field>
             <Field label="Steps">
               <div className="lsheet-stepper">
-                <button type="button" disabled={!ag.enabled} onClick={() => onArp(route.id, { steps: Math.max(1, ag.steps - 1) })} aria-label="Arpeggiator steps down">−</button>
+                <button type="button" disabled={!arpEditable} onClick={() => onArp(route.id, { steps: Math.max(1, ag.steps - 1) })} aria-label="Arpeggiator steps down">−</button>
                 <span className="mono">{ag.steps}</span>
-                <button type="button" disabled={!ag.enabled} onClick={() => onArp(route.id, { steps: Math.min(6, ag.steps + 1) })} aria-label="Arpeggiator steps up">+</button>
+                <button type="button" disabled={!arpEditable} onClick={() => onArp(route.id, { steps: Math.min(6, ag.steps + 1) })} aria-label="Arpeggiator steps up">+</button>
               </div>
             </Field>
           </div>
@@ -302,7 +312,7 @@ export default function RhythmSegment({ ctx }) {
           <Field label={`Gate · ${Math.round(ag.gate * 100)}%`}>
             <input
               type="range" min={0.05} max={2} step={0.05} value={ag.gate}
-              disabled={!ag.enabled}
+              disabled={!arpEditable}
               onChange={e => onArp(route.id, { gate: Number(e.target.value) })}
               aria-label="Arpeggiator gate"
             />

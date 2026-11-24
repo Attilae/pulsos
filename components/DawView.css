@@ -1945,9 +1945,20 @@
   border-color: color-mix(in srgb, var(--warning-text) 50%, var(--border));
 }
 
-.auto-lane-inactive {
+.auto-lane-inactive,
+.auto-lane-hint {
   flex-basis: 100%;
   margin: 0;
   font-size: var(--fs-3xs);
   color: var(--muted);
 }
+
+/* A device power button switched by an on/off automation lane: locked, amber. */
+.legato-btn.is-automated,
+.legato-btn.is-automated:hover {
+  cursor: default;
+  border-style: dashed;
+  border-color: var(--automation);
+  color: var(--automation-text);
+}
+.legato-btn.is-automated.active { color: var(--automation-text); background: color-mix(in srgb, var(--automation) 14%, transparent); }

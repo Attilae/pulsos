@@ -26,7 +26,8 @@ function harness({ ready = { classic: true, mk2: false } } = {}) {
     constructor() {
       this.disposed = false
       this.gain = {
-        setValueAtTime() {}, linearRampToValueAtTime() {}, cancelScheduledValues() {},
+        setValueAtTime() {}, cancelScheduledValues() {},
+        linearRampToValueAtTime(v, t) { this.last = v; this.lastTime = t },
         getValueAtTime() { return 1 },
       }
     }
@@ -161,4 +162,38 @@ test('notes go to the model that is playing while a switch is pending', quiet(as
   const [classic] = h.nodes
   assert.deepEqual(classic.messages.at(-1), { type: 'trig', time: 1, gen: 1 })
   voice.dispose()
+}))
+
+test('bypass fades the model out and the dry path in at the given time, and back', quiet(async () => {
+  const h = harness()
+  const voice = new h.TextureVoice()
+  await settle()
+  assert.ok(voice.loaded)
+  const wet = voice._live.gain.gain, dry = voice._dry.gain
+  voice.setBypass(true, 2)
+  assert.equal(wet.last, 0)
+  assert.equal(dry.last, 1)
+  assert.ok(Math.abs(dry.lastTime - 2.02) < 1e-9)
+  voice.setBypass(false, 3)
+  assert.equal(wet.last, 1)
+  assert.equal(dry.last, 0)
+  assert.equal(h.nodes.length, 1, 'bypass never rebuilds the node')
+  assert.deepEqual(h.alive(), ['classic'], 'the node keeps running (and recording) while bypassed')
+  voice.dispose()
+  await settle()
+}))
+
+test('a model that loads while bypassed stays silent until switched on', quiet(async () => {
+  const h = harness({ ready: { classic: false, mk2: false } })
+  const voice = new h.TextureVoice()
+  voice.setBypass(true, 0)
+  h.loads.classic[0].resolve()
+  await settle()
+  assert.ok(voice.loaded)
+  assert.notEqual(voice._live.gain.gain.last, 1, 'no fade-in while bypassed')
+  assert.notEqual(voice._dry.gain.last, 0, 'dry keeps carrying the lane')
+  voice.setBypass(false, 1)
+  assert.equal(voice._live.gain.gain.last, 1)
+  voice.dispose()
+  await settle()
 }))

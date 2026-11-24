@@ -34,6 +34,7 @@ import {
 import { getCloudsStatus, subscribeCloudsStatus } from '@/lib/cloudsGranularLoader.js'
 import { getBeadsStatus, subscribeBeadsStatus } from '@/lib/beadsLoader.js'
 import Knob from './PanelKnob.jsx'
+import { deviceToggleState } from '@/lib/automationControl.js'
 import './TextureControls.css'
 
 const KNOB = Object.fromEntries(
@@ -53,7 +54,11 @@ export default function TextureControls({ cfg, onChange, autoTargets, laneName, 
   const classicStatus = useClassicStatus()
   const mk2Status = useMk2Status()
   const c = { ...TEXTURE_DEFAULTS, ...TEXTURE_MK2_DEFAULTS, ...cfg }
-  const on = !!c.enabled
+  // An on/off automation lane may own the power switch: it then shows the lane's
+  // live state, and the panel stays editable since the lane may switch it on.
+  const dev = deviceToggleState(autoTargets, 'device.texture', c.enabled)
+  const on = dev.editable
+  const powered = dev.on
   const model = textureModelOf(c)
   const status = model === 'mk2' ? mk2Status : classicStatus
   const showSwitch = TEXTURE_MK2_ENABLED || model === 'mk2'
@@ -97,14 +102,17 @@ export default function TextureControls({ cfg, onChange, autoTargets, laneName, 
         Texture
         <button
           type="button"
-          className={`legato-btn tx-power${on ? ' is-on' : ''}`}
-          aria-pressed={on}
+          className={`legato-btn tx-power${powered ? ' is-on active' : ''}${dev.automated ? ' is-automated' : ''}`}
+          aria-pressed={powered}
           aria-label={laneName ? `Texture on ${laneName}` : 'Texture'}
-          onClick={() => onChange({ enabled: !on })}
-          title={on
-            ? 'Texture is processing this lane. Click to turn it off.'
-            : 'Run this lane through Texture: grains of its last second, played around the dry sound.'}
-        >{on ? 'ON' : 'OFF'}</button>
+          disabled={dev.automated}
+          onClick={() => onChange({ enabled: !c.enabled })}
+          title={dev.automated
+            ? 'Switched by an automation lane. Remove the lane to set it by hand.'
+            : powered
+              ? 'Texture is processing this lane. Click to turn it off.'
+              : 'Run this lane through Texture: grains of its last second, played around the dry sound.'}
+        >{dev.automated ? 'AUTO' : powered ? 'ON' : 'OFF'}</button>
       </div>
 
       {showSwitch && (
