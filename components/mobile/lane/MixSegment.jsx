@@ -2,7 +2,7 @@
 
 import { SidechainSourceOptions } from '../../DawView.jsx'
 import LaneMixFields from './LaneMixFields.jsx'
-import { autoCtl } from '@/lib/automationControl.js'
+import { autoCtl, deviceToggleState } from '@/lib/automationControl.js'
 import { DEFAULT_SIDECHAIN } from '@/lib/engine.js'
 import { Field, GroupHead, panLabel } from './fields.jsx'
 
@@ -66,7 +66,8 @@ export default function MixSegment({ ctx }) {
 
       {(() => {
         const sc = { ...DEFAULT_SIDECHAIN, ...sidechain }
-        const scOn = !!sc.enabled && !!sc.source
+        const scDev = deviceToggleState(autoTargets, 'device.sidechain', sc.enabled)
+        const scOn = scDev.on && !!sc.source
         const ms = v => `${Math.round(v * 1000)} ms`
         return (
           <Field
@@ -90,7 +91,9 @@ export default function MixSegment({ ctx }) {
                   type="button"
                   className={`lsheet-toggle lsheet-toggle--inline ${scOn ? 'is-on' : ''}`}
                   onClick={() => onSidechain(route.id, { enabled: !sc.enabled })}
-                >{scOn ? 'Ducking' : 'Off'}</button>
+                  aria-pressed={scOn}
+                  disabled={scDev.automated}
+                >{scDev.automated ? `Automated · ${scOn ? 'ducking' : 'off'}` : scOn ? 'Ducking' : 'Off'}</button>
 
                 <div className="lsheet-send lsheet-send--wide">
                   <span className="lsheet-send-name">Amount · {Math.round(sc.amountDb)} dB</span>

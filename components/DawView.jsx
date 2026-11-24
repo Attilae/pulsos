@@ -14,7 +14,9 @@ import { editLoopEdge, loopCellAtPointer, loopKeyCell } from '@/lib/loopRegionEd
 import GranularFields from './lane/GranularFields.jsx'
 import EnvPanel from './lane/EnvelopeFields.jsx'
 import { SpSlider, SpSelect } from './lane/SynthFields.jsx'
-import { autoCtl } from '@/lib/automationControl.js'
+import { autoCtl, deviceToggleState } from '@/lib/automationControl.js'
+import { isToggleTarget, toggleTargetActive, deviceManualOn } from '@/lib/toggleAutomation.js'
+import ToggleAutomationRail from './lane/ToggleAutomationRail.jsx'
 import * as Tone from 'tone'
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { SYNTH_DEFAULTS, supportsGranular, availableAutomationTargets, findTargetSpec, DEFAULT_SIDECHAIN, ARP_STYLES, ARP_RATES, DEFAULT_ARP, DRUMS_ROUTE_ID } from '@/lib/engine.js'
@@ -487,7 +489,8 @@ export default function DawView(props) {
               const synthTypeFor = trackSynthTypes?.[route.id] ?? 'Synth'
               const autoTargets = {}
               for (const [laneId, cfg] of lanes) {
-                if (!cfg?.sourceRouteId) continue
+                // Device on/off lanes are drawn and need no source line.
+                if (!cfg?.sourceRouteId && !isToggleTarget(cfg?.paramTarget)) continue
                 // An inactive lane (its target needs another PolySynth voice) doesn't lock the control.
                 if (!polyTargetActive(cfg.paramTarget, synthTypeFor, trackADSRs?.[route.id])) continue
                 const live = liveAuto[route.id]?.[laneId]
@@ -613,6 +616,11 @@ export default function DawView(props) {
                       visible={visible}
                       srcLoopRegion={trackLoopRegions?.[laneCfg.sourceRouteId]}
                       srcGridResolution={trackGridResolutions?.[laneCfg.sourceRouteId]}
+                      laneLoopRegion={trackLoopRegions?.[route.id]}
+                      laneGridResolution={trackGridResolutions?.[route.id]}
+                      laneSpeed={trackSpeeds?.[route.id] ?? 1}
+                      arp={trackArps?.[route.id]}
+                      sidechain={trackSidechains?.[route.id]}
                       onUpdate={cfg => onUpdateAutomationLane(route.id, laneId, cfg)}
                       onRemove={() => onRemoveAutomationLane(route.id, laneId)}
                       onLiveValue={handleLiveAuto}
@@ -1542,17 +1550,22 @@ function LineTrack({
 
           {(() => {
             const ag = { ...DEFAULT_ARP, ...arp }
-            const arpOn = !!ag.enabled
-            const dim = arpOn ? {} : { opacity: 0.4, pointerEvents: 'none' }
+            const arpDev = deviceToggleState(autoTargets, 'device.arp', ag.enabled)
+            const arpOn = arpDev.on
+            const dim = arpDev.editable ? {} : { opacity: 0.4, pointerEvents: 'none' }
             return (
               <div className="rack-card rack-card--rhythm" data-tour="rack-arp">
                 <div className="rack-card-head">
                   Arpeggiator
                   <button
-                    className={`legato-btn ${arpOn ? 'active' : ''}`}
-                    onClick={() => onArp({ enabled: !arpOn })}
-                    title={arpOn ? 'Arpeggiator on. Click to disable' : 'Enable arpeggiator (stop note = root)'}
-                    style={{ marginLeft: 'auto', ...(arpOn ? { borderColor: route.color, color: route.color } : {}) }}
+                    className={`legato-btn ${arpOn ? 'active' : ''}${arpDev.automated ? ' is-automated' : ''}`}
+                    aria-pressed={arpOn}
+                    disabled={arpDev.automated}
+                    onClick={() => onArp({ enabled: !ag.enabled })}
+                    title={arpDev.automated
+                      ? 'Switched by an automation lane. Remove the lane to set it by hand'
+                      : (arpOn ? 'Arpeggiator on. Click to disable' : 'Enable arpeggiator (stop note = root)')}
+                    style={{ marginLeft: 'auto', ...(arpOn && !arpDev.automated ? { borderColor: route.color, color: route.color } : {}) }}
                   >ARP</button>
                 </div>
 
@@ -1639,8 +1652,9 @@ function LineTrack({
             const sc = { ...DEFAULT_SIDECHAIN, ...sidechain }
             // Without a source there is nothing to duck off, so the toggle stays
             // inert until one is picked — no silently-on-but-doing-nothing state.
-            const scOn = !!sc.enabled && !!sc.source
-            const dim = scOn ? {} : { opacity: 0.4, pointerEvents: 'none' }
+            const scDev = deviceToggleState(autoTargets, 'device.sidechain', sc.enabled)
+            const scOn = scDev.on && !!sc.source
+            const dim = (scDev.editable && sc.source) ? {} : { opacity: 0.4, pointerEvents: 'none' }
             const scRow = (label, key, min, max, step, fmt) => (
               <div className="glide-row" style={dim}>
                 <span className="glide-label">{label}</span>
@@ -1661,13 +1675,16 @@ function LineTrack({
                 <div className="rack-card-head">
                   Sidechain
                   <button
-                    className={`legato-btn ${scOn ? 'active' : ''}`}
+                    className={`legato-btn ${scOn ? 'active' : ''}${scDev.automated ? ' is-automated' : ''}`}
+                    aria-pressed={scOn}
                     onClick={() => onSidechain({ enabled: !sc.enabled })}
-                    disabled={!sc.source}
-                    title={sc.source
-                      ? (scOn ? 'Ducking on. Click to disable' : 'Duck this lane when the trigger fires')
-                      : 'Pick a trigger source first'}
-                    style={{ marginLeft: 'auto', ...(scOn ? { borderColor: route.color, color: route.color } : {}) }}
+                    disabled={!sc.source || scDev.automated}
+                    title={!sc.source
+                      ? 'Pick a trigger source first'
+                      : scDev.automated
+                        ? 'Switched by an automation lane. Remove the lane to set it by hand'
+                        : (scOn ? 'Ducking on. Click to disable' : 'Duck this lane when the trigger fires')}
+                    style={{ marginLeft: 'auto', ...(scOn && !scDev.automated ? { borderColor: route.color, color: route.color } : {}) }}
                   >SC</button>
                 </div>
 
@@ -1734,7 +1751,7 @@ function LineTrack({
 // laneCb/laneObj there), so a plain shallow memo is enough.
 const MemoLineTrack = memo(LineTrack)
 
-function AutomationLane({ laneId, instRoute, laneCfg, allRoutes, activeFxTracks, disabled, soloRoutes, synthType = 'Synth', adsr = null, granularEnabled = false, granular = null, filter, started = false, visible = true, srcLoopRegion, srcGridResolution, onUpdate, onRemove, onLiveValue }) {
+function AutomationLane({ laneId, instRoute, laneCfg, allRoutes, activeFxTracks, disabled, soloRoutes, synthType = 'Synth', adsr = null, granularEnabled = false, granular = null, filter, started = false, visible = true, srcLoopRegion, srcGridResolution, laneLoopRegion, laneGridResolution, laneSpeed = 1, arp, sidechain, onUpdate, onRemove, onLiveValue }) {
   const sourceRouteId = laneCfg?.sourceRouteId ?? ''
   const paramTarget   = laneCfg?.paramTarget   ?? 'volume'
   const points        = laneCfg?.points        ?? {}
@@ -1765,10 +1782,25 @@ function AutomationLane({ laneId, instRoute, laneCfg, allRoutes, activeFxTracks,
       </div>
 
       <AutomationFields instRoute={instRoute} allRoutes={allRoutes} synthType={synthType} adsr={adsr} filter={filter}
-        granular={granular} activeFxTracks={activeFxTracks} sourceRouteId={sourceRouteId} paramTarget={paramTarget}
+        granular={granular} sidechain={sidechain} activeFxTracks={activeFxTracks} sourceRouteId={sourceRouteId} paramTarget={paramTarget}
         speed={speed} glide={glide} onUpdate={onUpdate} onRemove={onRemove} />
 
-      <AutoCurveRail
+      {isToggleTarget(paramTarget) ? (
+        <ToggleAutomationRail
+          steps={laneCfg?.steps}
+          loopRegion={laneLoopRegion}
+          speed={laneSpeed}
+          gridResolution={laneGridResolution}
+          manualOn={deviceManualOn(paramTarget, { arp, granular, sidechain })}
+          deviceLabel={findTargetSpec(paramTarget, synthType)?.label?.replace(' on/off', '') ?? 'Device'}
+          color={instRoute.color}
+          started={started}
+          visible={visible}
+          inactive={!toggleTargetActive(paramTarget, { textureSupported: supportsGranular(synthType), sidechainSource: sidechain?.source }).active}
+          onUpdate={onUpdate}
+          onActiveValue={handleActiveValue}
+        />
+      ) : <AutoCurveRail
         route={sourceRoute}
         laneId={laneId}
         points={points}
@@ -1781,7 +1813,7 @@ function AutomationLane({ laneId, instRoute, laneCfg, allRoutes, activeFxTracks,
         onLoopRegion={region => onUpdate({ loopRegion: region })}
         onUpdate={onUpdate}
         onActiveValue={handleActiveValue}
-      />
+      />}
     </div>
   )
 }

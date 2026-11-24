@@ -3,6 +3,7 @@ import { TEXTURE_MK2_PARAM_TARGETS } from '@/lib/granularEngine.js'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import * as Tone from 'tone'
 import { TransitEngine, SYNTH_DEFAULTS, availableAutomationTargets, DEFAULT_ARP, DEFAULT_GRANULAR, DEFAULT_SIDECHAIN, SIDECHAIN_ANY_DRUM, SIDECHAIN_PAD_SOURCES, DEFAULT_PITCH_VARIETY, DRUMS_ROUTE_ID } from '@/lib/engine.js'
+import { isToggleTarget } from '@/lib/toggleAutomation.js'
 import { DEFAULT_FX_TRACKS, usesResonator, usesMacro } from '@/lib/soundSpecs.js'
 import { warmResonatorAsset } from '@/lib/resonatorLoader.js'
 import { warmMacroAsset } from '@/lib/macroLoader.js'
@@ -224,6 +225,9 @@ export default function MixerTab({ active = true, onReady }) {
   const [sendMatrix, setSendMatrix] = useState({})
 
   const [automationCfg, setAutomationCfg] = useState({})
+  // Latest lanes for handlers that patch one lane without re-binding on every edit.
+  const automationCfgRef = useRef(automationCfg)
+  automationCfgRef.current = automationCfg
 
   const automationSourceIds = useMemo(() => {
     const ids = new Set()
@@ -1101,7 +1105,9 @@ export default function MixerTab({ active = true, onReady }) {
       let changed = false
       const nextLanes = {}
       for (const [laneId, cfg] of Object.entries(lanes)) {
-        if (cfg?.paramTarget && !validIds.has(cfg.paramTarget)) {
+        // A device on/off lane is never reset: one that can't act right now
+        // (Texture on an instrument without grains) is kept and shown inactive.
+        if (cfg?.paramTarget && !validIds.has(cfg.paramTarget) && !isToggleTarget(cfg.paramTarget)) {
           nextLanes[laneId] = { ...cfg, paramTarget: 'volume' }
           engineRef.current?.updateAutomationLane(routeId, laneId, { paramTarget: 'volume' })
           changed = true
@@ -1741,7 +1747,12 @@ export default function MixerTab({ active = true, onReady }) {
     engineRef.current?.removeAutomationLane(routeId, laneId)
   }, [])
 
-  const handleUpdateAutomationLane = useCallback((routeId, laneId, cfg) => {
+  const handleUpdateAutomationLane = useCallback((routeId, laneId, patch) => {
+    // A device on/off lane is drawn, not driven by a line: switching a lane to one
+    // drops its source and starts it with an empty breakpoint list.
+    const cfg = isToggleTarget(patch.paramTarget)
+      ? { sourceRouteId: '', ...patch, steps: patch.steps ?? automationCfgRef.current?.[routeId]?.[laneId]?.steps ?? [] }
+      : patch
     setAutomationCfg(a => ({
       ...a,
       [routeId]: {
@@ -1959,10 +1970,12 @@ export default function MixerTab({ active = true, onReady }) {
     perStopSteps: trackPitchOffsets,
     trackArps,
     trackLabels,
+    automationCfg,
   }), [
     bpm, disabledRoutes, soloRoutes, trackScales, trackOctaves, trackSemitones, trackSoundModes,
     trackLegatos, trackSpeeds, trackLoopRegions, trackGridResolutions, trackPitchVariety, trackStopVelocities, trackDroneModes,
     trackNoteChances, trackStopChances, trackNoteLengths, trackStopNoteLengths, trackStopVelocityMaps, trackSynthTypes, automationSourceIds, trackPitchOffsets, trackArps, trackLabels,
+    automationCfg,
   ])
 
   // Switching data source stops mock playback first. Shared by the desktop

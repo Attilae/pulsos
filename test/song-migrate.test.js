@@ -91,6 +91,25 @@ test('stale automation targets fall back to volume rather than binding to nothin
   assert.deepEqual(lane.points, { 0: 1 }, 'authored points survive')
 })
 
+test('device toggle lanes keep their cleaned breakpoints and drop any source', () => {
+  const s = migrateSnapshot({
+    muted: { M1: false },
+    trackSynthTypes: { M1: 'Synth' },
+    activeFxTracks: [],
+    automationCfg: { M1: {
+      arp: { sourceRouteId: '4', paramTarget: 'device.arp', points: { 0: 1 }, steps: [{ cell: 16.2, on: 1 }, { cell: 99, on: true }, { cell: 0, on: false }] },
+      sc:  { paramTarget: 'device.sidechain', steps: 'garbage' },
+    } },
+  }, SCHEMA_VERSION)
+  const { arp, sc } = s.automationCfg.M1
+  assert.equal(arp.paramTarget, 'device.arp')
+  assert.equal(arp.sourceRouteId, '')
+  assert.deepEqual(arp.points, {})
+  assert.deepEqual(arp.steps, [{ cell: 0, on: false }, { cell: 16, on: true }])
+  assert.equal(sc.paramTarget, 'device.sidechain', 'valid without a sidechain source; shown inactive')
+  assert.deepEqual(sc.steps, [])
+})
+
 test('a pre-v4 song keeps its geographic melody when the default contour changes', () => {
   const s = migrateSnapshot({
     cityId: 'berlin',
