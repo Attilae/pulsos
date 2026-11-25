@@ -92,7 +92,8 @@ export default function LaneSheet({
   const resonatorStatus = useResonatorStatus()
   const { targets: autoTargets, visuals: autoVisuals } = useAutomationPlayback({ lanes: automationLanes, routes: automationRoutes,
     regions: sourceRegions, resolutions: sourceResolutions, started, active: open && !!route,
-    synthType: synthType ?? 'Synth', adsr, filter, granular })
+    synthType: synthType ?? 'Synth', adsr, filter, granular,
+    laneRegion: loopRegion, laneSpeed: speed, devices: { arp, granular, sidechain } })
 
   const trackScale = scale ?? { root: 'C', scaleType: 'major' }
   const pv = { ...DEFAULT_PITCH_VARIETY, ...pitchVariety }

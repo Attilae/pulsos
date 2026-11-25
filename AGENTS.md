@@ -522,6 +522,22 @@ visual contract: tokens, named rules, do's and don'ts. The UI conventions it rel
   is now stored (`handleStopVelocity(…, null)` is what clears an override). Merged chords use their
   strongest stop (`cell.signals`). Read at callback time (`engine._stopVelocityMaps`). Plans:
   `stopVelocity` (`{source: 'off'}` switches back; the new-composition baseline resets it).
+- **Device on/off automation** (`lib/toggleAutomation.js`, pure and tested): an automation lane
+  whose target is `device.arp` / `device.texture` / `device.sidechain` is a *drawn* lane with no
+  source line. It stores `steps: [{cell, on}]` on the 64-cell grid and plays over the
+  **destination lane's own loop** (window, speed, Part anchor), so switches land on the notes they
+  gate. The state holds from each point, wraps round the loop, and with no point in the window falls
+  back to the rack button. The ids are `device.*`, not `grain.*`, because several code paths treat
+  every `grain.*` id as a grain knob. Engine: `_toggleLanes` (derived from the lane cfgs by
+  `_syncToggleLanes`), `_deviceOn(routeId, device, time)` (Arp and Sidechain ask it at each note's
+  audio time, via `_laneCellAt`), and for Texture a looping `_toggleParts` Part that calls
+  `setBypass(off, time)` on the voice. A Texture lane keeps the voice built (`_granularWanted`) and
+  bypasses it rather than tearing it down, so it never clicks and the Texture buffer keeps its history.
+  The UI is `components/lane/ToggleAutomationRail.jsx`: click to add a point, drag to move it,
+  double-click to delete, plus a step list in the phone sheet. While a lane drives a device, its rack
+  button is locked and shows the live state (`deviceToggleState` in `lib/automationControl.js`).
+  MIDI export resolves Arp per note the same way. These lanes are never reset to `volume` on a
+  synth or Texture change, and an inactive one (no sidechain source) is kept.
 - Fresh sessions now start with `DEFAULT_FX_TRACKS = ['reverb', 'delay', 'chorus', 'distortion']`
   pre-activated (was empty), so automation targets like `send.reverb` are available immediately.
 
